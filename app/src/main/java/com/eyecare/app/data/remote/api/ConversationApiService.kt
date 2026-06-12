@@ -1,0 +1,21 @@
+package com.eyecare.app.data.remote.api
+
+import com.eyecare.app.data.remote.dto.MessageDtos
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+
+interface ConversationApiService {
+    @GET("conversations")
+    suspend fun getConversations(): MessageDtos.ConversationListResponse
+
+    @POST("conversations")
+    suspend fun createConversation(@Body request: MessageDtos.CreateConversationRequest): MessageDtos.ConversationResponse
+
+    @GET("conversations/{id}/messages")
+    suspend fun getMessages(@Path("id") id: Int): MessageDtos.MessageListResponse
+
+    @POST("conversations/{id}/messages")
+    suspend fun sendMessage(@Path("id") id: Int, @Body request: MessageDtos.SendMessageRequest): MessageDtos.MessageResponse
+}

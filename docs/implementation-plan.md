@@ -772,19 +772,19 @@ Version Catalog + Gradle Config
 **Description:** Build the persistent single-conversation chat UI with message bubbles, text input, and send functionality.
 
 **Acceptance criteria:**
-- [ ] `ConversationApiService` + `MessageApiService` with list/create endpoints
-- [ ] On open: fetches user's first conversation (or creates one on first send)
-- [ ] Messages as bubbles: own messages right-aligned (blue), staff left-aligned (grey)
-- [ ] Text input bar at bottom with send button
-- [ ] Read status indicator on messages
-- [ ] Auto-scrolls to latest message
-- [ ] Bottom nav hides when chat is open (full-screen experience per spec)
-- [ ] Loading/error states
+- [x] `ConversationApiService` + `MessageApiService` with list/create endpoints
+- [x] On open: fetches user's first conversation (or creates one on first send)
+- [x] Messages as bubbles: own messages right-aligned (blue), staff left-aligned (grey)
+- [x] Text input bar at bottom with send button
+- [x] Read status indicator on messages
+- [x] Auto-scrolls to latest message
+- [x] Bottom nav hides when chat is open (full-screen experience per spec)
+- [x] Loading/error states
 
 **Verification:**
-- [ ] Unit test: ViewModel handles conversation creation, message sending, state updates
+- [x] Unit test: ViewModel handles conversation creation, message sending, state updates
 - [ ] Compose preview for bubble layout
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 2, Task 7
 
