@@ -288,16 +288,16 @@ Version Catalog + Gradle Config
 **Description:** Define appointment API service, DTOs, domain models, and repository with list/detail/create operations.
 
 **Acceptance criteria:**
-- [ ] `AppointmentApiService` with `getAppointments()`, `getAppointment(id)`, `createAppointment(body)` endpoints
-- [ ] DTOs with Kotlinx Serialization annotations
-- [ ] `Appointment` domain model (id, visitReason, status, scheduledAt, contactNotes, staffNotes)
-- [ ] `AppointmentRepository` interface + `AppointmentRepositoryImpl`
-- [ ] Error mapping for 422 validation errors
-- [ ] Unit test for DTO → domain mapping
+- [x] `AppointmentApiService` with `getAppointments()`, `getAppointment(id)`, `createAppointment(body)` endpoints
+- [x] DTOs with Kotlinx Serialization annotations
+- [x] `Appointment` domain model (id, visitReason, status, scheduledAt, contactNotes, staffNotes)
+- [x] `AppointmentRepository` interface + `AppointmentRepositoryImpl`
+- [x] Error mapping for 422 validation errors
+- [x] Unit test for DTO → domain mapping
 
 **Verification:**
-- [ ] Unit tests pass
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] Unit tests pass
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 4 (interceptor), Task 2 (DI)
 
