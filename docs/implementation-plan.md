@@ -884,21 +884,21 @@ Version Catalog + Gradle Config
 **Description:** Build the rich dashboard matching the prototype: greeting, vision status card, prescription warning, next appointment card, active order tracker, new arrivals carousel.
 
 **Acceptance criteria:**
-- [ ] Greeting: "Good morning/afternoon/evening, {name}" + notification bell icon (top-right)
-- [ ] "Your Vision Health" section header
-- [ ] Vision Status card: "Optimal" + "20/20" circular badge (or derived from latest prescription)
-- [ ] Prescription Expiring warning card (conditional — red border, shows days until expiry, "Book Exam" button)
-- [ ] Next Appointment card: dark blue background, status chip, visit reason, date, doctor name, "View all" link
-- [ ] Active Order tracker card: progress bar visualization of order status
-- [ ] New Arrivals: horizontal scrolling product carousel (Coil images)
-- [ ] All cards are tappable → navigate to relevant detail screens
-- [ ] Pull-to-refresh reloads all data
-- [ ] Loading/empty states per section
+- [x] Greeting: "Good morning/afternoon/evening, {name}" + notification bell icon (top-right)
+- [x] "Your Vision Health" section header
+- [x] Vision Status card: "Optimal" + "20/20" circular badge (or derived from latest prescription)
+- [x] Prescription Expiring warning card (conditional — red border, shows days until expiry, "Book Exam" button)
+- [x] Next Appointment card: dark blue background, status chip, visit reason, date, doctor name, "View all" link
+- [x] Active Order tracker card: progress bar visualization of order status
+- [x] New Arrivals: horizontal scrolling product carousel (Coil images)
+- [x] All cards are tappable → navigate to relevant detail screens
+- [x] Pull-to-refresh reloads all data
+- [x] Loading/empty states per section
 
 **Verification:**
-- [ ] Unit test: HomeViewModel aggregates data from multiple repos
+- [x] Unit test: HomeViewModel aggregates data from multiple repos
 - [ ] Compose preview matches prototype layout
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 8, Task 11, Task 17, Task 21 (reads from all repos)
 
