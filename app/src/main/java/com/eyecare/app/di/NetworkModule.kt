@@ -1,6 +1,7 @@
 package com.eyecare.app.di
 
 import com.eyecare.app.BuildConfig
+import com.eyecare.app.data.remote.interceptor.AuthInterceptor
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides
@@ -26,8 +27,9 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient =
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient =
         OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
             .apply {
                 if (BuildConfig.DEBUG) {
                     addInterceptor(

@@ -54,6 +54,10 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests.all { it.useJUnitPlatform() }
+    }
+
     room {
         schemaDirectory("$projectDir/schemas")
     }
@@ -131,9 +135,11 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
 
     // Instrumented Tests
     androidTestImplementation(platform(libs.androidx.compose.bom))
