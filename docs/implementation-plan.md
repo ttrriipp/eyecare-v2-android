@@ -560,20 +560,20 @@ Version Catalog + Gradle Config
 **Description:** Render frame PNG overlay positioned on detected face landmarks. Implement the minimal AR UI: variant chip selector, close button, "Order this frame" FAB.
 
 **Acceptance criteria:**
-- [ ] Frame PNG loaded from `ar_asset_reference` URL via Coil (cached)
-- [ ] Frame bitmap drawn as overlay: centered on nose bridge, scaled to temple-to-temple width, tilted with face rotation
-- [ ] Variant selector: horizontal chip row at bottom (translucent background)
-- [ ] Switching variant immediately updates overlay frame asset
-- [ ] Close button (top-left) returns to product detail
-- [ ] "Order this frame" FAB (bottom-right) → navigates to order request with selected variant
-- [ ] No-face state: shows guide message ("Position your face in the center")
-- [ ] Full-bleed camera — no nav bar, no status bar content (immersive)
+- [x] Frame PNG loaded from `ar_asset_reference` URL via Coil (cached)
+- [x] Frame bitmap drawn as overlay: centered on nose bridge, scaled to temple-to-temple width, tilted with face rotation
+- [x] Variant selector: horizontal chip row at bottom (translucent background)
+- [x] Switching variant immediately updates overlay frame asset
+- [x] Close button (top-left) returns to product detail
+- [x] "Order this frame" FAB (bottom-right) → navigates to order request with selected variant
+- [x] No-face state: shows guide message ("Position your face in the center")
+- [x] Full-bleed camera — no nav bar, no status bar content (immersive)
 
 **Verification:**
 - [ ] Manual test: frame tracks face movement, scales/tilts correctly
 - [ ] Variant switch changes overlay
 - [ ] 30+ FPS maintained
-- [ ] `./gradlew assembleDebug` succeeds
+- [x] `./gradlew assembleDebug` succeeds
 
 **Dependencies:** Task 15, Task 11 (product variant data)
 

@@ -120,8 +120,14 @@ fun EyecareNavGraph(
                             onNavigateToOrder = { _, _ -> /* Task 18 */ },
                         )
                     }
-                    composable<ArTryOn> {
-                        ArTryOnScreen(onBack = { navController.popBackStack() })
+                    composable<ArTryOn> { backStackEntry ->
+                        val route = backStackEntry.toRoute<ArTryOn>()
+                        ArTryOnScreen(
+                            productId = route.productId,
+                            initialVariantId = route.variantId,
+                            onBack = { navController.popBackStack() },
+                            onNavigateToOrder = { _, _ -> /* Task 18 */ },
+                        )
                     }
                     composable<Appointments> {
                         AppointmentListScreen(
