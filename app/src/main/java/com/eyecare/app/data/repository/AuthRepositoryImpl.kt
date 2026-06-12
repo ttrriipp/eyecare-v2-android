@@ -19,8 +19,14 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun login(email: String, password: String): Result<User> =
         safeCall { api.login(AuthDtos.LoginRequest(email, password)) }
 
-    override suspend fun register(request: AuthDtos.RegisterRequest): Result<User> =
-        safeCall { api.register(request) }
+    override suspend fun register(
+        name: String,
+        email: String,
+        phone: String?,
+        password: String,
+        passwordConfirmation: String,
+    ): Result<User> =
+        safeCall { api.register(AuthDtos.RegisterRequest(name, email, phone, password, passwordConfirmation)) }
 
     override suspend fun logout(): Result<Unit> = runCatching {
         api.logout()
@@ -39,7 +45,7 @@ class AuthRepositoryImpl @Inject constructor(
         }.recoverCatching { throwable ->
             when {
                 throwable is HttpException && throwable.code() == 422 -> {
-                    val body = throwable.response()?.errorBody()?.string() ?: ""
+                    val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
                     val parsed = json.decodeFromString<AuthDtos.ValidationErrorBody>(body)
                     throw AuthError.ValidationError(parsed.errors)
                 }

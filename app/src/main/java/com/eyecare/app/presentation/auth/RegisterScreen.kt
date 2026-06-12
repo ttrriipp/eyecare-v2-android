@@ -41,7 +41,10 @@ fun RegisterScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Success) onRegisterSuccess()
+        if (uiState is AuthUiState.Success) {
+            onRegisterSuccess()
+            viewModel.resetState()
+        }
     }
 
     RegisterContent(

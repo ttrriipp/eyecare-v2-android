@@ -131,7 +131,7 @@ class AuthViewModelTest {
 
     @Test
     fun `register success emits Success state`() = runTest {
-        coEvery { repo.register(any()) } returns Result.success(fakeUser)
+        coEvery { repo.register(any(), any(), anyNullable(), any(), any()) } returns Result.success(fakeUser)
 
         vm.uiState.test {
             awaitItem() // Idle

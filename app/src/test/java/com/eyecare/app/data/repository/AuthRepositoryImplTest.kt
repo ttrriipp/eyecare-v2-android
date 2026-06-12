@@ -2,7 +2,6 @@ package com.eyecare.app.data.repository
 
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.data.remote.api.AuthApiService
-import com.eyecare.app.data.remote.dto.AuthDtos
 import com.eyecare.app.domain.model.AuthError
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import io.mockk.mockk
@@ -90,9 +89,7 @@ class AuthRepositoryImplTest {
                 """{"data":{"token":"regTok","user":{"id":2,"name":"Bob","email":"bob@example.com","role":"customer"}}}"""
             )
         )
-        val result = repository.register(
-            AuthDtos.RegisterRequest("Bob", "bob@example.com", null, "password1", "password1")
-        )
+        val result = repository.register("Bob", "bob@example.com", null, "password1", "password1")
         assertTrue(result.isSuccess)
         assertEquals("Bob", result.getOrThrow().name)
     }

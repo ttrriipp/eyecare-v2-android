@@ -39,7 +39,10 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Success) onLoginSuccess()
+        if (uiState is AuthUiState.Success) {
+            onLoginSuccess()
+            viewModel.resetState()
+        }
     }
 
     LoginContent(

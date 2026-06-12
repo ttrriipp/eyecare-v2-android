@@ -3,7 +3,6 @@ package com.eyecare.app.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.data.local.TokenManager
-import com.eyecare.app.data.remote.dto.AuthDtos
 import com.eyecare.app.domain.model.AuthError
 import com.eyecare.app.domain.model.User
 import com.eyecare.app.domain.repository.AuthRepository
@@ -50,7 +49,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = AuthUiState.Loading
             _uiState.value = authRepository.register(
-                AuthDtos.RegisterRequest(name, email, phone?.takeIf { it.isNotBlank() }, password, confirm)
+                name, email, phone?.takeIf { it.isNotBlank() }, password, confirm
             ).fold(
                 onSuccess = { AuthUiState.Success(it) },
                 onFailure = { it.toUiState() },
