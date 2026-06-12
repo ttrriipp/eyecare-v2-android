@@ -69,16 +69,16 @@ Version Catalog + Gradle Config
 **Description:** Configure Gradle KTS with all dependencies in version catalog, set correct package name, min SDK, build config fields, and ktlint.
 
 **Acceptance criteria:**
-- [ ] Version catalog declares: Hilt, Retrofit, OkHttp, Kotlinx Serialization, Room, Coil, Navigation Compose, CameraX, MediaPipe, Security-Crypto, JUnit 5, MockK, Turbine
-- [ ] `app/build.gradle.kts` applies Hilt, KSP, Kotlinx Serialization, Room plugins
-- [ ] `namespace` and `applicationId` set to `com.eyecare.app`
-- [ ] `minSdk = 26`, `targetSdk = 35`
-- [ ] `buildConfigField` for `API_BASE_URL` with debug/release variants
-- [ ] ktlint plugin configured
-- [ ] `./gradlew assembleDebug` succeeds
+- [x] Version catalog declares: Hilt, Retrofit, OkHttp, Kotlinx Serialization, Room, Coil, Navigation Compose, CameraX, MediaPipe, Security-Crypto, JUnit 5, MockK, Turbine
+- [x] `app/build.gradle.kts` applies Hilt, KSP, Kotlinx Serialization, Room plugins
+- [x] `namespace` and `applicationId` set to `com.eyecare.app`
+- [x] `minSdk = 26`, `targetSdk = 35`
+- [x] `buildConfigField` for `API_BASE_URL` with debug/release variants
+- [x] ktlint plugin configured
+- [x] `./gradlew assembleDebug` succeeds
 
 **Verification:**
-- [ ] `./gradlew assembleDebug` completes without errors
+- [x] `./gradlew assembleDebug` completes without errors
 - [ ] `./gradlew ktlintCheck` passes
 
 **Dependencies:** None
@@ -98,15 +98,15 @@ Version Catalog + Gradle Config
 **Description:** Set up Hilt with `@HiltAndroidApp` Application class, annotate MainActivity, create NetworkModule providing OkHttp, Retrofit, and Kotlinx Serialization converter.
 
 **Acceptance criteria:**
-- [ ] `EyecareApp` annotated with `@HiltAndroidApp`
-- [ ] `MainActivity` annotated with `@AndroidEntryPoint`
-- [ ] `NetworkModule` provides: `OkHttpClient`, `Retrofit`, `Json` (kotlinx)
-- [ ] Retrofit base URL reads from `BuildConfig.API_BASE_URL`
-- [ ] App launches without crash
+- [x] `EyecareApp` annotated with `@HiltAndroidApp`
+- [x] `MainActivity` annotated with `@AndroidEntryPoint`
+- [x] `NetworkModule` provides: `OkHttpClient`, `Retrofit`, `Json` (kotlinx)
+- [x] Retrofit base URL reads from `BuildConfig.API_BASE_URL`
+- [x] App launches without crash
 
 **Verification:**
-- [ ] App compiles and runs on emulator (still shows placeholder UI)
-- [ ] Hilt component generation succeeds (no missing bindings)
+- [x] App compiles and runs on emulator (still shows placeholder UI)
+- [x] Hilt component generation succeeds (no missing bindings)
 
 **Dependencies:** Task 1
 
@@ -125,15 +125,15 @@ Version Catalog + Gradle Config
 **Description:** Replace default purple theme with the fixed clinical blue palette, configure Outfit + DM Sans fonts, define component shapes and color tokens.
 
 **Acceptance criteria:**
-- [ ] `Color.kt` defines all spec tokens (primary `#4A90E2`, surface, status colors, etc.)
-- [ ] `Type.kt` defines typography using Outfit (headings) and DM Sans (body)
-- [ ] `Theme.kt` uses fixed `lightColorScheme` (no dynamic color), disables dark theme
-- [ ] Font files added to `res/font/`
+- [x] `Color.kt` defines all spec tokens (primary `#4A90E2`, surface, status colors, etc.)
+- [x] `Type.kt` defines typography using Outfit (headings) and DM Sans (body)
+- [x] `Theme.kt` uses fixed `lightColorScheme` (no dynamic color), disables dark theme
+- [x] Font files added to `res/font/` (via `ui-text-google-fonts` downloadable fonts provider)
 - [ ] Preview composable confirms visual match to prototype palette
 
 **Verification:**
 - [ ] Compose preview shows clinical blue primary, white surface, correct typography
-- [ ] No purple remnants in theme
+- [x] No purple remnants in theme
 
 **Dependencies:** Task 1
 
@@ -153,16 +153,16 @@ Version Catalog + Gradle Config
 **Description:** Implement secure token persistence in EncryptedSharedPreferences and an OkHttp interceptor that attaches the Bearer token and handles 401 globally.
 
 **Acceptance criteria:**
-- [ ] `TokenManager` stores/retrieves/clears token from EncryptedSharedPreferences
-- [ ] `AuthInterceptor` reads token from `TokenManager` and adds `Authorization: Bearer {token}` header
-- [ ] `AuthInterceptor` detects 401 responses and signals logout (via shared event/flow)
-- [ ] `TokenManager` is provided via Hilt (`@Singleton`)
-- [ ] Unit test: store → retrieve → clear token
-- [ ] Unit test: interceptor adds header when token exists, skips when absent
+- [x] `TokenManager` stores/retrieves/clears token from EncryptedSharedPreferences
+- [x] `AuthInterceptor` reads token from `TokenManager` and adds `Authorization: Bearer {token}` header
+- [x] `AuthInterceptor` detects 401 responses and signals logout (via shared event/flow)
+- [x] `TokenManager` is provided via Hilt (`@Singleton`)
+- [x] Unit test: store → retrieve → clear token
+- [x] Unit test: interceptor adds header when token exists, skips when absent
 
 **Verification:**
-- [ ] Unit tests pass
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] Unit tests pass
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 2
 
@@ -182,17 +182,17 @@ Version Catalog + Gradle Config
 **Description:** Define auth API service interface, DTOs, domain model, and repository implementation handling login, register, logout, and error mapping.
 
 **Acceptance criteria:**
-- [ ] `AuthApiService` interface with `login`, `register`, `logout`, `getUser` suspend functions
-- [ ] Request/Response DTOs with Kotlinx Serialization annotations
-- [ ] `User` domain model (id, name, email, role)
-- [ ] `AuthRepository` interface in domain layer
-- [ ] `AuthRepositoryImpl` maps DTOs → domain, handles 422 (validation) and 429 (rate limit) errors
-- [ ] Unit test: repository maps success response correctly
-- [ ] Unit test: repository maps 422 error with field messages
+- [x] `AuthApiService` interface with `login`, `register`, `logout`, `getUser` suspend functions
+- [x] Request/Response DTOs with Kotlinx Serialization annotations
+- [x] `User` domain model (id, name, email, role)
+- [x] `AuthRepository` interface in domain layer
+- [x] `AuthRepositoryImpl` maps DTOs → domain, handles 422 (validation) and 429 (rate limit) errors
+- [x] Unit test: repository maps success response correctly
+- [x] Unit test: repository maps 422 error with field messages
 
 **Verification:**
-- [ ] Unit tests pass
-- [ ] No Gson usage anywhere
+- [x] Unit tests pass
+- [x] No Gson usage anywhere
 
 **Dependencies:** Task 4
 
