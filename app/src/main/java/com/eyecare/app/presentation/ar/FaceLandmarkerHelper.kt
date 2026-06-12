@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.SystemClock
+import android.util.Log
 import androidx.camera.core.ImageProxy
 import com.eyecare.app.presentation.ar.model.ArFaceState
 import com.eyecare.app.presentation.ar.model.FaceFrame
@@ -13,7 +14,6 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
 import kotlin.math.atan2
-import kotlin.math.sqrt
 
 private const val MODEL_ASSET = "face_landmarker.task"
 
@@ -39,7 +39,10 @@ class FaceLandmarkerHelper(
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumFaces(1)
             .setResultListener(::handleResult)
-            .setErrorListener { e -> onResult(ArFaceState.NoFace) }
+            .setErrorListener { e -> 
+                Log.e("FaceLandmarker", "Error: ${e.message}")
+                onResult(ArFaceState.NoFace)
+            }
             .build()
 
         runCatching {
@@ -47,14 +50,17 @@ class FaceLandmarkerHelper(
         }.onFailure { onResult(ArFaceState.NoFace) }
     }
 
+    private val rotationMatrix = Matrix()
+
     /** Called from CameraX ImageAnalysis on each frame. */
     fun detectAsync(imageProxy: ImageProxy) {
-        val bitmap = imageProxy.toBitmap().rotate(imageProxy.imageInfo.rotationDegrees.toFloat())
-        val mpImage = BitmapImageBuilder(bitmap).build()
-        runCatching {
-            landmarker?.detectAsync(mpImage, SystemClock.uptimeMillis())
+        imageProxy.use { proxy ->
+            val bitmap = proxy.toBitmap().rotate(proxy.imageInfo.rotationDegrees.toFloat())
+            val mpImage = BitmapImageBuilder(bitmap).build()
+            runCatching {
+                landmarker?.detectAsync(mpImage, SystemClock.uptimeMillis())
+            }.onFailure { Log.w("FaceLandmarker", "detectAsync failed: ${it.message}") }
         }
-        imageProxy.close()
     }
 
     fun close() {
@@ -102,7 +108,8 @@ class FaceLandmarkerHelper(
 
     private fun Bitmap.rotate(degrees: Float): Bitmap {
         if (degrees == 0f) return this
-        val matrix = Matrix().apply { postRotate(degrees) }
-        return Bitmap.createBitmap(this, 0, 0, width, height, matrix, true)
+        rotationMatrix.reset()
+        rotationMatrix.postRotate(degrees)
+        return Bitmap.createBitmap(this, 0, 0, width, height, rotationMatrix, true)
     }
 }
