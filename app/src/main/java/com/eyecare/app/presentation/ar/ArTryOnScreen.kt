@@ -90,14 +90,12 @@ fun ArTryOnScreen(
                 }
                 when (val face = faceState) {
                     is ArFaceState.Detected -> {
-                        if (frameUrl != null) {
-                            FrameOverlayRenderer(
-                                face = face.frame,
-                                frameAssetUrl = frameUrl,
-                                imageLoader = imageLoader,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
+                        FrameOverlayRenderer(
+                            face = face.frame,
+                            frameAssetUrl = frameUrl,
+                            imageLoader = imageLoader,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
                     is ArFaceState.NoFace -> {
                         // Guide message
