@@ -121,7 +121,7 @@ class BookAppointmentViewModelTest {
             vm.submit(null)
             awaitItem() // loading
             dispatcher.scheduler.advanceUntilIdle()
-            assertNull(awaitItem().result?.let { (it as? BookingResult.Error)?.message })
+            assertInstanceOf(BookingResult.Success::class.java, awaitItem().result)
             cancelAndIgnoreRemainingEvents()
         }
     }

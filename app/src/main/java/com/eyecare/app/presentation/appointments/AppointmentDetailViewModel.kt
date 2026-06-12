@@ -3,8 +3,10 @@ package com.eyecare.app.presentation.appointments
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.repository.AppointmentRepository
+import com.eyecare.app.presentation.navigation.AppointmentDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +26,7 @@ class AppointmentDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val appointmentId: Int = checkNotNull(savedStateHandle["appointmentId"])
+    private val appointmentId: Int = savedStateHandle.toRoute<AppointmentDetail>().appointmentId
 
     private val _uiState = MutableStateFlow<AppointmentDetailUiState>(AppointmentDetailUiState.Loading)
     val uiState: StateFlow<AppointmentDetailUiState> = _uiState.asStateFlow()

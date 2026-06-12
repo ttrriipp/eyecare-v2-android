@@ -36,7 +36,12 @@ class AppointmentListViewModel @Inject constructor(
             _uiState.value = repository.getAppointments().fold(
                 onSuccess = { list ->
                     if (list.isEmpty()) AppointmentListUiState.Empty
-                    else AppointmentListUiState.Success(list.sortedByDescending { it.scheduledAt })
+                    else AppointmentListUiState.Success(
+                        list.sortedByDescending {
+                            runCatching { java.time.Instant.parse(it.scheduledAt) }
+                                .getOrElse { java.time.Instant.EPOCH }
+                        }
+                    )
                 },
                 onFailure = { AppointmentListUiState.Error(it.message ?: "Failed to load") },
             )

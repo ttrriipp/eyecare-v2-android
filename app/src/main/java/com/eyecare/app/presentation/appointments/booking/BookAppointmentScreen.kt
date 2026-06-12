@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+// Demo: static slots — replace with API-driven availability in production
 private val TIME_SLOTS = listOf("09:00", "10:00", "11:30", "14:00", "15:30")
 
 private data class VisitReason(val id: String, val label: String, val icon: ImageVector)
