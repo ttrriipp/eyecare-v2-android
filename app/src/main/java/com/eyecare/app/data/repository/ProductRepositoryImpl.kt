@@ -18,9 +18,8 @@ import javax.inject.Inject
 class ProductRepositoryImpl @Inject constructor(
     private val api: ProductApiService,
     private val dao: ProductDao,
+    private val json: Json,
 ) : ProductRepository {
-
-    private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun getProducts(): Result<List<Product>> {
         return try {
@@ -35,8 +34,12 @@ class ProductRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getProduct(id: Int): Result<Product> = runCatching {
-        api.getProduct(id).data.toDomain()
+    override suspend fun getProduct(id: Int): Result<Product> = try {
+        Result.success(api.getProduct(id).data.toDomain())
+    } catch (e: Exception) {
+        val cached = dao.getById(id)
+        if (cached != null) Result.success(cached.toDomain())
+        else Result.failure(e)
     }
 
     private fun ProductDtos.ProductDto.toEntity() = ProductEntity(

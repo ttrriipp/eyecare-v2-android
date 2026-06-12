@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.catalog
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -209,9 +210,7 @@ fun ProductDetailScreen(
                             onClick = { onNavigateToOrder(product.id, selected.id) },
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(26.dp),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.5.dp, MaterialTheme.colorScheme.primary
-                            ),
+                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
                         ) {
                             Icon(Icons.Outlined.ShoppingBag, contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary)

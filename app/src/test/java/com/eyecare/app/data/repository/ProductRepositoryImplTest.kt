@@ -8,6 +8,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -37,11 +38,13 @@ class ProductRepositoryImplTest {
         variantsJson = "[]", imagesJson = "[]",
     )
 
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
     @BeforeEach
     fun setup() {
         api = mockk()
         dao = mockk(relaxed = true)
-        repository = ProductRepositoryImpl(api, dao)
+        repository = ProductRepositoryImpl(api, dao, json)
     }
 
     @Test
