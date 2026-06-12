@@ -461,18 +461,18 @@ Version Catalog + Gradle Config
 **Description:** Product detail with image carousel, variant selector, pricing, dimensions, and action buttons (Try AR / Order).
 
 **Acceptance criteria:**
-- [ ] Horizontal image pager with page indicator dots
-- [ ] Product name, brand, description, dimensions displayed
-- [ ] Variant selector (chips or dropdown): shows name, price difference, SKU
-- [ ] Selected variant updates displayed price
-- [ ] "Try with AR" button — visible only when selected variant has `ar_eligible = true`
-- [ ] "Order this frame" button → navigates to order request (Phase 5) with variant pre-selected
-- [ ] Back navigation returns to list with scroll position preserved
+- [x] Horizontal image pager with page indicator dots
+- [x] Product name, brand, description, dimensions displayed
+- [x] Variant selector (chips or dropdown): shows name, price difference, SKU
+- [x] Selected variant updates displayed price
+- [x] "Try with AR" button — visible only when selected variant has `ar_eligible = true`
+- [x] "Order this frame" button → navigates to order request (Phase 5) with variant pre-selected
+- [x] Back navigation returns to list with scroll position preserved
 
 **Verification:**
-- [ ] Unit test: variant selection updates state correctly
+- [x] Unit test: variant selection updates state correctly
 - [ ] Compose preview with multi-variant product
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 11, Task 12 (navigation from list)
 

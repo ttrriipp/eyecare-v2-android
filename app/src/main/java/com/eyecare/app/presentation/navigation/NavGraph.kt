@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
@@ -23,6 +24,8 @@ import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.catalog.CatalogScreen
+import com.eyecare.app.presentation.catalog.ProductDetailScreen
+import com.eyecare.app.presentation.catalog.ProductDetailViewModel
 import com.eyecare.app.presentation.catalog.ProductListScreen
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
@@ -106,8 +109,14 @@ fun EyecareNavGraph(
                             onNavigateToDetail = { id -> navController.navigate(ProductDetail(id)) },
                         )
                     }
-                    composable<ProductDetail> {
-                        CatalogScreen() // placeholder until Task 13
+                    composable<ProductDetail> { backStackEntry ->
+                        val route = backStackEntry.toRoute<ProductDetail>()
+                        ProductDetailScreen(
+                            productId = route.productId,
+                            onBack = { navController.popBackStack() },
+                            onNavigateToAr = { _, _ -> /* Task 14 */ },
+                            onNavigateToOrder = { _, _ -> /* Task 18 */ },
+                        )
                     }
                     composable<Appointments> {
                         AppointmentListScreen(
