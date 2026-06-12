@@ -23,8 +23,8 @@ class ProductRepositoryImplTest {
     private val fakeProductDto = ProductDtos.ProductDto(
         id = 1, name = "Clubmaster", slug = "clubmaster", description = "Classic",
         price = "165.00", dimensions = null,
-        brand = ProductDtos.BrandDto(1, "Ray-Ban"),
-        category = ProductDtos.CategoryDto(1, "Frames"),
+        brand = "Ray-Ban",
+        category = "Frames",
         variants = listOf(
             ProductDtos.VariantDto(1, "Black", "RB-001", "165.00", null, true, "frames/rb001.png")
         ),

@@ -14,17 +14,11 @@ object ProductDtos {
         val description: String? = null,
         val price: String,
         val dimensions: JsonElement? = null,
-        val brand: BrandDto,
-        val category: CategoryDto,
+        val brand: String,
+        val category: String,
         val variants: List<VariantDto> = emptyList(),
         val images: List<ImageDto> = emptyList(),
     )
-
-    @Serializable
-    data class BrandDto(val id: Int, val name: String)
-
-    @Serializable
-    data class CategoryDto(val id: Int, val name: String)
 
     @Serializable
     data class VariantDto(
