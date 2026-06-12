@@ -18,6 +18,7 @@ import kotlinx.serialization.Serializable
 
 // Catalog sub-destinations
 @Serializable data class ProductDetail(val productId: Int)
+@Serializable data class ArTryOn(val productId: Int, val variantId: Int)
 
 // Chat (FAB destination, not a tab)
 @Serializable object Chat

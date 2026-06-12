@@ -23,6 +23,7 @@ import com.eyecare.app.presentation.appointments.AppointmentsScreen
 import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
+import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.catalog.CatalogScreen
 import com.eyecare.app.presentation.catalog.ProductDetailScreen
 import com.eyecare.app.presentation.catalog.ProductDetailViewModel
@@ -45,7 +46,8 @@ fun EyecareNavGraph(
     val showBottomNav = currentDest?.route?.let { route ->
         !route.contains("Login") && !route.contains("Register") &&
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
-            !route.contains("BookAppointment") && !route.contains("ProductDetail")
+            !route.contains("BookAppointment") && !route.contains("ProductDetail") &&
+            !route.contains("ArTryOn")
     } ?: false
 
     Scaffold(
@@ -114,9 +116,12 @@ fun EyecareNavGraph(
                         ProductDetailScreen(
                             productId = route.productId,
                             onBack = { navController.popBackStack() },
-                            onNavigateToAr = { _, _ -> /* Task 14 */ },
+                            onNavigateToAr = { pId, vId -> navController.navigate(ArTryOn(pId, vId)) },
                             onNavigateToOrder = { _, _ -> /* Task 18 */ },
                         )
+                    }
+                    composable<ArTryOn> {
+                        ArTryOnScreen(onBack = { navController.popBackStack() })
                     }
                     composable<Appointments> {
                         AppointmentListScreen(

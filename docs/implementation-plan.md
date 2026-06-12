@@ -504,16 +504,16 @@ Version Catalog + Gradle Config
 **Description:** Set up CameraX front-facing camera preview inside a Compose `AndroidView`, with runtime permission request and denial handling.
 
 **Acceptance criteria:**
-- [ ] Camera permission requested at runtime with rationale dialog
-- [ ] Permission denied → show explanation with "Open Settings" button
-- [ ] Front-facing CameraX preview renders in full-screen `AndroidView`
-- [ ] Preview lifecycle-aware (stops when screen exits)
-- [ ] No crash on permission denial or camera unavailable
+- [x] Camera permission requested at runtime with rationale dialog
+- [x] Permission denied → show explanation with "Open Settings" button
+- [x] Front-facing CameraX preview renders in full-screen `AndroidView`
+- [x] Preview lifecycle-aware (stops when screen exits)
+- [x] No crash on permission denial or camera unavailable
 
 **Verification:**
 - [ ] Manual test: grant permission → camera shows. Deny → rationale shown.
-- [ ] Unit test: ViewModel permission state logic
-- [ ] `./gradlew assembleDebug` succeeds
+- [x] Unit test: ViewModel permission state logic
+- [x] `./gradlew assembleDebug` succeeds
 
 **Dependencies:** Task 1 (CameraX dependency), Task 7 (navigation)
 
