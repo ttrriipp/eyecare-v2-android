@@ -25,6 +25,8 @@ import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.catalog.CatalogScreen
+import com.eyecare.app.presentation.feedback.FeedbackHistoryScreen
+import com.eyecare.app.presentation.feedback.FeedbackScreen
 import com.eyecare.app.presentation.billing.BillingDetailScreen
 import com.eyecare.app.presentation.orders.OrderDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
@@ -157,9 +159,19 @@ fun EyecareNavGraph(
                             orderId = route.orderId,
                             onBack = { navController.popBackStack() },
                             onViewBilling = { orderId -> navController.navigate(BillingDetail(orderId)) },
-                            onLeaveFeedback = { /* Task 24 */ },
+                            onLeaveFeedback = { id -> navController.navigate(FeedbackSubmit(orderId = id)) },
                         )
                     }
+                    composable<FeedbackSubmit> { back ->
+                        val route = back.toRoute<FeedbackSubmit>()
+                        FeedbackScreen(
+                            appointmentId = route.appointmentId.takeIf { it != -1 },
+                            orderId = route.orderId.takeIf { it != -1 },
+                            onBack = { navController.popBackStack() },
+                            onSubmitted = { navController.popBackStack() },
+                        )
+                    }
+                    composable<FeedbackHistory> { FeedbackHistoryScreen() }
                     composable<BillingDetail> { back ->
                         val route = back.toRoute<BillingDetail>()
                         BillingDetailScreen(
@@ -183,7 +195,7 @@ fun EyecareNavGraph(
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onLeaveFeedback = { /* Task 24 */ },
+                            onLeaveFeedback = { id -> navController.navigate(FeedbackSubmit(appointmentId = id)) },
                         )
                     }
                     composable<BookAppointment> {

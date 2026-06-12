@@ -838,17 +838,17 @@ Version Catalog + Gradle Config
 **Description:** Star rating + comment submission triggered from completed appointments/orders, plus feedback history list showing staff replies.
 
 **Acceptance criteria:**
-- [ ] `FeedbackApiService` with `submitFeedback(body)` endpoint
-- [ ] `FeedbackScreen`: star rating picker (1-5 tappable stars), comment field (max 2000 chars)
-- [ ] Receives `appointment_id` or `order_id` via navigation args
-- [ ] Submit → success toast → navigate back
-- [ ] `FeedbackHistoryScreen`: list of past feedback with rating, comment, staff reply (if present)
-- [ ] "Leave Feedback" buttons on appointment/order detail only when completed + no existing feedback
+- [x] `FeedbackApiService` with `submitFeedback(body)` endpoint
+- [x] `FeedbackScreen`: star rating picker (1-5 tappable stars), comment field (max 2000 chars)
+- [x] Receives `appointment_id` or `order_id` via navigation args
+- [x] Submit → success toast → navigate back
+- [x] `FeedbackHistoryScreen`: list of past feedback with rating, comment, staff reply (if present)
+- [x] "Leave Feedback" buttons on appointment/order detail only when completed + no existing feedback
 
 **Verification:**
-- [ ] Unit test: ViewModel validates rating required, handles submit success/error
+- [x] Unit test: ViewModel validates rating required, handles submit success/error
 - [ ] Compose preview for star rating component
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 9 (appointment detail), Task 19 (order detail)
 

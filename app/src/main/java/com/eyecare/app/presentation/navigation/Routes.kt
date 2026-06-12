@@ -32,6 +32,10 @@ import kotlinx.serialization.Serializable
 @Serializable object PrescriptionList
 @Serializable data class PrescriptionDetail(val prescriptionId: Int)
 
+// Feedback
+@Serializable data class FeedbackSubmit(val appointmentId: Int = -1, val orderId: Int = -1)
+@Serializable object FeedbackHistory
+
 // Chat (FAB destination, not a tab)
 @Serializable object Chat
 
