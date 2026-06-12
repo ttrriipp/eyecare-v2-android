@@ -4,13 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.eyecare.app.presentation.auth.LoginScreen
+import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.ui.theme.EyecareTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,32 +20,20 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             EyecareTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding),
+                // Temporary routing until Task 7 wires the full NavGraph
+                var showRegister by remember { mutableStateOf(false) }
+                if (showRegister) {
+                    RegisterScreen(
+                        onNavigateToLogin = { showRegister = false },
+                        onRegisterSuccess = { showRegister = false },
+                    )
+                } else {
+                    LoginScreen(
+                        onNavigateToRegister = { showRegister = true },
+                        onLoginSuccess = { /* TODO Task 7: navigate to main graph */ },
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(
-    name: String,
-    modifier: Modifier = Modifier,
-) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier,
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    EyecareTheme {
-        Greeting("Android")
     }
 }

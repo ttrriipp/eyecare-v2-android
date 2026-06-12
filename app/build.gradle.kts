@@ -21,12 +21,12 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2/api\"")
+        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2/api/\"")
     }
 
     buildTypes {
         debug {
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2/api\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://192.168.254.103/api/\"")
         }
         release {
             isMinifyEnabled = true
@@ -34,7 +34,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            buildConfigField("String", "API_BASE_URL", "\"https://your-production-url.com/api\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://your-production-url.com/api/\"")
         }
     }
 
