@@ -6,7 +6,7 @@ interface AppointmentRepository {
     suspend fun getAppointments(): Result<List<Appointment>>
     suspend fun getAppointment(id: Int): Result<Appointment>
     suspend fun createAppointment(
-        visitReasonId: String,
+        visitReasonId: Int,
         scheduledAt: String,
         contactNotes: String?,
     ): Result<Appointment>

@@ -75,7 +75,7 @@ class AppointmentRepositoryImplTest {
             "scheduled_at":"2026-10-26T09:00:00Z","contact_notes":"please confirm","staff_notes":null}}
         """.trimIndent()))
 
-        val result = repository.createAppointment("prescription_check", "2026-10-26T09:00:00Z", "please confirm")
+        val result = repository.createAppointment(3, "2026-10-26T09:00:00Z", "please confirm")
         assertTrue(result.isSuccess)
         assertEquals(3, result.getOrThrow().id)
     }
@@ -86,7 +86,7 @@ class AppointmentRepositoryImplTest {
             {"message":"Invalid date","errors":{"scheduled_at":["The scheduled at field is required."]}}
         """.trimIndent()))
 
-        val result = repository.createAppointment("eye_exam", "", null)
+        val result = repository.createAppointment(1, "", null)
         assertTrue(result.isFailure)
         assertInstanceOf(
             com.eyecare.app.domain.model.AppointmentError.ValidationError::class.java,

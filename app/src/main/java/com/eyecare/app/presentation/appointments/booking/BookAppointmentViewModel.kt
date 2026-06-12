@@ -47,12 +47,12 @@ class BookAppointmentViewModel @Inject constructor(
 
     fun submit(contactNotes: String?) {
         val state = _uiState.value
-        val reason = state.selectedReason ?: return
+        val reasonId = REASON_IDS[state.selectedReason] ?: return
         val dateTime = state.selectedDateTime ?: return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val result = repository.createAppointment(reason, dateTime, contactNotes?.takeIf { it.isNotBlank() })
+            val result = repository.createAppointment(reasonId, dateTime, contactNotes?.takeIf { it.isNotBlank() })
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -63,5 +63,10 @@ class BookAppointmentViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    companion object {
+        // Matches seeder order: eye_exam=1, follow_up=2, prescription_check=3
+        val REASON_IDS = mapOf("eye_exam" to 1, "follow_up" to 2, "prescription_check" to 3)
     }
 }

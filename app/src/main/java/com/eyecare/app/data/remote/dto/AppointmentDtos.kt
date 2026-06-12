@@ -23,7 +23,7 @@ object AppointmentDtos {
 
     @Serializable
     data class CreateAppointmentRequest(
-        @SerialName("visit_reason_id") val visitReasonId: String,
+        @SerialName("visit_reason_id") val visitReasonId: Int,
         @SerialName("scheduled_at") val scheduledAt: String,
         @SerialName("contact_notes") val contactNotes: String? = null,
     )

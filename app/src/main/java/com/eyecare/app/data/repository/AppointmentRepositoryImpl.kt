@@ -24,7 +24,7 @@ class AppointmentRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createAppointment(
-        visitReasonId: String,
+        visitReasonId: Int,
         scheduledAt: String,
         contactNotes: String?,
     ): Result<Appointment> = runCatching {
