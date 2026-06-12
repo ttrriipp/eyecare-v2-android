@@ -429,19 +429,19 @@ Version Catalog + Gradle Config
 **Description:** 2-column grid with product images, search bar, category filter chips, and AR badge — matching the prototype.
 
 **Acceptance criteria:**
-- [ ] Search bar with filter icon at top (matching prototype)
-- [ ] Horizontal category chips: All, Frames, Sunglasses, Contacts, Accessories
-- [ ] 2-column LazyVerticalGrid of product cards
-- [ ] Each card: product image (Coil), brand label, product name, price in blue
-- [ ] AR badge (icon + "AR" text) on cards with AR-eligible variants
-- [ ] Pull-to-refresh
-- [ ] Tap card → navigate to product detail
-- [ ] Empty state and loading shimmer
+- [x] Search bar with filter icon at top (matching prototype)
+- [x] Horizontal category chips: All, Frames, Sunglasses, Contacts, Accessories
+- [x] 2-column LazyVerticalGrid of product cards
+- [x] Each card: product image (Coil), brand label, product name, price in blue
+- [x] AR badge (icon + "AR" text) on cards with AR-eligible variants
+- [x] Pull-to-refresh
+- [x] Tap card → navigate to product detail
+- [x] Empty state and loading shimmer
 
 **Verification:**
-- [ ] Unit test: ViewModel filter logic (category selection filters products)
+- [x] Unit test: ViewModel filter logic (category selection filters products)
 - [ ] Compose preview with sample data
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 11, Task 7 (navigation)
 

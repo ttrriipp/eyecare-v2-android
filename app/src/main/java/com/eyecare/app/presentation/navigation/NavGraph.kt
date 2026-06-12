@@ -23,6 +23,7 @@ import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.catalog.CatalogScreen
+import com.eyecare.app.presentation.catalog.ProductListScreen
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
 import com.eyecare.app.presentation.profile.ProfileScreen
@@ -41,7 +42,7 @@ fun EyecareNavGraph(
     val showBottomNav = currentDest?.route?.let { route ->
         !route.contains("Login") && !route.contains("Register") &&
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
-            !route.contains("BookAppointment")
+            !route.contains("BookAppointment") && !route.contains("ProductDetail")
     } ?: false
 
     Scaffold(
@@ -100,7 +101,14 @@ fun EyecareNavGraph(
                 // Main graph
                 navigation<MainGraph>(startDestination = Home) {
                     composable<Home> { HomeScreen() }
-                    composable<Catalog> { CatalogScreen() }
+                    composable<Catalog> {
+                        ProductListScreen(
+                            onNavigateToDetail = { id -> navController.navigate(ProductDetail(id)) },
+                        )
+                    }
+                    composable<ProductDetail> {
+                        CatalogScreen() // placeholder until Task 13
+                    }
                     composable<Appointments> {
                         AppointmentListScreen(
                             onNavigateToDetail = { id -> navController.navigate(AppointmentDetail(id)) },
