@@ -19,6 +19,7 @@ import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
 import com.eyecare.app.presentation.appointments.AppointmentsScreen
+import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.catalog.CatalogScreen
@@ -113,7 +114,14 @@ fun EyecareNavGraph(
                         )
                     }
                     composable<BookAppointment> {
-                        AppointmentsScreen() // placeholder until Task 10
+                        BookAppointmentScreen(
+                            onBack = { navController.popBackStack() },
+                            onBooked = {
+                                navController.navigate(Appointments) {
+                                    popUpTo(BookAppointment) { inclusive = true }
+                                }
+                            },
+                        )
                     }
                     composable<Profile> {
                         ProfileScreen(onLogout = {

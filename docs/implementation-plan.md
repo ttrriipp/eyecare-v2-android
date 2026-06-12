@@ -350,19 +350,19 @@ Version Catalog + Gradle Config
 **Description:** Multi-step booking: Step 1 (visit reason cards) → Step 2 (date chips + time slots per prototype) → Step 3 (notes + confirm). Step indicator at top.
 
 **Acceptance criteria:**
-- [ ] Step 1: Large tappable reason cards (eye_exam, follow_up, prescription_check) with icons
-- [ ] Step 2: Horizontal date chips (next 7 days) + time slot grid (matching prototype layout)
-- [ ] Step 3: Optional contact notes (max 1000 chars) + summary review + "Confirm Booking" button
-- [ ] Step indicator (progress bar matching prototype — blue fill)
-- [ ] Back button returns to previous step, preserving selections
-- [ ] Submit calls API → on success navigates to appointment list
-- [ ] Shows API validation errors on failure
-- [ ] All state held in single `BookAppointmentViewModel`
+- [x] Step 1: Large tappable reason cards (eye_exam, follow_up, prescription_check) with icons
+- [x] Step 2: Horizontal date chips (next 7 days) + time slot grid (matching prototype layout)
+- [x] Step 3: Optional contact notes (max 1000 chars) + summary review + "Confirm Booking" button
+- [x] Step indicator (progress bar matching prototype — blue fill)
+- [x] Back button returns to previous step, preserving selections
+- [x] Submit calls API → on success navigates to appointment list
+- [x] Shows API validation errors on failure
+- [x] All state held in single `BookAppointmentViewModel`
 
 **Verification:**
-- [ ] Unit test: ViewModel step transitions and final submission state
+- [x] Unit test: ViewModel step transitions and final submission state
 - [ ] Compose preview for each step
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 8, Task 7
 
