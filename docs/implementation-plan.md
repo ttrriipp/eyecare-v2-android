@@ -394,17 +394,17 @@ Version Catalog + Gradle Config
 **Description:** Set up Room database with product/variant/image entities, DAOs, and repository that fetches from network then caches locally for offline access.
 
 **Acceptance criteria:**
-- [ ] `EyecareDatabase` with `ProductEntity`, `ProductVariantEntity`, `ProductImageEntity`
-- [ ] `ProductDao` with insertAll, getAll, getById, clearAll operations
-- [ ] Entity ↔ Domain model mappers
-- [ ] `ProductApiService` with `getProducts()`, `getProduct(id)`
-- [ ] `ProductRepositoryImpl` strategy: fetch API → cache in Room → serve from Room; if offline, serve stale cache
-- [ ] Unit test: repository serves cached data when network fails
+- [x] `EyecareDatabase` with `ProductEntity`, `ProductVariantEntity`, `ProductImageEntity`
+- [x] `ProductDao` with insertAll, getAll, getById, clearAll operations
+- [x] Entity ↔ Domain model mappers
+- [x] `ProductApiService` with `getProducts()`, `getProduct(id)`
+- [x] `ProductRepositoryImpl` strategy: fetch API → cache in Room → serve from Room; if offline, serve stale cache
+- [x] Unit test: repository serves cached data when network fails
 - [ ] Room DAO test (instrumented or Robolectric)
 
 **Verification:**
-- [ ] Unit tests pass
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] Unit tests pass
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 2 (Hilt/Retrofit)
 
