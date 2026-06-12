@@ -4,6 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +22,7 @@ import com.eyecare.app.presentation.navigation.EyecareNavGraph
 import com.eyecare.app.presentation.navigation.MainGraph
 import com.eyecare.app.ui.theme.EyecareTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -32,12 +37,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             EyecareTheme {
                 val navController = rememberNavController()
+                val snackbarHostState = remember { SnackbarHostState() }
                 var logoutTrigger by remember { mutableStateOf(0) }
 
-                // Listen for 401 → clear token → navigate to login
+                // Listen for 401 → show snackbar → clear token → navigate to login
                 LaunchedEffect(Unit) {
                     authEventBus.events.collect { event ->
                         if (event is AuthEvent.Logout) {
+                            snackbarHostState.showSnackbar("Session expired. Please sign in again.")
+                            delay(500)
                             tokenManager.clearToken()
                             navController.navigate(AuthGraph) {
                                 popUpTo(MainGraph) { inclusive = true }
@@ -47,11 +55,19 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                EyecareNavGraph(
-                    tokenManager = tokenManager,
-                    onLogout = { logoutTrigger++ },
-                    navController = navController,
-                )
+                Scaffold(
+                    snackbarHost = {
+                        SnackbarHost(hostState = snackbarHostState) { data ->
+                            Snackbar(snackbarData = data)
+                        }
+                    },
+                ) { _ ->
+                    EyecareNavGraph(
+                        tokenManager = tokenManager,
+                        onLogout = { logoutTrigger++ },
+                        navController = navController,
+                    )
+                }
             }
         }
     }

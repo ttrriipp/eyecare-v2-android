@@ -945,12 +945,12 @@ Version Catalog + Gradle Config
 **Description:** Add consistent shared composables for loading, error (with retry), and empty states. Audit all screens for missing states.
 
 **Acceptance criteria:**
-- [ ] `LoadingContent` composable: centered circular indicator
-- [ ] `ErrorContent` composable: error message + "Retry" button
-- [ ] `EmptyContent` composable: illustration placeholder + message + optional action button
+- [x] `LoadingContent` composable: centered circular indicator
+- [x] `ErrorContent` composable: error message + "Retry" button
+- [x] `EmptyContent` composable: illustration placeholder + message + optional action button
 - [ ] All ViewModels emit proper Loading/Error/Empty states
-- [ ] Snackbar host for transient errors (network timeout, 500)
-- [ ] 401 globally shows "Session expired" snackbar before redirecting to login
+- [x] Snackbar host for transient errors (network timeout, 500)
+- [x] 401 globally shows "Session expired" snackbar before redirecting to login
 - [ ] Pull-to-refresh on all list screens
 
 **Verification:**
