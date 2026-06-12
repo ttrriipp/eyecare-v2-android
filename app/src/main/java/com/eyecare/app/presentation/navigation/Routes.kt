@@ -28,6 +28,10 @@ import kotlinx.serialization.Serializable
 // Billing
 @Serializable data class BillingDetail(val billingId: Int)
 
+// Prescriptions
+@Serializable object PrescriptionList
+@Serializable data class PrescriptionDetail(val prescriptionId: Int)
+
 // Chat (FAB destination, not a tab)
 @Serializable object Chat
 

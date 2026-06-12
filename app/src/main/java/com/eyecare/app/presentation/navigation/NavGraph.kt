@@ -27,6 +27,8 @@ import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.catalog.CatalogScreen
 import com.eyecare.app.presentation.billing.BillingDetailScreen
 import com.eyecare.app.presentation.orders.OrderDetailScreen
+import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
+import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
 import com.eyecare.app.presentation.orders.OrderDetailViewModel
 import com.eyecare.app.presentation.orders.OrderListScreen
 import com.eyecare.app.presentation.orders.OrderRequestScreen
@@ -164,6 +166,13 @@ fun EyecareNavGraph(
                             billingId = route.billingId,
                             onBack = { navController.popBackStack() },
                         )
+                    }
+                    composable<PrescriptionList> {
+                        PrescriptionListScreen(onNavigateToDetail = { navController.navigate(PrescriptionDetail(it)) })
+                    }
+                    composable<PrescriptionDetail> { back ->
+                        val route = back.toRoute<PrescriptionDetail>()
+                        PrescriptionDetailScreen(prescriptionId = route.prescriptionId, onBack = { navController.popBackStack() })
                     }
                     composable<Appointments> {
                         AppointmentListScreen(

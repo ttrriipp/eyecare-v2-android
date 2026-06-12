@@ -740,16 +740,16 @@ Version Catalog + Gradle Config
 **Description:** Read-only prescription history with list and structured OD/OS/PD detail view.
 
 **Acceptance criteria:**
-- [ ] `PrescriptionApiService` + DTOs + domain model + repository
-- [ ] List: prescriptions sorted by date, shows prescribed date and linked appointment
-- [ ] Detail: structured layout showing OD sphere/cylinder/axis/add, OS same, PD value
-- [ ] Expiration date highlighted in red if expired
-- [ ] Loading/error/empty states
+- [x] `PrescriptionApiService` + DTOs + domain model + repository
+- [x] List: prescriptions sorted by date, shows prescribed date and linked appointment
+- [x] Detail: structured layout showing OD sphere/cylinder/axis/add, OS same, PD value
+- [x] Expiration date highlighted in red if expired
+- [x] Loading/error/empty states
 
 **Verification:**
-- [ ] Unit test: ViewModel and repository mapping
+- [x] Unit test: ViewModel and repository mapping
 - [ ] Compose preview
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 2, Task 7
 
