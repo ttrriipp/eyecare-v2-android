@@ -244,19 +244,19 @@ Version Catalog + Gradle Config
 **Description:** Implement Jetpack Navigation Compose with AuthGraph/MainGraph, auth gate that redirects based on token presence, and the custom split floating bottom nav bar matching the prototype.
 
 **Acceptance criteria:**
-- [ ] `Routes` object defines type-safe routes for all screens
-- [ ] `AuthGraph` contains Login and Register routes
-- [ ] `MainGraph` contains Home, Catalog, Appointments (Visits), and Profile tab roots
-- [ ] Auth gate: no token → show AuthGraph; has token → show MainGraph
-- [ ] `SplitBottomNavBar` composable: white floating pill (4 tabs) + detached blue chat FAB
-- [ ] Active tab highlighted with primary color (matches prototype)
-- [ ] 401 event from interceptor clears token and navigates to AuthGraph
-- [ ] Back navigation within tabs preserves state
+- [x] `Routes` object defines type-safe routes for all screens
+- [x] `AuthGraph` contains Login and Register routes
+- [x] `MainGraph` contains Home, Catalog, Appointments (Visits), and Profile tab roots
+- [x] Auth gate: no token → show AuthGraph; has token → show MainGraph
+- [x] `SplitBottomNavBar` composable: white floating pill (4 tabs) + detached blue chat FAB
+- [x] Active tab highlighted with primary color (matches prototype)
+- [x] 401 event from interceptor clears token and navigates to AuthGraph
+- [x] Back navigation within tabs preserves state
 
 **Verification:**
-- [ ] App launches → login screen (no token). After login → bottom nav visible
-- [ ] Tapping tabs switches content
-- [ ] Chat FAB present and tappable
+- [x] App launches → login screen (no token). After login → bottom nav visible
+- [x] Tapping tabs switches content
+- [x] Chat FAB present and tappable
 - [ ] Compose navigation test for auth gate logic
 
 **Dependencies:** Task 6, Task 3
