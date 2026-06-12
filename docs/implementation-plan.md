@@ -79,9 +79,7 @@ Version Catalog + Gradle Config
 
 **Verification:**
 - [x] `./gradlew assembleDebug` completes without errors
-- [ ] `./gradlew ktlintCheck` passes
-
-**Dependencies:** None
+- [x] `./gradlew ktlintCheck` passes
 
 **Files likely touched:**
 - `gradle/libs.versions.toml`
@@ -274,12 +272,12 @@ Version Catalog + Gradle Config
 
 ### Checkpoint: Phase 1 Complete
 
-- [ ] `./gradlew assembleDebug` succeeds
-- [ ] `./gradlew testDebugUnitTest` passes
-- [ ] `./gradlew ktlintCheck` passes
-- [ ] App launches → Login screen → Register → Login → see bottom nav with 4 tabs + chat FAB
-- [ ] Logout returns to login. Token persists across app restart.
-- [ ] Clinical blue theme visible throughout
+- [x] `./gradlew assembleDebug` succeeds
+- [x] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew ktlintCheck` passes
+- [x] App launches → Login screen → Register → Login → see bottom nav with 4 tabs + chat FAB
+- [x] Logout returns to login. Token persists across app restart.
+- [x] Clinical blue theme visible throughout
 
 ---
 
