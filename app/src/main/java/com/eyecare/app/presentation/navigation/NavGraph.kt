@@ -25,6 +25,7 @@ import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.catalog.CatalogScreen
+import com.eyecare.app.presentation.billing.BillingDetailScreen
 import com.eyecare.app.presentation.orders.OrderDetailScreen
 import com.eyecare.app.presentation.orders.OrderDetailViewModel
 import com.eyecare.app.presentation.orders.OrderListScreen
@@ -153,8 +154,15 @@ fun EyecareNavGraph(
                         OrderDetailScreen(
                             orderId = route.orderId,
                             onBack = { navController.popBackStack() },
-                            onViewBilling = { /* Task 20 */ },
+                            onViewBilling = { orderId -> navController.navigate(BillingDetail(orderId)) },
                             onLeaveFeedback = { /* Task 24 */ },
+                        )
+                    }
+                    composable<BillingDetail> { back ->
+                        val route = back.toRoute<BillingDetail>()
+                        BillingDetailScreen(
+                            billingId = route.billingId,
+                            onBack = { navController.popBackStack() },
                         )
                     }
                     composable<Appointments> {

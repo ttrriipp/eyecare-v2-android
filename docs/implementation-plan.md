@@ -698,16 +698,16 @@ Version Catalog + Gradle Config
 **Description:** Read-only billing detail showing totals, balance, payment history.
 
 **Acceptance criteria:**
-- [ ] Shows total amount, amount paid, balance due
-- [ ] Billing status chip
-- [ ] Payment list: amount, method, reference number, date, status per payment
-- [ ] Read-only — no actions
-- [ ] Loading/error states
+- [x] Shows total amount, amount paid, balance due
+- [x] Billing status chip
+- [x] Payment list: amount, method, reference number, date, status per payment
+- [x] Read-only — no actions
+- [x] Loading/error states
 
 **Verification:**
-- [ ] Unit test: ViewModel maps billing data correctly
+- [x] Unit test: ViewModel maps billing data correctly
 - [ ] Compose preview
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 19 (navigated from order detail)
 
