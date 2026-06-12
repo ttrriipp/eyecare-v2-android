@@ -1,0 +1,10 @@
+{
+  "chat.defaultModel": "claude-opus-4.6",
+  "chat.modelDefaults": {
+    "claude-sonnet-4.6": {
+      "output_config": {
+        "effort": "medium"
+      }
+    }
+  }
+}
