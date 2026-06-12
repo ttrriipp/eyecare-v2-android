@@ -213,19 +213,19 @@ Version Catalog + Gradle Config
 **Description:** Build login and register UI with form validation, loading/error states, and navigation between them.
 
 **Acceptance criteria:**
-- [ ] Login: email + password fields, "Login" button, "Create account" link
-- [ ] Register: name + email + phone (optional) + password + confirm fields, "Register" button
-- [ ] Client-side validation before API call (email format, password min 8 chars, passwords match, required fields)
-- [ ] Shows per-field validation errors from 422 API response
-- [ ] Shows rate-limit message on 429 with retry countdown
-- [ ] Loading state disables form and shows indicator
-- [ ] Successful auth stores token and signals navigation to main graph
-- [ ] `AuthViewModel` with sealed `AuthUiState`
+- [x] Login: email + password fields, "Login" button, "Create account" link
+- [x] Register: name + email + phone (optional) + password + confirm fields, "Register" button
+- [x] Client-side validation before API call (email format, password min 8 chars, passwords match, required fields)
+- [x] Shows per-field validation errors from 422 API response
+- [x] Shows rate-limit message on 429 with retry countdown
+- [x] Loading state disables form and shows indicator
+- [x] Successful auth stores token and signals navigation to main graph
+- [x] `AuthViewModel` with sealed `AuthUiState`
 
 **Verification:**
-- [ ] Unit test: ViewModel emits correct states for success/error/validation/rate-limit
-- [ ] Compose preview shows both screens
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] Unit test: ViewModel emits correct states for success/error/validation/rate-limit
+- [x] Compose preview shows both screens
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 5, Task 3
 
