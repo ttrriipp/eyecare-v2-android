@@ -635,19 +635,19 @@ Version Catalog + Gradle Config
 **Description:** Order submission form showing selected variant, lens type picker, quantity, optional appointment link, and non-prescription toggle.
 
 **Acceptance criteria:**
-- [ ] Receives selected product variant via navigation args (from product detail or AR)
-- [ ] Displays frame info: product name, variant name, image, price
-- [ ] Lens type selector: single_vision, bifocal, progressive (radio buttons or dropdown)
-- [ ] Quantity selector (1-4)
-- [ ] Optional "Link appointment" dropdown (shows user's appointments)
-- [ ] Non-prescription toggle
-- [ ] "Submit Order" button → calls API → navigates to order list on success
-- [ ] Shows validation errors from API
+- [x] Receives selected product variant via navigation args (from product detail or AR)
+- [x] Displays frame info: product name, variant name, image, price
+- [x] Lens type selector: single_vision, bifocal, progressive (radio buttons or dropdown)
+- [x] Quantity selector (1-4)
+- [x] Optional "Link appointment" dropdown (shows user's appointments)
+- [x] Non-prescription toggle
+- [x] "Submit Order" button → calls API → navigates to order list on success
+- [x] Shows validation errors from API
 
 **Verification:**
-- [ ] Unit test: ViewModel validates required fields, handles success/error
+- [x] Unit test: ViewModel validates required fields, handles success/error
 - [ ] Compose preview
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 17, Task 8 (appointments for linking), Task 11 (product data)
 

@@ -25,6 +25,7 @@ import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.catalog.CatalogScreen
+import com.eyecare.app.presentation.orders.OrderRequestScreen
 import com.eyecare.app.presentation.catalog.ProductDetailScreen
 import com.eyecare.app.presentation.catalog.ProductDetailViewModel
 import com.eyecare.app.presentation.catalog.ProductListScreen
@@ -47,7 +48,7 @@ fun EyecareNavGraph(
         !route.contains("Login") && !route.contains("Register") &&
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
             !route.contains("BookAppointment") && !route.contains("ProductDetail") &&
-            !route.contains("ArTryOn")
+            !route.contains("ArTryOn") && !route.contains("OrderRequest")
     } ?: false
 
     Scaffold(
@@ -117,7 +118,7 @@ fun EyecareNavGraph(
                             productId = route.productId,
                             onBack = { navController.popBackStack() },
                             onNavigateToAr = { pId, vId -> navController.navigate(ArTryOn(pId, vId)) },
-                            onNavigateToOrder = { _, _ -> /* Task 18 */ },
+                            onNavigateToOrder = { pId, vId -> navController.navigate(OrderRequest(pId, vId)) },
                         )
                     }
                     composable<ArTryOn> { backStackEntry ->
@@ -126,8 +127,20 @@ fun EyecareNavGraph(
                             productId = route.productId,
                             initialVariantId = route.variantId,
                             onBack = { navController.popBackStack() },
-                            onNavigateToOrder = { _, _ -> /* Task 18 */ },
+                            onNavigateToOrder = { pId, vId -> navController.navigate(OrderRequest(pId, vId)) },
                         )
+                    }
+                    composable<OrderRequest> { backStackEntry ->
+                        val route = backStackEntry.toRoute<OrderRequest>()
+                        OrderRequestScreen(
+                            productId = route.productId,
+                            variantId = route.variantId,
+                            onBack = { navController.popBackStack() },
+                            onOrderSubmitted = { navController.navigate(OrderList) { popUpTo(OrderRequest(route.productId, route.variantId)) { inclusive = true } } },
+                        )
+                    }
+                    composable<OrderList> {
+                        com.eyecare.app.presentation.home.HomeScreen() // placeholder until Task 19
                     }
                     composable<Appointments> {
                         AppointmentListScreen(

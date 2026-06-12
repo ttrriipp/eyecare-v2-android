@@ -20,6 +20,10 @@ import kotlinx.serialization.Serializable
 @Serializable data class ProductDetail(val productId: Int)
 @Serializable data class ArTryOn(val productId: Int, val variantId: Int)
 
+// Order destinations
+@Serializable data class OrderRequest(val productId: Int, val variantId: Int)
+@Serializable object OrderList
+
 // Chat (FAB destination, not a tab)
 @Serializable object Chat
 
