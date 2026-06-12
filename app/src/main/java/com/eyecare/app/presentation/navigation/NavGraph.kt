@@ -16,6 +16,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.eyecare.app.data.local.TokenManager
+import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
+import com.eyecare.app.presentation.appointments.AppointmentListScreen
 import com.eyecare.app.presentation.appointments.AppointmentsScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
@@ -36,7 +38,9 @@ fun EyecareNavGraph(
 
     // Hide bottom nav on auth screens and chat
     val showBottomNav = currentDest?.route?.let { route ->
-        !route.contains("Login") && !route.contains("Register") && !route.contains("Chat")
+        !route.contains("Login") && !route.contains("Register") &&
+            !route.contains("Chat") && !route.contains("AppointmentDetail") &&
+            !route.contains("BookAppointment")
     } ?: false
 
     Scaffold(
@@ -96,7 +100,21 @@ fun EyecareNavGraph(
                 navigation<MainGraph>(startDestination = Home) {
                     composable<Home> { HomeScreen() }
                     composable<Catalog> { CatalogScreen() }
-                    composable<Appointments> { AppointmentsScreen() }
+                    composable<Appointments> {
+                        AppointmentListScreen(
+                            onNavigateToDetail = { id -> navController.navigate(AppointmentDetail(id)) },
+                            onNavigateToBook = { navController.navigate(BookAppointment) },
+                        )
+                    }
+                    composable<AppointmentDetail> {
+                        AppointmentDetailScreen(
+                            onBack = { navController.popBackStack() },
+                            onLeaveFeedback = { /* Task 24 */ },
+                        )
+                    }
+                    composable<BookAppointment> {
+                        AppointmentsScreen() // placeholder until Task 10
+                    }
                     composable<Profile> {
                         ProfileScreen(onLogout = {
                             tokenManager.clearToken()

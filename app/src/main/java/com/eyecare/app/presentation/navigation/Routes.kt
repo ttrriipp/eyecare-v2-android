@@ -12,6 +12,10 @@ import kotlinx.serialization.Serializable
 @Serializable object Appointments
 @Serializable object Profile
 
+// Appointment sub-destinations
+@Serializable data class AppointmentDetail(val appointmentId: Int)
+@Serializable object BookAppointment
+
 // Chat (FAB destination, not a tab)
 @Serializable object Chat
 

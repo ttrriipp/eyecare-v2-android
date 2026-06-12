@@ -318,19 +318,19 @@ Version Catalog + Gradle Config
 **Description:** Build appointment list with status chips sorted by date, and detail screen showing full appointment info.
 
 **Acceptance criteria:**
-- [ ] List shows appointments with: visit reason, date/time, status chip (colored per spec)
-- [ ] Sorted by most recent scheduled date
-- [ ] Pull-to-refresh reloads from API
-- [ ] Tap navigates to detail screen
-- [ ] Detail shows all fields: visit reason, status, scheduled date/time, contact notes, staff notes
-- [ ] "Leave Feedback" button visible when status = `completed` (navigates to feedback in later phase)
-- [ ] Empty state when no appointments exist
-- [ ] Loading and error states
+- [x] List shows appointments with: visit reason, date/time, status chip (colored per spec)
+- [x] Sorted by most recent scheduled date
+- [x] Pull-to-refresh reloads from API
+- [x] Tap navigates to detail screen
+- [x] Detail shows all fields: visit reason, status, scheduled date/time, contact notes, staff notes
+- [x] "Leave Feedback" button visible when status = `completed` (navigates to feedback in later phase)
+- [x] Empty state when no appointments exist
+- [x] Loading and error states
 
 **Verification:**
-- [ ] Unit test: ViewModel state transitions (Loading → Success, Loading → Error)
+- [x] Unit test: ViewModel state transitions (Loading → Success, Loading → Error)
 - [ ] Compose preview for list and detail
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 8, Task 7 (navigation)
 
