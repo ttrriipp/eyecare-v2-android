@@ -2,6 +2,7 @@ package com.eyecare.app.data.remote.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 object ProductDtos {
 
@@ -12,7 +13,7 @@ object ProductDtos {
         val slug: String,
         val description: String? = null,
         val price: String,
-        val dimensions: String? = null,
+        val dimensions: JsonElement? = null,
         val brand: BrandDto,
         val category: CategoryDto,
         val variants: List<VariantDto> = emptyList(),
@@ -31,7 +32,7 @@ object ProductDtos {
         val name: String,
         val sku: String,
         val price: String,
-        val dimensions: String? = null,
+        val dimensions: JsonElement? = null,
         @SerialName("ar_eligible") val arEligible: Boolean = false,
         @SerialName("ar_asset_reference") val arAssetReference: String? = null,
     )

@@ -10,6 +10,9 @@ import com.eyecare.app.domain.model.ProductVariant
 import com.eyecare.app.domain.repository.ProductRepository
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import javax.inject.Inject
 
 class ProductRepositoryImpl @Inject constructor(
@@ -38,7 +41,7 @@ class ProductRepositoryImpl @Inject constructor(
 
     private fun ProductDtos.ProductDto.toEntity() = ProductEntity(
         id = id, name = name, slug = slug, description = description,
-        price = price, dimensions = dimensions,
+        price = price, dimensions = dimensions.toDisplayString(),
         brandName = brand.name, categoryName = category.name,
         variantsJson = json.encodeToString(variants),
         imagesJson = json.encodeToString(images),
@@ -62,18 +65,30 @@ class ProductRepositoryImpl @Inject constructor(
 
     private fun ProductDtos.ProductDto.toDomain() = Product(
         id = id, name = name, slug = slug, description = description,
-        price = price, dimensions = dimensions,
+        price = price, dimensions = dimensions.toDisplayString(),
         brand = brand.name, category = category.name,
         variants = variants.map { it.toDomain() },
         images = images.map { it.toDomain() },
     )
 
     private fun ProductDtos.VariantDto.toDomain() = ProductVariant(
-        id = id, name = name, sku = sku, price = price, dimensions = dimensions,
+        id = id, name = name, sku = sku, price = price,
+        dimensions = dimensions.toDisplayString(),
         arEligible = arEligible, arAssetReference = arAssetReference,
     )
 
     private fun ProductDtos.ImageDto.toDomain() = ProductImage(
         id = id, path = path, isPrimary = isPrimary, sortOrder = sortOrder,
     )
+
+    /** Converts JsonElement? (object or primitive) to a human-readable string or null. */
+    private fun JsonElement?.toDisplayString(): String? {
+        this ?: return null
+        return if (this is JsonPrimitive) content.takeIf { it.isNotBlank() }
+        else runCatching {
+            jsonObject.entries.joinToString(" · ") { (k, v) ->
+                "${k.replaceFirstChar { it.uppercase() }}: ${(v as? JsonPrimitive)?.content ?: v}"
+            }
+        }.getOrNull()
+    }
 }
