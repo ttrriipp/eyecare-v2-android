@@ -606,15 +606,15 @@ Version Catalog + Gradle Config
 **Description:** Define order API service, DTOs, domain models, and repository with create/list/detail operations.
 
 **Acceptance criteria:**
-- [ ] `OrderApiService` with `getOrders()`, `getOrder(id)`, `createOrder(body)` endpoints
-- [ ] DTOs include nested order items with product/variant/lens info
-- [ ] `Order` and `OrderItem` domain models
-- [ ] `OrderRepository` interface + `OrderRepositoryImpl`
-- [ ] Error mapping for validation errors
-- [ ] Unit test for DTO → domain mapping
+- [x] `OrderApiService` with `getOrders()`, `getOrder(id)`, `createOrder(body)` endpoints
+- [x] DTOs include nested order items with product/variant/lens info
+- [x] `Order` and `OrderItem` domain models
+- [x] `OrderRepository` interface + `OrderRepositoryImpl`
+- [x] Error mapping for validation errors
+- [x] Unit test for DTO → domain mapping
 
 **Verification:**
-- [ ] Unit tests pass
+- [x] Unit tests pass
 
 **Dependencies:** Task 2 (DI/Retrofit)
 
