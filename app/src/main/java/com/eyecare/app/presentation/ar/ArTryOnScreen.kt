@@ -59,8 +59,12 @@ fun ArTryOnScreen(
     Box(Modifier.fillMaxSize()) {
         when (permissionState) {
             is ArPermissionState.Granted -> {
-                // Full-screen camera preview — UI overlay added in Task 16
-                CameraPreviewView(Modifier.fillMaxSize())
+                // Full-screen camera preview with MediaPipe face detection
+                // UI overlay added in Task 16
+                CameraPreviewView(
+                    modifier = Modifier.fillMaxSize(),
+                    onFaceResult = viewModel::onFaceResult,
+                )
             }
 
             is ArPermissionState.Required -> {

@@ -532,17 +532,17 @@ Version Catalog + Gradle Config
 **Description:** Integrate MediaPipe Face Landmarker to detect face landmarks in real-time from the CameraX feed.
 
 **Acceptance criteria:**
-- [ ] `FaceLandmarkerHelper` wraps MediaPipe setup (model download/bundling, configuration)
-- [ ] Processes camera frames and returns face landmarks at 30+ FPS
-- [ ] Exposes key landmarks: nose bridge (6, 168), left temple (234), right temple (454)
-- [ ] Computes face width (temple-to-temple) and rotation angle
-- [ ] No face → emits "no face detected" state
-- [ ] Properly releases resources on lifecycle destroy
+- [x] `FaceLandmarkerHelper` wraps MediaPipe setup (model download/bundling, configuration)
+- [x] Processes camera frames and returns face landmarks at 30+ FPS
+- [x] Exposes key landmarks: nose bridge (6, 168), left temple (234), right temple (454)
+- [x] Computes face width (temple-to-temple) and rotation angle
+- [x] No face → emits "no face detected" state
+- [x] Properly releases resources on lifecycle destroy
 
 **Verification:**
 - [ ] Manual test on device: face detected, landmarks logged
 - [ ] FPS counter shown in debug builds
-- [ ] `./gradlew assembleDebug` succeeds
+- [x] `./gradlew assembleDebug` succeeds
 
 **Dependencies:** Task 14
 
