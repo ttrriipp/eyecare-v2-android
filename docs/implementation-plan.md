@@ -665,19 +665,19 @@ Version Catalog + Gradle Config
 **Description:** Order list with status chips and detail screen showing items, totals, status timeline, and billing link.
 
 **Acceptance criteria:**
-- [ ] List: order number, status chip (colored), total amount, date
-- [ ] Pull-to-refresh
-- [ ] Detail: all order items (product name, variant, lens type, unit price, quantity, subtotal)
-- [ ] Order totals: subtotal, total
-- [ ] Status timeline/stepper (visual progression through order statuses)
-- [ ] "View Billing" button when order status ≥ confirmed
-- [ ] "Leave Feedback" button when status = completed
-- [ ] Loading/error/empty states
+- [x] List: order number, status chip (colored), total amount, date
+- [x] Pull-to-refresh
+- [x] Detail: all order items (product name, variant, lens type, unit price, quantity, subtotal)
+- [x] Order totals: subtotal, total
+- [x] Status timeline/stepper (visual progression through order statuses)
+- [x] "View Billing" button when order status ≥ confirmed
+- [x] "Leave Feedback" button when status = completed
+- [x] Loading/error/empty states
 
 **Verification:**
-- [ ] Unit test: ViewModel state transitions
+- [x] Unit test: ViewModel state transitions
 - [ ] Compose preview for list and detail
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 17, Task 7 (navigation)
 

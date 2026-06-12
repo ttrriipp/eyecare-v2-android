@@ -25,6 +25,9 @@ import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.catalog.CatalogScreen
+import com.eyecare.app.presentation.orders.OrderDetailScreen
+import com.eyecare.app.presentation.orders.OrderDetailViewModel
+import com.eyecare.app.presentation.orders.OrderListScreen
 import com.eyecare.app.presentation.orders.OrderRequestScreen
 import com.eyecare.app.presentation.catalog.ProductDetailScreen
 import com.eyecare.app.presentation.catalog.ProductDetailViewModel
@@ -48,7 +51,8 @@ fun EyecareNavGraph(
         !route.contains("Login") && !route.contains("Register") &&
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
             !route.contains("BookAppointment") && !route.contains("ProductDetail") &&
-            !route.contains("ArTryOn") && !route.contains("OrderRequest")
+            !route.contains("ArTryOn") && !route.contains("OrderRequest") &&
+            !route.contains("OrderDetail")
     } ?: false
 
     Scaffold(
@@ -140,7 +144,18 @@ fun EyecareNavGraph(
                         )
                     }
                     composable<OrderList> {
-                        com.eyecare.app.presentation.home.HomeScreen() // placeholder until Task 19
+                        OrderListScreen(
+                            onNavigateToDetail = { navController.navigate(OrderDetail(it)) },
+                        )
+                    }
+                    composable<OrderDetail> { back ->
+                        val route = back.toRoute<OrderDetail>()
+                        OrderDetailScreen(
+                            orderId = route.orderId,
+                            onBack = { navController.popBackStack() },
+                            onViewBilling = { /* Task 20 */ },
+                            onLeaveFeedback = { /* Task 24 */ },
+                        )
                     }
                     composable<Appointments> {
                         AppointmentListScreen(
