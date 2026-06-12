@@ -921,14 +921,14 @@ Version Catalog + Gradle Config
 **Description:** Profile screen with user info and logout, plus the "More" tab aggregating navigation to orders, prescriptions, billing, feedback history.
 
 **Acceptance criteria:**
-- [ ] Profile screen: user avatar placeholder, name, email, role
-- [ ] Logout button → clears token → navigates to login
-- [ ] More/Profile tab serves as hub: links to Order History, Prescriptions, Feedback History
-- [ ] Each link navigates to the already-built screens
+- [x] Profile screen: user avatar placeholder, name, email, role
+- [x] Logout button → clears token → navigates to login
+- [x] More/Profile tab serves as hub: links to Order History, Prescriptions, Feedback History
+- [x] Each link navigates to the already-built screens
 
 **Verification:**
-- [ ] Logout clears session correctly
-- [ ] All navigation links work
+- [x] Logout clears session correctly
+- [x] All navigation links work
 
 **Dependencies:** Task 7 (nav), Task 5 (auth repo for user data)
 

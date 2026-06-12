@@ -223,13 +223,18 @@ fun EyecareNavGraph(
                         )
                     }
                     composable<Profile> {
-                        ProfileScreen(onLogout = {
-                            tokenManager.clearToken()
-                            onLogout()
-                            navController.navigate(AuthGraph) {
-                                popUpTo(MainGraph) { inclusive = true }
-                            }
-                        })
+                        ProfileScreen(
+                            onLogout = {
+                                tokenManager.clearToken()
+                                onLogout()
+                                navController.navigate(AuthGraph) {
+                                    popUpTo(MainGraph) { inclusive = true }
+                                }
+                            },
+                            onNavigateToOrders = { navController.navigate(OrderList) },
+                            onNavigateToPrescriptions = { navController.navigate(PrescriptionList) },
+                            onNavigateToFeedbackHistory = { navController.navigate(FeedbackHistory) },
+                        )
                     }
                     composable<Chat> {
                         ChatScreen(onBack = { navController.popBackStack() })
