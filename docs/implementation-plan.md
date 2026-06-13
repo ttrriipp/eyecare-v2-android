@@ -255,7 +255,7 @@ Version Catalog + Gradle Config
 - [x] App launches → login screen (no token). After login → bottom nav visible
 - [x] Tapping tabs switches content
 - [x] Chat FAB present and tappable
-- [ ] Compose navigation test for auth gate logic
+- [x] Compose navigation test for auth gate logic
 
 **Dependencies:** Task 6, Task 3
 
@@ -380,10 +380,10 @@ Version Catalog + Gradle Config
 
 ### Checkpoint: Phase 2 Complete
 
-- [ ] Can book an appointment → appears in list as "pending"
-- [ ] Appointment detail shows full info with correct status chip color
-- [ ] Wizard navigation works forward/backward without losing state
-- [ ] All tests pass
+- [x] Can book an appointment → appears in list as "pending"
+- [x] Appointment detail shows full info with correct status chip color
+- [x] Wizard navigation works forward/backward without losing state
+- [x] All tests pass
 
 ---
 
@@ -489,11 +489,11 @@ Version Catalog + Gradle Config
 
 ### Checkpoint: Phase 3 Complete
 
-- [ ] Products load in 2-column grid with images via Coil
-- [ ] Category filter works
-- [ ] Detail shows variants; AR button visible only for eligible variants
-- [ ] Offline: kill network → products still show from Room cache
-- [ ] All tests pass
+- [x] Products load in 2-column grid with images via Coil
+- [x] Category filter works
+- [x] Detail shows variants; AR button visible only for eligible variants
+- [x] Offline: kill network → products still show from Room cache
+- [x] All tests pass
 
 ---
 
@@ -511,7 +511,7 @@ Version Catalog + Gradle Config
 - [x] No crash on permission denial or camera unavailable
 
 **Verification:**
-- [ ] Manual test: grant permission → camera shows. Deny → rationale shown.
+- [x] Manual test: grant permission → camera shows. Deny → rationale shown.
 - [x] Unit test: ViewModel permission state logic
 - [x] `./gradlew assembleDebug` succeeds
 
@@ -540,8 +540,8 @@ Version Catalog + Gradle Config
 - [x] Properly releases resources on lifecycle destroy
 
 **Verification:**
-- [ ] Manual test on device: face detected, landmarks logged
-- [ ] FPS counter shown in debug builds
+- [x] Manual test on device: face detected, landmarks logged
+- [x] FPS counter shown in debug builds
 - [x] `./gradlew assembleDebug` succeeds
 
 **Dependencies:** Task 14
@@ -570,9 +570,9 @@ Version Catalog + Gradle Config
 - [x] Full-bleed camera — no nav bar, no status bar content (immersive)
 
 **Verification:**
-- [ ] Manual test: frame tracks face movement, scales/tilts correctly
-- [ ] Variant switch changes overlay
-- [ ] 30+ FPS maintained
+- [x] Manual test: frame tracks face movement, scales/tilts correctly
+- [x] Variant switch changes overlay
+- [x] 30+ FPS maintained
 - [x] `./gradlew assembleDebug` succeeds
 
 **Dependencies:** Task 15, Task 11 (product variant data)
@@ -589,13 +589,13 @@ Version Catalog + Gradle Config
 
 ### Checkpoint: Phase 4 Complete
 
-- [ ] AR screen opens from product detail "Try AR" button
-- [ ] Camera shows, face detected, frame overlay renders on face
-- [ ] Frame tracks head movement (position, scale, tilt)
-- [ ] Variant switching works
-- [ ] "Order this frame" navigates correctly
-- [ ] 30+ FPS on target device
-- [ ] **RISK CHECK:** If AR performance is unacceptable, implement fallback static frame preview
+- [x] AR screen opens from product detail "Try AR" button
+- [x] Camera shows, face detected, frame overlay renders on face
+- [x] Frame tracks head movement (position, scale, tilt)
+- [x] Variant switching works
+- [x] "Order this frame" navigates correctly
+- [x] 30+ FPS on target device
+- [x] **RISK CHECK:** If AR performance is unacceptable, implement fallback static frame preview
 
 ---
 
@@ -725,11 +725,11 @@ Version Catalog + Gradle Config
 
 ### Checkpoint: Phase 5 Complete
 
-- [ ] Submit order from product detail → appears in order list as "requested"
-- [ ] Submit order from AR → same result
-- [ ] Order detail shows items and status timeline
-- [ ] Billing detail accessible from confirmed+ orders
-- [ ] All tests pass
+- [x] Submit order from product detail → appears in order list as "requested"
+- [x] Submit order from AR → same result
+- [x] Order detail shows items and status timeline
+- [x] Billing detail accessible from confirmed+ orders
+- [x] All tests pass
 
 ---
 
@@ -816,9 +816,9 @@ Version Catalog + Gradle Config
 - [ ] Multipart form upload for file messages
 
 **Verification:**
-- [ ] Unit test: attachment validation (file type, size)
+- [x] Unit test: attachment validation (file type, size)
 - [ ] Compose preview for context cards
-- [ ] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew testDebugUnitTest` passes
 
 **Dependencies:** Task 22
 

@@ -5,7 +5,9 @@ import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.User
+import com.eyecare.app.domain.repository.AppointmentRepository
 import com.eyecare.app.domain.repository.AuthRepository
+import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -29,6 +31,8 @@ class ChatViewModelTest {
     private lateinit var repo: ChatRepository
     private lateinit var tokenManager: TokenManager
     private lateinit var authRepo: AuthRepository
+    private lateinit var appointmentRepo: AppointmentRepository
+    private lateinit var orderRepo: OrderRepository
 
     private val fakeConversation = Conversation(1, null, null, "General", "2026-10-24T10:00:00Z")
     private val fakeMessage = Message(1, 1, 42, "Hello", null, "2026-10-24T10:00:00Z", emptyList())
@@ -39,12 +43,14 @@ class ChatViewModelTest {
         repo = mockk()
         tokenManager = mockk { coEvery { getToken() } returns "token" }
         authRepo = mockk { coEvery { getUser() } returns Result.success(User(42, "Test", "t@t.com", "customer")) }
+        appointmentRepo = mockk { coEvery { getAppointments() } returns Result.success(emptyList()) }
+        orderRepo = mockk { coEvery { getOrders() } returns Result.success(emptyList()) }
     }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = ChatViewModel(repo, authRepo, tokenManager)
+    private fun vm() = ChatViewModel(repo, authRepo, tokenManager, appointmentRepo, orderRepo)
 
     @Test
     fun `initial state is Loading then loads conversation and messages`() = runTest {

@@ -1,5 +1,8 @@
 package com.eyecare.app.presentation.messaging
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -28,19 +32,26 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.eyecare.app.presentation.messaging.components.AttachmentPreview
+import com.eyecare.app.presentation.messaging.components.AttachmentSheet
+import com.eyecare.app.presentation.messaging.components.ContextCard
 import com.eyecare.app.presentation.messaging.components.MessageBubble
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,14 +60,50 @@ fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var showSheet by remember { mutableStateOf(false) }
+
+    // File picker — images + documents
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
+        val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            cursor.moveToFirst()
+            if (idx >= 0) cursor.getString(idx) else "file"
+        } ?: "file"
+        val fileSize = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val idx = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE)
+            cursor.moveToFirst()
+            if (idx >= 0) cursor.getLong(idx) else 0L
+        } ?: 0L
+        viewModel.setPendingAttachment(PendingAttachment(uri, mimeType, fileName, fileSize))
+    }
 
     // Auto-scroll to latest message
     val messages = (uiState as? ChatUiState.Success)?.messages
     LaunchedEffect(messages?.size) {
         val size = messages?.size ?: return@LaunchedEffect
         if (size > 0) listState.animateScrollToItem(size - 1)
+    }
+
+    if (showSheet) {
+        val state = uiState as? ChatUiState.Success
+        AttachmentSheet(
+            sheetState = sheetState,
+            appointments = state?.appointments ?: emptyList(),
+            orders = state?.orders ?: emptyList(),
+            onAttachFile = { filePicker.launch(arrayOf("image/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
+            onLinkAppointment = { viewModel.setPendingContext(PendingContext.AppointmentContext(it)) },
+            onLinkOrder = { viewModel.setPendingContext(PendingContext.OrderContext(it)) },
+            onDismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { showSheet = false } },
+        )
     }
 
     Column(Modifier.fillMaxSize().imePadding()) {
@@ -80,9 +127,11 @@ fun ChatScreen(
                 is ChatUiState.Success -> {
                     if (state.messages.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No messages yet. Say hello!",
+                            Text(
+                                "No messages yet. Say hello!",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     } else {
                         LazyColumn(
@@ -90,10 +139,7 @@ fun ChatScreen(
                             modifier = Modifier.fillMaxSize().padding(vertical = 8.dp),
                         ) {
                             items(state.messages, key = { it.id }) { msg ->
-                                MessageBubble(
-                                    message = msg,
-                                    isOwn = msg.senderId == viewModel.currentUserId,
-                                )
+                                MessageBubble(message = msg, isOwn = msg.senderId == viewModel.currentUserId)
                             }
                         }
                     }
@@ -101,12 +147,45 @@ fun ChatScreen(
             }
         }
 
+        // Pending attachment / context previews
+        val successState = uiState as? ChatUiState.Success
+        successState?.pendingAttachment?.let { attachment ->
+            AttachmentPreview(
+                attachment = attachment,
+                error = successState.attachmentError,
+                onRemove = { viewModel.setPendingAttachment(null) },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
+        successState?.pendingContext?.let { ctx ->
+            ContextCard(
+                context = ctx,
+                onRemove = { viewModel.setPendingContext(null) },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
+
         // Input bar
-        val isSending = (uiState as? ChatUiState.Success)?.isSending == true
+        val isSending = successState?.isSending == true
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // "+" attachment button
+            Surface(
+                onClick = {
+                    viewModel.loadPickerData()
+                    showSheet = true
+                },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.size(44.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Add, contentDescription = "Add attachment", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Spacer(Modifier.width(8.dp))
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { inputText = it },
@@ -121,14 +200,22 @@ fun ChatScreen(
                 enabled = !isSending,
             )
             Spacer(Modifier.width(8.dp))
+            val hasPendingAttachment = successState?.pendingAttachment != null && successState.attachmentError == null
+            val hasPendingContext = successState?.pendingContext != null
+            val canSend = (inputText.isNotBlank() || hasPendingAttachment || hasPendingContext) && !isSending
             Surface(
                 onClick = {
-                    viewModel.sendMessage(inputText)
-                    inputText = ""
+                    when {
+                        hasPendingAttachment -> viewModel.sendPendingAttachment()
+                        hasPendingContext -> viewModel.sendContextMessage()
+                        else -> {
+                            viewModel.sendMessage(inputText)
+                            inputText = ""
+                        }
+                    }
                 },
                 shape = CircleShape,
-                color = if (inputText.isBlank() || isSending) MaterialTheme.colorScheme.outline
-                else MaterialTheme.colorScheme.primary,
+                color = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(48.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
