@@ -90,8 +90,8 @@ fun AppointmentListScreen(
         Surface(
             onClick = onNavigateToBook,
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 88.dp),
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 96.dp),
             shape = RoundedCornerShape(50),
             color = MaterialTheme.colorScheme.primary,
             shadowElevation = 6.dp,
