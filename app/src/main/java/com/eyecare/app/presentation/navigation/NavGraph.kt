@@ -75,11 +75,8 @@ fun EyecareNavGraph(
     } else null
 
     Box(modifier = Modifier.fillMaxSize()) {
-        val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         NavHost(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = statusBarPadding),
+            modifier = Modifier.fillMaxSize(),
             navController = navController,
             startDestination = startDestination,
             enterTransition = { fadeIn() + slideInHorizontally { it / 6 } },
