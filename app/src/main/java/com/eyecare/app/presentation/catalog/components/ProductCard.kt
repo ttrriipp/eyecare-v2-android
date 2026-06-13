@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,7 +54,7 @@ fun ProductCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
     ) {
-        Column {
+        Column(Modifier.fillMaxHeight()) {
             // Image area with AR badge overlay
             Box(
                 modifier = Modifier
@@ -74,27 +75,36 @@ fun ProductCard(
                 }
             }
 
-            // Product info
-            Column(Modifier.padding(12.dp)) {
-                Text(
-                    product.brand.uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.5.sp,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    product.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                )
-                Spacer(Modifier.height(4.dp))
+            // Product info — fixed layout so all cards are same height
+            Column(
+                Modifier
+                    .padding(12.dp)
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column {
+                    Text(
+                        product.brand.uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 0.5.sp,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        product.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
                     "$${product.price}",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
