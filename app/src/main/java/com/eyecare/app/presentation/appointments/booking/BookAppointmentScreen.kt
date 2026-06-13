@@ -147,8 +147,18 @@ private fun Step2DateTimeSelection(
 ) {
     val today = remember { LocalDate.now() }
     val dates = remember { (0..6).map { today.plusDays(it.toLong()) } }
-    var selectedDate by remember { mutableStateOf(dates.first()) }
-    var selectedTime by remember { mutableStateOf<String?>(null) }
+
+    // Restore from ViewModel state when returning via back navigation
+    val initialDate = remember(selectedDateTime) {
+        selectedDateTime?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            ?: dates.first()
+    }
+    val initialTime = remember(selectedDateTime) {
+        selectedDateTime?.let { dt -> runCatching { dt.substring(11, 16) }.getOrNull() }
+    }
+
+    var selectedDate by remember { mutableStateOf(initialDate) }
+    var selectedTime by remember { mutableStateOf(initialTime) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
