@@ -61,7 +61,9 @@ fun EyecareNavGraph(
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
             !route.contains("BookAppointment") && !route.contains("ProductDetail") &&
             !route.contains("ArTryOn") && !route.contains("OrderRequest") &&
-            !route.contains("OrderDetail")
+            !route.contains("OrderDetail") && !route.contains("OrderList") &&
+            !route.contains("Prescription") && !route.contains("Feedback") &&
+            !route.contains("BillingDetail")
     } ?: false
 
     val currentRoute = if (showBottomNav) when {
