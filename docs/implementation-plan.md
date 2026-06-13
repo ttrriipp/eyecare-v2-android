@@ -127,10 +127,10 @@ Version Catalog + Gradle Config
 - [x] `Type.kt` defines typography using Outfit (headings) and DM Sans (body)
 - [x] `Theme.kt` uses fixed `lightColorScheme` (no dynamic color), disables dark theme
 - [x] Font files added to `res/font/` (via `ui-text-google-fonts` downloadable fonts provider)
-- [ ] Preview composable confirms visual match to prototype palette
+- [x] Preview composable confirms visual match to prototype palette
 
 **Verification:**
-- [ ] Compose preview shows clinical blue primary, white surface, correct typography
+- [x] Compose preview shows clinical blue primary, white surface, correct typography
 - [x] No purple remnants in theme
 
 **Dependencies:** Task 1
