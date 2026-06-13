@@ -30,7 +30,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
-import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.BuildConfig
 
 @Composable
 fun MessageBubble(message: Message, isOwn: Boolean) {
@@ -80,7 +80,7 @@ private fun AttachmentContent(attachment: MessageAttachment, isOwn: Boolean) {
     if (attachment.mimeType.startsWith("image/")) {
         AsyncImage(
             model = ImageRequest.Builder(context)
-                .data(buildImageUrl("attachments/${attachment.id}"))
+                .data("${BuildConfig.API_BASE_URL}attachments/${attachment.id}")
                 .build(),
             imageLoader = SingletonImageLoader.get(context),
             contentDescription = attachment.originalName,
