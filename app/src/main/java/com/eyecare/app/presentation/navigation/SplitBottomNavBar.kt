@@ -1,6 +1,10 @@
 package com.eyecare.app.presentation.navigation
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -105,10 +109,20 @@ private fun NavTabItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val bgColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "tabBg",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "tabContent",
+    )
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(32.dp))
-            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+            .background(bgColor)
             .clickable(role = Role.Tab) { onClick() }
             .padding(horizontal = 8.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
@@ -121,12 +135,12 @@ private fun NavTabItem(
                 imageVector = icon,
                 contentDescription = label,
                 modifier = Modifier.size(20.dp),
-                tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = contentColor,
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = contentColor,
             )
         }
     }
