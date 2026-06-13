@@ -48,8 +48,10 @@ fun MessageBubble(message: Message, isOwn: Boolean) {
             modifier = Modifier.widthIn(max = 280.dp),
         ) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                // Body text — skip if it's the placeholder for a pure attachment message
-                if (message.body.isNotBlank() && message.body != "Attachment") {
+                // Show body text unless it's a pure attachment placeholder AND attachments are present
+                val showBody = message.body.isNotBlank() &&
+                    (message.body != "Attachment" || message.attachments.isEmpty())
+                if (showBody) {
                     Text(
                         message.body,
                         style = MaterialTheme.typography.bodyMedium,

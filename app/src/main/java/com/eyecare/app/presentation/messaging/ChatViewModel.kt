@@ -108,8 +108,14 @@ class ChatViewModel @Inject constructor(
             chatRepository.sendFileMessage(
                 current.conversation.id, attachment.uri, attachment.mimeType, attachment.fileName
             ).fold(
-                onSuccess = { msg ->
-                    _uiState.value = current.copy(messages = current.messages + msg, isSending = false, pendingAttachment = null)
+                onSuccess = {
+                    // Reload messages so the attachment relationship is fully populated
+                    chatRepository.getMessages(current.conversation.id).fold(
+                        onSuccess = { messages ->
+                            _uiState.value = current.copy(messages = messages, isSending = false, pendingAttachment = null)
+                        },
+                        onFailure = { _uiState.value = current.copy(isSending = false, pendingAttachment = null) },
+                    )
                 },
                 onFailure = { _uiState.value = current.copy(isSending = false, pendingAttachment = attachment) },
             )
