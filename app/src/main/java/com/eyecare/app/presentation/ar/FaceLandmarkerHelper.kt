@@ -86,8 +86,9 @@ class FaceLandmarkerHelper(
         val rightX = lm(RIGHT_TEMPLE).x()
         val faceWidth = rightX - leftX
 
-        val dx = lm(NOSE_BRIDGE_2).x() - lm(NOSE_BRIDGE_1).x()
-        val dy = lm(NOSE_BRIDGE_2).y() - lm(NOSE_BRIDGE_1).y()
+        // Head roll: angle of the temple-to-temple line relative to horizontal
+        val dx = rightX - leftX
+        val dy = lm(RIGHT_TEMPLE).y() - lm(LEFT_TEMPLE).y()
         val rotationDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
 
         // FPS counter and landmark debug log
