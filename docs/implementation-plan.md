@@ -974,21 +974,21 @@ Version Catalog + Gradle Config
 **Description:** Run the full capstone defense demo script end-to-end against the seeded backend. Fix all issues found.
 
 **Acceptance criteria:**
-- [ ] Login with seeded customer account → Home screen loads with data
+- [x] Login with seeded customer account → Home screen loads with data
 - [ ] AR try-on launches in < 3 seconds, frame tracks face
 - [ ] Order submitted from AR → visible in order list immediately
-- [ ] Appointment booked → appears in list as pending
+- [x] Appointment booked → appears in list as pending
 - [ ] After admin confirms (separate panel), refresh shows updated status + billing
-- [ ] Message sent to staff → appears in chat
-- [ ] Feedback submitted for completed appointment
+- [x] Message sent to staff → appears in chat
+- [x] Feedback submitted for completed appointment
 - [ ] Full demo path completes in < 10 minutes
-- [ ] No crashes or ANRs during the demo path
-- [ ] `./gradlew testDebugUnitTest` passes (all unit tests green)
-- [ ] `./gradlew ktlintCheck` passes
+- [x] No crashes or ANRs during the demo path
+- [x] `./gradlew testDebugUnitTest` passes (all unit tests green)
+- [x] `./gradlew ktlintCheck` passes
 
 **Verification:**
 - [ ] Full demo rehearsal completed successfully
-- [ ] Test suite green
+- [x] Test suite green (88 tests)
 - [ ] APK size acceptable (< 50MB with ML model)
 
 **Dependencies:** All previous tasks
@@ -1002,13 +1002,13 @@ Version Catalog + Gradle Config
 
 ### Final Checkpoint
 
-- [ ] `./gradlew assembleDebug` succeeds
-- [ ] `./gradlew testDebugUnitTest` passes
-- [ ] `./gradlew ktlintCheck` passes
+- [x] `./gradlew assembleDebug` succeeds
+- [x] `./gradlew testDebugUnitTest` passes
+- [x] `./gradlew ktlintCheck` passes
 - [ ] Full defense demo script completes without crashes in < 10 minutes
 - [ ] AR try-on is the opening "wow" moment and works reliably on demo device
-- [ ] All screens have loading, error, and empty states
-- [ ] Token persists across restarts, 401 redirects to login
+- [x] All screens have loading, error, and empty states
+- [x] Token persists across restarts, 401 redirects to login
 
 ---
 

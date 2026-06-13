@@ -19,12 +19,10 @@ import androidx.navigation.toRoute
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
-import com.eyecare.app.presentation.appointments.AppointmentsScreen
 import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
-import com.eyecare.app.presentation.catalog.CatalogScreen
 import com.eyecare.app.presentation.feedback.FeedbackHistoryScreen
 import com.eyecare.app.presentation.feedback.FeedbackScreen
 import com.eyecare.app.presentation.billing.BillingDetailScreen
