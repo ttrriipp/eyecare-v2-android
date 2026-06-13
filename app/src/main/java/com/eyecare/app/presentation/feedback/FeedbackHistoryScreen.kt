@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,9 +51,7 @@ fun FeedbackHistoryScreen(
         is FeedbackHistoryUiState.Empty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No feedback submitted yet.", style = MaterialTheme.typography.bodyMedium)
         }
-        is FeedbackHistoryUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(state.message, color = MaterialTheme.colorScheme.error)
-        }
+        is FeedbackHistoryUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::retryHistory)
         is FeedbackHistoryUiState.Success -> LazyColumn(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

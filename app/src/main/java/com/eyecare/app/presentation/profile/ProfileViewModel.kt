@@ -30,7 +30,11 @@ class ProfileViewModel @Inject constructor(
     private val _loggedOut = MutableStateFlow(false)
     val loggedOut: StateFlow<Boolean> = _loggedOut.asStateFlow()
 
-    init {
+    init { load() }
+
+    fun retry() = load()
+
+    private fun load() {
         viewModelScope.launch {
             _uiState.value = authRepository.getUser().fold(
                 onSuccess = { ProfileUiState.Success(it) },

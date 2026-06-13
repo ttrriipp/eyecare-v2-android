@@ -51,6 +51,8 @@ class FeedbackViewModel @AssistedInject constructor(
 
     init { loadHistory() }
 
+    fun retryHistory() = loadHistory()
+
     fun submit(rating: Int, comment: String?) {
         if (rating < 1) {
             _uiState.value = FeedbackUiState.ValidationError("Please select a rating")

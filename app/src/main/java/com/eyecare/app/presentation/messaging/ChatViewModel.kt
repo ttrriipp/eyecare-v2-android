@@ -71,6 +71,8 @@ class ChatViewModel @Inject constructor(
         load()
     }
 
+    fun retry() = load()
+
     fun sendMessage(body: String) {
         val trimmed = body.trim()
         if (trimmed.isBlank()) return

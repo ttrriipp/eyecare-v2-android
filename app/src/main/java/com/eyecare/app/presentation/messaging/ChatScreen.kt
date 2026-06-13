@@ -51,6 +51,7 @@ import com.eyecare.app.presentation.messaging.components.AttachmentPreview
 import com.eyecare.app.presentation.messaging.components.AttachmentSheet
 import com.eyecare.app.presentation.messaging.components.ContextCard
 import com.eyecare.app.presentation.messaging.components.MessageBubble
+import com.eyecare.app.presentation.common.components.ErrorContent
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -121,9 +122,7 @@ fun ChatScreen(
                 is ChatUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-                is ChatUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(state.message, color = MaterialTheme.colorScheme.error)
-                }
+                is ChatUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::retry)
                 is ChatUiState.Success -> {
                     if (state.messages.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

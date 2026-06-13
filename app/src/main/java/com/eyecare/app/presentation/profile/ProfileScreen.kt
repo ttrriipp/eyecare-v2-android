@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -81,7 +82,7 @@ fun ProfileScreen(
                 Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center
             ) { CircularProgressIndicator() }
 
-            is ProfileUiState.Error -> Text(state.message, color = MaterialTheme.colorScheme.error)
+            is ProfileUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::retry)
 
             is ProfileUiState.Success -> UserInfoCard(state.user)
         }
