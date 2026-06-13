@@ -40,8 +40,8 @@ private val tabs = listOf(
     TabItem(Profile, Icons.Outlined.Person, "Profile"),
 )
 
-// Dark navy matching the reference image pill background
-private val NavPillColor = Color(0xFF1A2340)
+// Light pill background
+private val NavPillColor = Color.White
 
 @Composable
 fun SplitBottomNavBar(
@@ -62,7 +62,7 @@ fun SplitBottomNavBar(
         Surface(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(40.dp),
-            shadowElevation = 12.dp,
+            shadowElevation = 4.dp,
             color = NavPillColor,
         ) {
             Row(
@@ -121,12 +121,12 @@ private fun NavTabItem(
                 imageVector = icon,
                 contentDescription = label,
                 modifier = Modifier.size(20.dp),
-                tint = if (selected) Color.White else Color.White.copy(alpha = 0.55f),
+                tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (selected) Color.White else Color.White.copy(alpha = 0.55f),
+                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
