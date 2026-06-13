@@ -85,26 +85,32 @@ class FaceLandmarkerHelper(
         val rightX = lm(RIGHT_TEMPLE).x()
         val faceWidth = rightX - leftX
 
-        // Compute roll angle from nose bridge pair
         val dx = lm(NOSE_BRIDGE_2).x() - lm(NOSE_BRIDGE_1).x()
         val dy = lm(NOSE_BRIDGE_2).y() - lm(NOSE_BRIDGE_1).y()
         val rotationDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
 
+        // FPS counter and landmark debug log (debug builds only)
+        if (android.os.Build.TYPE != "user") {
+            val now = System.currentTimeMillis()
+            val fps = if (lastFrameTime > 0) 1000f / (now - lastFrameTime) else 0f
+            lastFrameTime = now
+            Log.d("FaceLandmarker", "face detected | nose=(%.2f,%.2f) width=%.3f rot=%.1f° FPS=%.0f"
+                .format(noseBridgeX, noseBridgeY, faceWidth, rotationDeg, fps))
+        }
+
         onResult(
             ArFaceState.Detected(
                 FaceFrame(
-                    noseBridgeX = noseBridgeX,
-                    noseBridgeY = noseBridgeY,
-                    leftTempleX = leftX,
-                    rightTempleX = rightX,
-                    faceWidthNorm = faceWidth,
-                    rotationDeg = rotationDeg,
-                    imageWidth = w,
-                    imageHeight = h,
+                    noseBridgeX = noseBridgeX, noseBridgeY = noseBridgeY,
+                    leftTempleX = leftX, rightTempleX = rightX,
+                    faceWidthNorm = faceWidth, rotationDeg = rotationDeg,
+                    imageWidth = w, imageHeight = h,
                 )
             )
         )
     }
+
+    private var lastFrameTime: Long = 0
 
     private fun Bitmap.rotate(degrees: Float): Bitmap {
         if (degrees == 0f) return this
