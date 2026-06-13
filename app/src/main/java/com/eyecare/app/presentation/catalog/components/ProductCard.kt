@@ -54,8 +54,7 @@ fun ProductCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
     ) {
-        Column(Modifier.fillMaxHeight()) {
-            // Image area with AR badge overlay
+        Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -75,12 +74,12 @@ fun ProductCard(
                 }
             }
 
-            // Product info — fixed layout so all cards are same height
+            // Fixed-height info section so all cards align
             Column(
-                Modifier
+                modifier = Modifier
                     .padding(12.dp)
                     .fillMaxWidth()
-                    .weight(1f),
+                    .height(80.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
@@ -90,10 +89,9 @@ fun ProductCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         letterSpacing = 0.5.sp,
                     )
-                    Spacer(Modifier.height(2.dp))
                     Text(
                         product.name,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -101,10 +99,9 @@ fun ProductCard(
                 }
                 Text(
                     "$${product.price}",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
