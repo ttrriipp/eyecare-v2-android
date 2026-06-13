@@ -1,7 +1,9 @@
 package com.eyecare.app.presentation.navigation
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -80,8 +82,10 @@ fun EyecareNavGraph(
                 .padding(top = statusBarPadding),
             navController = navController,
             startDestination = startDestination,
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
+            enterTransition = { fadeIn() + slideInVertically { it / 12 } },
+            exitTransition = { fadeOut() + slideOutVertically { -it / 12 } },
+            popEnterTransition = { fadeIn() + slideInVertically { -it / 12 } },
+            popExitTransition = { fadeOut() + slideOutVertically { it / 12 } },
         ) {
                 // Auth graph
                 navigation<AuthGraph>(startDestination = Login) {
