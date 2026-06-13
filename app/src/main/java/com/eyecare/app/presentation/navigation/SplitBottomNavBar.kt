@@ -87,7 +87,7 @@ fun SplitBottomNavBar(
             onClick = onChatClick,
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.primary,
-            shadowElevation = 12.dp,
+            shadowElevation = 4.dp,
             modifier = Modifier.size(56.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
