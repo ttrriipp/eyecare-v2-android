@@ -1,5 +1,7 @@
 package com.eyecare.app.presentation.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -70,6 +72,8 @@ fun EyecareNavGraph(
         NavHost(
             navController = navController,
             startDestination = startDestination,
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
         ) {
                 // Auth graph
                 navigation<AuthGraph>(startDestination = Login) {
