@@ -73,12 +73,11 @@ fun EyecareNavGraph(
     } else null
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 80dp bottom = navbar pill height (56dp content + 12dp vertical padding × 2 + nav bar inset)
         val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         NavHost(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = statusBarPadding, bottom = 96.dp),
+                .padding(top = statusBarPadding),
             navController = navController,
             startDestination = startDestination,
             enterTransition = { EnterTransition.None },

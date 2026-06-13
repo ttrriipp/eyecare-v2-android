@@ -954,8 +954,8 @@ Version Catalog + Gradle Config
 - [ ] Pull-to-refresh on all list screens
 
 **Verification:**
-- [ ] Manual walkthrough: airplane mode → error states shown with retry
-- [ ] Each list screen shows empty state when no data
+- [x] Manual walkthrough: airplane mode → error states shown with retry
+- [x] Each list screen shows empty state when no data
 
 **Dependencies:** All feature screens (Task 9-26)
 
@@ -975,10 +975,10 @@ Version Catalog + Gradle Config
 
 **Acceptance criteria:**
 - [x] Login with seeded customer account → Home screen loads with data
-- [ ] AR try-on launches in < 3 seconds, frame tracks face
-- [ ] Order submitted from AR → visible in order list immediately
+- [x] AR try-on launches in < 3 seconds, frame tracks face
+- [x] Order submitted from AR → visible in order list immediately
 - [x] Appointment booked → appears in list as pending
-- [ ] After admin confirms (separate panel), refresh shows updated status + billing
+- [x] After admin confirms (separate panel), refresh shows updated status + billing
 - [x] Message sent to staff → appears in chat
 - [x] Feedback submitted for completed appointment
 - [ ] Full demo path completes in < 10 minutes

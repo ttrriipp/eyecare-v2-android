@@ -67,7 +67,7 @@ fun PrescriptionListScreen(
             }
             is PrescriptionListUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
             is PrescriptionListUiState.Success -> LazyColumn(
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {

@@ -62,7 +62,7 @@ fun OrderListScreen(
             }
             is OrderListUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
             is OrderListUiState.Success -> LazyColumn(
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
