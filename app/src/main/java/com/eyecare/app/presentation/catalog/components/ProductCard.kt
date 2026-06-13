@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.catalog.components
 
 import androidx.compose.foundation.background
+import com.eyecare.app.presentation.common.buildImageUrl
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +31,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.eyecare.app.BuildConfig
 import com.eyecare.app.domain.model.Product
 
 @Composable
@@ -43,7 +43,7 @@ fun ProductCard(
     val primaryImage = product.images.firstOrNull { it.isPrimary } ?: product.images.firstOrNull()
     val imageUrl = primaryImage?.let {
         val ref = it.path
-        if (ref.startsWith("http")) ref else "${BuildConfig.API_BASE_URL}storage/$ref"
+        buildImageUrl(ref)
     }
 
     Card(

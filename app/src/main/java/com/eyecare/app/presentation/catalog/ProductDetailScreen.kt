@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.catalog
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import com.eyecare.app.presentation.common.buildImageUrl
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,7 +51,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.eyecare.app.BuildConfig
 import com.eyecare.app.domain.model.ProductVariant
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,7 +107,7 @@ fun ProductDetailScreen(
                         } else {
                             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                                 val ref = images[page].path
-                                val url = if (ref.startsWith("http")) ref else "${BuildConfig.API_BASE_URL}storage/$ref"
+                                val url = buildImageUrl(ref)
                                 AsyncImage(
                                     model = url,
                                     contentDescription = product.name,

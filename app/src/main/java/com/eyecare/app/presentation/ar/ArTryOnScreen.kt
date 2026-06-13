@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.ar
 
 import android.Manifest
+import com.eyecare.app.presentation.common.buildImageUrl
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -41,7 +42,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
-import com.eyecare.app.BuildConfig
 import com.eyecare.app.presentation.ar.components.VariantChipRow
 import com.eyecare.app.presentation.ar.model.ArFaceState
 
@@ -86,7 +86,7 @@ fun ArTryOnScreen(
 
                 // Frame overlay when face detected
                 val frameUrl = selectedVariant?.arAssetReference?.let { ref ->
-                    if (ref.startsWith("http")) ref else "${BuildConfig.API_BASE_URL}storage/$ref"
+                    buildImageUrl(ref)
                 }
                 when (val face = faceState) {
                     is ArFaceState.Detected -> {

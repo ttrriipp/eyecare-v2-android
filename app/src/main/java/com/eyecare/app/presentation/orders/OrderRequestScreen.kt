@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.orders
 
 import androidx.compose.foundation.BorderStroke
+import com.eyecare.app.presentation.common.buildImageUrl
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.eyecare.app.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,7 +122,7 @@ private fun OrderRequestContent(
                     ?: state.product.images.firstOrNull()?.path
                 if (imageRef != null) {
                     val url = if (imageRef.startsWith("http")) imageRef
-                    else "${BuildConfig.API_BASE_URL}storage/$imageRef"
+                    else buildImageUrl(imageRef)
                     AsyncImage(
                         model = url,
                         contentDescription = state.product.name,

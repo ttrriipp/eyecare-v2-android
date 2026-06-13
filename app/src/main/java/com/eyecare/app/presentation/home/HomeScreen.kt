@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.home
 
 import androidx.compose.foundation.BorderStroke
+import com.eyecare.app.presentation.common.buildImageUrl
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,7 +50,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.eyecare.app.BuildConfig
 import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.model.OrderStatus
@@ -283,7 +283,7 @@ private fun OrderTrackerCard(order: Order, onClick: () -> Unit) {
 private fun NewArrivalCard(product: Product, onClick: () -> Unit) {
     val imageRef = product.images.firstOrNull { it.isPrimary }?.path ?: product.images.firstOrNull()?.path
     val imageUrl = imageRef?.let {
-        if (it.startsWith("http")) it else "${BuildConfig.API_BASE_URL}storage/$it"
+        buildImageUrl(it)
     }
     Card(
         onClick = onClick,
