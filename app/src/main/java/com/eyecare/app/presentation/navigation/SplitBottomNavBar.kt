@@ -113,19 +113,19 @@ private fun NavTabItem(
 ) {
     val bgColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium),
         label = "tabBg",
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium),
         label = "tabContent",
     )
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.08f else 1f,
+        targetValue = if (selected) 1.05f else 1f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh,
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow,
         ),
         label = "tabScale",
     )
