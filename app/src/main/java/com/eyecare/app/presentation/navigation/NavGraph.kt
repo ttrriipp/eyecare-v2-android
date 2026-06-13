@@ -159,6 +159,7 @@ fun EyecareNavGraph(
                     }
                     composable<OrderList> {
                         OrderListScreen(
+                            onBack = { navController.popBackStack() },
                             onNavigateToDetail = { navController.navigate(OrderDetail(it)) },
                         )
                     }
@@ -180,7 +181,7 @@ fun EyecareNavGraph(
                             onSubmitted = { navController.popBackStack() },
                         )
                     }
-                    composable<FeedbackHistory> { FeedbackHistoryScreen() }
+                    composable<FeedbackHistory> { FeedbackHistoryScreen(onBack = { navController.popBackStack() }) }
                     composable<BillingDetail> { back ->
                         val route = back.toRoute<BillingDetail>()
                         BillingDetailScreen(
@@ -189,7 +190,10 @@ fun EyecareNavGraph(
                         )
                     }
                     composable<PrescriptionList> {
-                        PrescriptionListScreen(onNavigateToDetail = { navController.navigate(PrescriptionDetail(it)) })
+                        PrescriptionListScreen(
+                            onBack = { navController.popBackStack() },
+                            onNavigateToDetail = { navController.navigate(PrescriptionDetail(it)) },
+                        )
                     }
                     composable<PrescriptionDetail> { back ->
                         val route = back.toRoute<PrescriptionDetail>()

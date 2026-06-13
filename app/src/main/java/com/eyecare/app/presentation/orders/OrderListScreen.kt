@@ -16,6 +16,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
@@ -43,11 +49,22 @@ import com.eyecare.app.ui.theme.StatusPending
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderListScreen(
+    onBack: () -> Unit,
     onNavigateToDetail: (Int) -> Unit,
     viewModel: OrderListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    Column(Modifier.fillMaxSize()) {
+        TopAppBar(
+            windowInsets = WindowInsets(0),
+            title = { Text("My Orders") },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            },
+        )
     PullToRefreshBox(
         isRefreshing = uiState is OrderListUiState.Loading,
         onRefresh = viewModel::refresh,
@@ -76,6 +93,7 @@ fun OrderListScreen(
             }
         }
     }
+} // end Column
 }
 
 @Composable
@@ -120,3 +138,4 @@ fun OrderStatusChip(status: OrderStatus) {
         border = SuggestionChipDefaults.suggestionChipBorder(enabled = true, borderColor = color),
     )
 }
+

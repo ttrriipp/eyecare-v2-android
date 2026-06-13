@@ -6,24 +6,29 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import com.eyecare.app.presentation.common.components.ErrorContent
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -37,15 +42,27 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.Feedback
 import com.eyecare.app.ui.theme.StatusPending
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedbackHistoryScreen(
+    onBack: () -> Unit,
     viewModel: FeedbackViewModel = hiltViewModel<FeedbackViewModel, FeedbackViewModel.Factory> {
         it.create(null, null)
     },
 ) {
     val uiState by viewModel.history.collectAsStateWithLifecycle()
 
-    when (val state = uiState) {
+    Column(Modifier.fillMaxSize()) {
+        TopAppBar(
+            windowInsets = WindowInsets(0),
+            title = { Text("Feedback History") },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            },
+        )
+        when (val state = uiState) {
         is FeedbackHistoryUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
@@ -67,6 +84,7 @@ fun FeedbackHistoryScreen(
             }
         }
     }
+} // end Column
 }
 
 @Composable
@@ -103,3 +121,4 @@ private fun FeedbackCard(feedback: Feedback) {
         }
     }
 }
+

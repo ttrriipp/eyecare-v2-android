@@ -49,11 +49,22 @@ import com.eyecare.app.ui.theme.StatusCancelled
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrescriptionListScreen(
+    onBack: () -> Unit,
     onNavigateToDetail: (Int) -> Unit,
     viewModel: PrescriptionViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.listState.collectAsStateWithLifecycle()
 
+    Column(Modifier.fillMaxSize()) {
+        TopAppBar(
+            windowInsets = WindowInsets(0),
+            title = { Text("Prescriptions") },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            },
+        )
     PullToRefreshBox(
         isRefreshing = uiState is PrescriptionListUiState.Loading,
         onRefresh = viewModel::refresh,
@@ -86,6 +97,7 @@ fun PrescriptionListScreen(
             }
         }
     }
+} // end Column
 }
 
 @Composable
@@ -236,5 +248,6 @@ private fun LabelValueRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
+
 
 
