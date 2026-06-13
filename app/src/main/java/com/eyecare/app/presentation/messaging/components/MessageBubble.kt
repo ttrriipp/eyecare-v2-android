@@ -86,10 +86,9 @@ private fun AttachmentContent(attachment: MessageAttachment, isOwn: Boolean) {
                 .build(),
             imageLoader = SingletonImageLoader.get(context),
             contentDescription = attachment.originalName,
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.Fit,
             modifier = Modifier
                 .width(200.dp)
-                .height(150.dp)
                 .clip(RoundedCornerShape(8.dp)),
         )
     } else {
