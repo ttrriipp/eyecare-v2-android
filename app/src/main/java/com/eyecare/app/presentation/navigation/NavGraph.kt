@@ -3,11 +3,10 @@ package com.eyecare.app.presentation.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavDestination
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -59,36 +58,19 @@ fun EyecareNavGraph(
             !route.contains("OrderDetail")
     } ?: false
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        bottomBar = {
-            if (showBottomNav) {
-                val currentRoute = when {
-                    currentDest?.route?.contains("Home") == true -> Home
-                    currentDest?.route?.contains("Catalog") == true -> Catalog
-                    currentDest?.route?.contains("Appointments") == true -> Appointments
-                    currentDest?.route?.contains("Profile") == true -> Profile
-                    else -> Home
-                }
-                SplitBottomNavBar(
-                    currentRoute = currentRoute,
-                    onTabSelected = { route ->
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    onChatClick = { navController.navigate(Chat) },
-                )
-            }
-        }
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            NavHost(
-                navController = navController,
-                startDestination = startDestination,
-            ) {
+    val currentRoute = if (showBottomNav) when {
+        currentDest?.route?.contains("Home") == true -> Home
+        currentDest?.route?.contains("Catalog") == true -> Catalog
+        currentDest?.route?.contains("Appointments") == true -> Appointments
+        currentDest?.route?.contains("Profile") == true -> Profile
+        else -> Home
+    } else null
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+        ) {
                 // Auth graph
                 navigation<AuthGraph>(startDestination = Login) {
                     composable<Login> {
@@ -240,6 +222,22 @@ fun EyecareNavGraph(
                         ChatScreen(onBack = { navController.popBackStack() })
                     }
                 }
+            }
+
+        // Floating navbar — overlaid on content, no background behind it
+        if (showBottomNav && currentRoute != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                SplitBottomNavBar(
+                    currentRoute = currentRoute,
+                    onTabSelected = { route ->
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onChatClick = { navController.navigate(Chat) },
+                )
             }
         }
     }
