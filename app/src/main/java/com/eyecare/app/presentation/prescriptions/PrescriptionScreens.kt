@@ -82,11 +82,6 @@ fun PrescriptionListScreen(
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item {
-                    Text("Prescriptions", style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                }
                 items(state.prescriptions, key = { it.id }) { prescription ->
                     PrescriptionCard(
                         prescription = prescription,

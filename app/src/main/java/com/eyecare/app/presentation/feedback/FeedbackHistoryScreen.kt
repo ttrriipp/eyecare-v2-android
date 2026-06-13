@@ -74,11 +74,6 @@ fun FeedbackHistoryScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                Text("Feedback History", style = MaterialTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-            }
             items(state.items, key = { it.id }) { feedback ->
                 FeedbackCard(feedback)
             }
