@@ -71,22 +71,24 @@ fun FrameOverlayRenderer(
                 }
                 val h = frameWidthPx * 0.35f
                 val top = centerY - h * 0.7f
-                // Left lens
+
+                val saved = canvas.nativeCanvas.save()
+                canvas.nativeCanvas.rotate(-face.rotationDeg, centerX, centerY)
+
                 canvas.nativeCanvas.drawRoundRect(
                     RectF(centerX - frameWidthPx / 2f, top, centerX - frameWidthPx * 0.05f, top + h),
                     16f, 16f, paint,
                 )
-                // Right lens
                 canvas.nativeCanvas.drawRoundRect(
                     RectF(centerX + frameWidthPx * 0.05f, top, centerX + frameWidthPx / 2f, top + h),
                     16f, 16f, paint,
                 )
-                // Bridge
                 canvas.nativeCanvas.drawLine(
                     centerX - frameWidthPx * 0.05f, top + h * 0.5f,
                     centerX + frameWidthPx * 0.05f, top + h * 0.5f,
                     paint,
                 )
+                canvas.nativeCanvas.restoreToCount(saved)
             }
         }
     }
