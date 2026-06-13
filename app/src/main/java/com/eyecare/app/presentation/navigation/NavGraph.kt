@@ -3,12 +3,16 @@ package com.eyecare.app.presentation.navigation
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -69,7 +73,12 @@ fun EyecareNavGraph(
     } else null
 
     Box(modifier = Modifier.fillMaxSize()) {
+        // 80dp bottom = navbar pill height (56dp content + 12dp vertical padding × 2 + nav bar inset)
+        val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         NavHost(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = statusBarPadding, bottom = 96.dp),
             navController = navController,
             startDestination = startDestination,
             enterTransition = { EnterTransition.None },
