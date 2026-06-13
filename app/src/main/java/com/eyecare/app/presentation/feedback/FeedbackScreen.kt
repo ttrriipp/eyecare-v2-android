@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +68,7 @@ fun FeedbackScreen(
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
+            windowInsets = WindowInsets(0),
             title = { Text("Leave Feedback") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
@@ -140,3 +142,5 @@ fun FeedbackScreen(
         }
     }
 }
+
+

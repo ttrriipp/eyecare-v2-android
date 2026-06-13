@@ -32,6 +32,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -75,6 +76,7 @@ fun BookAppointmentScreen(
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
+            windowInsets = WindowInsets(0),
             title = { Text("Book Appointment") },
             navigationIcon = {
                 IconButton(onClick = { if (state.step > 1) viewModel.goBack() else onBack() }) {
@@ -303,3 +305,5 @@ private fun Step3ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
         }
     }
 }
+
+

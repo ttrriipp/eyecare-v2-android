@@ -36,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -75,6 +76,7 @@ fun OrderRequestScreen(
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
+            windowInsets = WindowInsets(0),
             title = { Text("Order Request") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
@@ -270,3 +272,5 @@ private fun OrderRequestContent(
         Spacer(Modifier.height(96.dp))
     }
 }
+
+

@@ -27,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -134,6 +135,7 @@ fun PrescriptionDetailScreen(
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
+            windowInsets = WindowInsets(0),
             title = { Text("Prescription") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
@@ -234,3 +236,5 @@ private fun LabelValueRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
+
+

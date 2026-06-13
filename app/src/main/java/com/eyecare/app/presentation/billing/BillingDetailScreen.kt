@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,6 +56,7 @@ fun BillingDetailScreen(
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
+            windowInsets = WindowInsets(0),
             title = { Text("Billing") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
@@ -191,3 +193,5 @@ private fun BillingStatusChip(status: BillingStatus) {
         border = SuggestionChipDefaults.suggestionChipBorder(enabled = true, borderColor = color),
     )
 }
+
+

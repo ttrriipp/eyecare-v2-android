@@ -32,6 +32,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -116,6 +117,7 @@ fun ChatScreen(
             .imePadding()
     ) {
         TopAppBar(
+            windowInsets = WindowInsets(0),
             title = { Text("Messages") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
@@ -232,3 +234,5 @@ fun ChatScreen(
         }
     }
 }
+
+

@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,6 +54,7 @@ fun OrderDetailScreen(
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
+            windowInsets = WindowInsets(0),
             title = { Text("Order Detail") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
@@ -159,3 +161,5 @@ private fun TotalRow(label: String, value: String, bold: Boolean = false) {
             color = if (bold) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
     }
 }
+
+

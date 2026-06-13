@@ -38,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -67,6 +68,7 @@ fun ProductDetailScreen(
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
+            windowInsets = WindowInsets(0),
             title = { },
             navigationIcon = {
                 IconButton(onClick = onBack) {
@@ -247,3 +249,5 @@ private fun VariantChip(variant: ProductVariant, isSelected: Boolean, onClick: (
         }
     }
 }
+
+
