@@ -112,8 +112,8 @@ fun ChatScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .imePadding()
             .navigationBarsPadding()
+            .imePadding()
     ) {
         TopAppBar(
             title = { Text("Messages") },
