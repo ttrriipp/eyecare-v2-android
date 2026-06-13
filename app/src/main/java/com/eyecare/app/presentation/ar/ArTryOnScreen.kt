@@ -66,7 +66,11 @@ fun ArTryOnScreen(
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        viewModel.onPermissionResult(granted = granted, shouldShowRationale = !granted)
+        val activity = context as? android.app.Activity
+        val rationale = activity?.let {
+            androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+        } ?: false
+        viewModel.onPermissionResult(granted = granted, shouldShowRationale = rationale)
     }
 
     LaunchedEffect(Unit) {
