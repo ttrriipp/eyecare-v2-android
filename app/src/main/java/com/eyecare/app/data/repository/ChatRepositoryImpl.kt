@@ -48,7 +48,7 @@ class ChatRepositoryImpl @Inject constructor(
 
         val bodyPart = "Attachment".toRequestBody("text/plain".toMediaType())
         val filePart = MultipartBody.Part.createFormData(
-            "file", fileName,
+            "attachment", fileName,
             tempFile.asRequestBody(mimeType.toMediaType()),
         )
         api.sendFileMessage(conversationId, bodyPart, filePart).data.toDomain()
