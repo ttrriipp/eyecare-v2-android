@@ -70,6 +70,7 @@ class FaceLandmarkerHelper(
 
     private fun handleResult(result: FaceLandmarkerResult, input: com.google.mediapipe.framework.image.MPImage) {
         if (result.faceLandmarks().isEmpty()) {
+            Log.d("FaceLandmarker", "no face detected")
             onResult(ArFaceState.NoFace)
             return
         }
@@ -89,14 +90,12 @@ class FaceLandmarkerHelper(
         val dy = lm(NOSE_BRIDGE_2).y() - lm(NOSE_BRIDGE_1).y()
         val rotationDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
 
-        // FPS counter and landmark debug log (debug builds only)
-        if (android.os.Build.TYPE != "user") {
-            val now = System.currentTimeMillis()
-            val fps = if (lastFrameTime > 0) 1000f / (now - lastFrameTime) else 0f
-            lastFrameTime = now
-            Log.d("FaceLandmarker", "face detected | nose=(%.2f,%.2f) width=%.3f rot=%.1f° FPS=%.0f"
-                .format(noseBridgeX, noseBridgeY, faceWidth, rotationDeg, fps))
-        }
+        // FPS counter and landmark debug log
+        val now = System.currentTimeMillis()
+        val fps = if (lastFrameTime > 0) 1000f / (now - lastFrameTime) else 0f
+        lastFrameTime = now
+        Log.d("FaceLandmarker", "face detected | nose=(%.2f,%.2f) width=%.3f rot=%.1f° FPS=%.0f"
+            .format(noseBridgeX, noseBridgeY, faceWidth, rotationDeg, fps))
 
         onResult(
             ArFaceState.Detected(
