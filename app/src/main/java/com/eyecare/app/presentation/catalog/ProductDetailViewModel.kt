@@ -44,6 +44,8 @@ class ProductDetailViewModel @AssistedInject constructor(
         _uiState.value = current.copy(selectedVariant = variant)
     }
 
+    fun refresh() = load()
+
     private fun load() {
         viewModelScope.launch {
             _uiState.value = repository.getProduct(productId).fold(

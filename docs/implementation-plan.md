@@ -868,12 +868,12 @@ Version Catalog + Gradle Config
 
 ### Checkpoint: Phase 6 Complete
 
-- [ ] Prescription list and detail load correctly
-- [ ] Can send a message and see it in chat thread
-- [ ] File attachment uploads successfully
-- [ ] Feedback submission works from completed appointment detail
-- [ ] Feedback history shows past submissions with staff replies
-- [ ] All tests pass
+- [x] Prescription list and detail load correctly
+- [x] Can send a message and see it in chat thread
+- [x] File attachment uploads successfully
+- [x] Feedback submission works from completed appointment detail
+- [x] Feedback history shows past submissions with staff replies
+- [x] All tests pass
 
 ---
 

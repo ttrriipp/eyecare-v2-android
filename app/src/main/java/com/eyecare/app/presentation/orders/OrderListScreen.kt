@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.model.OrderStatus
@@ -59,12 +60,7 @@ fun OrderListScreen(
             is OrderListUiState.Empty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("No orders yet.", style = MaterialTheme.typography.bodyMedium)
             }
-            is OrderListUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(state.message, color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = viewModel::refresh) { Text("Retry") }
-                }
-            }
+            is OrderListUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
             is OrderListUiState.Success -> LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),

@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.presentation.catalog.components.ProductCard
 
@@ -98,12 +99,7 @@ fun ProductListScreen(
                 is ProductListUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Loading…", style = MaterialTheme.typography.bodyMedium)
                 }
-                is ProductListUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(state.message, color = MaterialTheme.colorScheme.error)
-                        TextButton(onClick = viewModel::refresh) { Text("Retry") }
-                    }
-                }
+                is ProductListUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
                 is ProductListUiState.Success -> LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),

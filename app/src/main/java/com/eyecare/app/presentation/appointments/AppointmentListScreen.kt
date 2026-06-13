@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.eyecare.app.ui.theme.EyecareTheme
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.AppointmentStatus
@@ -64,12 +65,7 @@ fun AppointmentListScreen(
                 is AppointmentListUiState.Empty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("No appointments yet.", style = MaterialTheme.typography.bodyMedium)
                 }
-                is AppointmentListUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(state.message, color = MaterialTheme.colorScheme.error)
-                        TextButton(onClick = viewModel::refresh) { Text("Retry") }
-                    }
-                }
+                is AppointmentListUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
                 is AppointmentListUiState.Success -> LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),

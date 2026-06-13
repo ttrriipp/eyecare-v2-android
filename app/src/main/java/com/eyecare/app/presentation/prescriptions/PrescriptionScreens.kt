@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.ui.theme.StatusCancelled
@@ -64,12 +65,7 @@ fun PrescriptionListScreen(
             is PrescriptionListUiState.Empty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("No prescriptions yet.", style = MaterialTheme.typography.bodyMedium)
             }
-            is PrescriptionListUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(state.message, color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = viewModel::refresh) { Text("Retry") }
-                }
-            }
+            is PrescriptionListUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
             is PrescriptionListUiState.Success -> LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -150,9 +146,7 @@ fun PrescriptionDetailScreen(
             is PrescriptionDetailUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            is PrescriptionDetailUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(state.message, color = MaterialTheme.colorScheme.error)
-            }
+            is PrescriptionDetailUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
             is PrescriptionDetailUiState.Success -> {
                 val p = state.prescription
                 val isExpired = viewModel.isExpired(p.expiresAt)

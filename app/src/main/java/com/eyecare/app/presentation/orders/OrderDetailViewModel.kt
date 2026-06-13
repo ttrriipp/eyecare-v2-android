@@ -35,6 +35,8 @@ class OrderDetailViewModel @AssistedInject constructor(
 
     init { load() }
 
+    fun refresh() = load()
+
     private fun load() {
         viewModelScope.launch {
             _uiState.value = repository.getOrder(orderId).fold(

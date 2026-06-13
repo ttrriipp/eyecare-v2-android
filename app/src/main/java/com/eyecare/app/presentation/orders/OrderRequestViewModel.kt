@@ -96,6 +96,8 @@ class OrderRequestViewModel @AssistedInject constructor(
         }
     }
 
+    fun refresh() = load()
+
     private fun load() {
         viewModelScope.launch {
             val productDeferred = async { productRepository.getProduct(productId) }

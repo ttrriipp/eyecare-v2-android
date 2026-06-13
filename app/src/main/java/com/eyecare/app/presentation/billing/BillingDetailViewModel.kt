@@ -40,6 +40,8 @@ class BillingDetailViewModel @AssistedInject constructor(
 
     init { load() }
 
+    fun refresh() = load()
+
     private fun load() {
         viewModelScope.launch {
             _uiState.value = runCatching { api.getBilling(billingId).data.toDomain() }.fold(

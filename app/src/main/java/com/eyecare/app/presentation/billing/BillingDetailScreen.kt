@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.Billing
 import com.eyecare.app.domain.model.BillingStatus
@@ -65,9 +66,7 @@ fun BillingDetailScreen(
             is BillingDetailUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            is BillingDetailUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(state.message, color = MaterialTheme.colorScheme.error)
-            }
+            is BillingDetailUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
             is BillingDetailUiState.Success -> BillingContent(billing = state.billing, onBack = onBack)
         }
     }
