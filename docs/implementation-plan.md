@@ -807,13 +807,13 @@ Version Catalog + Gradle Config
 **Description:** Add file attachment (image/document upload) and appointment/order context card linking to messages.
 
 **Acceptance criteria:**
-- [ ] "+" button opens bottom sheet with: Attach file, Link appointment, Link order
-- [ ] File picker: accepts images (jpg/png/gif) and documents (pdf/doc/docx), max 10MB
-- [ ] Shows attachment preview before sending
-- [ ] Sent attachments display inline: filename, size, icon by type
-- [ ] "Link appointment" picker → compact context card in message (type, date, status)
-- [ ] "Link order" picker → compact context card in message (order #, status)
-- [ ] Multipart form upload for file messages
+- [x] "+" button opens bottom sheet with: Attach file, Link appointment, Link order
+- [x] File picker: accepts images (jpg/png/gif) and documents (pdf/doc/docx), max 10MB
+- [x] Shows attachment preview before sending
+- [x] Sent attachments display inline: filename, size, icon by type
+- [x] "Link appointment" picker → compact context card in message (type, date, status)
+- [x] "Link order" picker → compact context card in message (order #, status)
+- [x] Multipart form upload for file messages
 
 **Verification:**
 - [x] Unit test: attachment validation (file type, size)
