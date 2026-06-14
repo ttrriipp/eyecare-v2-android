@@ -1,8 +1,8 @@
 package com.eyecare.app.presentation.billing
 
-import com.eyecare.app.data.remote.api.BillingApiService
-import com.eyecare.app.data.remote.dto.BillingDtos
+import com.eyecare.app.domain.model.Billing
 import com.eyecare.app.domain.model.BillingStatus
+import com.eyecare.app.domain.repository.BillingRepository
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -11,7 +11,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -22,12 +21,11 @@ import org.junit.jupiter.api.Test
 class BillingDetailViewModelTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
-    private lateinit var api: BillingApiService
-    private val json = Json { ignoreUnknownKeys = true }
+    private lateinit var repo: BillingRepository
 
-    private val fakeBillingDto = BillingDtos.BillingDto(
-        id = 1, orderId = 1, status = "issued", totalAmount = "165.00",
-        amountPaid = "0.00", balanceDue = "165.00",
+    private val fakeBilling = Billing(
+        id = 1, orderId = 1, status = BillingStatus.ISSUED,
+        totalAmount = "165.00", amountPaid = "0.00", balanceDue = "165.00",
         issuedAt = "2026-10-25T10:00:00Z", createdAt = "2026-10-24T10:00:00Z",
         payments = emptyList(),
     )
@@ -35,7 +33,7 @@ class BillingDetailViewModelTest {
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
-        api = mockk()
+        repo = mockk()
     }
 
     @AfterEach
@@ -43,8 +41,8 @@ class BillingDetailViewModelTest {
 
     @Test
     fun `loads billing and maps correctly`() = runTest {
-        coEvery { api.getBilling(1) } returns BillingDtos.BillingResponse(fakeBillingDto)
-        val vm = BillingDetailViewModel(api, json, billingId = 1)
+        coEvery { repo.getBilling(1) } returns Result.success(fakeBilling)
+        val vm = BillingDetailViewModel(repo, billingId = 1)
 
         val state = vm.uiState.value as BillingDetailUiState.Success
         assertEquals("165.00", state.billing.totalAmount)
@@ -54,8 +52,8 @@ class BillingDetailViewModelTest {
 
     @Test
     fun `error state on failure`() = runTest {
-        coEvery { api.getBilling(99) } throws RuntimeException("not found")
-        val vm = BillingDetailViewModel(api, json, billingId = 99)
+        coEvery { repo.getBilling(99) } returns Result.failure(RuntimeException("not found"))
+        val vm = BillingDetailViewModel(repo, billingId = 99)
         assertInstanceOf(BillingDetailUiState.Error::class.java, vm.uiState.value)
     }
 }

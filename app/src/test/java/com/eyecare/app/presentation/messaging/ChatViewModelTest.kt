@@ -1,7 +1,6 @@
 package com.eyecare.app.presentation.messaging
 
 import app.cash.turbine.test
-import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.User
@@ -29,7 +28,6 @@ class ChatViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repo: ChatRepository
-    private lateinit var tokenManager: TokenManager
     private lateinit var authRepo: AuthRepository
     private lateinit var appointmentRepo: AppointmentRepository
     private lateinit var orderRepo: OrderRepository
@@ -41,7 +39,6 @@ class ChatViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
-        tokenManager = mockk { coEvery { getToken() } returns "token" }
         authRepo = mockk { coEvery { getUser() } returns Result.success(User(42, "Test", "t@t.com", "customer")) }
         appointmentRepo = mockk { coEvery { getAppointments() } returns Result.success(emptyList()) }
         orderRepo = mockk { coEvery { getOrders() } returns Result.success(emptyList()) }
@@ -50,7 +47,7 @@ class ChatViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = ChatViewModel(repo, authRepo, tokenManager, appointmentRepo, orderRepo)
+    private fun vm() = ChatViewModel(repo, authRepo, appointmentRepo, orderRepo)
 
     @Test
     fun `initial state is Loading then loads conversation and messages`() = runTest {
@@ -126,3 +123,4 @@ class ChatViewModelTest {
         }
     }
 }
+

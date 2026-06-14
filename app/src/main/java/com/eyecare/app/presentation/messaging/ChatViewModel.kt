@@ -3,7 +3,6 @@ package com.eyecare.app.presentation.messaging
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
@@ -53,7 +52,6 @@ sealed interface ChatUiState {
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val authRepository: AuthRepository,
-    private val tokenManager: TokenManager,
     private val appointmentRepository: AppointmentRepository,
     private val orderRepository: OrderRepository,
 ) : ViewModel() {
@@ -81,9 +79,13 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.sendMessage(current.conversation.id, trimmed).fold(
                 onSuccess = { msg ->
-                    _uiState.value = current.copy(messages = current.messages + msg, isSending = false)
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(messages = latest.messages + msg, isSending = false)
                 },
-                onFailure = { _uiState.value = current.copy(isSending = false) },
+                onFailure = {
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(isSending = false)
+                },
             )
         }
     }
@@ -152,6 +154,7 @@ class ChatViewModel @Inject constructor(
 
     fun loadPickerData() {
         val current = _uiState.value as? ChatUiState.Success ?: return
+        if (current.appointments.isNotEmpty() || current.orders.isNotEmpty()) return
         viewModelScope.launch {
             val appointments = appointmentRepository.getAppointments().getOrDefault(emptyList())
             val orders = orderRepository.getOrders().getOrDefault(emptyList())

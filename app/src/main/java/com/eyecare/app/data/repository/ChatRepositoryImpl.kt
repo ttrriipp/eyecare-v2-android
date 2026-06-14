@@ -44,15 +44,17 @@ class ChatRepositoryImpl @Inject constructor(
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: error("Cannot open file")
         val tempFile = File.createTempFile("upload_", null, context.cacheDir)
-        tempFile.outputStream().use { out -> inputStream.use { it.copyTo(out) } }
-
-        val bodyPart = "Attachment".toRequestBody("text/plain".toMediaType())
-        val filePart = MultipartBody.Part.createFormData(
-            "attachment", fileName,
-            tempFile.asRequestBody(mimeType.toMediaType()),
-        )
-        api.sendFileMessage(conversationId, bodyPart, filePart).data.toDomain()
-            .also { tempFile.delete() }
+        try {
+            tempFile.outputStream().use { out -> inputStream.use { it.copyTo(out) } }
+            val bodyPart = "Attachment".toRequestBody("text/plain".toMediaType())
+            val filePart = MultipartBody.Part.createFormData(
+                "attachment", fileName,
+                tempFile.asRequestBody(mimeType.toMediaType()),
+            )
+            api.sendFileMessage(conversationId, bodyPart, filePart).data.toDomain()
+        } finally {
+            tempFile.delete()
+        }
     }
 
     override suspend fun sendContextMessage(

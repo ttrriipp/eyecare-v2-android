@@ -2,11 +2,8 @@ package com.eyecare.app.presentation.billing
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.data.remote.api.BillingApiService
-import com.eyecare.app.data.remote.dto.BillingDtos
 import com.eyecare.app.domain.model.Billing
-import com.eyecare.app.domain.model.BillingStatus
-import com.eyecare.app.domain.model.Payment
+import com.eyecare.app.domain.repository.BillingRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -15,7 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
 sealed interface BillingDetailUiState {
     data object Loading : BillingDetailUiState
@@ -25,8 +21,7 @@ sealed interface BillingDetailUiState {
 
 @HiltViewModel(assistedFactory = BillingDetailViewModel.Factory::class)
 class BillingDetailViewModel @AssistedInject constructor(
-    private val api: BillingApiService,
-    private val json: Json,
+    private val billingRepository: BillingRepository,
     @Assisted private val billingId: Int,
 ) : ViewModel() {
 
@@ -44,19 +39,10 @@ class BillingDetailViewModel @AssistedInject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            _uiState.value = runCatching { api.getBilling(billingId).data.toDomain() }.fold(
+            _uiState.value = billingRepository.getBilling(billingId).fold(
                 onSuccess = { BillingDetailUiState.Success(it) },
                 onFailure = { BillingDetailUiState.Error(it.message ?: "Failed to load billing") },
             )
         }
     }
-
-    private fun BillingDtos.BillingDto.toDomain() = Billing(
-        id = id, orderId = orderId, status = BillingStatus.from(status),
-        totalAmount = totalAmount, amountPaid = amountPaid, balanceDue = balanceDue,
-        issuedAt = issuedAt, createdAt = createdAt,
-        payments = payments.map { p ->
-            Payment(p.id, p.amount, p.status, p.method, p.referenceNumber, p.paidAt)
-        },
-    )
 }
