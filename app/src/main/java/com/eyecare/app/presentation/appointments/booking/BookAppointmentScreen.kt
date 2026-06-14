@@ -249,7 +249,7 @@ private fun Step2DateTimeSelection(
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(26.dp),
         ) {
-            Text("Confirm Booking")
+            Text("Next Step")
         }
     }
 }
