@@ -86,10 +86,12 @@ fun ProductDetailScreen(
                 val product = state.product
                 val selected = state.selectedVariant
 
+                Box(Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 140.dp), // clear space for floating buttons
                 ) {
                     // Image pager
                     val images = product.images.sortedWith(compareByDescending { it.isPrimary })
@@ -190,39 +192,43 @@ fun ProductDetailScreen(
                         }
 
                         Spacer(Modifier.height(28.dp))
-
-                        // Try AR button — only when variant is AR eligible
-                        if (selected.arEligible) {
-                            Button(
-                                onClick = { onNavigateToAr(product.id, selected.id) },
-                                modifier = Modifier.fillMaxWidth().height(52.dp),
-                                shape = RoundedCornerShape(26.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            ) {
-                                Icon(Icons.Outlined.FaceRetouchingNatural, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Try with AR", fontWeight = FontWeight.SemiBold)
-                            }
-                            Spacer(Modifier.height(12.dp))
-                        }
-
-                        // Order button
-                        OutlinedButton(
-                            onClick = { onNavigateToOrder(product.id, selected.id) },
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                            shape = RoundedCornerShape(26.dp),
-                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
-                        ) {
-                            Icon(Icons.Outlined.ShoppingBag, contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Order this frame", color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold)
-                        }
-
-                        Spacer(Modifier.height(96.dp))
                     }
                 }
+
+                // Floating action bar — always visible above the content
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    if (selected.arEligible) {
+                        Button(
+                            onClick = { onNavigateToAr(product.id, selected.id) },
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(26.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        ) {
+                            Icon(Icons.Outlined.FaceRetouchingNatural, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Try with AR", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { onNavigateToOrder(product.id, selected.id) },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+                    ) {
+                        Icon(Icons.Outlined.ShoppingBag, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Order this frame", color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                } // end Box
             }
         }
     }
