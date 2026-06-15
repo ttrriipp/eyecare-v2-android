@@ -94,7 +94,7 @@ fun AppointmentListScreen(
                 .padding(end = 16.dp, bottom = 96.dp),
             shape = RoundedCornerShape(50),
             color = MaterialTheme.colorScheme.primary,
-            shadowElevation = 6.dp,
+            shadowElevation = 2.dp,
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
