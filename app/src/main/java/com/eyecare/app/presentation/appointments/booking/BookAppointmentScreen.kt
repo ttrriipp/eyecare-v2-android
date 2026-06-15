@@ -225,7 +225,7 @@ private fun Step2DateTimeSelection(
                         ),
                     ) {
                         Text(
-                            text = "$time ${if (time < "12:00") "AM" else "PM"}",
+                            text = formatTimeSlot(time),
                             modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 14.dp),
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
