@@ -1,5 +1,11 @@
 package com.eyecare.app.presentation.appointments.booking
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -101,16 +107,26 @@ fun BookAppointmentScreen(
         }
         Spacer(Modifier.height(24.dp))
 
-        when (state.step) {
-            1 -> Step1ReasonSelection(onSelectReason = viewModel::selectReason)
-            2 -> Step2DateTimeSelection(
-                selectedDateTime = state.selectedDateTime,
-                onSelectDateTime = viewModel::selectDateTime,
-            )
-            3 -> Step3ConfirmNotes(
-                state = state,
-                onSubmit = viewModel::submit,
-            )
+        AnimatedContent(
+            targetState = state.step,
+            transitionSpec = {
+                val forward = targetState > initialState
+                slideInHorizontally { if (forward) it else -it } + fadeIn() togetherWith
+                    slideOutHorizontally { if (forward) -it else it } + fadeOut()
+            },
+            label = "wizardStep",
+        ) { step ->
+            when (step) {
+                1 -> Step1ReasonSelection(onSelectReason = viewModel::selectReason)
+                2 -> Step2DateTimeSelection(
+                    selectedDateTime = state.selectedDateTime,
+                    onSelectDateTime = viewModel::selectDateTime,
+                )
+                3 -> Step3ConfirmNotes(
+                    state = state,
+                    onSubmit = viewModel::submit,
+                )
+            }
         }
     }
 }
