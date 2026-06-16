@@ -111,6 +111,33 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `polling refreshes messages after interval`() = runTest {
+        val newMessage = fakeMessage.copy(id = 2, body = "New reply from clinic")
+        coEvery { repo.getOrCreateConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages(1) } returnsMany listOf(
+            Result.success(listOf(fakeMessage)),       // initial load
+            Result.success(listOf(fakeMessage, newMessage)), // poll refresh
+        )
+        val vm = vm()
+
+        vm.uiState.test {
+            awaitItem() // Loading
+            dispatcher.scheduler.advanceUntilIdle()
+            val initial = awaitItem() as ChatUiState.Success
+            assertEquals(1, initial.messages.size)
+
+            // Advance past the poll interval (5 seconds)
+            dispatcher.scheduler.advanceTimeBy(5_001)
+            dispatcher.scheduler.advanceUntilIdle()
+
+            val polled = awaitItem() as ChatUiState.Success
+            assertEquals(2, polled.messages.size)
+            assertEquals("New reply from clinic", polled.messages[1].body)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `repo error emits Error state`() = runTest {
         coEvery { repo.getOrCreateConversation() } returns Result.failure(RuntimeException("offline"))
         val vm = vm()

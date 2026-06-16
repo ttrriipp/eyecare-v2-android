@@ -12,11 +12,14 @@ import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.domain.repository.OrderRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val POLL_INTERVAL_MS = 5_000L
 
 /** Pending attachment the user has picked but not yet sent. */
 data class PendingAttachment(
@@ -67,6 +70,22 @@ class ChatViewModel @Inject constructor(
             authRepository.getUser().onSuccess { currentUserId = it.id }
         }
         load()
+        startPolling()
+    }
+
+    private fun startPolling() {
+        viewModelScope.launch {
+            while (true) {
+                delay(POLL_INTERVAL_MS)
+                val current = _uiState.value as? ChatUiState.Success ?: continue
+                chatRepository.getMessages(current.conversation.id).onSuccess { messages ->
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@onSuccess
+                    if (messages.size != latest.messages.size || messages.lastOrNull()?.id != latest.messages.lastOrNull()?.id) {
+                        _uiState.value = latest.copy(messages = messages)
+                    }
+                }
+            }
+        }
     }
 
     fun retry() = load()
