@@ -98,7 +98,7 @@ fun ProductCard(
                     )
                 }
                 Text(
-                    "$${product.price}",
+                    "?{product.price}",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
@@ -135,3 +135,4 @@ private fun ArBadge(modifier: Modifier = Modifier) {
         }
     }
 }
+
