@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -167,15 +168,7 @@ fun ProductDetailScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
-                        // Dimensions
-                        if (!product.dimensions.isNullOrBlank()) {
-                            Spacer(Modifier.height(8.dp))
-                            Text("Dimensions: ${product.dimensions}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-
-                        // Variant selector
+                        // Variant selector — before dimensions
                         if (product.variants.size > 1) {
                             Spacer(Modifier.height(20.dp))
                             Text("Select Variant", style = MaterialTheme.typography.titleMedium)
@@ -189,6 +182,14 @@ fun ProductDetailScreen(
                                     )
                                 }
                             }
+                        }
+
+                        // Dimensions
+                        if (!product.dimensions.isNullOrBlank()) {
+                            Spacer(Modifier.height(20.dp))
+                            Text("Dimensions", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(8.dp))
+                            DimensionChips(product.dimensions)
                         }
 
                         Spacer(Modifier.height(28.dp))
@@ -229,6 +230,48 @@ fun ProductDetailScreen(
                     }
                 }
                 } // end Box
+            }
+        }
+    }
+}
+
+@Composable
+private fun DimensionChips(dimensions: String) {
+    // Parse "Bridge: 20 · Temple: 145 · Lens_width: 48" or similar formats
+    val parts = dimensions.split("·", ",").map { it.trim() }.filter { it.isNotBlank() }
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        parts.forEach { part ->
+            val (label, value) = if (part.contains(":")) {
+                val idx = part.indexOf(":")
+                part.substring(0, idx).trim().replace("_", " ")
+                    .replaceFirstChar { it.uppercase() } to part.substring(idx + 1).trim()
+            } else {
+                "" to part
+            }
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Column(
+                    Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    if (label.isNotEmpty()) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }
