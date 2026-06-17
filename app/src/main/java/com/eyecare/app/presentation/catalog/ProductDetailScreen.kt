@@ -154,7 +154,7 @@ fun ProductDetailScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "?{selected.price}",
+                            "₱${selected.price}",
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
@@ -250,11 +250,12 @@ private fun VariantChip(variant: ProductVariant, isSelected: Boolean, onClick: (
             Text(variant.name, style = MaterialTheme.typography.labelMedium,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
-            Text("?{variant.price}", style = MaterialTheme.typography.bodySmall,
+            Text("₱${variant.price}", style = MaterialTheme.typography.bodySmall,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
+
 
 
 

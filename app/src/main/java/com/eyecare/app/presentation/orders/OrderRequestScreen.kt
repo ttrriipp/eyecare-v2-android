@@ -141,7 +141,7 @@ private fun OrderRequestContent(
                         fontWeight = FontWeight.SemiBold)
                     Text(state.selectedVariant.name, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("?{state.selectedVariant.price}",
+                    Text("₱${state.selectedVariant.price}",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
@@ -272,6 +272,7 @@ private fun OrderRequestContent(
         Spacer(Modifier.height(96.dp))
     }
 }
+
 
 
 

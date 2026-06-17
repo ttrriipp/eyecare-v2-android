@@ -107,7 +107,7 @@ private fun OrderCard(order: Order, onClick: () -> Unit) {
                     fontWeight = FontWeight.SemiBold)
                 OrderStatusChip(order.status)
             }
-            Text("?{order.totalAmount}", style = MaterialTheme.typography.bodyMedium,
+            Text("₱${order.totalAmount}", style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             Text(order.createdAt.take(10), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -133,5 +133,6 @@ fun OrderStatusChip(status: OrderStatus) {
         border = SuggestionChipDefaults.suggestionChipBorder(enabled = true, borderColor = color),
     )
 }
+
 
 

@@ -305,10 +305,11 @@ private fun NewArrivalCard(product: Product, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.5.sp)
                 Text(product.name, style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold, maxLines = 1)
-                Text("?{product.price}", style = MaterialTheme.typography.bodySmall,
+                Text("₱${product.price}", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
+
 

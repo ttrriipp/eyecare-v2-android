@@ -99,10 +99,10 @@ private fun BillingContent(billing: Billing, onBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                AmountRow("Total Amount", "?{billing.totalAmount}", bold = true)
-                AmountRow("Amount Paid", "?{billing.amountPaid}", color = MaterialTheme.colorScheme.primary)
+                AmountRow("Total Amount", "₱${billing.totalAmount}", bold = true)
+                AmountRow("Amount Paid", "₱${billing.amountPaid}", color = MaterialTheme.colorScheme.primary)
                 AmountRow(
-                    "Balance Due", "?{billing.balanceDue}",
+                    "Balance Due", "₱${billing.balanceDue}",
                     color = if (billing.balanceDue == "0.00") MaterialTheme.colorScheme.onSurface
                     else MaterialTheme.colorScheme.error,
                     bold = true,
@@ -147,7 +147,7 @@ private fun PaymentCard(payment: Payment) {
                 Text(payment.method.replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("?{payment.amount}", style = MaterialTheme.typography.titleMedium,
+                Text("₱${payment.amount}", style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
             payment.referenceNumber?.let {
@@ -193,6 +193,7 @@ private fun BillingStatusChip(status: BillingStatus) {
         border = SuggestionChipDefaults.suggestionChipBorder(enabled = true, borderColor = color),
     )
 }
+
 
 
 

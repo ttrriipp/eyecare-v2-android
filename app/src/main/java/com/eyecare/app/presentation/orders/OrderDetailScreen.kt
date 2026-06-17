@@ -103,8 +103,8 @@ fun OrderDetailScreen(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            TotalRow("Subtotal", "?{order.subtotal}")
-                            TotalRow("Total", "?{order.totalAmount}", bold = true)
+                            TotalRow("Subtotal", "₱${order.subtotal}")
+                            TotalRow("Total", "₱${order.totalAmount}", bold = true)
                         }
                     }
 
@@ -144,7 +144,7 @@ private fun OrderItemRow(item: OrderItem) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Qty: ${item.quantity}", style = MaterialTheme.typography.bodySmall)
-                Text("?{item.subtotal}", style = MaterialTheme.typography.bodyMedium,
+                Text("₱${item.subtotal}", style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
             }
         }
@@ -161,6 +161,7 @@ private fun TotalRow(label: String, value: String, bold: Boolean = false) {
             color = if (bold) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
     }
 }
+
 
 
 
