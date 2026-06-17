@@ -50,14 +50,14 @@ fun FrameOverlayRenderer(
             val viewH = size.height
             val centerX = (1f - face.noseBridgeX) * viewW
             val centerY = face.noseBridgeY * viewH
-            val frameWidthPx = face.faceWidthNorm * viewW * 1.6f
+            val frameWidthPx = face.faceWidthNorm * viewW * 2.2f
 
             if (bitmap != null) {
                 val scale = frameWidthPx / bitmap.width
                 val frameH = bitmap.height * scale
                 val matrix = Matrix().apply {
                     postScale(scale, scale)
-                    postTranslate(centerX - frameWidthPx / 2f, centerY - frameH * 0.35f)
+                    postTranslate(centerX - frameWidthPx / 2f, centerY - frameH * 0.5f)
                     postRotate(-face.rotationDeg, centerX, centerY)
                 }
                 canvas.nativeCanvas.drawBitmap(bitmap, matrix, null)
