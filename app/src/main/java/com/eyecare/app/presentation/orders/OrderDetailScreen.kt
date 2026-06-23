@@ -37,18 +37,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import coil3.compose.AsyncImage
 import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.OrderItem
 import com.eyecare.app.domain.model.OrderStatus
+import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.orders.components.StatusTimeline
 import com.eyecare.app.ui.theme.StatusCancelled
 import com.eyecare.app.ui.theme.StatusConfirmed
 import com.eyecare.app.ui.theme.StatusInfo
 import com.eyecare.app.ui.theme.StatusPending
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Inventory2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -213,15 +218,15 @@ private fun OrderItemRow(item: OrderItem) {
             contentAlignment = Alignment.Center,
         ) {
             if (item.imageUrl != null) {
-                coil3.compose.AsyncImage(
-                    model = com.eyecare.app.presentation.common.buildImageUrl(item.imageUrl),
+                AsyncImage(
+                    model = buildImageUrl(item.imageUrl),
                     contentDescription = item.productName,
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
                 Icon(
-                    androidx.compose.material.icons.Icons.Outlined.Inventory2,
+                    Icons.Outlined.Inventory2,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(26.dp),
