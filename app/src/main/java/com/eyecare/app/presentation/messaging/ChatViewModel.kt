@@ -109,17 +109,6 @@ class ChatViewModel @Inject constructor(
             )
         }
     }
-                onSuccess = { msg ->
-                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
-                    _uiState.value = latest.copy(messages = latest.messages + msg, isSending = false)
-                },
-                onFailure = {
-                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
-                    _uiState.value = latest.copy(isSending = false)
-                },
-            )
-        }
-    }
 
     fun setPendingAttachment(attachment: PendingAttachment?) {
         val current = _uiState.value as? ChatUiState.Success ?: return
