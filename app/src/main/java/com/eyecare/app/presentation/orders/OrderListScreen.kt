@@ -116,7 +116,7 @@ private fun OrderCard(order: Order, onClick: () -> Unit) {
 }
 
 @Composable
-fun OrderStatusChip(status: OrderStatus) {
+private fun OrderStatusChip(status: OrderStatus) {
     val (label, color) = when (status) {
         OrderStatus.REQUESTED -> "Requested" to StatusPending
         OrderStatus.CONFIRMED -> "Confirmed" to StatusConfirmed
