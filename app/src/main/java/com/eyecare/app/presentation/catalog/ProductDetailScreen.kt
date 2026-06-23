@@ -163,8 +163,11 @@ fun ProductDetailScreen(
                         // Description
                         if (!product.description.isNullOrBlank()) {
                             Spacer(Modifier.height(12.dp))
-                            Text(product.description, style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                android.text.Html.fromHtml(product.description, android.text.Html.FROM_HTML_MODE_COMPACT).toString().trim(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
 
                         // Variant selector — before dimensions
