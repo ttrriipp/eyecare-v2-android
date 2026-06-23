@@ -224,7 +224,7 @@ PATCH  /staff/orders/{id}/status
 
 **POST /register** and **POST /login** → returns:
 ```json
-{ "token": "1|abc123...", "user": { "id": 3, "name": "...", "email": "...", "role": "customer" } }
+{ "data": { "token": "1|abc123...", "user": { "id": 3, "name": "...", "email": "...", "role": "customer" } } }
 ```
 
 **GET /user:**
