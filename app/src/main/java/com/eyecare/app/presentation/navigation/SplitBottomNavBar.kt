@@ -19,7 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.RemoveRedEye
@@ -98,7 +98,7 @@ fun SplitBottomNavBar(
             modifier = Modifier.size(56.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.Chat, contentDescription = "Chat", tint = Color.White)
+                Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = "Chat", tint = Color.White)
             }
         }
     }

@@ -16,7 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -93,7 +93,7 @@ fun AttachmentSheet(
                                     onLinkAppointment(appt)
                                     onDismiss()
                                 }
-                                Divider()
+                                HorizontalDivider()
                             }
                         }
                     }
@@ -121,7 +121,7 @@ fun AttachmentSheet(
                                     onLinkOrder(order)
                                     onDismiss()
                                 }
-                                Divider()
+                                HorizontalDivider()
                             }
                         }
                     }

@@ -18,7 +18,7 @@ import javax.inject.Inject
 
 class ChatRepositoryImpl @Inject constructor(
     private val api: ConversationApiService,
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : ChatRepository {
 
     override suspend fun getOrCreateConversation(): Result<Conversation> = runCatching {
