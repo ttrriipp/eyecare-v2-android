@@ -1,5 +1,4 @@
 package com.eyecare.app.presentation.orders
-package com.eyecare.app.presentation.orders
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
