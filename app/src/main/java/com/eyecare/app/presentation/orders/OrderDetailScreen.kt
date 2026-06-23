@@ -205,7 +205,6 @@ private fun OrderItemRow(item: OrderItem) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Letter avatar — first letter of product name on primary tint background
         Box(
             modifier = Modifier
                 .size(52.dp)
@@ -213,12 +212,21 @@ private fun OrderItemRow(item: OrderItem) {
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                item.productName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            if (item.imageUrl != null) {
+                coil3.compose.AsyncImage(
+                    model = com.eyecare.app.presentation.common.buildImageUrl(item.imageUrl),
+                    contentDescription = item.productName,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Text(
+                    item.productName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
 
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {

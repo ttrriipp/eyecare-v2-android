@@ -31,6 +31,8 @@ object OrderDtos {
         @SerialName("unit_price") val unitPrice: String,
         val quantity: Int,
         val subtotal: String,
+        @SerialName("product_images") val productImages: List<String> = emptyList(),
+        @SerialName("variant_images") val variantImages: List<String> = emptyList(),
     )
 
     @Serializable

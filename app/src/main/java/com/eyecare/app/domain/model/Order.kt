@@ -24,6 +24,7 @@ data class OrderItem(
     val unitPrice: String,
     val quantity: Int,
     val subtotal: String,
+    val imageUrl: String?,
 )
 
 enum class OrderStatus {

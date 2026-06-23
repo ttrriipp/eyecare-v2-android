@@ -60,5 +60,6 @@ class OrderRepositoryImpl @Inject constructor(
         productId = productId, productName = productName, variantName = variantName,
         variantSku = variantSku, lensTypeName = lensTypeName,
         unitPrice = unitPrice, quantity = quantity, subtotal = subtotal,
+        imageUrl = (variantImages.firstOrNull() ?: productImages.firstOrNull()),
     )
 }
