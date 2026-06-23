@@ -31,7 +31,7 @@ object MessageDtos {
         @SerialName("file_size") val fileSize: Long,
     )
 
-    @Serializable data class ConversationListResponse(val data: List<ConversationDto>)
+    @Serializable data class ConversationResponse(val data: ConversationDto)
     @Serializable data class MessageListResponse(val data: List<MessageDto>)
     @Serializable data class MessageResponse(val data: MessageDto)
 

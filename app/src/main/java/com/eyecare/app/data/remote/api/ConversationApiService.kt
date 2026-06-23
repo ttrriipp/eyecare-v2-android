@@ -12,7 +12,7 @@ import retrofit2.http.Path
 
 interface ConversationApiService {
     @GET("conversations")
-    suspend fun getConversations(): MessageDtos.ConversationListResponse
+    suspend fun getConversations(): MessageDtos.ConversationResponse
 
     @GET("conversations/{id}/messages")
     suspend fun getMessages(@Path("id") id: Int): MessageDtos.MessageListResponse

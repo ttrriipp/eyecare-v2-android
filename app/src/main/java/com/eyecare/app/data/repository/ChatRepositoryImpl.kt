@@ -22,8 +22,7 @@ class ChatRepositoryImpl @Inject constructor(
 ) : ChatRepository {
 
     override suspend fun getConversation(): Result<Conversation> = runCatching {
-        api.getConversations().data.firstOrNull()?.toDomain()
-            ?: error("No conversation found")
+        api.getConversations().data.toDomain()
     }
 
     override suspend fun getMessages(conversationId: Int): Result<List<Message>> = runCatching {
