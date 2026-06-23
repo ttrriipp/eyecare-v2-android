@@ -21,7 +21,10 @@ object AuthDtos {
     )
 
     @Serializable
-    data class AuthResponse(
+    data class AuthResponse(val data: AuthData)
+
+    @Serializable
+    data class AuthData(
         val token: String,
         val user: UserDto,
     )
