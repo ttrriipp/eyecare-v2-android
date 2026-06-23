@@ -5,6 +5,7 @@ import com.eyecare.app.data.remote.dto.AppointmentDtos
 import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.AssignedStaff
 import com.eyecare.app.domain.repository.AppointmentRepository
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
@@ -47,5 +48,6 @@ class AppointmentRepositoryImpl @Inject constructor(
         scheduledAt = scheduledAt,
         contactNotes = contactNotes,
         staffNotes = staffNotes,
+        assignedStaff = assignedStaff?.let { AssignedStaff(it.id, it.name) },
     )
 }

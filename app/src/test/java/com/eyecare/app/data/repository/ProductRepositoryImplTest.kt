@@ -23,18 +23,20 @@ class ProductRepositoryImplTest {
 
     private val fakeProductDto = ProductDtos.ProductDto(
         id = 1, name = "Clubmaster", slug = "clubmaster", description = "Classic",
-        price = "165.00", dimensions = null,
+        productType = "frame",
         brand = "Ray-Ban",
         category = "Frames",
         variants = listOf(
-            ProductDtos.VariantDto(1, "Black", "RB-001", "165.00", null, true, "frames/rb001.png")
+            ProductDtos.VariantDto(1, "Black", "RB-001", "165.00", null, null, true, "frames/rb001.png", emptyList())
         ),
-        images = listOf(ProductDtos.ImageDto(1, "products/clubmaster.jpg", true, 0)),
+        images = listOf("products/clubmaster.jpg"),
     )
+
+    private val fakeMeta = ProductDtos.PaginationMeta(1, 1, 15, 1)
 
     private val fakeEntity = ProductEntity(
         id = 1, name = "Clubmaster", slug = "clubmaster", description = "Classic",
-        price = "165.00", dimensions = null, brandName = "Ray-Ban", categoryName = "Frames",
+        productType = "frame", brandName = "Ray-Ban", categoryName = "Frames",
         variantsJson = "[]", imagesJson = "[]",
     )
 
@@ -49,7 +51,7 @@ class ProductRepositoryImplTest {
 
     @Test
     fun `getProducts fetches from network, caches, returns mapped domain models`() = runTest {
-        coEvery { api.getProducts() } returns ProductDtos.ProductListResponse(listOf(fakeProductDto))
+        coEvery { api.getProducts(any(), any()) } returns ProductDtos.PaginatedProductResponse(listOf(fakeProductDto), fakeMeta)
         coEvery { dao.getAll() } returns listOf(fakeEntity)
 
         val result = repository.getProducts()
@@ -60,11 +62,12 @@ class ProductRepositoryImplTest {
         assertEquals(1, products.size)
         assertEquals("Clubmaster", products[0].name)
         assertEquals("Ray-Ban", products[0].brand)
+        assertEquals("frame", products[0].productType)
     }
 
     @Test
     fun `getProducts falls back to cache when network fails`() = runTest {
-        coEvery { api.getProducts() } throws RuntimeException("No network")
+        coEvery { api.getProducts(any(), any()) } throws RuntimeException("No network")
         coEvery { dao.getAll() } returns listOf(fakeEntity)
 
         val result = repository.getProducts()
@@ -75,7 +78,7 @@ class ProductRepositoryImplTest {
 
     @Test
     fun `getProducts returns failure when network fails and cache is empty`() = runTest {
-        coEvery { api.getProducts() } throws RuntimeException("No network")
+        coEvery { api.getProducts(any(), any()) } throws RuntimeException("No network")
         coEvery { dao.getAll() } returns emptyList()
 
         val result = repository.getProducts()

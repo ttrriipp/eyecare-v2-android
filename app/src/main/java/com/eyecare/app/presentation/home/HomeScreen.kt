@@ -246,8 +246,8 @@ private fun NextAppointmentCard(appointment: Appointment) {
 
 @Composable
 private fun OrderTrackerCard(order: Order, onClick: () -> Unit) {
-    val steps = listOf(OrderStatus.REQUESTED, OrderStatus.UNDER_REVIEW, OrderStatus.CONFIRMED,
-        OrderStatus.PREPARING, OrderStatus.READY_FOR_PICKUP, OrderStatus.COMPLETED)
+    val steps = listOf(OrderStatus.REQUESTED, OrderStatus.CONFIRMED,
+        OrderStatus.PROCESSING, OrderStatus.READY_FOR_PICKUP, OrderStatus.COMPLETED)
     val currentStep = steps.indexOfFirst { it == order.status }.coerceAtLeast(0)
     val progress = (currentStep + 1).toFloat() / steps.size
 
@@ -281,10 +281,8 @@ private fun OrderTrackerCard(order: Order, onClick: () -> Unit) {
 
 @Composable
 private fun NewArrivalCard(product: Product, onClick: () -> Unit) {
-    val imageRef = product.images.firstOrNull { it.isPrimary }?.path ?: product.images.firstOrNull()?.path
-    val imageUrl = imageRef?.let {
-        buildImageUrl(it)
-    }
+    val imageRef = product.images.firstOrNull() ?: product.variants.firstOrNull()?.images?.firstOrNull()
+    val imageUrl = imageRef?.let { buildImageUrl(it) }
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
@@ -305,7 +303,7 @@ private fun NewArrivalCard(product: Product, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.5.sp)
                 Text(product.name, style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold, maxLines = 1)
-                Text("₱${product.price}", style = MaterialTheme.typography.bodySmall,
+                Text(product.variants.firstOrNull()?.price?.let { "₱$it" } ?: "", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
         }

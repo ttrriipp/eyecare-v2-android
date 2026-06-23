@@ -105,6 +105,9 @@ fun AppointmentDetailScreen(
                                 DetailRow("Your notes", appt.contactNotes)
                             if (!appt.staffNotes.isNullOrBlank())
                                 DetailRow("Staff notes", appt.staffNotes)
+                            appt.assignedStaff?.let {
+                                DetailRow("Assigned staff", it.name)
+                            }
                         }
                     }
 

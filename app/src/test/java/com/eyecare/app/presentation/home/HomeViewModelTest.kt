@@ -39,7 +39,7 @@ class HomeViewModelTest {
         "${LocalDate.now().plusDays(3)}T10:00:00Z", null, null)
     private val pastAppt = Appointment(2, "follow_up", AppointmentStatus.COMPLETED,
         "${LocalDate.now().minusDays(5)}T10:00:00Z", null, null)
-    private val activeOrder = Order(1, "ORD-001", null, false, OrderStatus.PREPARING,
+    private val activeOrder = Order(1, "ORD-001", null, false, OrderStatus.PROCESSING,
         "165.00", "165.00", emptyList(), "${LocalDate.now().minusDays(1)}T10:00:00Z")
     private val expiredPrescription = Prescription(1, 1, null, null, null, null,
         null, null, null, null, null,
@@ -53,7 +53,8 @@ class HomeViewModelTest {
         orderRepo = mockk()
         productRepo = mockk()
         prescriptionRepo = mockk()
-        coEvery { productRepo.getProducts() } returns Result.success(emptyList())
+        coEvery { productRepo.getProducts(any()) } returns Result.success(emptyList())
+        coEvery { productRepo.hasMorePages(any()) } returns false
     }
 
     @AfterEach
@@ -64,7 +65,8 @@ class HomeViewModelTest {
     @Test
     fun `nextAppointment is the soonest future confirmed appointment`() = runTest {
         coEvery { appointmentRepo.getAppointments() } returns Result.success(listOf(pastAppt, futureAppt))
-        coEvery { orderRepo.getOrders() } returns Result.success(emptyList())
+        coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
+                coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(emptyList())
         val state = vm().uiState.value as HomeUiState.Success
         assertEquals(futureAppt, state.nextAppointment)
@@ -73,7 +75,8 @@ class HomeViewModelTest {
     @Test
     fun `activeOrder is the most recent non-completed order`() = runTest {
         coEvery { appointmentRepo.getAppointments() } returns Result.success(emptyList())
-        coEvery { orderRepo.getOrders() } returns Result.success(listOf(activeOrder))
+        coEvery { orderRepo.getOrders(any()) } returns Result.success(listOf(activeOrder))
+                coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(emptyList())
         val state = vm().uiState.value as HomeUiState.Success
         assertEquals(activeOrder, state.activeOrder)
@@ -82,7 +85,8 @@ class HomeViewModelTest {
     @Test
     fun `expiringPrescription is set when prescription expires within 30 days`() = runTest {
         coEvery { appointmentRepo.getAppointments() } returns Result.success(emptyList())
-        coEvery { orderRepo.getOrders() } returns Result.success(emptyList())
+        coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
+                coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(listOf(expiredPrescription))
         val state = vm().uiState.value as HomeUiState.Success
         assertNotNull(state.expiringPrescription)
@@ -94,7 +98,8 @@ class HomeViewModelTest {
             expiresAt = "${LocalDate.now().plusMonths(6)}"
         )
         coEvery { appointmentRepo.getAppointments() } returns Result.success(emptyList())
-        coEvery { orderRepo.getOrders() } returns Result.success(emptyList())
+        coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
+                coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(listOf(healthyPrescription))
         val state = vm().uiState.value as HomeUiState.Success
         assertNull(state.expiringPrescription)

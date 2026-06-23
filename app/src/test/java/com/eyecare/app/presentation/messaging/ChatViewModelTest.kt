@@ -32,7 +32,7 @@ class ChatViewModelTest {
     private lateinit var appointmentRepo: AppointmentRepository
     private lateinit var orderRepo: OrderRepository
 
-    private val fakeConversation = Conversation(1, null, null, "General", "2026-10-24T10:00:00Z")
+    private val fakeConversation = Conversation(1, null, "2026-10-24T10:00:00Z")
     private val fakeMessage = Message(1, 1, 42, "Hello", null, "2026-10-24T10:00:00Z", emptyList())
 
     @BeforeEach
@@ -51,7 +51,7 @@ class ChatViewModelTest {
 
     @Test
     fun `initial state is Loading then loads conversation and messages`() = runTest {
-        coEvery { repo.getOrCreateConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages(1) } returns Result.success(listOf(fakeMessage))
         val vm = vm()
 
@@ -67,7 +67,7 @@ class ChatViewModelTest {
 
     @Test
     fun `send message appends it to list`() = runTest {
-        coEvery { repo.getOrCreateConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages(1) } returns Result.success(emptyList())
         coEvery { repo.sendMessage(1, "Hi there") } returns Result.success(
             fakeMessage.copy(id = 2, body = "Hi there")
@@ -99,7 +99,7 @@ class ChatViewModelTest {
 
     @Test
     fun `send empty message does nothing`() = runTest {
-        coEvery { repo.getOrCreateConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages(1) } returns Result.success(emptyList())
         val vm = vm()
         dispatcher.scheduler.advanceUntilIdle()
@@ -113,7 +113,7 @@ class ChatViewModelTest {
     @Test
     fun `polling refreshes messages after interval`() = runTest {
         val newMessage = fakeMessage.copy(id = 2, body = "New reply from clinic")
-        coEvery { repo.getOrCreateConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages(1) } returnsMany listOf(
             Result.success(listOf(fakeMessage)),       // initial load
             Result.success(listOf(fakeMessage, newMessage)), // poll refresh
@@ -139,7 +139,7 @@ class ChatViewModelTest {
 
     @Test
     fun `repo error emits Error state`() = runTest {
-        coEvery { repo.getOrCreateConversation() } returns Result.failure(RuntimeException("offline"))
+        coEvery { repo.getConversation() } returns Result.failure(RuntimeException("offline"))
         val vm = vm()
 
         vm.uiState.test {

@@ -21,18 +21,21 @@ class ChatRepositoryImpl @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) : ChatRepository {
 
-    override suspend fun getOrCreateConversation(): Result<Conversation> = runCatching {
-        val existing = api.getConversations().data
-        if (existing.isNotEmpty()) existing.first().toDomain()
-        else api.createConversation(MessageDtos.CreateConversationRequest(body = "Hello")).data.toDomain()
+    override suspend fun getConversation(): Result<Conversation> = runCatching {
+        api.getConversations().data.firstOrNull()?.toDomain()
+            ?: error("No conversation found")
     }
 
     override suspend fun getMessages(conversationId: Int): Result<List<Message>> = runCatching {
         api.getMessages(conversationId).data.map { it.toDomain() }
     }
 
-    override suspend fun sendMessage(conversationId: Int, body: String): Result<Message> = runCatching {
-        api.sendMessage(conversationId, MessageDtos.SendMessageRequest(body)).data.toDomain()
+    override suspend fun sendMessage(
+        conversationId: Int,
+        body: String,
+        contexts: List<MessageDtos.ContextLinkDto>?,
+    ): Result<Message> = runCatching {
+        api.sendMessage(conversationId, MessageDtos.SendMessageRequest(body, contexts)).data.toDomain()
     }
 
     override suspend fun sendFileMessage(
@@ -57,20 +60,8 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun sendContextMessage(
-        conversationId: Int,
-        body: String,
-        appointmentId: Int?,
-        orderId: Int?,
-    ): Result<Message> = runCatching {
-        // Send as a regular message — the body carries the context reference text.
-        // The conversation was optionally created with appointmentId/orderId already.
-        api.sendMessage(conversationId, MessageDtos.SendMessageRequest(body)).data.toDomain()
-    }
-
     private fun MessageDtos.ConversationDto.toDomain() = Conversation(
-        id = id, appointmentId = appointmentId, orderId = orderId,
-        subject = subject, createdAt = createdAt,
+        id = id, customerId = customerId, createdAt = createdAt,
     )
 
     private fun MessageDtos.MessageDto.toDomain() = Message(

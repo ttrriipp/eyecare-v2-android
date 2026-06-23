@@ -119,9 +119,8 @@ private fun OrderCard(order: Order, onClick: () -> Unit) {
 fun OrderStatusChip(status: OrderStatus) {
     val (label, color) = when (status) {
         OrderStatus.REQUESTED -> "Requested" to StatusPending
-        OrderStatus.UNDER_REVIEW -> "Under Review" to StatusInfo
         OrderStatus.CONFIRMED -> "Confirmed" to StatusConfirmed
-        OrderStatus.PREPARING -> "Preparing" to StatusInfo
+        OrderStatus.PROCESSING -> "Processing" to StatusInfo
         OrderStatus.READY_FOR_PICKUP -> "Ready" to StatusConfirmed
         OrderStatus.COMPLETED -> "Completed" to StatusConfirmed
         OrderStatus.CANCELLED -> "Cancelled" to StatusCancelled

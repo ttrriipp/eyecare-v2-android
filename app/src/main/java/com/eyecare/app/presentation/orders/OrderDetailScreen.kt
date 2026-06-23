@@ -109,7 +109,7 @@ fun OrderDetailScreen(
                     }
 
                     // Billing button for confirmed+ orders
-                    val confirmedStatuses = setOf(OrderStatus.CONFIRMED, OrderStatus.PREPARING,
+                    val confirmedStatuses = setOf(OrderStatus.CONFIRMED, OrderStatus.PROCESSING,
                         OrderStatus.READY_FOR_PICKUP, OrderStatus.COMPLETED)
                     if (order.status in confirmedStatuses) {
                         Button(onClick = { onViewBilling(order.id) }, modifier = Modifier.fillMaxWidth(),
@@ -140,7 +140,7 @@ private fun OrderItemRow(item: OrderItem) {
         modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(item.productName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text("${item.variantName} · ${item.lensTypeName}", style = MaterialTheme.typography.bodySmall,
+            Text("${item.variantName}${item.lensTypeName?.let { " · $it" } ?: ""}", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Qty: ${item.quantity}", style = MaterialTheme.typography.bodySmall)

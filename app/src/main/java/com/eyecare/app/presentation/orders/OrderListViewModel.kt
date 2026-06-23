@@ -13,7 +13,11 @@ import javax.inject.Inject
 
 sealed interface OrderListUiState {
     data object Loading : OrderListUiState
-    data class Success(val orders: List<Order>) : OrderListUiState
+    data class Success(
+        val orders: List<Order>,
+        val isLoadingMore: Boolean = false,
+        val hasMorePages: Boolean = false,
+    ) : OrderListUiState
     data object Empty : OrderListUiState
     data class Error(val message: String) : OrderListUiState
 }
@@ -26,15 +30,45 @@ class OrderListViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<OrderListUiState>(OrderListUiState.Loading)
     val uiState: StateFlow<OrderListUiState> = _uiState.asStateFlow()
 
+    private var currentPage = 1
+
     init { load() }
 
-    fun refresh() { load() }
+    fun refresh() {
+        currentPage = 1
+        load()
+    }
+
+    fun loadMore() {
+        val current = _uiState.value as? OrderListUiState.Success ?: return
+        if (current.isLoadingMore || !current.hasMorePages) return
+        _uiState.value = current.copy(isLoadingMore = true)
+        viewModelScope.launch {
+            currentPage++
+            repository.getOrders(page = currentPage).fold(
+                onSuccess = { newOrders ->
+                    val hasMore = repository.hasMorePages(currentPage)
+                    _uiState.value = OrderListUiState.Success(
+                        orders = current.orders + newOrders,
+                        hasMorePages = hasMore,
+                    )
+                },
+                onFailure = {
+                    currentPage--
+                    _uiState.value = current.copy(isLoadingMore = false)
+                },
+            )
+        }
+    }
 
     private fun load() {
         _uiState.value = OrderListUiState.Loading
         viewModelScope.launch {
-            _uiState.value = repository.getOrders().fold(
-                onSuccess = { if (it.isEmpty()) OrderListUiState.Empty else OrderListUiState.Success(it) },
+            _uiState.value = repository.getOrders(page = 1).fold(
+                onSuccess = { orders ->
+                    if (orders.isEmpty()) OrderListUiState.Empty
+                    else OrderListUiState.Success(orders, hasMorePages = repository.hasMorePages(1))
+                },
                 onFailure = { OrderListUiState.Error(it.message ?: "Failed to load") },
             )
         }

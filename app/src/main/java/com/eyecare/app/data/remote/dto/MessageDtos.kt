@@ -9,10 +9,6 @@ object MessageDtos {
     data class ConversationDto(
         val id: Int,
         @SerialName("customer_id") val customerId: Int? = null,
-        @SerialName("staff_id") val staffId: Int? = null,
-        @SerialName("appointment_id") val appointmentId: Int? = null,
-        @SerialName("order_id") val orderId: Int? = null,
-        val subject: String? = null,
         @SerialName("created_at") val createdAt: String,
     )
 
@@ -36,18 +32,15 @@ object MessageDtos {
     )
 
     @Serializable data class ConversationListResponse(val data: List<ConversationDto>)
-    @Serializable data class ConversationResponse(val data: ConversationDto)
     @Serializable data class MessageListResponse(val data: List<MessageDto>)
     @Serializable data class MessageResponse(val data: MessageDto)
 
     @Serializable
-    data class CreateConversationRequest(
-        val body: String,
-        val subject: String? = null,
-        @SerialName("appointment_id") val appointmentId: Int? = null,
-        @SerialName("order_id") val orderId: Int? = null,
-    )
+    data class ContextLinkDto(val type: String, val id: Int)
 
     @Serializable
-    data class SendMessageRequest(val body: String)
+    data class SendMessageRequest(
+        val body: String,
+        val contexts: List<ContextLinkDto>? = null,
+    )
 }

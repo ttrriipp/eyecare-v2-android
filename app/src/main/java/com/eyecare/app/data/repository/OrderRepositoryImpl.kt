@@ -16,8 +16,17 @@ class OrderRepositoryImpl @Inject constructor(
     private val json: Json,
 ) : OrderRepository {
 
-    override suspend fun getOrders(): Result<List<Order>> = runCatching {
-        api.getOrders().data.map { it.toDomain() }
+    private var lastMeta: OrderDtos.PaginationMeta? = null
+
+    override suspend fun getOrders(page: Int): Result<List<Order>> = runCatching {
+        val response = api.getOrders(page = page)
+        lastMeta = response.meta
+        response.data.map { it.toDomain() }
+    }
+
+    override suspend fun hasMorePages(page: Int): Boolean {
+        val meta = lastMeta ?: return false
+        return page < meta.lastPage
     }
 
     override suspend fun getOrder(id: Int): Result<Order> = runCatching {

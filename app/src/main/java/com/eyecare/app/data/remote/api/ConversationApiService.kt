@@ -14,9 +14,6 @@ interface ConversationApiService {
     @GET("conversations")
     suspend fun getConversations(): MessageDtos.ConversationListResponse
 
-    @POST("conversations")
-    suspend fun createConversation(@Body request: MessageDtos.CreateConversationRequest): MessageDtos.ConversationResponse
-
     @GET("conversations/{id}/messages")
     suspend fun getMessages(@Path("id") id: Int): MessageDtos.MessageListResponse
 

@@ -28,9 +28,8 @@ import com.eyecare.app.ui.theme.StatusCancelled
 // Ordered progression for the timeline (cancelled handled separately)
 private val TIMELINE_STEPS = listOf(
     OrderStatus.REQUESTED to "Requested",
-    OrderStatus.UNDER_REVIEW to "Under Review",
     OrderStatus.CONFIRMED to "Confirmed",
-    OrderStatus.PREPARING to "Preparing",
+    OrderStatus.PROCESSING to "Processing",
     OrderStatus.READY_FOR_PICKUP to "Ready",
     OrderStatus.COMPLETED to "Completed",
 )

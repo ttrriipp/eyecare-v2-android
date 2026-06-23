@@ -9,10 +9,9 @@ data class ProductEntity(
     val name: String,
     val slug: String,
     val description: String?,
-    val price: String,
-    val dimensions: String?,
+    val productType: String,
     val brandName: String,
     val categoryName: String,
-    val variantsJson: String, // JSON array of variants
-    val imagesJson: String,   // JSON array of images
+    val variantsJson: String,
+    val imagesJson: String,
 )

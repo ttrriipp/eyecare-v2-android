@@ -120,8 +120,8 @@ private fun OrderRequestContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                val imageRef = state.product.images.firstOrNull { it.isPrimary }?.path
-                    ?: state.product.images.firstOrNull()?.path
+                val imageRef = state.product.images.firstOrNull()
+                    ?: state.product.variants.firstOrNull()?.images?.firstOrNull()
                 if (imageRef != null) {
                     val url = if (imageRef.startsWith("http")) imageRef
                     else buildImageUrl(imageRef)

@@ -40,8 +40,8 @@ class AuthRepositoryImpl @Inject constructor(
     private suspend fun safeCall(block: suspend () -> AuthDtos.AuthResponse): Result<User> =
         runCatching {
             val response = block()
-            tokenManager.saveToken(response.data.token)
-            response.data.user.toDomain()
+            tokenManager.saveToken(response.token)
+            response.user.toDomain()
         }.recoverCatching { throwable ->
             when {
                 throwable is HttpException && throwable.code() == 422 -> {

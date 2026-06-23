@@ -5,12 +5,11 @@ data class Product(
     val name: String,
     val slug: String,
     val description: String?,
-    val price: String,
-    val dimensions: String?,
+    val productType: String,
     val brand: String,
     val category: String,
     val variants: List<ProductVariant>,
-    val images: List<ProductImage>,
+    val images: List<String>,
 )
 
 data class ProductVariant(
@@ -18,14 +17,9 @@ data class ProductVariant(
     val name: String,
     val sku: String,
     val price: String,
-    val dimensions: String?,
+    val compareAtPrice: String?,
+    val attributes: Map<String, String>?,
     val arEligible: Boolean,
     val arAssetReference: String?,
-)
-
-data class ProductImage(
-    val id: Int,
-    val path: String,
-    val isPrimary: Boolean,
-    val sortOrder: Int,
+    val images: List<String>,
 )

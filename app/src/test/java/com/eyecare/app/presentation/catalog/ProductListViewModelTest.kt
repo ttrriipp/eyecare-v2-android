@@ -2,7 +2,6 @@ package com.eyecare.app.presentation.catalog
 
 import app.cash.turbine.test
 import com.eyecare.app.domain.model.Product
-import com.eyecare.app.domain.model.ProductImage
 import com.eyecare.app.domain.model.ProductVariant
 import com.eyecare.app.domain.repository.ProductRepository
 import io.mockk.coEvery
@@ -27,9 +26,9 @@ class ProductListViewModelTest {
 
     private fun makeProduct(id: Int, category: String, arEligible: Boolean = false) = Product(
         id = id, name = "Product $id", slug = "product-$id", description = null,
-        price = "100.00", dimensions = null, brand = "Brand", category = category,
+        productType = "frame", brand = "Brand", category = category,
         variants = if (arEligible) listOf(
-            ProductVariant(id, "v", "sku", "100.00", null, true, "img.png")
+            ProductVariant(id, "v", "sku", "100.00", null, null, true, "img.png", emptyList())
         ) else emptyList(),
         images = emptyList(),
     )
@@ -52,7 +51,8 @@ class ProductListViewModelTest {
 
     @Test
     fun `initial state is Loading then Success with all products`() = runTest {
-        coEvery { repo.getProducts() } returns Result.success(products)
+        coEvery { repo.getProducts(any()) } returns Result.success(products)
+                coEvery { repo.hasMorePages(any()) } returns false
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {
@@ -66,7 +66,8 @@ class ProductListViewModelTest {
 
     @Test
     fun `selecting Frames category filters to frames only`() = runTest {
-        coEvery { repo.getProducts() } returns Result.success(products)
+        coEvery { repo.getProducts(any()) } returns Result.success(products)
+                coEvery { repo.hasMorePages(any()) } returns false
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {
@@ -84,7 +85,8 @@ class ProductListViewModelTest {
 
     @Test
     fun `selecting All category shows all products`() = runTest {
-        coEvery { repo.getProducts() } returns Result.success(products)
+        coEvery { repo.getProducts(any()) } returns Result.success(products)
+                coEvery { repo.hasMorePages(any()) } returns false
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {
@@ -103,7 +105,8 @@ class ProductListViewModelTest {
 
     @Test
     fun `search query filters products by name`() = runTest {
-        coEvery { repo.getProducts() } returns Result.success(products)
+        coEvery { repo.getProducts(any()) } returns Result.success(products)
+                coEvery { repo.hasMorePages(any()) } returns false
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {
@@ -121,7 +124,8 @@ class ProductListViewModelTest {
 
     @Test
     fun `error from repo emits Error state`() = runTest {
-        coEvery { repo.getProducts() } returns Result.failure(RuntimeException("offline"))
+        coEvery { repo.getProducts(any()) } returns Result.failure(RuntimeException("offline"))
+                coEvery { repo.hasMorePages(any()) } returns false
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {

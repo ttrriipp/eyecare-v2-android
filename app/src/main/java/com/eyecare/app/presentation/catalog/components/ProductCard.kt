@@ -41,11 +41,9 @@ fun ProductCard(
     modifier: Modifier = Modifier,
 ) {
     val hasAr = product.variants.any { it.arEligible }
-    val primaryImage = product.images.firstOrNull { it.isPrimary } ?: product.images.firstOrNull()
-    val imageUrl = primaryImage?.let {
-        val ref = it.path
-        buildImageUrl(ref)
-    }
+    val imageUrl = (product.images.firstOrNull() ?: product.variants.firstOrNull()?.images?.firstOrNull())
+        ?.let { buildImageUrl(it) }
+    val displayPrice = product.variants.firstOrNull()?.price
 
     Card(
         onClick = onClick,
@@ -98,7 +96,7 @@ fun ProductCard(
                     )
                 }
                 Text(
-                    "₱${product.price}",
+                    if (displayPrice != null) "₱$displayPrice" else "",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,

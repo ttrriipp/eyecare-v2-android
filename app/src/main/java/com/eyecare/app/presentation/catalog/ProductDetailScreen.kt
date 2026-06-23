@@ -94,8 +94,8 @@ fun ProductDetailScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(bottom = 140.dp), // clear space for floating buttons
                 ) {
-                    // Image pager
-                    val images = product.images.sortedWith(compareByDescending { it.isPrimary })
+                    // Image pager — prefer variant images, fall back to product images
+                    val images = selected.images.ifEmpty { product.images }
                     val pagerState = rememberPagerState { images.size.coerceAtLeast(1) }
 
                     Box(
@@ -110,8 +110,7 @@ fun ProductDetailScreen(
                             }
                         } else {
                             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                                val ref = images[page].path
-                                val url = buildImageUrl(ref)
+                                val url = buildImageUrl(images[page])
                                 AsyncImage(
                                     model = url,
                                     contentDescription = product.name,
@@ -184,12 +183,13 @@ fun ProductDetailScreen(
                             }
                         }
 
-                        // Dimensions
-                        if (!product.dimensions.isNullOrBlank()) {
+                        // Attributes (replaces dimensions)
+                        val attributes = selected.attributes
+                        if (!attributes.isNullOrEmpty()) {
                             Spacer(Modifier.height(20.dp))
-                            Text("Dimensions", style = MaterialTheme.typography.titleMedium)
+                            Text("Specifications", style = MaterialTheme.typography.titleMedium)
                             Spacer(Modifier.height(8.dp))
-                            DimensionChips(product.dimensions)
+                            AttributeChips(attributes)
                         }
 
                         Spacer(Modifier.height(28.dp))
@@ -236,21 +236,12 @@ fun ProductDetailScreen(
 }
 
 @Composable
-private fun DimensionChips(dimensions: String) {
-    // Parse "Bridge: 20 · Temple: 145 · Lens_width: 48" or similar formats
-    val parts = dimensions.split("·", ",").map { it.trim() }.filter { it.isNotBlank() }
+private fun AttributeChips(attributes: Map<String, String>) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        parts.forEach { part ->
-            val (label, value) = if (part.contains(":")) {
-                val idx = part.indexOf(":")
-                part.substring(0, idx).trim().replace("_", " ")
-                    .replaceFirstChar { it.uppercase() } to part.substring(idx + 1).trim()
-            } else {
-                "" to part
-            }
+        attributes.forEach { (key, value) ->
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -259,13 +250,11 @@ private fun DimensionChips(dimensions: String) {
                     Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    if (label.isNotEmpty()) {
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        key.replace("_", " ").replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Text(
                         value,
                         style = MaterialTheme.typography.bodyMedium,

@@ -22,15 +22,14 @@ data class Payment(
 )
 
 enum class BillingStatus {
-    DRAFT, ISSUED, PARTIALLY_PAID, PAID, VOIDED;
+    ISSUED, PARTIALLY_PAID, PAID, VOIDED;
 
     companion object {
         fun from(value: String): BillingStatus = when (value.lowercase()) {
-            "issued" -> ISSUED
             "partially_paid" -> PARTIALLY_PAID
             "paid" -> PAID
             "voided" -> VOIDED
-            else -> DRAFT
+            else -> ISSUED
         }
     }
 }

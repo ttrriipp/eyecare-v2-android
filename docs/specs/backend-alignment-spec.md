@@ -1,7 +1,7 @@
 # Spec: Android Backend Alignment
 
-Status: Draft — awaiting review
-Phase: Specify
+Status: Approved — implementing
+Phase: Tasks
 
 ## Objective
 
@@ -155,84 +155,323 @@ Remove `DRAFT`. Default/fallback in `from()` should be `ISSUED`.
 
 ### Task 1: Fix Auth Response Structure
 
-**Acceptance:** Login/register deserialize `{token, user}` correctly. `GET /user` still works with `{data: ...}` wrapper.
+**Description:** Remove the `data` wrapper from `AuthResponse`. Backend returns `{token, user}` flat.
 
-**Files:** `AuthDtos.kt`, `AuthRepositoryImpl.kt`
+**Acceptance criteria:**
+- [x] `AuthResponse` deserializes `{"token": "...", "user": {...}}` directly (no nested `data` field)
+- [x] `AuthRepositoryImpl.safeCall` reads `response.token` and `response.user` instead of `response.data.token`
+- [x] `GET /user` still works via `UserResponse` with its `{data: ...}` wrapper (unchanged)
+- [x] App compiles without errors
+
+**Verify:** `./gradlew assembleDebug` succeeds.
+
+**Files:**
+- `data/remote/dto/AuthDtos.kt` — remove `AuthResponse` wrapper, rename `AuthData` → `AuthResponse`
+- `data/repository/AuthRepositoryImpl.kt` — update `response.data.token` → `response.token`, `response.data.user` → `response.user`
+
+**Scope:** S
+
+---
 
 ### Task 2: Fix Product DTOs and Domain Model
 
-**Acceptance:** `ProductDto` has `product_type`, no `price`/`dimensions`. Images are `List<String>`. `VariantDto` has `attributes`, `compare_at_price`, `images`. Domain models match.
+**Description:** Align product DTOs and domain models with the actual backend shape: no product-level price/dimensions, images are string arrays, variants have attributes/compare_at_price/images, products have product_type.
 
-**Files:** `ProductDtos.kt`, `domain/model/Product.kt`, `ProductRepositoryImpl.kt`
+**Acceptance criteria:**
+- [x] `ProductDto` has no `price` or `dimensions` fields
+- [x] `ProductDto` has `product_type: String` field (with `@SerialName("product_type")`)
+- [x] `ProductDto.images` is `List<String>` (not `List<ImageDto>`)
+- [x] `ImageDto` class is removed entirely
+- [x] `VariantDto` has no `dimensions` field
+- [x] `VariantDto` has `attributes: JsonElement? = null`, `@SerialName("compare_at_price") compareAtPrice: String? = null`, `images: List<String> = emptyList()`
+- [x] Domain `Product` has no `price`/`dimensions`, has `productType: String`, `images: List<String>`
+- [x] Domain `ProductVariant` has no `dimensions`, has `attributes: Map<String, String>? = null`, `compareAtPrice: String? = null`, `images: List<String> = emptyList()`
+- [x] `ProductImage` data class is removed
+- [x] `ProductRepositoryImpl` mapping functions updated (no `toDisplayString`, no `ImageDto.toDomain`)
+
+**Verify:** `./gradlew assembleDebug` succeeds (may have UI compile errors addressed in Task 11).
+
+**Files:**
+- `data/remote/dto/ProductDtos.kt`
+- `domain/model/Product.kt`
+- `data/repository/ProductRepositoryImpl.kt`
+
+**Scope:** M
+
+---
 
 ### Task 3: Add Product Pagination
 
-**Acceptance:** `GET /products` supports `?page=N` parameter. Response deserializes `links`/`meta`. ViewModel supports loading more pages.
+**Description:** Backend returns paginated products with `data`, `links`, `meta`. Support `?page=N&per_page=N` query params and load-more in the ViewModel.
 
-**Files:** `ProductDtos.kt`, `ProductApiService.kt`, `ProductRepositoryImpl.kt`, `ProductListViewModel.kt`
+**Acceptance criteria:**
+- [x] `ProductListResponse` replaced with `PaginatedProductResponse` containing `data: List<ProductDto>`, `meta: PaginationMeta`
+- [x] `PaginationMeta` has `current_page`, `last_page`, `per_page`, `total`
+- [x] `ProductApiService.getProducts()` accepts `@Query("page") page: Int = 1` and `@Query("per_page") perPage: Int = 15`
+- [x] `ProductRepository.getProducts()` signature updated to accept `page: Int = 1`
+- [x] `ProductRepositoryImpl` passes page param, still caches page 1 results in Room
+- [x] `ProductListViewModel` supports `loadMore()` — appends next page results; tracks `hasMorePages`
+
+**Verify:** `./gradlew assembleDebug` succeeds.
+
+**Files:**
+- `data/remote/dto/ProductDtos.kt` — add `PaginatedProductResponse`, `PaginationMeta`
+- `data/remote/api/ProductApiService.kt` — add page/per_page query params
+- `domain/repository/ProductRepository.kt` — update signature
+- `data/repository/ProductRepositoryImpl.kt` — pass page, cache logic
+- `presentation/catalog/ProductListViewModel.kt` — add pagination state and `loadMore()`
+
+**Scope:** M
+
+---
 
 ### Task 4: Fix Order Statuses and Item Nullability
 
-**Acceptance:** `OrderStatus` enum has `PROCESSING` (not `PREPARING`/`UNDER_REVIEW`). `lensTypeId` and `lensTypeName` are nullable throughout.
+**Description:** Correct the `OrderStatus` enum to match backend values and make `lensTypeId`/`lensTypeName` nullable.
 
-**Files:** `domain/model/Order.kt`, `OrderDtos.kt`, `OrderRequestViewModel.kt`
+**Acceptance criteria:**
+- [x] `OrderStatus` enum: remove `UNDER_REVIEW` and `PREPARING`, add `PROCESSING`
+- [x] `OrderStatus.from()` maps `"processing" -> PROCESSING`; fallback remains `REQUESTED`
+- [x] `OrderItemDto.lensTypeId` is `Int?` (nullable), `lensTypeName` is `String?`
+- [x] Domain `OrderItem.lensTypeId` is `Int?`, `lensTypeName` is `String?`
+- [x] `OrderItemRequest.lensTypeId` is `Int?` (nullable — omit for non-lens items)
+- [x] `OrderRequestViewModel` handles null `lensTypeId` when lens not selected
+
+**Verify:** `./gradlew assembleDebug` succeeds.
+
+**Files:**
+- `domain/model/Order.kt` — fix enum, fix `OrderItem` nullability
+- `data/remote/dto/OrderDtos.kt` — fix `OrderItemDto` and `OrderItemRequest` nullability
+- `presentation/orders/OrderRequestViewModel.kt` — handle nullable lens type
+
+**Scope:** S
+
+---
 
 ### Task 5: Add Order Pagination
 
-**Acceptance:** `GET /orders` supports `?page=N`. Response deserializes pagination metadata. ViewModel supports load-more.
+**Description:** Backend returns paginated orders with `data`, `links`, `meta`. Support `?page=N` and load-more.
 
-**Files:** `OrderDtos.kt`, `OrderApiService.kt`, `OrderRepositoryImpl.kt`, `OrderListViewModel.kt`
+**Acceptance criteria:**
+- [x] `OrderListResponse` replaced with `PaginatedOrderResponse` containing `data: List<OrderDto>`, `meta: PaginationMeta`
+- [x] `OrderApiService.getOrders()` accepts `@Query("page") page: Int = 1` and `@Query("per_page") perPage: Int = 15`
+- [x] `OrderRepository.getOrders()` accepts `page: Int = 1`
+- [x] `OrderRepositoryImpl` passes page param
+- [x] `OrderListViewModel` supports `loadMore()` — appends next page; tracks `hasMorePages`
+
+**Verify:** `./gradlew assembleDebug` succeeds.
+
+**Files:**
+- `data/remote/dto/OrderDtos.kt` — add `PaginatedOrderResponse`, reuse `PaginationMeta` or add local
+- `data/remote/api/OrderApiService.kt` — add query params
+- `domain/repository/OrderRepository.kt` — update signature
+- `data/repository/OrderRepositoryImpl.kt` — pass page
+- `presentation/orders/OrderListViewModel.kt` — pagination state
+
+**Scope:** M
+
+---
 
 ### Task 6: Fix Billing Statuses
 
-**Acceptance:** `BillingStatus` enum has no `DRAFT`. Fallback is `ISSUED`.
+**Description:** Remove `DRAFT` from `BillingStatus` enum; change fallback to `ISSUED`.
 
-**Files:** `domain/model/Billing.kt`
+**Acceptance criteria:**
+- [x] `BillingStatus` enum: `ISSUED, PARTIALLY_PAID, PAID, VOIDED` (no `DRAFT`)
+- [x] `BillingStatus.from()` fallback is `ISSUED` instead of `DRAFT`
+- [x] No other code references `BillingStatus.DRAFT`
+
+**Verify:** `./gradlew assembleDebug` succeeds.
+
+**Files:**
+- `domain/model/Billing.kt`
+
+**Scope:** S
+
+---
 
 ### Task 7: Add Assigned Staff to Appointments
 
-**Acceptance:** `AppointmentDto` deserializes `assigned_staff` object. Domain model exposes `assignedStaff`. UI shows staff name when present.
+**Description:** Backend returns `assigned_staff: {id, name}` on appointments. Add to DTO and domain model.
 
-**Files:** `AppointmentDtos.kt`, `domain/model/Appointment.kt`, `AppointmentRepositoryImpl.kt`, `AppointmentDetailScreen.kt`
+**Acceptance criteria:**
+- [x] `AppointmentDto` has `@SerialName("assigned_staff") assignedStaff: AssignedStaffDto? = null`
+- [x] `AssignedStaffDto(val id: Int, val name: String)` added to `AppointmentDtos`
+- [x] Domain `Appointment` has `assignedStaff: AssignedStaff? = null`
+- [x] `AssignedStaff(val id: Int, val name: String)` domain model added
+- [x] `AppointmentRepositoryImpl.toDomain()` maps the field
+- [x] `AppointmentDetailScreen` displays staff name when present
+
+**Verify:** `./gradlew assembleDebug` succeeds.
+
+**Files:**
+- `data/remote/dto/AppointmentDtos.kt` — add `AssignedStaffDto`, add field to `AppointmentDto`
+- `domain/model/Appointment.kt` — add `AssignedStaff`, add field to `Appointment`
+- `data/repository/AppointmentRepositoryImpl.kt` — map field
+- `presentation/appointments/AppointmentDetailScreen.kt` — show staff name
+
+**Scope:** S
+
+---
 
 ### Task 8: Fix Conversation Model and Remove POST /conversations
 
-**Acceptance:** `ConversationDto` only has `id, customer_id, created_at`. No `createConversation` endpoint. Chat flow uses `GET /conversations` to find existing conversation.
+**Description:** Simplify `ConversationDto` (remove staff_id, appointment_id, order_id, subject). Remove `createConversation` endpoint. Chat always finds existing conversation via GET.
 
-**Files:** `MessageDtos.kt`, `ConversationApiService.kt`, `ChatRepositoryImpl.kt`, `domain/model/Message.kt`
+**Acceptance criteria:**
+- [x] `ConversationDto` only has: `id`, `customer_id`, `created_at`
+- [x] `CreateConversationRequest` class removed from `MessageDtos`
+- [x] `ConversationResponse` wrapper removed (not used anymore)
+- [x] `ConversationApiService.createConversation()` method removed
+- [x] Domain `Conversation` has only: `id`, `customerId: Int?`, `createdAt`
+- [x] `ChatRepositoryImpl.getOrCreateConversation()` → renamed to `getConversation()`: only calls GET, returns first result or error
+- [x] `ChatRepository` interface updated accordingly
+- [x] `ChatViewModel` handles case where no conversation exists (show "send first message" state or error)
+
+**Verify:** `./gradlew assembleDebug` succeeds.
+
+**Files:**
+- `data/remote/dto/MessageDtos.kt` — simplify `ConversationDto`, remove `CreateConversationRequest`, remove `ConversationResponse`
+- `data/remote/api/ConversationApiService.kt` — remove `createConversation()`
+- `domain/model/Message.kt` — simplify `Conversation`
+- `domain/repository/ChatRepository.kt` — rename method
+- `data/repository/ChatRepositoryImpl.kt` — simplify, remove create logic
+- `presentation/messaging/ChatViewModel.kt` — update to use new method name
+
+**Scope:** M
+
+---
 
 ### Task 9: Add Message Context Links
 
-**Acceptance:** `SendMessageRequest` supports `contexts[]` array. Chat UI can attach appointment/order/product context to messages.
+**Description:** Backend accepts `contexts[]` array when sending messages. Update DTO and chat flow to support attaching appointment/order/product context.
 
-**Files:** `MessageDtos.kt`, `ConversationApiService.kt`, `ChatViewModel.kt`
+**Acceptance criteria:**
+- [x] `SendMessageRequest` has `contexts: List<ContextLinkDto>? = null`
+- [x] `ContextLinkDto(val type: String, val id: Int)` added to `MessageDtos`
+- [x] `ChatRepository.sendMessage()` accepts optional `contexts: List<ContextLinkDto>? = null`
+- [x] `ChatRepositoryImpl` passes contexts in the request body
+- [x] `ChatViewModel.sendContextMessage()` passes context links instead of embedding text
+- [x] `ChatRepository.sendContextMessage()` removed or unified with `sendMessage()`
+
+**Verify:** `./gradlew assembleDebug` succeeds.
+
+**Files:**
+- `data/remote/dto/MessageDtos.kt` — add `ContextLinkDto`, update `SendMessageRequest`
+- `domain/repository/ChatRepository.kt` — update `sendMessage` signature, remove `sendContextMessage`
+- `data/repository/ChatRepositoryImpl.kt` — pass contexts, remove duplicate method
+- `presentation/messaging/ChatViewModel.kt` — use updated sendMessage with contexts
+
+**Scope:** S
+
+---
 
 ### Task 10: Update Room Cache Schema
 
-**Acceptance:** `ProductEntity` has `productType`, no `price`/`dimensions`. Room version bumped. App migrates without crash.
+**Description:** Align `ProductEntity` with the new product shape. Remove price/dimensions, add productType. Bump schema version with destructive migration (cache-only data, safe to destroy).
 
-**Files:** `ProductEntity.kt`, `EyecareDatabase.kt`, `ProductDao.kt`, `ProductRepositoryImpl.kt`
+**Acceptance criteria:**
+- [x] `ProductEntity` has no `price` or `dimensions` columns
+- [x] `ProductEntity` has `productType: String` column
+- [x] `EyecareDatabase` version = 2
+- [x] Destructive migration via `.fallbackToDestructiveMigration()` in `DatabaseModule`
+- [x] `ProductRepositoryImpl.toEntity()` maps `productType`, removes price/dimensions
+- [x] `ProductRepositoryImpl.toDomain()` from entity maps correctly to new domain model
+
+**Verify:** `./gradlew assembleDebug` succeeds.
+
+**Files:**
+- `data/local/entity/ProductEntity.kt` — remove price/dimensions, add productType
+- `data/local/EyecareDatabase.kt` — version = 2
+- `di/DatabaseModule.kt` — add fallbackToDestructiveMigration
+- `data/repository/ProductRepositoryImpl.kt` — update entity mapping
+
+**Scope:** S
+
+---
 
 ### Task 11: Update UI References
 
-**Acceptance:** Any screens referencing removed fields (`product.price`, `product.dimensions`, `ProductImage.isPrimary`, order status `UNDER_REVIEW`/`PREPARING`, billing `DRAFT`) compile and work correctly with updated models.
+**Description:** Fix all presentation-layer compile errors from removed/changed model fields. This is the final cleanup task.
 
-**Files:** `ProductListScreen.kt`, `ProductDetailScreen.kt`, `OrderDetailScreen.kt`, `BillingDetailScreen.kt`, `HomeViewModel.kt`, `ArViewModel.kt`
+**Acceptance criteria:**
+- [x] No references to `product.price` — price comes from first variant or variant selector
+- [x] No references to `product.dimensions` or `variant.dimensions`
+- [x] No references to `ProductImage` class — images are `List<String>` (direct URL paths)
+- [x] No references to `OrderStatus.UNDER_REVIEW` or `OrderStatus.PREPARING`
+- [x] No references to `BillingStatus.DRAFT`
+- [x] `ProductListScreen`/`ProductCard` shows price from `product.variants.firstOrNull()?.price`
+- [x] `ProductDetailScreen` uses `variant.attributes` for display instead of `dimensions`
+- [x] Image loading uses string URLs directly (no `.path` accessor)
+- [x] `StatusTimeline` in orders uses correct statuses: requested → confirmed → processing → ready_for_pickup → completed
+- [x] `ArViewModel` loads frame from `variant.arAssetReference` (unchanged) but no longer references `dimensions`
+- [x] All screens compile and render correctly
+
+**Verify:** `./gradlew assembleDebug` succeeds with zero errors.
+
+**Files:**
+- `presentation/catalog/ProductListScreen.kt`
+- `presentation/catalog/ProductDetailScreen.kt`
+- `presentation/catalog/components/ProductCard.kt`
+- `presentation/orders/OrderDetailScreen.kt`
+- `presentation/orders/components/StatusTimeline.kt`
+- `presentation/billing/BillingDetailScreen.kt`
+- `presentation/home/HomeViewModel.kt`
+- `presentation/ar/ArViewModel.kt`
+- `presentation/common/ImageUrlHelper.kt`
+
+**Scope:** M
+
+---
+
+## Implementation Order & Dependencies
+
+```
+Task 1 (Auth)          ─── independent, start first
+Task 2 (Product DTOs)  ─── independent, can parallel with Task 1
+Task 4 (Order Status)  ─── independent, can parallel with Task 1 & 2
+Task 6 (Billing)       ─── independent, can parallel with all above
+Task 7 (Appointments)  ─── independent, can parallel with all above
+│
+├─ Task 10 (Room)      ─── depends on Task 2 (needs new ProductEntity shape)
+├─ Task 3 (Product Pagination) ─── depends on Task 2 (needs new DTO shape)
+├─ Task 5 (Order Pagination)   ─── depends on Task 4 (needs new DTO shape)
+│
+├─ Task 8 (Conversations)  ─── independent
+├─ Task 9 (Context Links)  ─── depends on Task 8 (needs cleaned up MessageDtos)
+│
+└─ Task 11 (UI References) ─── depends on ALL above (final sweep)
+```
+
+**Parallel tracks:**
+- Track A: Tasks 1, 2, 10, 3 (Auth → Products → Room → Pagination)
+- Track B: Tasks 4, 5 (Orders → Order Pagination)
+- Track C: Tasks 6, 7 (Billing + Appointments — both trivial)
+- Track D: Tasks 8, 9 (Conversations → Context Links)
+- Final: Task 11 (after all tracks converge)
+
+## Verification Checkpoints
+
+1. **After Tasks 1–2:** Auth response deserializes; product DTOs compile with new shape.
+2. **After Tasks 3–5:** Pagination wired for products and orders; can load multiple pages.
+3. **After Tasks 6–9:** All statuses correct; conversations simplified; context links work.
+4. **After Task 10:** Room schema bumped; entity matches domain model.
+5. **After Task 11:** `./gradlew assembleDebug` succeeds with zero errors. Full app compiles.
 
 ## Success Criteria
 
-- [ ] App compiles with zero errors after all changes
-- [ ] Login/register successfully deserialize the flat `{token, user}` response
-- [ ] Product list loads with pagination (page 1 auto-loads, scroll loads more)
-- [ ] Product detail shows `product_type`, variant `attributes`, variant images
-- [ ] No reference to `ProductImage`, `ImageDto`, or product-level `price`/`dimensions`
-- [ ] Order list loads with pagination
-- [ ] Order statuses are `requested → confirmed → processing → ready_for_pickup → completed` (+ `cancelled`)
-- [ ] Billing status enum has no `DRAFT`
-- [ ] Appointments show `assigned_staff` name when present
-- [ ] Chat works without POST /conversations — finds existing conversation via GET
-- [ ] Messages can include `contexts[]` for linking appointments/orders/products
-- [ ] Room database migrates cleanly (version 2)
+- [x] App compiles with zero errors after all changes
+- [x] Login/register successfully deserialize the flat `{token, user}` response
+- [x] Product list loads with pagination (page 1 auto-loads, scroll loads more)
+- [x] Product detail shows `product_type`, variant `attributes`, variant images
+- [x] No reference to `ProductImage`, `ImageDto`, or product-level `price`/`dimensions`
+- [x] Order list loads with pagination
+- [x] Order statuses are `requested → confirmed → processing → ready_for_pickup → completed` (+ `cancelled`)
+- [x] Billing status enum has no `DRAFT`
+- [x] Appointments show `assigned_staff` name when present
+- [x] Chat works without POST /conversations — finds existing conversation via GET
+- [x] Messages can include `contexts[]` for linking appointments/orders/products
+- [x] Room database migrates cleanly (version 2)
 
 ## Boundaries
 

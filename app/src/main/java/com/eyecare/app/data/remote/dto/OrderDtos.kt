@@ -22,19 +22,30 @@ object OrderDtos {
     data class OrderItemDto(
         val id: Int,
         @SerialName("product_variant_id") val productVariantId: Int,
-        @SerialName("lens_type_id") val lensTypeId: Int,
+        @SerialName("lens_type_id") val lensTypeId: Int? = null,
         @SerialName("product_id") val productId: Int,
         @SerialName("product_name") val productName: String,
         @SerialName("variant_name") val variantName: String,
         @SerialName("variant_sku") val variantSku: String,
-        @SerialName("lens_type_name") val lensTypeName: String,
+        @SerialName("lens_type_name") val lensTypeName: String? = null,
         @SerialName("unit_price") val unitPrice: String,
         val quantity: Int,
         val subtotal: String,
     )
 
     @Serializable
-    data class OrderListResponse(val data: List<OrderDto>)
+    data class PaginationMeta(
+        @SerialName("current_page") val currentPage: Int,
+        @SerialName("last_page") val lastPage: Int,
+        @SerialName("per_page") val perPage: Int,
+        val total: Int,
+    )
+
+    @Serializable
+    data class PaginatedOrderResponse(
+        val data: List<OrderDto>,
+        val meta: PaginationMeta,
+    )
 
     @Serializable
     data class OrderResponse(val data: OrderDto)
@@ -49,7 +60,7 @@ object OrderDtos {
     @Serializable
     data class OrderItemRequest(
         @SerialName("product_variant_id") val productVariantId: Int,
-        @SerialName("lens_type_id") val lensTypeId: Int,
+        @SerialName("lens_type_id") val lensTypeId: Int? = null,
         val quantity: Int,
     )
 

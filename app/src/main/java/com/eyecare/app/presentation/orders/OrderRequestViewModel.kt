@@ -85,7 +85,7 @@ class OrderRequestViewModel @AssistedInject constructor(
                 items = listOf(
                     OrderDtos.OrderItemRequest(
                         productVariantId = state.selectedVariant.id,
-                        lensTypeId = state.selectedLensType?.id ?: 1,
+                        lensTypeId = state.selectedLensType?.id,
                         quantity = state.quantity,
                     )
                 ),

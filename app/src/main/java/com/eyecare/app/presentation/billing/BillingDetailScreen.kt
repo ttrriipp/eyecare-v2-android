@@ -180,7 +180,6 @@ private fun AmountRow(
 @Composable
 private fun BillingStatusChip(status: BillingStatus) {
     val (label, color) = when (status) {
-        BillingStatus.DRAFT -> "Draft" to StatusPending
         BillingStatus.ISSUED -> "Issued" to StatusInfo
         BillingStatus.PARTIALLY_PAID -> "Partial" to StatusPending
         BillingStatus.PAID -> "Paid" to StatusConfirmed

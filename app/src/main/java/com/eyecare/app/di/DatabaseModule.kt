@@ -18,7 +18,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): EyecareDatabase =
-        Room.databaseBuilder(context, EyecareDatabase::class.java, "eyecare.db").build()
+        Room.databaseBuilder(context, EyecareDatabase::class.java, "eyecare.db")
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
 
     @Provides
     fun provideProductDao(db: EyecareDatabase): ProductDao = db.productDao()

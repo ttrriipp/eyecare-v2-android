@@ -1,7 +1,6 @@
 package com.eyecare.app.presentation.catalog
 
 import com.eyecare.app.domain.model.Product
-import com.eyecare.app.domain.model.ProductImage
 import com.eyecare.app.domain.model.ProductVariant
 import com.eyecare.app.domain.repository.ProductRepository
 import io.mockk.coEvery
@@ -26,15 +25,15 @@ class ProductDetailViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repo: ProductRepository
 
-    private val arVariant = ProductVariant(1, "Black", "BK-001", "165.00", null, arEligible = true, "frames/bk.png")
-    private val nonArVariant = ProductVariant(2, "Gold", "GD-001", "185.00", null, arEligible = false, null)
+    private val arVariant = ProductVariant(1, "Black", "BK-001", "165.00", null, null, arEligible = true, "frames/bk.png", emptyList())
+    private val nonArVariant = ProductVariant(2, "Gold", "GD-001", "185.00", null, null, arEligible = false, null, emptyList())
 
     private val fakeProduct = Product(
         id = 1, name = "Clubmaster", slug = "clubmaster", description = "Classic style",
-        price = "165.00", dimensions = "Bridge: 18 · Temple: 140", brand = "Ray-Ban",
+        productType = "frame", brand = "Ray-Ban",
         category = "Frames",
         variants = listOf(arVariant, nonArVariant),
-        images = listOf(ProductImage(1, "products/img.jpg", true, 0)),
+        images = listOf("products/img.jpg"),
     )
 
     @BeforeEach

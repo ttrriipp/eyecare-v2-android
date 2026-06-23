@@ -6,6 +6,12 @@ import kotlinx.serialization.Serializable
 object AppointmentDtos {
 
     @Serializable
+    data class AssignedStaffDto(
+        val id: Int,
+        val name: String,
+    )
+
+    @Serializable
     data class AppointmentDto(
         val id: Int,
         @SerialName("visit_reason") val visitReason: String,
@@ -13,6 +19,7 @@ object AppointmentDtos {
         @SerialName("scheduled_at") val scheduledAt: String,
         @SerialName("contact_notes") val contactNotes: String? = null,
         @SerialName("staff_notes") val staffNotes: String? = null,
+        @SerialName("assigned_staff") val assignedStaff: AssignedStaffDto? = null,
     )
 
     @Serializable

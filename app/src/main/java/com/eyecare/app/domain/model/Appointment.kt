@@ -1,5 +1,7 @@
 package com.eyecare.app.domain.model
 
+data class AssignedStaff(val id: Int, val name: String)
+
 data class Appointment(
     val id: Int,
     val visitReason: String,
@@ -7,6 +9,7 @@ data class Appointment(
     val scheduledAt: String,
     val contactNotes: String?,
     val staffNotes: String?,
+    val assignedStaff: AssignedStaff? = null,
 )
 
 enum class AppointmentStatus {

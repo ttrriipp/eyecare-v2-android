@@ -13,7 +13,11 @@ import javax.inject.Inject
 
 sealed interface ProductListUiState {
     data object Loading : ProductListUiState
-    data class Success(val products: List<Product>) : ProductListUiState
+    data class Success(
+        val products: List<Product>,
+        val isLoadingMore: Boolean = false,
+        val hasMorePages: Boolean = false,
+    ) : ProductListUiState
     data class Error(val message: String) : ProductListUiState
 }
 
@@ -28,28 +32,60 @@ class ProductListViewModel @Inject constructor(
     private var allProducts: List<Product> = emptyList()
     private var selectedCategory: String = "All"
     private var searchQuery: String = ""
+    private var currentPage = 1
 
     init { load() }
 
-    fun refresh() { load() }
+    fun refresh() {
+        currentPage = 1
+        allProducts = emptyList()
+        load()
+    }
+
+    fun loadMore() {
+        val current = _uiState.value as? ProductListUiState.Success ?: return
+        if (current.isLoadingMore || !current.hasMorePages) return
+        _uiState.value = current.copy(isLoadingMore = true)
+        viewModelScope.launch {
+            currentPage++
+            repository.getProducts(page = currentPage).fold(
+                onSuccess = { newProducts ->
+                    allProducts = allProducts + newProducts
+                    val hasMore = repository.hasMorePages(currentPage)
+                    _uiState.value = ProductListUiState.Success(
+                        products = applyFilters(allProducts),
+                        hasMorePages = hasMore,
+                    )
+                },
+                onFailure = {
+                    currentPage--
+                    _uiState.value = current.copy(isLoadingMore = false)
+                },
+            )
+        }
+    }
 
     fun selectCategory(category: String) {
         selectedCategory = category
-        applyFilters()
+        publishFiltered()
     }
 
     fun search(query: String) {
         searchQuery = query
-        applyFilters()
+        publishFiltered()
     }
 
     private fun load() {
         _uiState.value = ProductListUiState.Loading
         viewModelScope.launch {
-            repository.getProducts().fold(
+            repository.getProducts(page = 1).fold(
                 onSuccess = { list ->
                     allProducts = list
-                    applyFilters()
+                    val hasMore = repository.hasMorePages(1)
+                    _uiState.value = ProductListUiState.Success(
+                        products = applyFilters(allProducts),
+                        hasMorePages = hasMore,
+                    )
                 },
                 onFailure = {
                     _uiState.value = ProductListUiState.Error(it.message ?: "Failed to load")
@@ -58,10 +94,12 @@ class ProductListViewModel @Inject constructor(
         }
     }
 
-    private fun applyFilters() {
-        val filtered = allProducts
-            .filter { selectedCategory == "All" || it.category.equals(selectedCategory, ignoreCase = true) }
-            .filter { searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true) || it.brand.contains(searchQuery, ignoreCase = true) }
-        _uiState.value = ProductListUiState.Success(filtered)
+    private fun publishFiltered() {
+        val current = _uiState.value as? ProductListUiState.Success ?: return
+        _uiState.value = current.copy(products = applyFilters(allProducts))
     }
+
+    private fun applyFilters(list: List<Product>) = list
+        .filter { selectedCategory == "All" || it.category.equals(selectedCategory, ignoreCase = true) }
+        .filter { searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true) || it.brand.contains(searchQuery, ignoreCase = true) }
 }

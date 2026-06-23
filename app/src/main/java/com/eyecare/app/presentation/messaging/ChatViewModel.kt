@@ -11,6 +11,7 @@ import com.eyecare.app.domain.repository.AppointmentRepository
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.domain.repository.OrderRepository
+import com.eyecare.app.data.remote.dto.MessageDtos
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -108,6 +109,17 @@ class ChatViewModel @Inject constructor(
             )
         }
     }
+                onSuccess = { msg ->
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(messages = latest.messages + msg, isSending = false)
+                },
+                onFailure = {
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(isSending = false)
+                },
+            )
+        }
+    }
 
     fun setPendingAttachment(attachment: PendingAttachment?) {
         val current = _uiState.value as? ChatUiState.Success ?: return
@@ -148,21 +160,21 @@ class ChatViewModel @Inject constructor(
     fun sendContextMessage() {
         val current = _uiState.value as? ChatUiState.Success ?: return
         val ctx = current.pendingContext ?: return
-        val body = when (ctx) {
+        val (body, contextLink) = when (ctx) {
             is PendingContext.AppointmentContext -> {
                 val a = ctx.appointment
-                "📅 Appointment: ${a.visitReason.replace('_', ' ')} — ${a.scheduledAt.take(10)} [${a.status.name.lowercase()}]"
+                "📅 Appointment: ${a.visitReason.replace('_', ' ')} — ${a.scheduledAt.take(10)}" to
+                    MessageDtos.ContextLinkDto("appointment", a.id)
             }
             is PendingContext.OrderContext -> {
                 val o = ctx.order
-                "📦 Order #${o.orderNumber} — ${o.status.name.replace('_', ' ').lowercase()}"
+                "📦 Order #${o.orderNumber}" to
+                    MessageDtos.ContextLinkDto("order", o.id)
             }
         }
-        val appointmentId = (ctx as? PendingContext.AppointmentContext)?.appointment?.id
-        val orderId = (ctx as? PendingContext.OrderContext)?.order?.id
         _uiState.value = current.copy(isSending = true, pendingContext = null)
         viewModelScope.launch {
-            chatRepository.sendContextMessage(current.conversation.id, body, appointmentId, orderId).fold(
+            chatRepository.sendMessage(current.conversation.id, body, listOf(contextLink)).fold(
                 onSuccess = { msg ->
                     _uiState.value = current.copy(messages = current.messages + msg, isSending = false, pendingContext = null)
                 },
@@ -183,7 +195,7 @@ class ChatViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            chatRepository.getOrCreateConversation().fold(
+            chatRepository.getConversation().fold(
                 onSuccess = { conversation ->
                     chatRepository.getMessages(conversation.id).fold(
                         onSuccess = { messages -> _uiState.value = ChatUiState.Success(conversation, messages) },
