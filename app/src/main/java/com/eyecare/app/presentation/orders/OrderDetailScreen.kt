@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -52,8 +53,6 @@ import com.eyecare.app.ui.theme.StatusCancelled
 import com.eyecare.app.ui.theme.StatusConfirmed
 import com.eyecare.app.ui.theme.StatusInfo
 import com.eyecare.app.ui.theme.StatusPending
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Inventory2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
