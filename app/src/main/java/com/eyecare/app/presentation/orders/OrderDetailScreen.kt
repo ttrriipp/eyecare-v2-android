@@ -43,11 +43,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
-import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.OrderItem
 import com.eyecare.app.domain.model.OrderStatus
 import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.orders.components.StatusTimeline
 import com.eyecare.app.ui.theme.StatusCancelled
 import com.eyecare.app.ui.theme.StatusConfirmed
@@ -90,7 +90,7 @@ fun OrderDetailScreen(
                         .padding(top = 4.dp, bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    // ── Header card ───────────────────────────────────────
+                    // Header card
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         elevation = CardDefaults.cardElevation(2.dp),
@@ -103,22 +103,16 @@ fun OrderDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text(
-                                    order.orderNumber,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                )
+                                Text(order.orderNumber, style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold)
                                 OrderStatusChip(order.status)
                             }
-                            Text(
-                                order.createdAt.take(10),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Text(order.createdAt.take(10), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
 
-                    // ── Status timeline card ──────────────────────────────
+                    // Status timeline card
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         elevation = CardDefaults.cardElevation(2.dp),
@@ -131,7 +125,7 @@ fun OrderDetailScreen(
                         )
                     }
 
-                    // ── Items card ────────────────────────────────────────
+                    // Items card
                     if (order.items.isNotEmpty()) {
                         Card(
                             shape = RoundedCornerShape(16.dp),
@@ -140,17 +134,14 @@ fun OrderDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(Modifier.padding(16.dp)) {
-                                Text(
-                                    "Items",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
+                                Text("Items", style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.height(12.dp))
                                 order.items.forEachIndexed { idx, item ->
                                     OrderItemRow(item)
                                     if (idx < order.items.lastIndex) {
                                         HorizontalDivider(
-                                            modifier = Modifier.padding(vertical = 10.dp),
+                                            modifier = Modifier.padding(vertical = 12.dp),
                                             color = MaterialTheme.colorScheme.outlineVariant,
                                         )
                                     }
@@ -159,7 +150,7 @@ fun OrderDetailScreen(
                         }
                     }
 
-                    // ── Summary card ──────────────────────────────────────
+                    // Summary card
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         elevation = CardDefaults.cardElevation(2.dp),
@@ -173,7 +164,7 @@ fun OrderDetailScreen(
                         }
                     }
 
-                    // ── Actions ───────────────────────────────────────────
+                    // Actions
                     val billingStatuses = setOf(
                         OrderStatus.CONFIRMED, OrderStatus.PROCESSING,
                         OrderStatus.READY_FOR_PICKUP, OrderStatus.COMPLETED,
@@ -224,66 +215,19 @@ private fun OrderItemRow(item: OrderItem) {
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Icon(
-                    Icons.Outlined.Inventory2,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(26.dp),
-                )
+                Icon(Icons.Outlined.Inventory2, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
             }
         }
 
-@Composable
-private fun OrderItemRow(item: OrderItem) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (item.imageUrl != null) {
-                AsyncImage(
-                    model = buildImageUrl(item.imageUrl),
-                    contentDescription = item.productName,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Icon(
-                    Icons.Outlined.Inventory2,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                item.productName,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                item.variantName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(item.productName, style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold)
+            Text(item.variantName, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             item.lensTypeName?.let {
-                Text(
-                    "Lens: $it",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text("Lens: $it", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Qty ${item.quantity}", style = MaterialTheme.typography.bodySmall,
@@ -295,30 +239,20 @@ private fun OrderItemRow(item: OrderItem) {
             }
         }
 
-        Text(
-            "₱${item.subtotal}",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-        )
+        Text("₱${item.subtotal}", style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
     }
 }
 
 @Composable
 private fun SummaryRow(label: String, value: String, bold: Boolean = false) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
+        Text(label, style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-            color = if (bold) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+            color = if (bold) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
