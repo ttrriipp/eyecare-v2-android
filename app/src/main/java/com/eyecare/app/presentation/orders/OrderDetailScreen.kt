@@ -220,11 +220,11 @@ private fun OrderItemRow(item: OrderItem) {
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Text(
-                    item.productName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                Icon(
+                    androidx.compose.material.icons.Icons.Outlined.Inventory2,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(26.dp),
                 )
             }
         }
