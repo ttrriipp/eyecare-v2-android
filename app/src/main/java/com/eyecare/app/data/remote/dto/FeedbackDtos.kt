@@ -12,8 +12,6 @@ object FeedbackDtos {
         @SerialName("order_id") val orderId: Int? = null,
         val rating: Int,
         val comment: String? = null,
-        @SerialName("staff_reply") val staffReply: String? = null,
-        @SerialName("replied_at") val repliedAt: String? = null,
     )
 
     @Serializable

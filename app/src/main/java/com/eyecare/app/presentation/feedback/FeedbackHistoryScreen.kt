@@ -101,18 +101,6 @@ private fun FeedbackCard(feedback: Feedback) {
             feedback.comment?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium)
             }
-            // Staff reply
-            if (!feedback.staffReply.isNullOrBlank()) {
-                Surface(shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text("Staff Reply", style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                        Text(feedback.staffReply, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
         }
     }
 }

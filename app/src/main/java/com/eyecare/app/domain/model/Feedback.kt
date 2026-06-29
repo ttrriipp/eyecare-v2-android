@@ -6,6 +6,4 @@ data class Feedback(
     val orderId: Int?,
     val rating: Int,
     val comment: String?,
-    val staffReply: String?,
-    val repliedAt: String?,
 )

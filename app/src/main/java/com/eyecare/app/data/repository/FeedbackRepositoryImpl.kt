@@ -22,6 +22,6 @@ class FeedbackRepositoryImpl @Inject constructor(
 
     private fun FeedbackDtos.FeedbackDto.toDomain() = Feedback(
         id = id, appointmentId = appointmentId, orderId = orderId,
-        rating = rating, comment = comment, staffReply = staffReply, repliedAt = repliedAt,
+        rating = rating, comment = comment,
     )
 }
