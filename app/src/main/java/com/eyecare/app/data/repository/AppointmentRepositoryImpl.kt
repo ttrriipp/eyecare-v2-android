@@ -41,6 +41,10 @@ class AppointmentRepositoryImpl @Inject constructor(
         throw throwable
     }
 
+    override suspend fun cancelAppointment(id: Int): Result<Appointment> = runCatching {
+        api.cancelAppointment(id).data.toDomain()
+    }
+
     private fun AppointmentDtos.AppointmentDto.toDomain() = Appointment(
         id = id,
         visitReason = visitReason,

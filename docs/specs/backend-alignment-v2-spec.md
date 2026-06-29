@@ -1,7 +1,7 @@
 # Spec: Android Backend Alignment v2
 
-Status: Pending approval
-Phase: Specify
+Status: In progress
+Phase: Implement
 
 ## Objective
 

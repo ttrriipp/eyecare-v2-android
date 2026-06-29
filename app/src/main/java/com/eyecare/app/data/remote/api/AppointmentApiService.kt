@@ -15,4 +15,7 @@ interface AppointmentApiService {
 
     @POST("appointments")
     suspend fun createAppointment(@Body request: AppointmentDtos.CreateAppointmentRequest): AppointmentDtos.AppointmentResponse
+
+    @POST("appointments/{id}/cancel")
+    suspend fun cancelAppointment(@Path("id") id: Int): AppointmentDtos.AppointmentResponse
 }

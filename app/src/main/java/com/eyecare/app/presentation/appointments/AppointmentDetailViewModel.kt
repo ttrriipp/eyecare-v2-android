@@ -17,7 +17,11 @@ import javax.inject.Inject
 
 sealed interface AppointmentDetailUiState {
     data object Loading : AppointmentDetailUiState
-    data class Success(val appointment: Appointment, val hasFeedback: Boolean = false) : AppointmentDetailUiState
+    data class Success(
+        val appointment: Appointment,
+        val hasFeedback: Boolean = false,
+        val isCancelling: Boolean = false,
+    ) : AppointmentDetailUiState
     data class Error(val message: String) : AppointmentDetailUiState
 }
 
@@ -36,6 +40,18 @@ class AppointmentDetailViewModel @Inject constructor(
     init { load() }
 
     fun refresh() = load()
+
+    fun cancelAppointment() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        _uiState.value = current.copy(isCancelling = true)
+        viewModelScope.launch {
+            repository.cancelAppointment(appointmentId).fold(
+                onSuccess = { load() },
+                onFailure = { _uiState.value = current.copy(isCancelling = false) },
+            )
+        }
+    }
 
     private fun load() {
         viewModelScope.launch {

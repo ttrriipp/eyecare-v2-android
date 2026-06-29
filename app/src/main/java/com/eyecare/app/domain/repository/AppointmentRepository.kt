@@ -10,4 +10,5 @@ interface AppointmentRepository {
         scheduledAt: String,
         contactNotes: String?,
     ): Result<Appointment>
+    suspend fun cancelAppointment(id: Int): Result<Appointment>
 }
