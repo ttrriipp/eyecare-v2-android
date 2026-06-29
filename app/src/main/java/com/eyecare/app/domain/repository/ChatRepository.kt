@@ -14,4 +14,5 @@ interface ChatRepository {
         contexts: List<MessageDtos.ContextLinkDto>? = null,
     ): Result<Message>
     suspend fun sendFileMessage(conversationId: Int, uri: Uri, mimeType: String, fileName: String): Result<Message>
+    suspend fun markMessagesRead(conversationId: Int): Result<Unit>
 }

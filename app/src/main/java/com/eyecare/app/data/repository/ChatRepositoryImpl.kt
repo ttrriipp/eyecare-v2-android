@@ -59,8 +59,12 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun markMessagesRead(conversationId: Int): Result<Unit> = runCatching {
+        api.markMessagesRead(conversationId)
+    }
+
     private fun MessageDtos.ConversationDto.toDomain() = Conversation(
-        id = id, customerId = customerId, createdAt = createdAt,
+        id = id, customerId = customerId, unreadCount = unreadCount, createdAt = createdAt,
     )
 
     private fun MessageDtos.MessageDto.toDomain() = Message(

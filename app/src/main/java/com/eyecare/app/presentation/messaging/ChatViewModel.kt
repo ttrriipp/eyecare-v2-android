@@ -187,7 +187,11 @@ class ChatViewModel @Inject constructor(
             chatRepository.getConversation().fold(
                 onSuccess = { conversation ->
                     chatRepository.getMessages(conversation.id).fold(
-                        onSuccess = { messages -> _uiState.value = ChatUiState.Success(conversation, messages) },
+                        onSuccess = { messages ->
+                            _uiState.value = ChatUiState.Success(conversation, messages)
+                            // Mark messages as read when chat opens
+                            chatRepository.markMessagesRead(conversation.id)
+                        },
                         onFailure = { _uiState.value = ChatUiState.Error(it.message ?: "Failed to load messages") },
                     )
                 },

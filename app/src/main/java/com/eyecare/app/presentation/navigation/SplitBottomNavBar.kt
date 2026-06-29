@@ -55,6 +55,7 @@ fun SplitBottomNavBar(
     currentRoute: Any,
     onTabSelected: (Any) -> Unit,
     onChatClick: () -> Unit,
+    unreadCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -89,16 +90,34 @@ fun SplitBottomNavBar(
             }
         }
 
-        // Blue chat FAB
-        Surface(
-            onClick = onChatClick,
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.primary,
-            shadowElevation = 2.dp,
-            modifier = Modifier.size(56.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = "Chat", tint = Color.White)
+        // Blue chat FAB with unread badge
+        Box {
+            Surface(
+                onClick = onChatClick,
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primary,
+                shadowElevation = 2.dp,
+                modifier = Modifier.size(56.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = "Chat", tint = Color.White)
+                }
+            }
+            if (unreadCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(Color.Red),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (unreadCount > 9) "9+" else unreadCount.toString(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 10.sp),
+                    )
+                }
             }
         }
     }

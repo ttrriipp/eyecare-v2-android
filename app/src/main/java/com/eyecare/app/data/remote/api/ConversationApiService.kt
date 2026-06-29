@@ -20,6 +20,9 @@ interface ConversationApiService {
     @POST("conversations/{id}/messages")
     suspend fun sendMessage(@Path("id") id: Int, @Body request: MessageDtos.SendMessageRequest): MessageDtos.MessageResponse
 
+    @POST("conversations/{id}/messages/read")
+    suspend fun markMessagesRead(@Path("id") id: Int)
+
     @Multipart
     @POST("conversations/{id}/messages")
     suspend fun sendFileMessage(

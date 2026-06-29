@@ -9,7 +9,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -23,6 +27,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.eyecare.app.data.local.TokenManager
+import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
 import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
@@ -48,12 +53,25 @@ import com.eyecare.app.presentation.profile.ProfileScreen
 @Composable
 fun EyecareNavGraph(
     tokenManager: TokenManager,
+    chatRepository: ChatRepository,
     onLogout: () -> Unit,
     navController: NavHostController = rememberNavController(),
 ) {
     val startDestination = if (tokenManager.getToken() != null) MainGraph else AuthGraph
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDest: NavDestination? = backStackEntry?.destination
+
+    // Unread message count
+    var unreadCount by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        chatRepository.getConversation().onSuccess { unreadCount = it.unreadCount }
+    }
+    // Refresh when navigating back from Chat
+    LaunchedEffect(currentDest?.route) {
+        if (currentDest?.route?.contains("Chat") == false) {
+            chatRepository.getConversation().onSuccess { unreadCount = it.unreadCount }
+        }
+    }
 
     // Hide bottom nav on auth screens and chat
     val showBottomNav = currentDest?.route?.let { route ->
@@ -252,6 +270,7 @@ fun EyecareNavGraph(
                         }
                     },
                     onChatClick = { navController.navigate(Chat) },
+                    unreadCount = unreadCount,
                 )
             }
         }
