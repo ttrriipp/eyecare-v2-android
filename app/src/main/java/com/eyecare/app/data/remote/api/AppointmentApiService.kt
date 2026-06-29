@@ -18,4 +18,7 @@ interface AppointmentApiService {
 
     @POST("appointments/{id}/cancel")
     suspend fun cancelAppointment(@Path("id") id: Int): AppointmentDtos.AppointmentResponse
+
+    @GET("visit-reasons")
+    suspend fun getVisitReasons(): AppointmentDtos.VisitReasonListResponse
 }

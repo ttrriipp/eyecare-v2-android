@@ -36,6 +36,16 @@ object AppointmentDtos {
     )
 
     @Serializable
+    data class VisitReasonDto(
+        val id: Int,
+        val name: String,
+        @SerialName("duration_minutes") val durationMinutes: Int,
+    )
+
+    @Serializable
+    data class VisitReasonListResponse(val data: List<VisitReasonDto>)
+
+    @Serializable
     data class ValidationErrorBody(
         val message: String,
         val errors: Map<String, List<String>> = emptyMap(),

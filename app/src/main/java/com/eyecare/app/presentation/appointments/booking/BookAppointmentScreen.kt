@@ -54,18 +54,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.eyecare.app.domain.model.VisitReason as DomainVisitReason
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-// Demo: static slots — replace with API-driven availability in production
-private val TIME_SLOTS = listOf("09:00", "10:00", "11:30", "14:00", "15:30")
-
-private data class VisitReason(val id: String, val label: String, val icon: ImageVector)
-private val VISIT_REASONS = listOf(
-    VisitReason("eye_exam", "Eye Exam", Icons.Outlined.RemoveRedEye),
-    VisitReason("follow_up", "Follow Up", Icons.Outlined.Vaccines),
-    VisitReason("prescription_check", "Prescription Check", Icons.Outlined.Biotech),
-)
+// Time slots generated dynamically (30-min from 9:00-17:00)
+private val TIME_SLOTS = BookAppointmentViewModel.generateTimeSlots()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,7 +111,11 @@ fun BookAppointmentScreen(
             label = "wizardStep",
         ) { step ->
             when (step) {
-                1 -> Step1ReasonSelection(onSelectReason = viewModel::selectReason)
+                1 -> Step1ReasonSelection(
+                    visitReasons = state.visitReasons,
+                    isLoading = state.visitReasonsLoading,
+                    onSelectReason = viewModel::selectReason,
+                )
                 2 -> Step2DateTimeSelection(
                     selectedDateTime = state.selectedDateTime,
                     onSelectDateTime = viewModel::selectDateTime,
@@ -132,27 +130,42 @@ fun BookAppointmentScreen(
 }
 
 @Composable
-private fun Step1ReasonSelection(onSelectReason: (String) -> Unit) {
+private fun Step1ReasonSelection(
+    visitReasons: List<DomainVisitReason>,
+    isLoading: Boolean,
+    onSelectReason: (Int, String) -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Select Visit Reason", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
-        VISIT_REASONS.forEach { reason ->
-            Card(
-                onClick = { onSelectReason(reason.id) },
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(2.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            ) {
-                Row(
-                    modifier = Modifier.padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+        } else {
+            visitReasons.forEach { reason ->
+                Card(
+                    onClick = { onSelectReason(reason.id, reason.name) },
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(2.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
-                    Icon(reason.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Text(reason.label, style = MaterialTheme.typography.titleMedium)
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column {
+                            Text(reason.name, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "${reason.durationMinutes} min",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
         }

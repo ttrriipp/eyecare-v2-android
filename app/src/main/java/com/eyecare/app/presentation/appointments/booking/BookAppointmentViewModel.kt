@@ -3,6 +3,7 @@ package com.eyecare.app.presentation.appointments.booking
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.VisitReason
 import com.eyecare.app.domain.repository.AppointmentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 sealed interface BookingResult {
@@ -19,11 +22,17 @@ sealed interface BookingResult {
 
 data class BookingState(
     val step: Int = 1,
-    val selectedReason: String? = null,
+    val visitReasons: List<VisitReason> = emptyList(),
+    val visitReasonsLoading: Boolean = true,
+    val selectedReasonId: Int? = null,
+    val selectedReasonName: String? = null,
     val selectedDateTime: String? = null,
     val isLoading: Boolean = false,
     val result: BookingResult? = null,
-)
+) {
+    // For backward compat in Step3
+    val selectedReason: String? get() = selectedReasonName
+}
 
 @HiltViewModel
 class BookAppointmentViewModel @Inject constructor(
@@ -33,8 +42,25 @@ class BookAppointmentViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(BookingState())
     val uiState: StateFlow<BookingState> = _uiState.asStateFlow()
 
-    fun selectReason(reason: String) {
-        _uiState.update { it.copy(step = 2, selectedReason = reason) }
+    init {
+        loadVisitReasons()
+    }
+
+    private fun loadVisitReasons() {
+        viewModelScope.launch {
+            repository.getVisitReasons().fold(
+                onSuccess = { reasons ->
+                    _uiState.update { it.copy(visitReasons = reasons, visitReasonsLoading = false) }
+                },
+                onFailure = {
+                    _uiState.update { it.copy(visitReasonsLoading = false) }
+                },
+            )
+        }
+    }
+
+    fun selectReason(id: Int, name: String) {
+        _uiState.update { it.copy(step = 2, selectedReasonId = id, selectedReasonName = name) }
     }
 
     fun selectDateTime(dateTime: String) {
@@ -47,7 +73,7 @@ class BookAppointmentViewModel @Inject constructor(
 
     fun submit(contactNotes: String?) {
         val state = _uiState.value
-        val reasonId = REASON_IDS[state.selectedReason] ?: return
+        val reasonId = state.selectedReasonId ?: return
         val dateTime = state.selectedDateTime ?: return
 
         viewModelScope.launch {
@@ -66,7 +92,18 @@ class BookAppointmentViewModel @Inject constructor(
     }
 
     companion object {
-        // Matches seeder order: eye_exam=1, follow_up=2, prescription_check=3
-        val REASON_IDS = mapOf("eye_exam" to 1, "follow_up" to 2, "prescription_check" to 3)
+        private val TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm")
+
+        /** Generate 30-minute time slots from 9:00 to 17:00 */
+        fun generateTimeSlots(): List<String> {
+            val slots = mutableListOf<String>()
+            var time = LocalTime.of(9, 0)
+            val end = LocalTime.of(17, 0)
+            while (time.isBefore(end)) {
+                slots.add(time.format(TIME_FORMAT))
+                time = time.plusMinutes(30)
+            }
+            return slots
+        }
     }
 }
