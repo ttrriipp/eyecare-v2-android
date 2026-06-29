@@ -54,7 +54,7 @@ class OrderRepositoryImpl @Inject constructor(
 
     private fun OrderDtos.OrderDto.toDomain() = Order(
         id = id, orderNumber = orderNumber, appointmentId = appointmentId,
-        isNonPrescription = isNonPrescription, status = OrderStatus.from(status),
+        billingId = billingId, isNonPrescription = isNonPrescription, status = OrderStatus.from(status),
         subtotal = subtotal, totalAmount = totalAmount,
         items = items.map { it.toDomain() }, createdAt = createdAt,
     )

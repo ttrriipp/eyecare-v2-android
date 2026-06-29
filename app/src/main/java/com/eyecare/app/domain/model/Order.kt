@@ -4,6 +4,7 @@ data class Order(
     val id: Int,
     val orderNumber: String,
     val appointmentId: Int?,
+    val billingId: Int?,
     val isNonPrescription: Boolean,
     val status: OrderStatus,
     val subtotal: String,

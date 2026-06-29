@@ -195,13 +195,9 @@ fun OrderDetailScreen(
                     }
 
                     // Actions
-                    val billingStatuses = setOf(
-                        OrderStatus.CONFIRMED, OrderStatus.PROCESSING,
-                        OrderStatus.READY_FOR_PICKUP, OrderStatus.COMPLETED,
-                    )
-                    if (order.status in billingStatuses) {
+                    if (order.billingId != null) {
                         Button(
-                            onClick = { onViewBilling(order.id) },
+                            onClick = { onViewBilling(order.billingId) },
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(26.dp),
                         ) {

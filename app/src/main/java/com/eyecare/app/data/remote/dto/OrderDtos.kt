@@ -10,6 +10,7 @@ object OrderDtos {
         val id: Int,
         @SerialName("order_number") val orderNumber: String,
         @SerialName("appointment_id") val appointmentId: Int? = null,
+        @SerialName("billing_id") val billingId: Int? = null,
         @SerialName("is_non_prescription") val isNonPrescription: Boolean,
         val status: String,
         val subtotal: String,
