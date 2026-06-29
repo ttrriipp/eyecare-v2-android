@@ -91,6 +91,7 @@ class ProductRepositoryImpl @Inject constructor(
         id = id, name = name, sku = sku, price = price,
         compareAtPrice = compareAtPrice,
         attributes = attributes?.toStringMap(),
+        inStock = inStock,
         arEligible = arEligible, arAssetReference = arAssetReference,
         images = images,
     )

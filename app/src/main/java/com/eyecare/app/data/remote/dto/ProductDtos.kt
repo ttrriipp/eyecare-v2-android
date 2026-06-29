@@ -27,6 +27,7 @@ object ProductDtos {
         val price: String,
         @SerialName("compare_at_price") val compareAtPrice: String? = null,
         val attributes: JsonElement? = null,
+        @SerialName("in_stock") val inStock: Boolean = true,
         @SerialName("ar_eligible") val arEligible: Boolean = false,
         @SerialName("ar_asset_reference") val arAssetReference: String? = null,
         val images: List<String> = emptyList(),

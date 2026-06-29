@@ -223,13 +223,17 @@ fun ProductDetailScreen(
                         onClick = { onNavigateToOrder(product.id, selected.id) },
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = RoundedCornerShape(26.dp),
-                        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+                        border = BorderStroke(1.5.dp, if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
+                        enabled = selected.inStock,
                     ) {
                         Icon(Icons.Outlined.ShoppingBag, contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary)
+                            tint = if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.width(8.dp))
-                        Text("Order this frame", color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (selected.inStock) "Order this frame" else "Out of Stock",
+                            color = if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                 }
                 } // end Box
@@ -287,6 +291,10 @@ private fun VariantChip(variant: ProductVariant, isSelected: Boolean, onClick: (
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
             Text("₱${variant.price}", style = MaterialTheme.typography.bodySmall,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            if (!variant.inStock) {
+                Text("Out of stock", style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

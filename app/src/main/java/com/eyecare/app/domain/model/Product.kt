@@ -19,6 +19,7 @@ data class ProductVariant(
     val price: String,
     val compareAtPrice: String?,
     val attributes: Map<String, String>?,
+    val inStock: Boolean,
     val arEligible: Boolean,
     val arAssetReference: String?,
     val images: List<String>,
