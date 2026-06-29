@@ -37,6 +37,20 @@ class AuthRepositoryImpl @Inject constructor(
         api.getUser().data.toDomain()
     }
 
+    override suspend fun updateUser(name: String, email: String, phone: String?): Result<User> =
+        runCatching {
+            api.updateUser(AuthDtos.UpdateUserRequest(name, email, phone)).data.toDomain()
+        }.recoverCatching { throwable ->
+            when {
+                throwable is HttpException && throwable.code() == 422 -> {
+                    val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
+                    val parsed = json.decodeFromString<AuthDtos.ValidationErrorBody>(body)
+                    throw AuthError.ValidationError(parsed.errors)
+                }
+                else -> throw throwable
+            }
+        }
+
     private suspend fun safeCall(block: suspend () -> AuthDtos.AuthResponse): Result<User> =
         runCatching {
             val response = block()
@@ -55,5 +69,5 @@ class AuthRepositoryImpl @Inject constructor(
             }
         }
 
-    private fun AuthDtos.UserDto.toDomain() = User(id, name, email, role)
+    private fun AuthDtos.UserDto.toDomain() = User(id, name, email, phone, role)
 }

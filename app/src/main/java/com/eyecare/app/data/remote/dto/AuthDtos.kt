@@ -34,6 +34,7 @@ object AuthDtos {
         val id: Int,
         val name: String,
         val email: String,
+        val phone: String? = null,
         val role: String,
     )
 
@@ -44,5 +45,12 @@ object AuthDtos {
     data class ValidationErrorBody(
         val message: String,
         val errors: Map<String, List<String>> = emptyMap(),
+    )
+
+    @Serializable
+    data class UpdateUserRequest(
+        val name: String,
+        val email: String,
+        val phone: String? = null,
     )
 }

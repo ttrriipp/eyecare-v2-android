@@ -1,10 +1,8 @@
 package com.eyecare.app.presentation.profile
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,8 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material.icons.automirrored.outlined.Logout
@@ -31,7 +29,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,9 +49,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.User
+import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.StatusCancelled
 
 @Composable
@@ -80,17 +81,36 @@ fun ProfileScreen(
 
         when (val state = uiState) {
             is ProfileUiState.Loading -> Box(
-                Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center
+                Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator() }
 
             is ProfileUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::retry)
 
-            is ProfileUiState.Success -> UserInfoCard(state.user)
+            is ProfileUiState.Success -> {
+                if (state.isEditing) {
+                    EditProfileCard(
+                        name = state.editName,
+                        email = state.editEmail,
+                        phone = state.editPhone,
+                        isSaving = state.isSaving,
+                        fieldErrors = state.fieldErrors,
+                        onNameChange = viewModel::updateName,
+                        onEmailChange = viewModel::updateEmail,
+                        onPhoneChange = viewModel::updatePhone,
+                        onSave = viewModel::saveProfile,
+                        onCancel = viewModel::cancelEditing,
+                    )
+                } else {
+                    UserInfoCard(user = state.user, onEdit = viewModel::startEditing)
+                }
+            }
         }
 
         // Navigation links
-        Text("My Account", style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "My Account", style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -129,8 +149,10 @@ fun ProfileScreen(
             title = { Text("Log out?") },
             text = { Text("You'll need to sign in again to access your account.") },
             confirmButton = {
-                Button(onClick = { showLogoutDialog = false; viewModel.logout() },
-                    colors = ButtonDefaults.buttonColors(containerColor = StatusCancelled)) {
+                Button(
+                    onClick = { showLogoutDialog = false; viewModel.logout() },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusCancelled),
+                ) {
                     Text("Log Out")
                 }
             },
@@ -142,7 +164,7 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun UserInfoCard(user: User) {
+private fun UserInfoCard(user: User, onEdit: () -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -155,8 +177,10 @@ private fun UserInfoCard(user: User) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Avatar placeholder — initials
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(56.dp)) {
+            Surface(
+                shape = CircleShape, color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(56.dp),
+            ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         user.name.take(1).uppercase(),
@@ -166,16 +190,122 @@ private fun UserInfoCard(user: User) {
                     )
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
                 Text(user.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(user.email, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Surface(shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer) {
-                    Text(user.role.replaceFirstChar { it.uppercase() },
+                Text(
+                    user.email, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!user.phone.isNullOrBlank()) {
+                    Text(
+                        user.phone, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Text(
+                        user.role.replaceFirstChar { it.uppercase() },
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            IconButton(onClick = onEdit) {
+                Icon(
+                    Icons.Outlined.Edit, contentDescription = "Edit profile",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditProfileCard(
+    name: String,
+    email: String,
+    phone: String,
+    isSaving: Boolean,
+    fieldErrors: Map<String, List<String>>,
+    onNameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Edit Profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = onNameChange,
+                label = { Text("Name") },
+                modifier = Modifier.fillMaxWidth(),
+                isError = fieldErrors.containsKey("name"),
+                supportingText = fieldErrors["name"]?.firstOrNull()?.let { { Text(it) } },
+                singleLine = true,
+            )
+
+            OutlinedTextField(
+                value = email,
+                onValueChange = onEmailChange,
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                isError = fieldErrors.containsKey("email"),
+                supportingText = fieldErrors["email"]?.firstOrNull()?.let { { Text(it) } },
+                singleLine = true,
+            )
+
+            OutlinedTextField(
+                value = phone,
+                onValueChange = onPhoneChange,
+                label = { Text("Phone") },
+                modifier = Modifier.fillMaxWidth(),
+                isError = fieldErrors.containsKey("phone"),
+                supportingText = fieldErrors["phone"]?.firstOrNull()?.let { { Text(it) } },
+                singleLine = true,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isSaving,
+                ) {
+                    Text("Cancel")
+                }
+                Button(
+                    onClick = onSave,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isSaving,
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text("Save")
+                    }
                 }
             }
         }
@@ -190,14 +320,20 @@ private fun ProfileNavRow(icon: ImageVector, label: String, onClick: () -> Unit)
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp),
+                )
                 Text(label, style = MaterialTheme.typography.bodyMedium)
             }
-            Icon(Icons.Outlined.ChevronRight, contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(
+                Icons.Outlined.ChevronRight, contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
