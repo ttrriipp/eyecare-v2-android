@@ -36,14 +36,14 @@ class ProfileViewModelTest {
 
     @Test
     fun `loads user info on init`() = runTest {
-        coEvery { authRepo.getUser() } returns Result.success(User(1, "Alex", "alex@example.com", "customer"))
+        coEvery { authRepo.getUser() } returns Result.success(User(1, "Alex", "alex@example.com", "09171234567", "customer"))
         val vm = ProfileViewModel(authRepo, tokenManager)
         assertEquals("Alex", (vm.uiState.value as? ProfileUiState.Success)?.user?.name)
     }
 
     @Test
     fun `logout clears token and signals event`() = runTest {
-        coEvery { authRepo.getUser() } returns Result.success(User(1, "Alex", "alex@example.com", "customer"))
+        coEvery { authRepo.getUser() } returns Result.success(User(1, "Alex", "alex@example.com", "09171234567", "customer"))
         coEvery { authRepo.logout() } returns Result.success(Unit)
         val vm = ProfileViewModel(authRepo, tokenManager)
         vm.logout()

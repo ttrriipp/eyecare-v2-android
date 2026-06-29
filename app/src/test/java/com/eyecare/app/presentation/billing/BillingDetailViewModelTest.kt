@@ -24,10 +24,11 @@ class BillingDetailViewModelTest {
     private lateinit var repo: BillingRepository
 
     private val fakeBilling = Billing(
-        id = 1, orderId = 1, status = BillingStatus.ISSUED,
+        id = 1, billingNumber = "BIL-2026-000001", status = BillingStatus.ISSUED,
+        subtotal = "165.00", discountAmount = "0.00",
         totalAmount = "165.00", amountPaid = "0.00", balanceDue = "165.00",
         issuedAt = "2026-10-25T10:00:00Z", createdAt = "2026-10-24T10:00:00Z",
-        payments = emptyList(),
+        items = emptyList(), payments = emptyList(),
     )
 
     @BeforeEach

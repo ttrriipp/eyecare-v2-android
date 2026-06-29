@@ -35,10 +35,10 @@ class OrderRequestViewModelTest {
     private lateinit var productRepo: ProductRepository
     private lateinit var appointmentRepo: AppointmentRepository
 
-    private val fakeVariant = ProductVariant(1, "Black", "BK-001", "165.00", null, true, null)
-    private val fakeProduct = Product(1, "Clubmaster", "clubmaster", null, "165.00", null, "Ray-Ban", "Frames",
+    private val fakeVariant = ProductVariant(1, "Black", "BK-001", "165.00", null, null, true, true, null, emptyList())
+    private val fakeProduct = Product(1, "Clubmaster", "clubmaster", null, "frame", "Ray-Ban", "Frames",
         listOf(fakeVariant), emptyList())
-    private val fakeOrder = Order(1, "ORD-001", null, false, OrderStatus.REQUESTED,
+    private val fakeOrder = Order(1, "ORD-001", null, null, false, OrderStatus.REQUESTED,
         "165.00", "165.00", emptyList(), "2026-10-24T10:00:00Z")
 
     @BeforeEach

@@ -25,7 +25,7 @@ class OrderListViewModelTest {
     private lateinit var repo: OrderRepository
 
     private fun makeOrder(id: Int, status: OrderStatus) = Order(
-        id, "ORD-00$id", null, false, status, "165.00", "165.00", emptyList(), "2026-10-24T10:00:00Z"
+        id, "ORD-00$id", null, null, false, status, "165.00", "165.00", emptyList(), "2026-10-24T10:00:00Z"
     )
 
     private val orders = listOf(

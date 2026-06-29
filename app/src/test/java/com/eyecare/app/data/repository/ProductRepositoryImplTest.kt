@@ -27,7 +27,7 @@ class ProductRepositoryImplTest {
         brand = "Ray-Ban",
         category = "Frames",
         variants = listOf(
-            ProductDtos.VariantDto(1, "Black", "RB-001", "165.00", null, null, true, "frames/rb001.png", emptyList())
+            ProductDtos.VariantDto(1, "Black", "RB-001", "165.00", null, null, true, true, "frames/rb001.png", emptyList())
         ),
         images = listOf("products/clubmaster.jpg"),
     )

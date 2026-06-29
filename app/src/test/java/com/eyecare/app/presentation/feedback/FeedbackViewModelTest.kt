@@ -25,7 +25,7 @@ class FeedbackViewModelTest {
     private lateinit var repo: FeedbackRepository
 
     private val fakeFeedback = Feedback(1, appointmentId = 1, orderId = null,
-        rating = 5, comment = "Great!", staffReply = null, repliedAt = null)
+        rating = 5, comment = "Great!")
 
     @BeforeEach
     fun setup() {

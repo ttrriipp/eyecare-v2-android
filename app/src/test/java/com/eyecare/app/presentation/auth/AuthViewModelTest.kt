@@ -28,7 +28,7 @@ class AuthViewModelTest {
     private lateinit var tokenManager: TokenManager
     private lateinit var vm: AuthViewModel
 
-    private val fakeUser = User(1, "Jane", "jane@example.com", "customer")
+    private val fakeUser = User(1, "Jane", "jane@example.com", "09171234567", "customer")
 
     @BeforeEach
     fun setup() {

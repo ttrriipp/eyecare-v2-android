@@ -25,8 +25,8 @@ class ProductDetailViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repo: ProductRepository
 
-    private val arVariant = ProductVariant(1, "Black", "BK-001", "165.00", null, null, arEligible = true, "frames/bk.png", emptyList())
-    private val nonArVariant = ProductVariant(2, "Gold", "GD-001", "185.00", null, null, arEligible = false, null, emptyList())
+    private val arVariant = ProductVariant(1, "Black", "BK-001", "165.00", null, null, true, arEligible = true, "frames/bk.png", emptyList())
+    private val nonArVariant = ProductVariant(2, "Gold", "GD-001", "185.00", null, null, true, arEligible = false, null, emptyList())
 
     private val fakeProduct = Product(
         id = 1, name = "Clubmaster", slug = "clubmaster", description = "Classic style",

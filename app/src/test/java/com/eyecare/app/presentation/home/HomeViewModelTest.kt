@@ -39,7 +39,7 @@ class HomeViewModelTest {
         "${LocalDate.now().plusDays(3)}T10:00:00Z", null, null)
     private val pastAppt = Appointment(2, "follow_up", AppointmentStatus.COMPLETED,
         "${LocalDate.now().minusDays(5)}T10:00:00Z", null, null)
-    private val activeOrder = Order(1, "ORD-001", null, false, OrderStatus.PROCESSING,
+    private val activeOrder = Order(1, "ORD-001", null, null, false, OrderStatus.PROCESSING,
         "165.00", "165.00", emptyList(), "${LocalDate.now().minusDays(1)}T10:00:00Z")
     private val expiredPrescription = Prescription(1, 1, null, null, null, null,
         null, null, null, null, null,

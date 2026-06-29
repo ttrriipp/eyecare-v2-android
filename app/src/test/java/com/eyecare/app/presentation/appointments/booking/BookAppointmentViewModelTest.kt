@@ -3,6 +3,7 @@ package com.eyecare.app.presentation.appointments.booking
 import app.cash.turbine.test
 import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.VisitReason
 import com.eyecare.app.domain.repository.AppointmentRepository
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -15,7 +16,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -26,12 +26,17 @@ class BookAppointmentViewModelTest {
     private lateinit var repo: AppointmentRepository
     private lateinit var vm: BookAppointmentViewModel
 
-    private val fakeAppt = Appointment(99, "eye_exam", AppointmentStatus.PENDING, "2026-10-24T09:00:00Z", null, null)
+    private val fakeAppt = Appointment(99, "Eye Exam", AppointmentStatus.PENDING, "2026-10-24T09:00:00Z", null, null)
+    private val fakeReasons = listOf(
+        VisitReason(1, "Eye Exam", 30),
+        VisitReason(2, "Follow-up", 15),
+    )
 
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
+        coEvery { repo.getVisitReasons() } returns Result.success(fakeReasons)
         vm = BookAppointmentViewModel(repo)
     }
 
@@ -45,14 +50,14 @@ class BookAppointmentViewModelTest {
 
     @Test
     fun `selectReason advances to step 2`() = runTest {
-        vm.selectReason("eye_exam")
+        vm.selectReason(1, "Eye Exam")
         assertEquals(2, vm.uiState.value.step)
-        assertEquals("eye_exam", vm.uiState.value.selectedReason)
+        assertEquals("Eye Exam", vm.uiState.value.selectedReason)
     }
 
     @Test
     fun `selectDateTime advances to step 3`() = runTest {
-        vm.selectReason("eye_exam")
+        vm.selectReason(1, "Eye Exam")
         vm.selectDateTime("2026-10-24T09:00:00Z")
         assertEquals(3, vm.uiState.value.step)
         assertEquals("2026-10-24T09:00:00Z", vm.uiState.value.selectedDateTime)
@@ -60,24 +65,24 @@ class BookAppointmentViewModelTest {
 
     @Test
     fun `goBack from step 2 returns to step 1`() = runTest {
-        vm.selectReason("eye_exam")
+        vm.selectReason(1, "Eye Exam")
         vm.goBack()
         assertEquals(1, vm.uiState.value.step)
     }
 
     @Test
     fun `goBack from step 3 returns to step 2 preserving selections`() = runTest {
-        vm.selectReason("eye_exam")
+        vm.selectReason(1, "Eye Exam")
         vm.selectDateTime("2026-10-24T09:00:00Z")
         vm.goBack()
         assertEquals(2, vm.uiState.value.step)
-        assertEquals("eye_exam", vm.uiState.value.selectedReason) // preserved
+        assertEquals("Eye Exam", vm.uiState.value.selectedReason)
     }
 
     @Test
     fun `submit success emits Submitted state`() = runTest {
         coEvery { repo.createAppointment(any(), any(), anyNullable()) } returns Result.success(fakeAppt)
-        vm.selectReason("eye_exam")
+        vm.selectReason(1, "Eye Exam")
         vm.selectDateTime("2026-10-24T09:00:00Z")
 
         vm.uiState.test {
@@ -96,7 +101,7 @@ class BookAppointmentViewModelTest {
     fun `submit error emits Error result`() = runTest {
         coEvery { repo.createAppointment(any(), any(), anyNullable()) } returns
             Result.failure(RuntimeException("Server error"))
-        vm.selectReason("eye_exam")
+        vm.selectReason(1, "Eye Exam")
         vm.selectDateTime("2026-10-24T09:00:00Z")
 
         vm.uiState.test {
@@ -113,7 +118,7 @@ class BookAppointmentViewModelTest {
     @Test
     fun `notes are optional — null notes submitted correctly`() = runTest {
         coEvery { repo.createAppointment(any(), any(), null) } returns Result.success(fakeAppt)
-        vm.selectReason("follow_up")
+        vm.selectReason(2, "Follow-up")
         vm.selectDateTime("2026-10-24T09:00:00Z")
 
         vm.uiState.test {

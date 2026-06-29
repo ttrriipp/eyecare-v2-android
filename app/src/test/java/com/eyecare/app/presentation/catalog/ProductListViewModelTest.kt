@@ -28,7 +28,7 @@ class ProductListViewModelTest {
         id = id, name = "Product $id", slug = "product-$id", description = null,
         productType = "frame", brand = "Brand", category = category,
         variants = if (arEligible) listOf(
-            ProductVariant(id, "v", "sku", "100.00", null, null, true, "img.png", emptyList())
+            ProductVariant(id, "v", "sku", "100.00", null, null, true, true, "img.png", emptyList())
         ) else emptyList(),
         images = emptyList(),
     )

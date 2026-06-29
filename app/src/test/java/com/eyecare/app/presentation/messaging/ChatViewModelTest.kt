@@ -32,14 +32,14 @@ class ChatViewModelTest {
     private lateinit var appointmentRepo: AppointmentRepository
     private lateinit var orderRepo: OrderRepository
 
-    private val fakeConversation = Conversation(1, null, "2026-10-24T10:00:00Z")
+    private val fakeConversation = Conversation(1, null, 0, "2026-10-24T10:00:00Z")
     private val fakeMessage = Message(1, 1, 42, "Hello", null, "2026-10-24T10:00:00Z", emptyList())
 
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
-        authRepo = mockk { coEvery { getUser() } returns Result.success(User(42, "Test", "t@t.com", "customer")) }
+        authRepo = mockk { coEvery { getUser() } returns Result.success(User(42, "Test", "t@t.com", null, "customer")) }
         appointmentRepo = mockk { coEvery { getAppointments() } returns Result.success(emptyList()) }
         orderRepo = mockk { coEvery { getOrders() } returns Result.success(emptyList()) }
     }
