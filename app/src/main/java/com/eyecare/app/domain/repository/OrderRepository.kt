@@ -12,4 +12,5 @@ interface OrderRepository {
         isNonPrescription: Boolean,
         items: List<OrderDtos.OrderItemRequest>,
     ): Result<Order>
+    suspend fun cancelOrder(id: Int): Result<Order>
 }

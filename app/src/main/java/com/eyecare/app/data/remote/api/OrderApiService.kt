@@ -19,4 +19,7 @@ interface OrderApiService {
 
     @POST("orders")
     suspend fun createOrder(@Body request: OrderDtos.CreateOrderRequest): OrderDtos.OrderResponse
+
+    @POST("orders/{id}/cancel")
+    suspend fun cancelOrder(@Path("id") id: Int): OrderDtos.OrderResponse
 }

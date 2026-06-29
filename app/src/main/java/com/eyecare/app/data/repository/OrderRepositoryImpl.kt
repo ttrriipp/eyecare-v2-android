@@ -48,6 +48,10 @@ class OrderRepositoryImpl @Inject constructor(
         throw throwable
     }
 
+    override suspend fun cancelOrder(id: Int): Result<Order> = runCatching {
+        api.cancelOrder(id).data.toDomain()
+    }
+
     private fun OrderDtos.OrderDto.toDomain() = Order(
         id = id, orderNumber = orderNumber, appointmentId = appointmentId,
         isNonPrescription = isNonPrescription, status = OrderStatus.from(status),

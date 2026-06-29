@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 sealed interface OrderDetailUiState {
     data object Loading : OrderDetailUiState
-    data class Success(val order: Order) : OrderDetailUiState
+    data class Success(val order: Order, val isCancelling: Boolean = false) : OrderDetailUiState
     data class Error(val message: String) : OrderDetailUiState
 }
 
@@ -36,6 +36,18 @@ class OrderDetailViewModel @AssistedInject constructor(
     init { load() }
 
     fun refresh() = load()
+
+    fun cancelOrder() {
+        val current = _uiState.value
+        if (current !is OrderDetailUiState.Success) return
+        _uiState.value = current.copy(isCancelling = true)
+        viewModelScope.launch {
+            repository.cancelOrder(orderId).fold(
+                onSuccess = { load() },
+                onFailure = { _uiState.value = current.copy(isCancelling = false) },
+            )
+        }
+    }
 
     private fun load() {
         viewModelScope.launch {
