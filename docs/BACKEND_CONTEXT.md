@@ -518,6 +518,7 @@ PATCH  /staff/orders/{id}/status
 | `docs/specs/unified-billing-flow-spec.md` | Complete — 7 tasks |
 | `docs/specs/priority-gaps-spec.md` | In progress — P1–P3 gaps (Phases 1–5 of 6 complete) |
 | `docs/specs/defense-hardening-spec.md` | Complete — 7 features (performance indexes, variable duration, expiry alerts, daily summary, void audit, reorder report, docs) |
+| `docs/specs/backend-alignment-v2-spec.md` | Complete — 11 tasks (cancel appointment/order, profile update, mark read + unread badge, billing rewrite, order→billing nav, remove staff_reply, in_stock, visit reasons API, dynamic time slots, home filter fix) |
 
 ---
 

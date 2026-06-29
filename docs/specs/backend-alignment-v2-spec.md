@@ -1,6 +1,6 @@
 # Spec: Android Backend Alignment v2
 
-Status: In progress
+Status: Complete
 Phase: Implement
 
 ## Objective
@@ -217,21 +217,21 @@ All tasks unblocked. No backend changes needed.
 
 ## Success Criteria
 
-- [ ] Cancel appointment works (pending/confirmed only)
-- [ ] Cancel order works (requested only)
-- [ ] Profile edit saves name/email/phone via PATCH /user
-- [ ] Phone displayed in profile
-- [ ] Messages marked as read when chat opens
-- [ ] Unread badge shown on Chat FAB
-- [ ] Billing shows billing_number, line items, discount/subtotal/total
-- [ ] Order → Billing uses billing_id (not order.id)
-- [ ] "View Billing" hidden when order has no billing
-- [ ] No staff_reply references in code
-- [ ] Product variants show in_stock status; OOS disables ordering
-- [ ] Visit reasons fetched from API
-- [ ] Time slots generated dynamically (30-min from 9:00-17:00)
-- [ ] Today's appointments show as upcoming
-- [ ] App compiles with zero errors
+- [x] Cancel appointment works (pending/confirmed only)
+- [x] Cancel order works (requested only)
+- [x] Profile edit saves name/email/phone via PATCH /user
+- [x] Phone displayed in profile
+- [x] Messages marked as read when chat opens
+- [x] Unread badge shown on Chat FAB
+- [x] Billing shows billing_number, line items, discount/subtotal/total
+- [x] Order → Billing uses billing_id (not order.id)
+- [x] "View Billing" hidden when order has no billing
+- [x] No staff_reply references in code
+- [x] Product variants show in_stock status; OOS disables ordering
+- [x] Visit reasons fetched from API
+- [x] Time slots generated dynamically (30-min from 9:00-17:00)
+- [x] Today's appointments show as upcoming
+- [x] App compiles with zero errors
 
 ## Boundaries
 
