@@ -2,14 +2,26 @@ package com.eyecare.app.domain.model
 
 data class Billing(
     val id: Int,
-    val orderId: Int,
+    val billingNumber: String,
     val status: BillingStatus,
+    val subtotal: String,
+    val discountAmount: String,
     val totalAmount: String,
     val amountPaid: String,
     val balanceDue: String,
     val issuedAt: String?,
     val createdAt: String,
+    val items: List<BillingItem>,
     val payments: List<Payment>,
+)
+
+data class BillingItem(
+    val id: Int,
+    val type: String,
+    val description: String,
+    val quantity: Int,
+    val unitPrice: String,
+    val amount: String,
 )
 
 data class Payment(

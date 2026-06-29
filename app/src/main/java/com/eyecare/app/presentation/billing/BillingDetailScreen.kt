@@ -35,11 +35,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.Billing
+import com.eyecare.app.domain.model.BillingItem
 import com.eyecare.app.domain.model.BillingStatus
 import com.eyecare.app.domain.model.Payment
+import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.StatusCancelled
 import com.eyecare.app.ui.theme.StatusConfirmed
 import com.eyecare.app.ui.theme.StatusInfo
@@ -69,19 +70,19 @@ fun BillingDetailScreen(
                 CircularProgressIndicator()
             }
             is BillingDetailUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
-            is BillingDetailUiState.Success -> BillingContent(billing = state.billing, onBack = onBack)
+            is BillingDetailUiState.Success -> BillingContent(billing = state.billing)
         }
     }
 }
 
 @Composable
-private fun BillingContent(billing: Billing, onBack: () -> Unit) {
+private fun BillingContent(billing: Billing) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Status + amounts summary card
+        // Header card with billing number + status
         Card(
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(2.dp),
@@ -89,16 +90,62 @@ private fun BillingContent(billing: Billing, onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Text("Invoice", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Row(
+                    Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        billing.billingNumber, style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
                     BillingStatusChip(billing.status)
                 }
                 billing.issuedAt?.let {
-                    Text("Issued: ${it.take(10)}", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "Issued: ${it.take(10)}", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            }
+        }
+
+        // Line items
+        if (billing.items.isNotEmpty()) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(2.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Items", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(4.dp))
+                    billing.items.forEachIndexed { idx, item ->
+                        BillingItemRow(item)
+                        if (idx < billing.items.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Summary card (subtotal, discount, total, paid, balance)
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(2.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AmountRow("Subtotal", "₱${billing.subtotal}")
+                if (billing.discountAmount != "0.00") {
+                    AmountRow("Discount", "-₱${billing.discountAmount}", color = StatusConfirmed)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 AmountRow("Total Amount", "₱${billing.totalAmount}", bold = true)
                 AmountRow("Amount Paid", "₱${billing.amountPaid}", color = MaterialTheme.colorScheme.primary)
                 AmountRow(
@@ -122,14 +169,34 @@ private fun BillingContent(billing: Billing, onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("No payments recorded yet.",
+                Text(
+                    "No payments recorded yet.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp))
+                    modifier = Modifier.padding(16.dp),
+                )
             }
         }
 
         Spacer(Modifier.height(96.dp))
+    }
+}
+
+@Composable
+private fun BillingItemRow(item: BillingItem) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(item.description, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "${item.quantity} × ₱${item.unitPrice}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            "₱${item.amount}", style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -142,21 +209,31 @@ private fun PaymentCard(payment: Payment) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                Text(payment.method.replaceFirstChar { it.uppercase() },
+            Row(
+                Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    payment.method.replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("₱${payment.amount}", style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "₱${payment.amount}", style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
+                )
             }
             payment.referenceNumber?.let {
-                Text("Ref: $it", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "Ref: $it", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             payment.paidAt?.let {
-                Text(it.take(10), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    it.take(10), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -170,10 +247,14 @@ private fun AmountRow(
     color: Color = MaterialTheme.colorScheme.onSurface,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal)
-        Text(value, style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal, color = color)
+        Text(
+            label, style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal,
+        )
+        Text(
+            value, style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal, color = color,
+        )
     }
 }
 
@@ -192,7 +273,3 @@ private fun BillingStatusChip(status: BillingStatus) {
         border = SuggestionChipDefaults.suggestionChipBorder(enabled = true, borderColor = color),
     )
 }
-
-
-
-
