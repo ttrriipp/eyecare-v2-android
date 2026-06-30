@@ -1,5 +1,9 @@
 package com.eyecare.app.data.repository
 
+import com.eyecare.app.data.local.dao.AppointmentDao
+import com.eyecare.app.data.local.dao.VisitReasonDao
+import com.eyecare.app.data.local.entity.AppointmentEntity
+import com.eyecare.app.data.local.entity.VisitReasonEntity
 import com.eyecare.app.data.remote.api.AppointmentApiService
 import com.eyecare.app.data.remote.dto.AppointmentDtos
 import com.eyecare.app.domain.model.Appointment
@@ -15,14 +19,40 @@ import javax.inject.Inject
 class AppointmentRepositoryImpl @Inject constructor(
     private val api: AppointmentApiService,
     private val json: Json,
+    private val appointmentDao: AppointmentDao,
+    private val visitReasonDao: VisitReasonDao,
 ) : AppointmentRepository {
 
-    override suspend fun getAppointments(): Result<List<Appointment>> = runCatching {
-        api.getAppointments().data.map { it.toDomain() }
+    override suspend fun getAppointments(): Result<List<Appointment>> {
+        return try {
+            val dtos = api.getAppointments().data
+            val entities = dtos.map { it.toEntity() }
+            appointmentDao.clearAll()
+            appointmentDao.insertAll(entities)
+            Result.success(dtos.map { it.toDomain() })
+        } catch (e: Exception) {
+            val cached = appointmentDao.getAll()
+            if (cached.isNotEmpty()) {
+                Result.success(cached.map { it.toDomain() })
+            } else {
+                Result.failure(e)
+            }
+        }
     }
 
-    override suspend fun getAppointment(id: Int): Result<Appointment> = runCatching {
-        api.getAppointment(id).data.toDomain()
+    override suspend fun getAppointment(id: Int): Result<Appointment> {
+        return try {
+            val dto = api.getAppointment(id).data
+            appointmentDao.insertAll(listOf(dto.toEntity()))
+            Result.success(dto.toDomain())
+        } catch (e: Exception) {
+            val cached = appointmentDao.getById(id)
+            if (cached != null) {
+                Result.success(cached.toDomain())
+            } else {
+                Result.failure(e)
+            }
+        }
     }
 
     override suspend fun createAppointment(
@@ -46,9 +76,24 @@ class AppointmentRepositoryImpl @Inject constructor(
         api.cancelAppointment(id).data.toDomain()
     }
 
-    override suspend fun getVisitReasons(): Result<List<VisitReason>> = runCatching {
-        api.getVisitReasons().data.map { VisitReason(it.id, it.name, it.durationMinutes) }
+    override suspend fun getVisitReasons(): Result<List<VisitReason>> {
+        return try {
+            val dtos = api.getVisitReasons().data
+            val entities = dtos.map { it.toEntity() }
+            visitReasonDao.clearAll()
+            visitReasonDao.insertAll(entities)
+            Result.success(dtos.map { VisitReason(it.id, it.name, it.durationMinutes) })
+        } catch (e: Exception) {
+            val cached = visitReasonDao.getAll()
+            if (cached.isNotEmpty()) {
+                Result.success(cached.map { it.toDomain() })
+            } else {
+                Result.failure(e)
+            }
+        }
     }
+
+    // ── DTO → Domain ──
 
     private fun AppointmentDtos.AppointmentDto.toDomain() = Appointment(
         id = id,
@@ -58,5 +103,46 @@ class AppointmentRepositoryImpl @Inject constructor(
         contactNotes = contactNotes,
         staffNotes = staffNotes,
         assignedStaff = assignedStaff?.let { AssignedStaff(it.id, it.name) },
+    )
+
+    // ── DTO → Entity ──
+
+    private fun AppointmentDtos.AppointmentDto.toEntity() = AppointmentEntity(
+        id = id,
+        visitReason = visitReason,
+        status = status,
+        scheduledAt = scheduledAt,
+        contactNotes = contactNotes,
+        staffNotes = staffNotes,
+        assignedStaffJson = assignedStaff?.let {
+            json.encodeToString(AppointmentDtos.AssignedStaffDto.serializer(), it)
+        },
+    )
+
+    private fun AppointmentDtos.VisitReasonDto.toEntity() = VisitReasonEntity(
+        id = id,
+        name = name,
+        durationMinutes = durationMinutes,
+    )
+
+    // ── Entity → Domain ──
+
+    private fun AppointmentEntity.toDomain() = Appointment(
+        id = id,
+        visitReason = visitReason,
+        status = AppointmentStatus.from(status),
+        scheduledAt = scheduledAt,
+        contactNotes = contactNotes,
+        staffNotes = staffNotes,
+        assignedStaff = assignedStaffJson?.let {
+            val dto = json.decodeFromString<AppointmentDtos.AssignedStaffDto>(it)
+            AssignedStaff(dto.id, dto.name)
+        },
+    )
+
+    private fun VisitReasonEntity.toDomain() = VisitReason(
+        id = id,
+        name = name,
+        durationMinutes = durationMinutes,
     )
 }

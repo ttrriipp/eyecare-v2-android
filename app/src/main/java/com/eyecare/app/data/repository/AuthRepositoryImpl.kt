@@ -1,6 +1,8 @@
 package com.eyecare.app.data.repository
 
 import com.eyecare.app.data.local.TokenManager
+import com.eyecare.app.data.local.dao.UserDao
+import com.eyecare.app.data.local.entity.UserEntity
 import com.eyecare.app.data.remote.api.AuthApiService
 import com.eyecare.app.data.remote.dto.AuthDtos
 import com.eyecare.app.domain.model.AuthError
@@ -14,6 +16,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val api: AuthApiService,
     private val tokenManager: TokenManager,
     private val json: Json,
+    private val userDao: UserDao,
 ) : AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<User> =
@@ -33,8 +36,19 @@ class AuthRepositoryImpl @Inject constructor(
         tokenManager.clearToken()
     }
 
-    override suspend fun getUser(): Result<User> = runCatching {
-        api.getUser().data.toDomain()
+    override suspend fun getUser(): Result<User> {
+        return try {
+            val user = api.getUser().data.toDomain()
+            userDao.insert(user.toEntity())
+            Result.success(user)
+        } catch (e: Exception) {
+            val cached = userDao.get()
+            if (cached != null) {
+                Result.success(cached.toDomain())
+            } else {
+                Result.failure(e)
+            }
+        }
     }
 
     override suspend fun updateUser(name: String, email: String, phone: String?): Result<User> =
@@ -55,7 +69,9 @@ class AuthRepositoryImpl @Inject constructor(
         runCatching {
             val response = block()
             tokenManager.saveToken(response.data.token)
-            response.data.user.toDomain()
+            val user = response.data.user.toDomain()
+            userDao.insert(user.toEntity())
+            user
         }.recoverCatching { throwable ->
             when {
                 throwable is HttpException && throwable.code() == 422 -> {
@@ -69,5 +85,27 @@ class AuthRepositoryImpl @Inject constructor(
             }
         }
 
+    // ── DTO → Domain ──
+
     private fun AuthDtos.UserDto.toDomain() = User(id, name, email, phone, role)
+
+    // ── Domain → Entity ──
+
+    private fun User.toEntity() = UserEntity(
+        id = id,
+        name = name,
+        email = email,
+        phone = phone,
+        role = role,
+    )
+
+    // ── Entity → Domain ──
+
+    private fun UserEntity.toDomain() = User(
+        id = id,
+        name = name,
+        email = email,
+        phone = phone,
+        role = role,
+    )
 }

@@ -1,5 +1,7 @@
 package com.eyecare.app.data.repository
 
+import com.eyecare.app.data.local.dao.OrderDao
+import com.eyecare.app.data.local.entity.OrderEntity
 import com.eyecare.app.data.remote.api.OrderApiService
 import com.eyecare.app.data.remote.dto.OrderDtos
 import com.eyecare.app.domain.model.Order
@@ -14,14 +16,28 @@ import javax.inject.Inject
 class OrderRepositoryImpl @Inject constructor(
     private val api: OrderApiService,
     private val json: Json,
+    private val orderDao: OrderDao,
 ) : OrderRepository {
 
     private var lastMeta: OrderDtos.PaginationMeta? = null
 
-    override suspend fun getOrders(page: Int): Result<List<Order>> = runCatching {
-        val response = api.getOrders(page = page)
-        lastMeta = response.meta
-        response.data.map { it.toDomain() }
+    override suspend fun getOrders(page: Int): Result<List<Order>> {
+        return try {
+            val response = api.getOrders(page = page)
+            lastMeta = response.meta
+            val dtos = response.data
+            val entities = dtos.map { it.toEntity() }
+            if (page == 1) orderDao.clearAll()
+            orderDao.insertAll(entities)
+            Result.success(dtos.map { it.toDomain() })
+        } catch (e: Exception) {
+            val cached = orderDao.getAll()
+            if (cached.isNotEmpty()) {
+                Result.success(cached.map { it.toDomain() })
+            } else {
+                Result.failure(e)
+            }
+        }
     }
 
     override suspend fun hasMorePages(page: Int): Boolean {
@@ -29,8 +45,19 @@ class OrderRepositoryImpl @Inject constructor(
         return page < meta.lastPage
     }
 
-    override suspend fun getOrder(id: Int): Result<Order> = runCatching {
-        api.getOrder(id).data.toDomain()
+    override suspend fun getOrder(id: Int): Result<Order> {
+        return try {
+            val dto = api.getOrder(id).data
+            orderDao.insertAll(listOf(dto.toEntity()))
+            Result.success(dto.toDomain())
+        } catch (e: Exception) {
+            val cached = orderDao.getById(id)
+            if (cached != null) {
+                Result.success(cached.toDomain())
+            } else {
+                Result.failure(e)
+            }
+        }
     }
 
     override suspend fun createOrder(
@@ -52,6 +79,8 @@ class OrderRepositoryImpl @Inject constructor(
         api.cancelOrder(id).data.toDomain()
     }
 
+    // ── DTO → Domain ──
+
     private fun OrderDtos.OrderDto.toDomain() = Order(
         id = id, orderNumber = orderNumber, appointmentId = appointmentId,
         billingId = billingId, isNonPrescription = isNonPrescription, status = OrderStatus.from(status),
@@ -66,4 +95,43 @@ class OrderRepositoryImpl @Inject constructor(
         unitPrice = unitPrice, quantity = quantity, subtotal = subtotal,
         imageUrl = (variantImages.firstOrNull() ?: productImages.firstOrNull()),
     )
+
+    // ── DTO → Entity ──
+
+    private fun OrderDtos.OrderDto.toEntity() = OrderEntity(
+        id = id,
+        orderNumber = orderNumber,
+        appointmentId = appointmentId,
+        billingId = billingId,
+        isNonPrescription = isNonPrescription,
+        status = status,
+        subtotal = subtotal,
+        totalAmount = totalAmount,
+        itemsJson = json.encodeToString(
+            kotlinx.serialization.builtins.ListSerializer(OrderDtos.OrderItemDto.serializer()),
+            items,
+        ),
+        createdAt = createdAt,
+    )
+
+    // ── Entity → Domain ──
+
+    private fun OrderEntity.toDomain(): Order {
+        val items = json.decodeFromString(
+            kotlinx.serialization.builtins.ListSerializer(OrderDtos.OrderItemDto.serializer()),
+            itemsJson,
+        )
+        return Order(
+            id = id,
+            orderNumber = orderNumber,
+            appointmentId = appointmentId,
+            billingId = billingId,
+            isNonPrescription = isNonPrescription,
+            status = OrderStatus.from(status),
+            subtotal = subtotal,
+            totalAmount = totalAmount,
+            items = items.map { it.toDomain() },
+            createdAt = createdAt,
+        )
+    }
 }

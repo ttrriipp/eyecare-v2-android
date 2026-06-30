@@ -3,6 +3,9 @@ package com.eyecare.app.presentation.messaging
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.data.local.IdPayload
+import com.eyecare.app.data.local.NetworkMonitor
+import com.eyecare.app.data.local.SyncManager
 import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
@@ -18,6 +21,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 private const val POLL_INTERVAL_MS = 5_000L
@@ -58,6 +63,9 @@ class ChatViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val appointmentRepository: AppointmentRepository,
     private val orderRepository: OrderRepository,
+    private val networkMonitor: NetworkMonitor,
+    private val syncManager: SyncManager,
+    private val json: Json,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Loading)
@@ -65,6 +73,9 @@ class ChatViewModel @Inject constructor(
 
     var currentUserId: Int = -1
         private set
+
+    /** Tracks whether we've already queued a mark_read operation offline for this session. */
+    private var hasQueuedMarkRead = false
 
     init {
         viewModelScope.launch {
@@ -90,7 +101,7 @@ class ChatViewModel @Inject constructor(
                                 latest.messages.none { it.id == msg.id }
                         }
                         if (hasNewFromOther) {
-                            chatRepository.markMessagesRead(current.conversation.id)
+                            markMessagesRead(current.conversation.id, fromPoll = true)
                         }
                     }
                 }
@@ -191,6 +202,21 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private suspend fun markMessagesRead(conversationId: Int, fromPoll: Boolean = false) {
+        if (networkMonitor.isOnline.value) {
+            chatRepository.markMessagesRead(conversationId)
+        } else {
+            // Only queue once (on initial load), not on every poll cycle
+            if (!fromPoll && !hasQueuedMarkRead) {
+                hasQueuedMarkRead = true
+                syncManager.enqueue(
+                    "mark_read",
+                    json.encodeToString(IdPayload(conversationId)),
+                )
+            }
+        }
+    }
+
     private fun load() {
         viewModelScope.launch {
             chatRepository.getConversation().fold(
@@ -199,7 +225,7 @@ class ChatViewModel @Inject constructor(
                         onSuccess = { messages ->
                             _uiState.value = ChatUiState.Success(conversation, messages)
                             // Mark messages as read when chat opens
-                            chatRepository.markMessagesRead(conversation.id)
+                            markMessagesRead(conversation.id, fromPoll = false)
                         },
                         onFailure = { _uiState.value = ChatUiState.Error(it.message ?: "Failed to load messages") },
                     )

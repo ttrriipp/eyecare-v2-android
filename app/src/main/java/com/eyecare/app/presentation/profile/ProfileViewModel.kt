@@ -2,6 +2,9 @@ package com.eyecare.app.presentation.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.data.local.NetworkMonitor
+import com.eyecare.app.data.local.ProfilePayload
+import com.eyecare.app.data.local.SyncManager
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.domain.model.AuthError
 import com.eyecare.app.domain.model.User
@@ -11,6 +14,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 sealed interface ProfileUiState {
@@ -32,6 +37,9 @@ sealed interface ProfileUiState {
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val tokenManager: TokenManager,
+    private val networkMonitor: NetworkMonitor,
+    private val syncManager: SyncManager,
+    private val json: Json,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -95,25 +103,42 @@ class ProfileViewModel @Inject constructor(
         _uiState.value = current.copy(isSaving = true, fieldErrors = emptyMap(), saveSuccess = false)
         viewModelScope.launch {
             val phone = current.editPhone.ifBlank { null }
-            authRepository.updateUser(current.editName, current.editEmail, phone).fold(
-                onSuccess = { user ->
-                    _uiState.value = ProfileUiState.Success(
-                        user = user,
-                        isEditing = false,
-                        saveSuccess = true,
-                    )
-                },
-                onFailure = { error ->
-                    if (error is AuthError.ValidationError) {
-                        _uiState.value = current.copy(
-                            isSaving = false,
-                            fieldErrors = error.fieldErrors,
+            if (networkMonitor.isOnline.value) {
+                authRepository.updateUser(current.editName, current.editEmail, phone).fold(
+                    onSuccess = { user ->
+                        _uiState.value = ProfileUiState.Success(
+                            user = user,
+                            isEditing = false,
+                            saveSuccess = true,
                         )
-                    } else {
-                        _uiState.value = current.copy(isSaving = false)
-                    }
-                },
-            )
+                    },
+                    onFailure = { error ->
+                        if (error is AuthError.ValidationError) {
+                            _uiState.value = current.copy(
+                                isSaving = false,
+                                fieldErrors = error.fieldErrors,
+                            )
+                        } else {
+                            _uiState.value = current.copy(isSaving = false)
+                        }
+                    },
+                )
+            } else {
+                syncManager.enqueue(
+                    "update_profile",
+                    json.encodeToString(ProfilePayload(current.editName, current.editEmail, phone)),
+                )
+                // Optimistically show success with locally updated user
+                _uiState.value = ProfileUiState.Success(
+                    user = current.user.copy(
+                        name = current.editName,
+                        email = current.editEmail,
+                        phone = phone,
+                    ),
+                    isEditing = false,
+                    saveSuccess = true,
+                )
+            }
         }
     }
 

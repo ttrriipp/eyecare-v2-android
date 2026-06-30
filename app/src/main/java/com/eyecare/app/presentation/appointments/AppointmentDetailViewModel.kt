@@ -4,6 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.eyecare.app.data.local.IdPayload
+import com.eyecare.app.data.local.NetworkMonitor
+import com.eyecare.app.data.local.SyncManager
 import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.repository.AppointmentRepository
 import com.eyecare.app.domain.repository.FeedbackRepository
@@ -13,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 sealed interface AppointmentDetailUiState {
@@ -30,6 +35,9 @@ sealed interface AppointmentDetailUiState {
 class AppointmentDetailViewModel @Inject constructor(
     private val repository: AppointmentRepository,
     private val feedbackRepository: FeedbackRepository,
+    private val networkMonitor: NetworkMonitor,
+    private val syncManager: SyncManager,
+    private val json: Json,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -47,15 +55,26 @@ class AppointmentDetailViewModel @Inject constructor(
         if (current !is AppointmentDetailUiState.Success) return
         _uiState.value = current.copy(isCancelling = true, cancelError = null)
         viewModelScope.launch {
-            repository.cancelAppointment(appointmentId).fold(
-                onSuccess = { load() },
-                onFailure = {
-                    _uiState.value = current.copy(
-                        isCancelling = false,
-                        cancelError = it.message ?: "Failed to cancel appointment",
-                    )
-                },
-            )
+            if (networkMonitor.isOnline.value) {
+                repository.cancelAppointment(appointmentId).fold(
+                    onSuccess = { load() },
+                    onFailure = {
+                        _uiState.value = current.copy(
+                            isCancelling = false,
+                            cancelError = it.message ?: "Failed to cancel appointment",
+                        )
+                    },
+                )
+            } else {
+                syncManager.enqueue(
+                    "cancel_appointment",
+                    json.encodeToString(IdPayload(appointmentId)),
+                )
+                _uiState.value = current.copy(
+                    isCancelling = false,
+                    cancelError = "You're offline. Cancellation has been queued and will be processed when connectivity is restored.",
+                )
+            }
         }
     }
 

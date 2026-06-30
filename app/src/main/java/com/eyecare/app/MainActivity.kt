@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.navigation.compose.rememberNavController
 import com.eyecare.app.data.local.TokenManager
+import com.eyecare.app.data.local.NetworkMonitor
 import com.eyecare.app.data.remote.interceptor.AuthEvent
 import com.eyecare.app.data.remote.interceptor.AuthEventBus
 import com.eyecare.app.domain.repository.ChatRepository
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var tokenManager: TokenManager
     @Inject lateinit var authEventBus: AuthEventBus
     @Inject lateinit var chatRepository: ChatRepository
+    @Inject lateinit var networkMonitor: NetworkMonitor
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +72,7 @@ class MainActivity : ComponentActivity() {
                     EyecareNavGraph(
                         tokenManager = tokenManager,
                         chatRepository = chatRepository,
+                        networkMonitor = networkMonitor,
                         onLogout = { logoutTrigger++ },
                         navController = navController,
                     )
