@@ -65,7 +65,7 @@ import com.eyecare.app.ui.theme.StatusPending
 fun OrderDetailScreen(
     orderId: Int,
     onBack: () -> Unit,
-    onViewBilling: (orderId: Int) -> Unit,
+    onViewBilling: (billingId: Int) -> Unit,
     onLeaveFeedback: (orderId: Int) -> Unit,
 ) {
     val viewModel = hiltViewModel<OrderDetailViewModel, OrderDetailViewModel.Factory> { it.create(orderId) }
@@ -214,6 +214,13 @@ fun OrderDetailScreen(
                         }
                     }
                     if (order.status == OrderStatus.REQUESTED) {
+                        if (state.cancelError != null) {
+                            Text(
+                                state.cancelError,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                         OutlinedButton(
                             onClick = { showCancelDialog = true },
                             modifier = Modifier.fillMaxWidth().height(52.dp),

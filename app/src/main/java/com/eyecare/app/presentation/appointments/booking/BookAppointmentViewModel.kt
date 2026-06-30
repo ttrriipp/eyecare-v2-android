@@ -24,6 +24,7 @@ data class BookingState(
     val step: Int = 1,
     val visitReasons: List<VisitReason> = emptyList(),
     val visitReasonsLoading: Boolean = true,
+    val visitReasonsError: String? = null,
     val selectedReasonId: Int? = null,
     val selectedReasonName: String? = null,
     val selectedDateTime: String? = null,
@@ -46,14 +47,22 @@ class BookAppointmentViewModel @Inject constructor(
         loadVisitReasons()
     }
 
+    fun retryVisitReasons() = loadVisitReasons()
+
     private fun loadVisitReasons() {
+        _uiState.update { it.copy(visitReasonsLoading = true, visitReasonsError = null) }
         viewModelScope.launch {
             repository.getVisitReasons().fold(
                 onSuccess = { reasons ->
                     _uiState.update { it.copy(visitReasons = reasons, visitReasonsLoading = false) }
                 },
-                onFailure = {
-                    _uiState.update { it.copy(visitReasonsLoading = false) }
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            visitReasonsLoading = false,
+                            visitReasonsError = error.message ?: "Failed to load visit reasons",
+                        )
+                    }
                 },
             )
         }

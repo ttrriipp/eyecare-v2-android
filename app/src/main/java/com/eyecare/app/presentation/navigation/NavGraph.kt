@@ -184,7 +184,7 @@ fun EyecareNavGraph(
                         OrderDetailScreen(
                             orderId = route.orderId,
                             onBack = { navController.popBackStack() },
-                            onViewBilling = { orderId -> navController.navigate(BillingDetail(orderId)) },
+                            onViewBilling = { billingId -> navController.navigate(BillingDetail(billingId)) },
                             onLeaveFeedback = { id -> navController.navigate(FeedbackSubmit(orderId = id)) },
                         )
                     }

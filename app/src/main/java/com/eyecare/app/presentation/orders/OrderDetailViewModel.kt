@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 sealed interface OrderDetailUiState {
     data object Loading : OrderDetailUiState
-    data class Success(val order: Order, val isCancelling: Boolean = false) : OrderDetailUiState
+    data class Success(val order: Order, val isCancelling: Boolean = false, val cancelError: String? = null) : OrderDetailUiState
     data class Error(val message: String) : OrderDetailUiState
 }
 
@@ -40,11 +40,16 @@ class OrderDetailViewModel @AssistedInject constructor(
     fun cancelOrder() {
         val current = _uiState.value
         if (current !is OrderDetailUiState.Success) return
-        _uiState.value = current.copy(isCancelling = true)
+        _uiState.value = current.copy(isCancelling = true, cancelError = null)
         viewModelScope.launch {
             repository.cancelOrder(orderId).fold(
                 onSuccess = { load() },
-                onFailure = { _uiState.value = current.copy(isCancelling = false) },
+                onFailure = {
+                    _uiState.value = current.copy(
+                        isCancelling = false,
+                        cancelError = it.message ?: "Failed to cancel order",
+                    )
+                },
             )
         }
     }

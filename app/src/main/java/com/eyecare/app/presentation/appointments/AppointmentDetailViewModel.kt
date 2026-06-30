@@ -21,6 +21,7 @@ sealed interface AppointmentDetailUiState {
         val appointment: Appointment,
         val hasFeedback: Boolean = false,
         val isCancelling: Boolean = false,
+        val cancelError: String? = null,
     ) : AppointmentDetailUiState
     data class Error(val message: String) : AppointmentDetailUiState
 }
@@ -44,11 +45,16 @@ class AppointmentDetailViewModel @Inject constructor(
     fun cancelAppointment() {
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success) return
-        _uiState.value = current.copy(isCancelling = true)
+        _uiState.value = current.copy(isCancelling = true, cancelError = null)
         viewModelScope.launch {
             repository.cancelAppointment(appointmentId).fold(
                 onSuccess = { load() },
-                onFailure = { _uiState.value = current.copy(isCancelling = false) },
+                onFailure = {
+                    _uiState.value = current.copy(
+                        isCancelling = false,
+                        cancelError = it.message ?: "Failed to cancel appointment",
+                    )
+                },
             )
         }
     }

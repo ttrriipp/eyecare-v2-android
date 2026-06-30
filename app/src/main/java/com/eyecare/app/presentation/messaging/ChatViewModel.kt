@@ -83,6 +83,15 @@ class ChatViewModel @Inject constructor(
                     val latest = _uiState.value as? ChatUiState.Success ?: return@onSuccess
                     if (messages.size != latest.messages.size || messages.lastOrNull()?.id != latest.messages.lastOrNull()?.id) {
                         _uiState.value = latest.copy(messages = messages)
+                        // Mark as read if new messages are from the other party
+                        val hasNewFromOther = messages.any { msg ->
+                            msg.senderId != currentUserId &&
+                                msg.readAt == null &&
+                                latest.messages.none { it.id == msg.id }
+                        }
+                        if (hasNewFromOther) {
+                            chatRepository.markMessagesRead(current.conversation.id)
+                        }
                     }
                 }
             }

@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -111,6 +112,8 @@ fun BookAppointmentScreen(
                 1 -> Step1ReasonSelection(
                     visitReasons = state.visitReasons,
                     isLoading = state.visitReasonsLoading,
+                    error = state.visitReasonsError,
+                    onRetry = viewModel::retryVisitReasons,
                     onSelectReason = viewModel::selectReason,
                 )
                 2 -> Step2DateTimeSelection(
@@ -130,6 +133,8 @@ fun BookAppointmentScreen(
 private fun Step1ReasonSelection(
     visitReasons: List<DomainVisitReason>,
     isLoading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
     onSelectReason: (Int, String) -> Unit,
 ) {
     Column(
@@ -140,6 +145,20 @@ private fun Step1ReasonSelection(
         Spacer(Modifier.height(8.dp))
         if (isLoading) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+        } else if (error != null) {
+            Text(
+                error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onRetry,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            ) {
+                Text("Retry")
+            }
         } else {
             visitReasons.forEach { reason ->
                 Card(

@@ -154,6 +154,13 @@ fun AppointmentDetailScreen(
 
                     if (appt.status == AppointmentStatus.PENDING || appt.status == AppointmentStatus.CONFIRMED) {
                         Spacer(Modifier.height(8.dp))
+                        if (state.cancelError != null) {
+                            Text(
+                                state.cancelError,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                         OutlinedButton(
                             onClick = { showCancelDialog = true },
                             modifier = Modifier.fillMaxWidth(),
