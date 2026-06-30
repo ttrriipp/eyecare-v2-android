@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,12 +30,16 @@ import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.os.Environment
+import android.widget.Toast
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.Billing
@@ -45,6 +51,7 @@ import com.eyecare.app.ui.theme.StatusCancelled
 import com.eyecare.app.ui.theme.StatusConfirmed
 import com.eyecare.app.ui.theme.StatusInfo
 import com.eyecare.app.ui.theme.StatusPending
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +61,28 @@ fun BillingDetailScreen(
 ) {
     val viewModel = hiltViewModel<BillingDetailViewModel, BillingDetailViewModel.Factory> { it.create(billingId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // Handle PDF download events
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is BillingEvent.PdfReady -> {
+                    try {
+                        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                        val file = File(downloadsDir, event.fileName)
+                        file.outputStream().use { out -> event.inputStream.use { it.copyTo(out) } }
+                        Toast.makeText(context, "Receipt saved to Downloads", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Failed to save file", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                is BillingEvent.DownloadError -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -62,6 +91,19 @@ fun BillingDetailScreen(
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            },
+            actions = {
+                val isDownloading = (uiState as? BillingDetailUiState.Success)?.isDownloading == true
+                IconButton(
+                    onClick = { viewModel.downloadPdf() },
+                    enabled = uiState is BillingDetailUiState.Success && !isDownloading,
+                ) {
+                    if (isDownloading) {
+                        CircularProgressIndicator(modifier = Modifier.height(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Outlined.Download, contentDescription = "Download Receipt")
+                    }
                 }
             },
         )
@@ -99,6 +141,12 @@ private fun BillingContent(billing: Billing) {
                         fontWeight = FontWeight.Bold,
                     )
                     BillingStatusChip(billing.status)
+                }
+                billing.orNumber?.let {
+                    Text(
+                        it, style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 billing.issuedAt?.let {
                     Text(

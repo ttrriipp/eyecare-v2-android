@@ -4,6 +4,8 @@ import com.eyecare.app.data.local.dao.ProductDao
 import com.eyecare.app.data.local.entity.ProductEntity
 import com.eyecare.app.data.remote.api.ProductApiService
 import com.eyecare.app.data.remote.dto.ProductDtos
+import com.eyecare.app.domain.model.Brand
+import com.eyecare.app.domain.model.Category
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.domain.model.ProductVariant
 import com.eyecare.app.domain.repository.ProductRepository
@@ -21,21 +23,34 @@ class ProductRepositoryImpl @Inject constructor(
 
     private var lastMeta: ProductDtos.PaginationMeta? = null
 
-    override suspend fun getProducts(page: Int): Result<List<Product>> {
+    override suspend fun getProducts(
+        page: Int,
+        search: String?,
+        brandId: Int?,
+        categoryId: Int?,
+        sort: String?,
+        inStock: Boolean?,
+    ): Result<List<Product>> {
+        val hasFilters = search != null || brandId != null || categoryId != null || sort != null || inStock != null
         return try {
-            val response = api.getProducts(page = page)
+            val response = api.getProducts(
+                page = page,
+                search = search?.takeIf { it.isNotBlank() },
+                brandId = brandId,
+                categoryId = categoryId,
+                sort = sort,
+                inStock = inStock,
+            )
             lastMeta = response.meta
-            if (page == 1) {
+            // Only cache unfiltered page 1 results
+            if (page == 1 && !hasFilters) {
                 dao.clearAll()
+                dao.insertAll(response.data.map { it.toEntity() })
             }
-            dao.insertAll(response.data.map { it.toEntity() })
-            if (page == 1) {
-                Result.success(dao.getAll().map { it.toDomain() })
-            } else {
-                Result.success(response.data.map { it.toDomain() })
-            }
+            Result.success(response.data.map { it.toDomain() })
         } catch (e: Exception) {
-            if (page == 1) {
+            // Fallback to cache only for unfiltered page 1
+            if (page == 1 && !hasFilters) {
                 val cached = dao.getAll()
                 if (cached.isNotEmpty()) Result.success(cached.map { it.toDomain() })
                 else Result.failure(e)
@@ -56,6 +71,14 @@ class ProductRepositoryImpl @Inject constructor(
         val cached = dao.getById(id)
         if (cached != null) Result.success(cached.toDomain())
         else Result.failure(e)
+    }
+
+    override suspend fun getBrands(): Result<List<Brand>> = runCatching {
+        api.getBrands().data.map { Brand(it.id, it.name) }
+    }
+
+    override suspend fun getCategories(): Result<List<Category>> = runCatching {
+        api.getCategories().data.map { Category(it.id, it.name) }
     }
 
     private fun ProductDtos.ProductDto.toEntity() = ProductEntity(

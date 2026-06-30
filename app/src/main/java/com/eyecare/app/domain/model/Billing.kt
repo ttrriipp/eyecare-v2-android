@@ -3,6 +3,7 @@ package com.eyecare.app.domain.model
 data class Billing(
     val id: Int,
     val billingNumber: String,
+    val orNumber: String?,
     val status: BillingStatus,
     val subtotal: String,
     val discountAmount: String,

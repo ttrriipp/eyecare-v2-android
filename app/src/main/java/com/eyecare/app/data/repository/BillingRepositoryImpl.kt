@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.BillingItem
 import com.eyecare.app.domain.model.BillingStatus
 import com.eyecare.app.domain.model.Payment
 import com.eyecare.app.domain.repository.BillingRepository
+import java.io.InputStream
 import javax.inject.Inject
 
 class BillingRepositoryImpl @Inject constructor(
@@ -17,9 +18,14 @@ class BillingRepositoryImpl @Inject constructor(
         api.getBilling(id).data.toDomain()
     }
 
+    override suspend fun downloadPdf(id: Int): Result<InputStream> = runCatching {
+        api.downloadBillingPdf(id).byteStream()
+    }
+
     private fun BillingDtos.BillingDto.toDomain() = Billing(
         id = id,
         billingNumber = billingNumber,
+        orNumber = orNumber,
         status = BillingStatus.from(status),
         subtotal = subtotal,
         discountAmount = discountAmount,
