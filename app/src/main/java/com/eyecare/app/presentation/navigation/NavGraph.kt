@@ -57,6 +57,7 @@ import com.eyecare.app.presentation.catalog.ProductDetailViewModel
 import com.eyecare.app.presentation.catalog.ProductListScreen
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
+import com.eyecare.app.presentation.profile.EditProfileScreen
 import com.eyecare.app.presentation.profile.ProfileScreen
 
 @Composable

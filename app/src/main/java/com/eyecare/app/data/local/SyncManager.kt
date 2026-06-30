@@ -66,58 +66,50 @@ class SyncManager @Inject constructor(
     private suspend fun processQueue() {
         val pending = pendingDao.getPending()
         for (op in pending) {
-            val success = executeOperation(op)
+            val (success, errorMsg) = executeOperation(op)
             if (success) {
                 pendingDao.delete(op.id)
             } else {
                 val newRetry = op.retryCount + 1
                 if (newRetry >= MAX_RETRIES) {
-                    pendingDao.update(op.copy(status = "failed", retryCount = newRetry))
+                    pendingDao.update(op.copy(status = "failed", retryCount = newRetry, errorMessage = errorMsg))
                 } else {
-                    pendingDao.update(op.copy(retryCount = newRetry))
+                    pendingDao.update(op.copy(retryCount = newRetry, errorMessage = errorMsg))
                 }
             }
         }
     }
 
-    private suspend fun executeOperation(op: PendingOperationEntity): Boolean {
+    private suspend fun executeOperation(op: PendingOperationEntity): Pair<Boolean, String?> {
         return try {
             when (op.type) {
                 "cancel_appointment" -> {
                     val payload = json.decodeFromString<IdPayload>(op.payload)
                     appointmentApi.cancelAppointment(payload.id)
-                    true
                 }
                 "cancel_order" -> {
                     val payload = json.decodeFromString<IdPayload>(op.payload)
                     orderApi.cancelOrder(payload.id)
-                    true
                 }
                 "update_profile" -> {
                     val payload = json.decodeFromString<ProfilePayload>(op.payload)
                     authApi.updateUser(AuthDtos.UpdateUserRequest(payload.name, payload.email, payload.phone))
-                    true
                 }
                 "submit_feedback" -> {
                     val payload = json.decodeFromString<FeedbackPayload>(op.payload)
                     feedbackApi.submitFeedback(
                         FeedbackDtos.SubmitFeedbackRequest(payload.appointmentId, payload.orderId, payload.rating, payload.comment),
                     )
-                    true
                 }
                 "mark_read" -> {
                     val payload = json.decodeFromString<IdPayload>(op.payload)
                     conversationApi.markMessagesRead(payload.id)
-                    true
                 }
-                else -> {
-                    pendingDao.update(op.copy(status = "failed", errorMessage = "Unknown operation type"))
-                    false
-                }
+                else -> return false to "Unknown operation type"
             }
+            true to null
         } catch (e: Exception) {
-            pendingDao.update(op.copy(errorMessage = e.message))
-            false
+            false to e.message
         }
     }
 }
