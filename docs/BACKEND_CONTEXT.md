@@ -95,7 +95,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `billing_statuses` | issued, partially_paid, paid, voided |
 | `payment_statuses` | posted, voided |
 | `notification_statuses` | queued, sent, failed, cancelled |
-| `inventory_movement_types` | restock, manual_adjustment, order_commitment, order_reversal |
+| `inventory_movement_types` | restock, manual_adjustment, order_commitment, order_reversal, damaged |
 | `payment_methods` | Cash, GCash, Bank Transfer, Credit Card, Check |
 | `discount_types` | Senior Citizen (20%), PWD (20%), Loyalty (10%), Custom |
 
@@ -113,7 +113,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `service_records` | customer_id, service_id, appointment_id (nullable), staff_id, amount, notes, performed_at. Audit log of services performed — created when a service is added to a billing. |
 | `orders` | order_number (ORD-YYYY-XXXXXX), customer_id, is_non_prescription, discount_type_id, discount_amount, subtotal, total_amount |
 | `order_items` | price snapshot — product_name, variant_name, unit_price, lens_type_id (nullable FK), lens_type_name (nullable), lens_type_price (nullable), lens_product_variant_id (nullable — specific lens assigned by staff), subtotal. |
-| `billings` | billing_number (BIL-YYYY-XXXXXX), customer_id, order_id (nullable FK — set when triggered by an order), appointment_id (nullable FK — used for encounter grouping via GetOrCreateBilling), discount_type_id (nullable), discount_amount, subtotal, total_amount, amount_paid, balance_due, issued_at |
+| `billings` | billing_number (BIL-YYYY-XXXXXX), or_number (OR-YYYY-XXXXXX — auto-generated, BIR-compliant), customer_id, order_id (nullable FK — set when triggered by an order), appointment_id (nullable FK — used for encounter grouping via GetOrCreateBilling), discount_type_id (nullable), discount_amount, subtotal, total_amount, amount_paid, balance_due, issued_at |
 | `billing_items` | billing_id, type (product\|service), description, quantity, unit_price, amount, order_item_id (nullable FK), service_record_id (nullable FK). Line items on an invoice. |
 | `payments` | billing_id, payment_method_id, amount, payment_status_id |
 | `conversations` | customer_id — one per customer |
@@ -224,17 +224,17 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Orders & Billing — Orders, Billings
 - Products & Inventory — Products, Inventory History
 - Communication — Conversations, Feedback, SMS Log (admin only)
-- Reports — Sales, Orders, Appointments, Feedback, Reorder (admin only). Each report page has an Export CSV button that downloads the current breakdown respecting active date filters.
+- Reports — Reorder, Sales, Orders, Appointments, Feedback (ordered by operational priority). Reorder, Orders, and Appointments reports accessible to staff; Sales and Feedback admin-only. Each report page has an Export CSV button that downloads the current breakdown respecting active date filters. Reorder Report links product names to their edit page.
 - Administration — Users, Audit Logs
 - Settings — Categories, Brands, Lens Types, Visit Reasons, Services
 
 **Resources (operational):**
-- Appointments — guarded status toggle buttons on edit form (cycle-guarded, excludes rescheduled); staff assignment. "Reschedule" is a dedicated header action (and row action in list) that opens a date picker modal — it is not selectable via the status toggle buttons. "Bill Service" header action opens modal to add a service charge to existing billing (if linked order has one) or create a standalone service billing. Calendar view (toggle on the list page): drag an event to reschedule (validates status + ±30-min conflict via `UpdateAppointmentStatus`), click an empty day to create with `scheduled_at` pre-filled, click an event to open its edit page. **Bulk actions:** Confirm Selected (staff+admin, pending only), Cancel Selected (admin only, pending/confirmed).
-- Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). Create: 2-step wizard (Order Details → Order Items table repeater). Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), discount selector, RichEditor notes. Full-width Order Items section (4-col grid repeater, inline lens assignment). Live Order Summary (subtotal/discount/total). View Billing header action. Soft delete with restore. **Bulk action:** Advance Selected (moves each to next status, skips gate-blocked).
+- Appointments — guarded status toggle buttons on edit form (cycle-guarded, excludes rescheduled); staff assignment. "Reschedule" is a dedicated header action (and row action in list) that opens a date picker modal — it is not selectable via the status toggle buttons. "Bill Service" header action opens modal to add a service charge to existing billing (if linked order has one) or create a standalone service billing. Calendar view (toggle on the list page): events show "Patient Name · Phone — Visit Reason" in the title; clicking an event opens a quick-view modal (phone, status, visit reason, time, duration, assigned staff, notes) with "Open Full Details" button to navigate to edit; drag an event to reschedule (validates status + conflict via `UpdateAppointmentStatus`); click an empty day to create with `scheduled_at` pre-filled. **Bulk actions:** Confirm Selected (staff+admin, pending only), Cancel Selected (admin only, pending/confirmed).
+- Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). **Header actions:** New Order (standard wizard → `requested`), Walk-in Sale (same wizard → immediately attempts `confirmed`, fails gracefully to `requested` with notification). Create: 2-step wizard (Order Details → Order Items table repeater). Variant select shows stock count: `(stock: 5)` or `⚠ [OUT OF STOCK]`. Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), discount selector, RichEditor notes. Full-width Order Items section (4-col grid repeater, inline lens assignment). Live Order Summary (subtotal/discount/total). View Billing (document icon) + **Collect Payment** (banknotes icon, records payment inline, pre-fills balance_due, auto-refreshes page after success, hidden when no billing or fully paid). Soft delete with restore. **Bulk action:** Advance Selected (moves each to next status, skips gate-blocked).
 - Products — 3-col sidebar layout. Product type at top of Product Details (disabled on edit). On create: inline Variants Repeater (min 1). On edit: Variants managed via VariantsRelationManager table (image, name, SKU, price, visible ✓/✗, AR ✓/✗ (frames only), qty) with Adjust Stock (movement type selector), Adjust Price row actions. Product type + visibility filters on list. Products table shows: thumbnail, name, brand, category, type badge, visible ✓/✗, total qty.
-- Prescriptions — edit form with sections (Patient Info, OD/OS side-by-side, Prescription Details). "Print Prescription" header action downloads a PDF with full OD/OS table and prescribing staff signature.
+- Prescriptions — edit form with sections (Patient Info, OD/OS side-by-side, Prescription Details). Prism/Base fields hidden behind a "Show Prism / Base fields" toggle (auto-enables on edit if values exist). Edit page subheading shows "⚠ Expires in X days" (warning) or "⚠ Expired X days ago" (danger) when applicable. Previous Prescription section (collapsed, read-only) shows the patient's most recent prior prescription for comparison — only appears if a prior prescription exists. "Print Prescription" header action downloads A4 PDF. "Print Card" header action downloads wallet-size (85.6mm × 54mm) PDF. Table row action "Copy to New" opens create form pre-filled from that prescription (for repeat visits with minor changes).
 - Patients — dedicated resource for customer-role users labeled as "Patients". List: Name, Phone, Email, Last Visit, Orders count. Edit: Patient Information section + relation managers for Prescriptions, Appointments, Orders. "Bill Service" header action. DB role stays `customer`, UI label is "Patient". Customers cannot access.
-- Billings — KPI stats (total, unpaid, collected) + status tabs. Table shows: billing #, customer name, items summary, total, balance, status. Row actions: View, Record Payment. View page: infolist with Billing Summary section (billing #, status, issued at, patient, amount paid, balance due), Linked Records section (clickable links to Order and Appointment), Line Items section (items table + subtotal/discount/total below). Header actions: Download Receipt (PDF), Add Service (modal), Apply Discount (modal, recalculates totals, shows % in selector, admin only), Void Billing (destructive, auto-voids posted payments with audit trail, admin only). Not deletable — voided via Void Billing action or automatically on order cancellation. No create page.
+- Billings — KPI stats (total, unpaid, collected) + status tabs. Table shows: OR #, billing #, customer name, items summary, total, balance, status. Row actions: View, Record Payment (with cash tendered + change for Cash method). View page: infolist with Billing Summary section (OR #, billing #, status, issued at, patient, amount paid, balance due), Linked Records section (clickable links to Order and Appointment), Line Items section (collapsed by default for staff, expanded for admin — collapsible, heading shows item count e.g. "Line Items (3)"). Header actions: Record Payment (green, visible when balance > 0, with cash tendered + change), Add Service (modal), Apply Discount (modal, recalculates totals, shows % in selector, admin only), Void Billing (destructive, auto-voids posted payments with audit trail, admin only), Print / Download (gray ActionGroup dropdown containing: Download Receipt as A4 PDF, Print Receipt on 80mm thermal). Not deletable — voided via Void Billing action or automatically on order cancellation. No create page.
 - Conversations — chat-style page
 - Feedback — read-only. List: customer, rating, comment (toggleable), appointment/order (hidden by default, toggleable), submitted date. Filter by rating. View page: sections layout (Feedback Details + Timestamps sidebar). Staff reply was intentionally removed — staff communicates with patients via Conversations instead.
 - Inventory History — read-only movement log. Columns: Date, Product, Variant, Type (badge), Change (+/-), Before, After, By. Type/date range filters. View modal shows full details including notes and order link.
@@ -243,14 +243,15 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - SMS Log (admin only) — read-only log of all SMS notifications. Columns: recipient, event badge, status badge, message, created at. Filters: status, event type. Row action: Retry (failed records only) — resets status to `queued`. **Bulk action:** Retry Selected (admin only, resets failed to queued).
 
 **Resources (lookup / settings — grouped under "Settings" nav):**
-- Categories, Brands (CRUD), Lens Types (with price + description), Visit Reasons, Services (fee schedule with price, description, visibility toggle)
+- Categories, Brands (CRUD + supplier contact field for ordering reference), Lens Types (with price + description), Visit Reasons (with duration_minutes for conflict detection), Services (fee schedule with price, description, visibility toggle)
 - All settings edit forms use a 2-column layout: main details section (left, 2/3) + Timestamps sidebar (right, 1/3) showing Created at and Last modified.
 - Edit pages include relation managers: Brands → Products table, Categories → Products table, Lens Types → Products table, Visit Reasons → Appointments table. Services has no relation manager (service_records are audit-only, not directly managed).
 
 **Dashboard widgets (ordered top to bottom):**
-1. **Stats Overview** — Today's appointments (sparkline + delta vs yesterday), Revenue this month (sparkline + % vs last month), Pending orders (sparkline), Unpaid billings (₱ outstanding), Low stock variants
-2. **Appointments Chart** (hero) — 30-day trend line of daily non-cancelled appointments, brand color `#4F8DD7`
-3. **Recent Feedback** — last 5 feedback entries table
+1. **Stats Overview** (6 cards, 2 rows of 3) — Today's appointments (sparkline + delta vs yesterday), Waiting today (pending appointments for today — walk-in queue indicator), Revenue this month (sparkline + % vs last month), Pending orders (sparkline), Unpaid billings (₱ outstanding), Low stock variants
+2. **Today's Schedule** — table of today's next 5 non-completed appointments (time, patient name, phone, visit reason, status badge). Heading includes pickup count: "Today's Schedule · 2 orders ready for pickup" when applicable. Empty state: "No appointments today"
+3. **Appointments Chart** (hero) — 30-day trend line of daily non-cancelled appointments, brand color `#4F8DD7`
+4. **Recent Feedback** — last 5 feedback entries table
 
 ---
 
@@ -268,6 +269,8 @@ GET    /appointments            Customer's own appointments
 POST   /appointments            Book appointment (customer, status locked to pending)
 GET    /appointments/{id}
 GET    /visit-reasons           List all visit reasons (id, name, duration_minutes)
+GET    /brands                  List all brands (id, name) — use for product filter UI
+GET    /categories              List all product categories (id, name) — use for product filter UI
 
 GET    /products                Active FRAME products only, paginated (default 15, `?per_page=N`). Supports: `?search=`, `?brand={id}`, `?category={id}`, `?min_price=`, `?max_price=`, `?in_stock=true`, `?sort=name|newest|price_asc|price_desc`. All params optional — without params behavior unchanged.
 GET    /products/{id}           Product detail with variants + AR metadata (404 for non-frame products)
@@ -281,7 +284,6 @@ GET    /orders/{id}
 
 GET    /billing/{id}            Customer billing with line items + payment history (auth: billing.customer_id must match user)
 GET    /billing/{id}/pdf        Download billing receipt as PDF (same auth as show)
-
 GET    /conversations           Customer's single persistent conversation (includes unread_count)
 GET    /conversations/{id}/messages
 POST   /conversations/{id}/messages  (with optional contexts[] and attachments)
@@ -439,6 +441,7 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
   "data": {
     "id": 1,
     "billing_number": "BIL-2026-000001",
+    "or_number": "OR-2026-000001",
     "status": "partially_paid",
     "subtotal": "2500.00",
     "discount_amount": "0.00",
@@ -482,12 +485,14 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 ## Important Conventions
 
 - **Walk-in customers:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone. They cannot log in to the mobile app.
+- **Walk-in sale:** The "Walk-in Sale" header action on ListOrders navigates to the create wizard with `?walkin=true`. After order creation, `UpdateOrderStatus::handle($order, 'confirmed')` is called automatically. If prescription/lens gates block confirmation, the order is saved as `requested` with a persistent warning notification.
+- **`is_non_prescription` field:** Stored as boolean. UI label: "No lens cutting required" — toggle ON = `is_non_prescription = true` = no cutting needed (sunglasses, accessories). Toggle OFF = `is_non_prescription = false` = requires lens cutting (prescription orders). API field name unchanged.
 - **Order item totals:** `subtotal` = (`unit_price` + `lens_type_price`) × `quantity`. `lens_type_id` and `lens_type_price` are nullable (no lens = frame-only price). Order `subtotal` = sum of all item subtotals. `total_amount` = `subtotal` − `discount_amount`. Both recalculate when staff assigns a lens product variant.
 - **Billing (encounter model):** A billing is a standalone invoice with line items. When an order is confirmed, a billing is auto-generated with product line items and a copy of the order's discount. Staff can add service items to any non-voided billing via "Add Service" on the ViewBilling page, or via "Bill Service" on the Appointment/Patient edit page. Standalone service billings (no order) are created the same way. `billing_items.created_at` is insert-only — line items are never edited.
 - **Billing auth (API):** `GET /billing/{id}` checks `billing.customer_id === $user->id` directly — no polymorphic lookup.
 - **Insufficient stock:** If a variant has 0 stock when an order is confirmed, `UpdateOrderStatus` throws a `ValidationException` (not a crash). The order status remains `requested`.
 - **Lens inventory:** Lens products (type `lens`) are linked to a `lens_type` via `products.lens_type_id`. Staff assigns a specific lens product variant per order item via the ItemsRelationManager **on the order edit page while the order is still `requested`**. "Assign Lens" action is hidden once the order is confirmed or beyond. Confirmation is gated: if any order item has `lens_type_id` set but `lens_product_variant_id` is null, `UpdateOrderStatus` throws a `ValidationException` — staff must assign all lenses before confirming. On confirmation, both frame variant AND lens product variant stock deduct. On cancellation (from confirmed), both restore. Mobile API returns only `frame` products — all other types are admin-only.
-- **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `manual_adjustment`, `order_commitment`, `order_reversal`. Each movement records `previous_stock`, `new_stock`, and `created_by` (the user who triggered it, or null for system actions). Staff uses the "Adjust Stock" action on the Variants table (restock = add units, manual_adjustment = remove units). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource (read-only, with view modal per row).
+- **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `manual_adjustment`, `order_commitment`, `order_reversal`, `damaged`. Each movement records `previous_stock`, `new_stock`, and `created_by` (the user who triggered it, or null for system actions). Staff uses the "Adjust Stock" action on the Variants table (restock = add units, manual_adjustment = remove units) and "Write Off Damaged" action (reduces stock with required reason, records as `damaged` type — shown as red badge in Inventory History). `stock_quantity` is read-only on the variant edit form — changes only through these actions. Full history viewable in Inventory History resource (read-only, with view modal per row).
 - **Product categories:** The DB table is `product_categories` and the PHP class is `ProductCategory`. The FK column on `products` stays `category_id`. The Filament nav label is "Categories".
 - **Services vs Visit Reasons:** `visit_reasons` describe *why a patient is booking* (scheduling vocabulary). `services` describe *what was performed and charged* (billing vocabulary). They are separate tables with different purposes. Visit reason names use proper capitalization: "Eye Exam", "Follow-up", "Prescription Check".
 - **Billing grouping by appointment:** When `GetOrCreateBilling` is called with an `appointment_id`, it reuses any existing non-voided billing for that appointment. This means an order billing and a service billing for the same appointment share one invoice automatically. Walk-ins without an appointment (`appointment_id = null`) always get a fresh billing.
@@ -505,7 +510,12 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 - **Prescription expiry alerts:** `prescriptions:check-expiry` command (daily at 8 AM) notifies staff about prescriptions expiring within 30 days. Batched notification. Idempotent via `last_expiry_notified_at` timestamp.
 - **End-of-day summary:** `clinic:daily-summary` command (daily at 9 PM) sends admin users a database notification with: appointments completed, revenue collected, new orders, pending orders.
 - **Billing void audit:** Voiding a billing with posted payments shows the exact amount being voided and creates a full audit log entry (billing number, amounts, payment details, line items) for recoverability.
-- **Reorder report:** Reports → Reorder shows product variants at or below their low_stock_threshold, sorted by deficit. Answers "what needs to be reordered?"
+- **Reorder report:** Reports → Reorder shows product variants at or below their low_stock_threshold, sorted by deficit. Includes supplier contact per brand. Answers "what needs to be reordered and who to call?"
+- **OR number:** Every billing is auto-generated with `OR-YYYY-XXXXXX` (sequential, unique). Shown in billing table, infolist, and PDF receipt. Required for BIR-compliant Official Receipt issuance in the Philippines.
+- **Supplier contact on brands:** Brands have a nullable `supplier_contact` field (phone/Viber/name of rep). Shown in the Brand edit form and Reorder Report table/CSV.
+- **Thermal receipt:** `GET /thermal/billings/{id}` serves an 80mm-wide HTML page optimised for browser-printing on thermal receipt printers. "Print Receipt" button on ViewBilling opens it in a new tab.
+- **PDF routes (web, authenticated):** `GET /pdf/prescriptions/{id}` (A4), `GET /pdf/prescriptions/{id}/card` (85.6mm × 54mm), `GET /pdf/billings/{id}` (A4), `GET /thermal/billings/{id}` (80mm HTML). All gated by `canAccessPanel()`.
+- **Cash tendered + change:** The Record Payment modal shows "Cash Tendered" and computed "Change" fields when Cash payment method is selected. Not stored — display only for cashier.
 
 ---
 
@@ -536,6 +546,7 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 | `docs/specs/priority-gaps-spec.md` | In progress — P1–P3 gaps (Phases 1–5 of 6 complete) |
 | `docs/specs/defense-hardening-spec.md` | Complete — 7 features (performance indexes, variable duration, expiry alerts, daily summary, void audit, reorder report, docs) |
 | `docs/specs/search-bulk-export-spec.md` | Complete — product search/filter API, bulk actions, PDF receipts, CSV export |
+| `docs/specs/order-improvements-spec.md` | Complete — label change, walk-in sale, inline payment |
 
 ---
 
