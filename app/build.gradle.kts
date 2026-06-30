@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -11,6 +13,12 @@ plugins {
 android {
     namespace = "com.eyecare.app"
     compileSdk = 35
+
+    val localPropsFile = rootProject.file("local.properties")
+    val localProps = Properties()
+    if (localPropsFile.exists()) {
+        localPropsFile.inputStream().use { localProps.load(it) }
+    }
 
     defaultConfig {
         applicationId = "com.eyecare.app"
@@ -26,7 +34,8 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.254.103/api/\"")
+            val debugUrl = localProps.getProperty("api.base.url", "http://10.0.2.2/api/")
+            buildConfigField("String", "API_BASE_URL", "\"$debugUrl\"")
         }
         release {
             isMinifyEnabled = true
@@ -34,7 +43,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            buildConfigField("String", "API_BASE_URL", "\"https://your-production-url.com/api/\"")
+            val releaseUrl = localProps.getProperty("api.release.url", "https://your-production-url.com/api/")
+            buildConfigField("String", "API_BASE_URL", "\"$releaseUrl\"")
         }
     }
 
