@@ -47,6 +47,7 @@ import com.eyecare.app.presentation.catalog.ProductDetailScreen
 import com.eyecare.app.presentation.catalog.ProductDetailViewModel
 import com.eyecare.app.presentation.catalog.ProductListScreen
 import com.eyecare.app.presentation.home.HomeScreen
+import com.eyecare.app.presentation.profile.EditProfileScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
 import com.eyecare.app.presentation.profile.ProfileScreen
 
@@ -81,7 +82,7 @@ fun EyecareNavGraph(
             !route.contains("ArTryOn") && !route.contains("OrderRequest") &&
             !route.contains("OrderDetail") && !route.contains("OrderList") &&
             !route.contains("Prescription") && !route.contains("Feedback") &&
-            !route.contains("BillingDetail")
+            !route.contains("BillingDetail") && !route.contains("EditProfile")
     } ?: false
 
     val currentRoute = if (showBottomNav && currentDest != null) when {
@@ -249,6 +250,12 @@ fun EyecareNavGraph(
                             onNavigateToOrders = { navController.navigate(OrderList) },
                             onNavigateToPrescriptions = { navController.navigate(PrescriptionList) },
                             onNavigateToFeedbackHistory = { navController.navigate(FeedbackHistory) },
+                            onNavigateToEditProfile = { navController.navigate(EditProfile) },
+                        )
+                    }
+                    composable<EditProfile> {
+                        EditProfileScreen(
+                            onBack = { navController.popBackStack() },
                         )
                     }
                     composable<Chat> {
@@ -264,7 +271,10 @@ fun EyecareNavGraph(
                     currentRoute = currentRoute,
                     onTabSelected = { route ->
                         navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            popUpTo<MainGraph> {
+                                saveState = true
+                                inclusive = false
+                            }
                             launchSingleTop = true
                             restoreState = true
                         }

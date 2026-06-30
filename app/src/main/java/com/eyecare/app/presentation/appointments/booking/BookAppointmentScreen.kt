@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +26,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -35,7 +37,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
@@ -54,7 +55,6 @@ import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.VisitReason as DomainVisitReason
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 // Time slots generated dynamically (30-min from 9:00-17:00)
 private val TIME_SLOTS = BookAppointmentViewModel.generateTimeSlots()
@@ -83,12 +83,12 @@ fun BookAppointmentScreen(
             },
         )
 
-        // Step progress bar — 3 segments
+        // Step progress bar — 4 segments
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            repeat(3) { index ->
+            repeat(4) { index ->
                 LinearProgressIndicator(
                     progress = { if (index < state.step) 1f else 0f },
                     modifier = Modifier.weight(1f).height(4.dp),
@@ -116,11 +116,15 @@ fun BookAppointmentScreen(
                     onRetry = viewModel::retryVisitReasons,
                     onSelectReason = viewModel::selectReason,
                 )
-                2 -> Step2DateTimeSelection(
-                    selectedDateTime = state.selectedDateTime,
-                    onSelectDateTime = viewModel::selectDateTime,
+                2 -> Step2DateSelection(
+                    selectedDate = state.selectedDate,
+                    onSelectDate = viewModel::selectDate,
                 )
-                3 -> Step3ConfirmNotes(
+                3 -> Step3TimeSelection(
+                    selectedDate = state.selectedDate,
+                    onSelectTime = viewModel::selectTime,
+                )
+                4 -> Step4ConfirmNotes(
                     state = state,
                     onSubmit = viewModel::submit,
                 )
@@ -188,66 +192,95 @@ private fun Step1ReasonSelection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Step2DateTimeSelection(
-    selectedDateTime: String?,
-    onSelectDateTime: (String) -> Unit,
+private fun Step2DateSelection(
+    selectedDate: String?,
+    onSelectDate: (String) -> Unit,
 ) {
     val today = remember { LocalDate.now() }
-    val dates = remember { (0..6).map { today.plusDays(it.toLong()) } }
-
-    // Restore from ViewModel state when returning via back navigation
-    val initialDate = remember(selectedDateTime) {
-        selectedDateTime?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-            ?: dates.first()
-    }
-    val initialTime = remember(selectedDateTime) {
-        selectedDateTime?.let { dt -> runCatching { dt.substring(11, 16) }.getOrNull() }
-    }
-
-    var selectedDate by remember { mutableStateOf(initialDate) }
-    var selectedTime by remember { mutableStateOf(initialTime) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedDate?.let {
+            runCatching { LocalDate.parse(it).toEpochDay() * 86400000L }.getOrNull()
+        } ?: (today.toEpochDay() * 86400000L),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val date = java.time.Instant.ofEpochMilli(utcTimeMillis)
+                    .atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                return !date.isBefore(today)
+            }
+        }
+    )
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
     ) {
-        Text("Select Date & Time", style = MaterialTheme.typography.headlineMedium)
+        Text("Select Date", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
 
-        // Horizontal date chips
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(dates) { date ->
-                val isSelected = date == selectedDate
-                Surface(
-                    onClick = { selectedDate = date },
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.White,
-                    border = BorderStroke(
-                        1.dp,
-                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                    ),
-                    shadowElevation = 2.dp,
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            date.dayOfMonth.toString(),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            date.format(DateTimeFormatter.ofPattern("MMM")),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
+        DatePicker(
+            state = datePickerState,
+            modifier = Modifier.fillMaxWidth(),
+            title = null,
+            headline = null,
+            showModeToggle = false,
+            colors = DatePickerDefaults.colors(
+                containerColor = Color.White,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+                headlineContentColor = MaterialTheme.colorScheme.onSurface,
+                weekdayContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                navigationContentColor = MaterialTheme.colorScheme.onSurface,
+                yearContentColor = MaterialTheme.colorScheme.onSurface,
+                currentYearContentColor = MaterialTheme.colorScheme.primary,
+                selectedYearContainerColor = MaterialTheme.colorScheme.primary,
+                selectedYearContentColor = Color.White,
+                dayContentColor = MaterialTheme.colorScheme.onSurface,
+                selectedDayContainerColor = MaterialTheme.colorScheme.primary,
+                selectedDayContentColor = Color.White,
+                todayContentColor = MaterialTheme.colorScheme.primary,
+                todayDateBorderColor = MaterialTheme.colorScheme.primary,
+                disabledDayContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+            ),
+        )
 
         Spacer(Modifier.height(24.dp))
+
+        Button(
+            onClick = {
+                val millis = datePickerState.selectedDateMillis ?: return@Button
+                val date = java.time.Instant.ofEpochMilli(millis)
+                    .atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                onSelectDate(date.toString())
+            },
+            enabled = datePickerState.selectedDateMillis != null,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(26.dp),
+        ) {
+            Text("Next Step")
+        }
+    }
+}
+
+@Composable
+private fun Step3TimeSelection(
+    selectedDate: String?,
+    onSelectTime: (String) -> Unit,
+) {
+    var selectedTime by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+    ) {
+        Text("Select Time", style = MaterialTheme.typography.headlineMedium)
+        if (selectedDate != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                selectedDate,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
 
         // 2-column time slot grid
         val rows = TIME_SLOTS.chunked(2)
@@ -277,7 +310,6 @@ private fun Step2DateTimeSelection(
                         )
                     }
                 }
-                // fill gap if odd count
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -287,8 +319,7 @@ private fun Step2DateTimeSelection(
         Button(
             onClick = {
                 val t = selectedTime ?: return@Button
-                val dateTime = "${selectedDate}T${t}:00Z"
-                onSelectDateTime(dateTime)
+                onSelectTime(t)
             },
             enabled = selectedTime != null,
             modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -300,7 +331,7 @@ private fun Step2DateTimeSelection(
 }
 
 @Composable
-private fun Step3ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) {
+private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) {
     var notes by remember { mutableStateOf("") }
 
     Column(

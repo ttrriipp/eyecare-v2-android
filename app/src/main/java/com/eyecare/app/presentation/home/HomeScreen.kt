@@ -172,19 +172,28 @@ fun HomeScreen(
 
                 // New Arrivals Carousel
                 if (state.newArrivals.isNotEmpty()) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text("New Arrivals", style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold)
-                        TextButton(onClick = onNavigateToCatalog) { Text("See all") }
-                    }
-                    LazyRow(
-                        contentPadding = PaddingValues(0.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(2.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        items(state.newArrivals, key = { it.id }) { product ->
-                            NewArrivalCard(product, onClick = { onNavigateToProductDetail(product.id) })
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Text("New Arrivals", style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold)
+                                TextButton(onClick = onNavigateToCatalog) { Text("See all") }
+                            }
+                            LazyRow(
+                                contentPadding = PaddingValues(0.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                items(state.newArrivals, key = { it.id }) { product ->
+                                    NewArrivalCard(product, onClick = { onNavigateToProductDetail(product.id) })
+                                }
+                            }
                         }
                     }
                 }
@@ -228,7 +237,7 @@ private fun NextAppointmentCard(appointment: Appointment) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatusChip(appointment.status)
+            StatusChip(appointment.status, textColor = Color.White)
             Text(
                 appointment.visitReason.replace("_", " ").replaceFirstChar { it.uppercase() },
                 style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,

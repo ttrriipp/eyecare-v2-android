@@ -27,6 +27,7 @@ data class BookingState(
     val visitReasonsError: String? = null,
     val selectedReasonId: Int? = null,
     val selectedReasonName: String? = null,
+    val selectedDate: String? = null,
     val selectedDateTime: String? = null,
     val isLoading: Boolean = false,
     val result: BookingResult? = null,
@@ -72,8 +73,14 @@ class BookAppointmentViewModel @Inject constructor(
         _uiState.update { it.copy(step = 2, selectedReasonId = id, selectedReasonName = name) }
     }
 
-    fun selectDateTime(dateTime: String) {
-        _uiState.update { it.copy(step = 3, selectedDateTime = dateTime) }
+    fun selectDate(date: String) {
+        _uiState.update { it.copy(step = 3, selectedDate = date) }
+    }
+
+    fun selectTime(time: String) {
+        val date = _uiState.value.selectedDate ?: return
+        val dateTime = "${date}T${time}:00Z"
+        _uiState.update { it.copy(step = 4, selectedDateTime = dateTime) }
     }
 
     fun goBack() {

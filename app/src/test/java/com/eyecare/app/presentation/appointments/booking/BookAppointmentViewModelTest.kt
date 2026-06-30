@@ -56,10 +56,19 @@ class BookAppointmentViewModelTest {
     }
 
     @Test
-    fun `selectDateTime advances to step 3`() = runTest {
+    fun `selectDate advances to step 3`() = runTest {
         vm.selectReason(1, "Eye Exam")
-        vm.selectDateTime("2026-10-24T09:00:00Z")
+        vm.selectDate("2026-10-24")
         assertEquals(3, vm.uiState.value.step)
+        assertEquals("2026-10-24", vm.uiState.value.selectedDate)
+    }
+
+    @Test
+    fun `selectTime advances to step 4`() = runTest {
+        vm.selectReason(1, "Eye Exam")
+        vm.selectDate("2026-10-24")
+        vm.selectTime("09:00")
+        assertEquals(4, vm.uiState.value.step)
         assertEquals("2026-10-24T09:00:00Z", vm.uiState.value.selectedDateTime)
     }
 
@@ -71,11 +80,12 @@ class BookAppointmentViewModelTest {
     }
 
     @Test
-    fun `goBack from step 3 returns to step 2 preserving selections`() = runTest {
+    fun `goBack from step 4 returns to step 3 preserving selections`() = runTest {
         vm.selectReason(1, "Eye Exam")
-        vm.selectDateTime("2026-10-24T09:00:00Z")
+        vm.selectDate("2026-10-24")
+        vm.selectTime("09:00")
         vm.goBack()
-        assertEquals(2, vm.uiState.value.step)
+        assertEquals(3, vm.uiState.value.step)
         assertEquals("Eye Exam", vm.uiState.value.selectedReason)
     }
 
@@ -83,10 +93,11 @@ class BookAppointmentViewModelTest {
     fun `submit success emits Submitted state`() = runTest {
         coEvery { repo.createAppointment(any(), any(), anyNullable()) } returns Result.success(fakeAppt)
         vm.selectReason(1, "Eye Exam")
-        vm.selectDateTime("2026-10-24T09:00:00Z")
+        vm.selectDate("2026-10-24")
+        vm.selectTime("09:00")
 
         vm.uiState.test {
-            awaitItem() // current state (step 3)
+            awaitItem() // current state (step 4)
             vm.submit("Call ahead please")
             val loading = awaitItem()
             assertEquals(true, loading.isLoading)
@@ -102,7 +113,8 @@ class BookAppointmentViewModelTest {
         coEvery { repo.createAppointment(any(), any(), anyNullable()) } returns
             Result.failure(RuntimeException("Server error"))
         vm.selectReason(1, "Eye Exam")
-        vm.selectDateTime("2026-10-24T09:00:00Z")
+        vm.selectDate("2026-10-24")
+        vm.selectTime("09:00")
 
         vm.uiState.test {
             awaitItem()
@@ -119,7 +131,8 @@ class BookAppointmentViewModelTest {
     fun `notes are optional — null notes submitted correctly`() = runTest {
         coEvery { repo.createAppointment(any(), any(), null) } returns Result.success(fakeAppt)
         vm.selectReason(2, "Follow-up")
-        vm.selectDateTime("2026-10-24T09:00:00Z")
+        vm.selectDate("2026-10-24")
+        vm.selectTime("09:00")
 
         vm.uiState.test {
             awaitItem()

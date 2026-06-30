@@ -31,12 +31,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +48,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.User
 import com.eyecare.app.presentation.common.components.ErrorContent
@@ -60,11 +62,24 @@ fun ProfileScreen(
     onNavigateToOrders: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToFeedbackHistory: () -> Unit = {},
+    onNavigateToEditProfile: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val loggedOut by viewModel.loggedOut.collectAsStateWithLifecycle()
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // Refresh profile data when returning from edit screen
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.retry()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(loggedOut) {
         if (loggedOut) onLogout()
@@ -87,22 +102,7 @@ fun ProfileScreen(
             is ProfileUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::retry)
 
             is ProfileUiState.Success -> {
-                if (state.isEditing) {
-                    EditProfileCard(
-                        name = state.editName,
-                        email = state.editEmail,
-                        phone = state.editPhone,
-                        isSaving = state.isSaving,
-                        fieldErrors = state.fieldErrors,
-                        onNameChange = viewModel::updateName,
-                        onEmailChange = viewModel::updateEmail,
-                        onPhoneChange = viewModel::updatePhone,
-                        onSave = viewModel::saveProfile,
-                        onCancel = viewModel::cancelEditing,
-                    )
-                } else {
-                    UserInfoCard(user = state.user, onEdit = viewModel::startEditing)
-                }
+                    UserInfoCard(user = state.user, onEdit = onNavigateToEditProfile)
             }
         }
 
@@ -222,91 +222,6 @@ private fun UserInfoCard(user: User, onEdit: () -> Unit) {
                     Icons.Outlined.Edit, contentDescription = "Edit profile",
                     tint = MaterialTheme.colorScheme.primary,
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun EditProfileCard(
-    name: String,
-    email: String,
-    phone: String,
-    isSaving: Boolean,
-    fieldErrors: Map<String, List<String>>,
-    onNameChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
-    onPhoneChange: (String) -> Unit,
-    onSave: () -> Unit,
-    onCancel: () -> Unit,
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("Edit Profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-
-            OutlinedTextField(
-                value = name,
-                onValueChange = onNameChange,
-                label = { Text("Name") },
-                modifier = Modifier.fillMaxWidth(),
-                isError = fieldErrors.containsKey("name"),
-                supportingText = fieldErrors["name"]?.firstOrNull()?.let { { Text(it) } },
-                singleLine = true,
-            )
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = onEmailChange,
-                label = { Text("Email") },
-                modifier = Modifier.fillMaxWidth(),
-                isError = fieldErrors.containsKey("email"),
-                supportingText = fieldErrors["email"]?.firstOrNull()?.let { { Text(it) } },
-                singleLine = true,
-            )
-
-            OutlinedTextField(
-                value = phone,
-                onValueChange = onPhoneChange,
-                label = { Text("Phone") },
-                modifier = Modifier.fillMaxWidth(),
-                isError = fieldErrors.containsKey("phone"),
-                supportingText = fieldErrors["phone"]?.firstOrNull()?.let { { Text(it) } },
-                singleLine = true,
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f),
-                    enabled = !isSaving,
-                ) {
-                    Text("Cancel")
-                }
-                Button(
-                    onClick = onSave,
-                    modifier = Modifier.weight(1f),
-                    enabled = !isSaving,
-                ) {
-                    if (isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Text("Save")
-                    }
-                }
             }
         }
     }

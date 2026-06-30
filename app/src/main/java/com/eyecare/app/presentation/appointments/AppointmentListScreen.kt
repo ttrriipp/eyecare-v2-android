@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -36,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.eyecare.app.ui.theme.EyecareTheme
@@ -91,7 +94,7 @@ fun AppointmentListScreen(
             onClick = onNavigateToBook,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 96.dp),
+                .padding(end = 16.dp, bottom = 116.dp),
             shape = RoundedCornerShape(50),
             color = MaterialTheme.colorScheme.primary,
             shadowElevation = 2.dp,
@@ -126,30 +129,43 @@ private fun AppointmentCard(appointment: Appointment, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f).padding(end = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     appointment.visitReason.replace("_", " ").replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                StatusChip(appointment.status)
+                if (!appointment.staffNotes.isNullOrBlank()) {
+                    Text(
+                        appointment.staffNotes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    appointment.scheduledAt.take(10),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                appointment.scheduledAt.take(10), // show date part
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            StatusChip(appointment.status)
         }
     }
 }
 
 @Composable
-fun StatusChip(status: AppointmentStatus) {
+fun StatusChip(status: AppointmentStatus, textColor: Color = Color.Unspecified) {
     val (label, color) = when (status) {
         AppointmentStatus.PENDING -> "Pending" to StatusPending
         AppointmentStatus.CONFIRMED -> "Confirmed" to StatusConfirmed
@@ -159,8 +175,19 @@ fun StatusChip(status: AppointmentStatus) {
     }
     SuggestionChip(
         onClick = {},
-        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-        colors = SuggestionChipDefaults.suggestionChipColors(containerColor = color.copy(alpha = 0.15f)),
+        modifier = Modifier.width(110.dp),
+        label = {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = textColor,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
+        },
+        colors = SuggestionChipDefaults.suggestionChipColors(
+            containerColor = color.copy(alpha = 0.15f)
+        ),
         border = SuggestionChipDefaults.suggestionChipBorder(enabled = true, borderColor = color),
     )
 }
