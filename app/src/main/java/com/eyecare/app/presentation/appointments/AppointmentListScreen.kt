@@ -132,7 +132,7 @@ private fun AppointmentCard(appointment: Appointment, onClick: () -> Unit) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 modifier = Modifier.weight(1f).padding(end = 12.dp),
