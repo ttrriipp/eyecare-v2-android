@@ -96,7 +96,7 @@ fun EyecareNavGraph(
             !route.contains("BillingDetail") && !route.contains("EditProfile")
     } ?: false
 
-    val currentRoute = if (showBottomNav && currentDest != null) when {
+    val currentRoute = if (showBottomNav) when {
         currentDest.route?.contains("Home") == true -> Home
         currentDest.route?.contains("Catalog") == true -> Catalog
         currentDest.route?.contains("Appointments") == true -> Appointments
