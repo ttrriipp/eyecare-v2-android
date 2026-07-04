@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.eyecare.app.ui.theme.CharcoalDark
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.domain.model.ProductVariant
 
@@ -37,7 +38,7 @@ fun VariantChipRow(
                 shape = RoundedCornerShape(32.dp),
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = Color.White,
-                    selectedLabelColor = Color(0xFF2D3748),
+                    selectedLabelColor = CharcoalDark,
                     containerColor = Color.White.copy(alpha = 0.3f),
                     labelColor = Color.White,
                 ),

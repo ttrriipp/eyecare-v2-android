@@ -8,13 +8,18 @@ private val LightColorScheme = lightColorScheme(
     primary = Primary,
     primaryContainer = PrimaryContainer,
     onPrimary = OnPrimary,
-    surface = Surface,
+    // Warm off-white background so the whole app has subtle depth
+    background = Background,
+    onBackground = OnSurface,
+    // Cards use pure white so they visually float above the warm background
+    surface = CardSurface,
     surfaceVariant = SurfaceVariant,
     onSurface = OnSurface,
     onSurfaceVariant = OnSurfaceVariant,
+    // outline is used as chip borders, dividers, and card strokes
     outline = Outline,
-    background = Surface,
-    onBackground = OnSurface,
+    // outlineVariant is available for the subtle card-border token
+    outlineVariant = CardBorder,
 )
 
 @Composable

@@ -87,8 +87,8 @@ fun ProductListScreen(
             },
             shape = RoundedCornerShape(32.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,
             ),
@@ -195,7 +195,7 @@ private fun FilterRow(
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = Color.White,
-                            containerColor = Color.White,
+                            containerColor = MaterialTheme.colorScheme.surface,
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true,
@@ -214,7 +214,7 @@ private fun FilterRow(
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = Color.White,
-                            containerColor = Color.White,
+                            containerColor = MaterialTheme.colorScheme.surface,
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true,
@@ -250,7 +250,7 @@ private fun FilterRow(
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = Color.White,
-                            containerColor = Color.White,
+                            containerColor = MaterialTheme.colorScheme.surface,
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true,
@@ -285,7 +285,7 @@ private fun FilterRow(
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        containerColor = Color.White,
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,

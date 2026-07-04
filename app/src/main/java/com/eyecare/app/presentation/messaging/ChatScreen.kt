@@ -200,8 +200,8 @@ fun ChatScreen(
                 placeholder = { Text("Type a message…") },
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                 ),
                 maxLines = 4,
                 modifier = Modifier.weight(1f),

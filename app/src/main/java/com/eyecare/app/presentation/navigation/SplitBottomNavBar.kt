@@ -47,9 +47,7 @@ private val tabs = listOf(
     TabItem(Profile, Icons.Outlined.Person, "Profile"),
 )
 
-// Light pill background
-private val NavPillColor = Color.White
-
+// Nav pill background uses theme surface so it adapts when the theme changes
 @Composable
 fun SplitBottomNavBar(
     currentRoute: Any,
@@ -71,7 +69,7 @@ fun SplitBottomNavBar(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(40.dp),
             shadowElevation = 2.dp,
-            color = NavPillColor,
+            color = MaterialTheme.colorScheme.surface,
         ) {
             Row(
                 modifier = Modifier.padding(6.dp),
@@ -109,7 +107,7 @@ fun SplitBottomNavBar(
                         .align(Alignment.TopEnd)
                         .size(18.dp)
                         .clip(CircleShape)
-                        .background(Color.Red),
+                        .background(MaterialTheme.colorScheme.error),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(

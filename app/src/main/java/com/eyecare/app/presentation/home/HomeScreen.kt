@@ -57,9 +57,8 @@ import com.eyecare.app.domain.model.OrderStatus
 import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.presentation.appointments.StatusChip
+import com.eyecare.app.ui.theme.NavyBlue
 import com.eyecare.app.ui.theme.StatusCancelled
-
-private val DARK_BLUE = Color(0xFF1A2E5A)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,7 +112,8 @@ fun HomeScreen(
 
                 // Vision Status Card
                 Card(shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(2.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically) {
@@ -125,7 +125,7 @@ fun HomeScreen(
                             Text("Next checkup due in 8 months", style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Surface(shape = CircleShape, color = Color.White, modifier = Modifier.size(64.dp),
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(64.dp),
                             border = BorderStroke(3.dp, MaterialTheme.colorScheme.primary)) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text("20/20", style = MaterialTheme.typography.labelMedium,
@@ -175,7 +175,8 @@ fun HomeScreen(
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         elevation = CardDefaults.cardElevation(2.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -233,7 +234,7 @@ private fun PrescriptionWarningCard(prescription: Prescription, onBookExam: () -
 private fun NextAppointmentCard(appointment: Appointment) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = DARK_BLUE),
+        colors = CardDefaults.cardColors(containerColor = NavyBlue),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -264,7 +265,8 @@ private fun OrderTrackerCard(order: Order, onClick: () -> Unit) {
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -296,7 +298,8 @@ private fun NewArrivalCard(product: Product, onClick: () -> Unit) {
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.width(140.dp),
     ) {
         Column {

@@ -64,7 +64,7 @@ fun FrameOverlayRenderer(
             } else {
                 // Wireframe placeholder — visible while asset loads or if no URL provided
                 val paint = Paint().apply {
-                    color = Color(0xFF4A90E2).toArgb()
+                    color = Color(0xFF29B6F6).toArgb() // logo cyan — matches app primary
                     strokeWidth = 4f
                     style = Paint.Style.STROKE
                     isAntiAlias = true

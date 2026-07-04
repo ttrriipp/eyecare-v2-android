@@ -114,7 +114,7 @@ fun ProfileScreen(
 
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(2.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -167,7 +167,7 @@ fun ProfileScreen(
 private fun UserInfoCard(user: User, onEdit: () -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {

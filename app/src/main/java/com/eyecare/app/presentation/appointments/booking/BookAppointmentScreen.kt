@@ -225,7 +225,7 @@ private fun Step2DateSelection(
             headline = null,
             showModeToggle = false,
             colors = DatePickerDefaults.colors(
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
                 titleContentColor = MaterialTheme.colorScheme.onSurface,
                 headlineContentColor = MaterialTheme.colorScheme.onSurface,
                 weekdayContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
