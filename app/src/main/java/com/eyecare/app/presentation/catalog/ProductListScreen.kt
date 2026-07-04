@@ -182,59 +182,57 @@ private fun FilterRow(
     val hasActiveFilters = filters.brandId != null || filters.categoryId != null ||
         filters.sort != SortOption.NAME
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Category chips
-        if (categories.isNotEmpty()) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item {
-                    FilterChip(
-                        selected = filters.categoryId == null,
-                        onClick = { onSelectCategory(null) },
-                        label = { Text("All") },
-                        shape = RoundedCornerShape(32.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White,
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = filters.categoryId == null,
-                            borderColor = MaterialTheme.colorScheme.outline,
-                            selectedBorderColor = Color.Transparent,
-                        ),
-                    )
-                }
-                items(categories) { cat ->
-                    FilterChip(
-                        selected = filters.categoryId == cat.id,
-                        onClick = { onSelectCategory(if (filters.categoryId == cat.id) null else cat.id) },
-                        label = { Text(cat.name) },
-                        shape = RoundedCornerShape(32.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White,
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = filters.categoryId == cat.id,
-                            borderColor = MaterialTheme.colorScheme.outline,
-                            selectedBorderColor = Color.Transparent,
-                        ),
-                    )
-                }
-            }
+    // Single horizontally-scrollable row: All · categories · brand · sort · clear
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // "All" category chip
+        item {
+            FilterChip(
+                selected = filters.categoryId == null,
+                onClick = { onSelectCategory(null) },
+                label = { Text("All") },
+                shape = RoundedCornerShape(32.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = filters.categoryId == null,
+                    borderColor = MaterialTheme.colorScheme.outline,
+                    selectedBorderColor = Color.Transparent,
+                ),
+            )
         }
 
-        // Brand + Sort row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Brand dropdown
-            if (brands.isNotEmpty()) {
+        // Category chips
+        items(categories) { cat ->
+            FilterChip(
+                selected = filters.categoryId == cat.id,
+                onClick = { onSelectCategory(if (filters.categoryId == cat.id) null else cat.id) },
+                label = { Text(cat.name) },
+                shape = RoundedCornerShape(32.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = filters.categoryId == cat.id,
+                    borderColor = MaterialTheme.colorScheme.outline,
+                    selectedBorderColor = Color.Transparent,
+                ),
+            )
+        }
+
+        // Brand dropdown chip
+        if (brands.isNotEmpty()) {
+            item {
                 var brandExpanded by remember { mutableStateOf(false) }
                 Box {
                     FilterChip(
@@ -273,8 +271,10 @@ private fun FilterRow(
                     }
                 }
             }
+        }
 
-            // Sort dropdown
+        // Sort dropdown chip
+        item {
             var sortExpanded by remember { mutableStateOf(false) }
             Box {
                 FilterChip(
@@ -303,9 +303,11 @@ private fun FilterRow(
                     }
                 }
             }
+        }
 
-            // Clear filters
-            if (hasActiveFilters) {
+        // Clear chip — only visible when filters are active
+        if (hasActiveFilters) {
+            item {
                 TextButton(onClick = onClearFilters) {
                     Text("Clear", style = MaterialTheme.typography.labelMedium)
                 }

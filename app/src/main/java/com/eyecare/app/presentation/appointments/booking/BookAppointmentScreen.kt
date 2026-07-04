@@ -6,8 +6,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,49 +17,56 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.VisitReason as DomainVisitReason
+import java.time.DayOfWeek
 import java.time.LocalDate
 
-// Time slots generated dynamically (30-min from 9:00-17:00)
-private val TIME_SLOTS = BookAppointmentViewModel.generateTimeSlots()
+// AM/PM and valid hour sets are defined per-composable — no file-level time slot list needed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -199,6 +208,7 @@ private fun Step2DateSelection(
     onSelectDate: (String) -> Unit,
 ) {
     val today = remember { LocalDate.now() }
+
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = selectedDate?.let {
             runCatching { LocalDate.parse(it).toEpochDay() * 86400000L }.getOrNull()
@@ -207,9 +217,10 @@ private fun Step2DateSelection(
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
                 val date = java.time.Instant.ofEpochMilli(utcTimeMillis)
                     .atZone(java.time.ZoneOffset.UTC).toLocalDate()
-                return !date.isBefore(today)
+                // Block past dates and Sundays — clinic is closed on Sundays
+                return !date.isBefore(today) && date.dayOfWeek != java.time.DayOfWeek.SUNDAY
             }
-        }
+        },
     )
 
     Column(
@@ -261,71 +272,226 @@ private fun Step2DateSelection(
     }
 }
 
+// ── Clinic hours: 9:00 AM – 6:30 PM ──────────────────────────────────────────
+private fun isValidClinicTime(hour12: Int, minute: Int, isPm: Boolean): Boolean {
+    val hour24 = when {
+        !isPm && hour12 == 12 -> 0
+        isPm && hour12 != 12  -> hour12 + 12
+        else                  -> hour12
+    }
+    return (hour24 * 60 + minute) in (9 * 60)..(18 * 60 + 30)
+}
+
 @Composable
 private fun Step3TimeSelection(
     selectedDate: String?,
     onSelectTime: (String) -> Unit,
 ) {
-    var selectedTime by remember { mutableStateOf<String?>(null) }
+    // Start at 9:00 AM — first valid slot
+    var isPm by remember { mutableStateOf(false) }
+    var hour by remember { mutableIntStateOf(9) }   // 12-hr format (1–12)
+    var minute by remember { mutableIntStateOf(0) } // 0, 5, 10, …, 55 in steps of 5
+
+    // ── Hour navigation ──────────────────────────────────────────────────────
+    // AM: 9→10→11→[flip to PM 12→1→…→6→wrap PM 12]
+    // Going backwards: PM 12→[flip to AM 11→10→9→wrap AM 11]
+    fun nextHour() {
+        if (!isPm && hour == 11) {
+            // Cross the AM/PM boundary going forward
+            isPm = true
+            hour = 12
+        } else if (isPm) {
+            hour = when (hour) { 12 -> 1; 6 -> 12; else -> hour + 1 }
+        } else {
+            hour += 1
+        }
+        if (!isValidClinicTime(hour, minute, isPm)) minute = 0
+    }
+    fun prevHour() {
+        if (isPm && hour == 12) {
+            // Cross the AM/PM boundary going backward
+            isPm = false
+            hour = 11
+        } else if (!isPm) {
+            hour = when (hour) { 9 -> 11; else -> hour - 1 }
+        } else {
+            hour = when (hour) { 1 -> 12; else -> hour - 1 }
+        }
+        if (!isValidClinicTime(hour, minute, isPm)) minute = 0
+    }
+
+    // ── Minute navigation (5-min steps, guarded by clinic end time) ─────────
+    fun nextMinute() {
+        val n = if (minute >= 55) 0 else minute + 5
+        if (isValidClinicTime(hour, n, isPm)) minute = n
+    }
+    fun prevMinute() {
+        val p = if (minute <= 0) 55 else minute - 5
+        if (isValidClinicTime(hour, p, isPm)) minute = p
+    }
+
+    // ── AM / PM switch — clamp hour into the new period's valid range ────────
+    fun switchPeriod(newIsPm: Boolean) {
+        isPm = newIsPm
+        hour = if (newIsPm) { if (hour in 1..6 || hour == 12) hour else 12 }
+               else         { if (hour in 9..11) hour else 9 }
+        if (!isValidClinicTime(hour, minute, isPm)) minute = 0
+    }
+
+    // 24-hr string for submission
+    val hour24 = when {
+        !isPm && hour == 12 -> 0
+        isPm && hour != 12  -> hour + 12
+        else                -> hour
+    }
+    val timeString = "%02d:%02d".format(hour24, minute)
+
+    val primary      = MaterialTheme.colorScheme.primary
+    val onSurface    = MaterialTheme.colorScheme.onSurface
+    val surfaceVar   = MaterialTheme.colorScheme.surfaceVariant
+    val onSurfaceVar = MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Select Time", style = MaterialTheme.typography.headlineMedium)
-        if (selectedDate != null) {
-            Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(8.dp))
+
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Select Time", style = MaterialTheme.typography.headlineMedium)
             Text(
-                selectedDate,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                "9:00 AM – 6:30 PM",
+                style = MaterialTheme.typography.labelSmall,
+                color = primary,
+                fontWeight = FontWeight.Medium,
             )
         }
-        Spacer(Modifier.height(16.dp))
 
-        // 2-column time slot grid
-        val rows = TIME_SLOTS.chunked(2)
-        rows.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Spacer(Modifier.height(52.dp))
+
+        // ── Digital clock row ─────────────────────────────────────────────────
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            // Hour segment
+            TimeSegment(
+                value = "%02d".format(hour),
+                onUp = ::nextHour,
+                onDown = ::prevHour,
+                primary = primary,
+                onSurface = onSurface,
+            )
+
+            // Colon separator
+            Text(
+                ":",
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontSize = 64.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
+                color = onSurface,
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .padding(bottom = 8.dp),
+            )
+
+            // Minute segment
+            TimeSegment(
+                value = "%02d".format(minute),
+                onUp = ::nextMinute,
+                onDown = ::prevMinute,
+                primary = primary,
+                onSurface = onSurface,
+            )
+
+            Spacer(Modifier.width(20.dp))
+
+            // AM / PM stack
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                row.forEach { time ->
-                    val isSelected = time == selectedTime
-                    OutlinedCard(
-                        onClick = { selectedTime = time },
-                        modifier = Modifier.weight(1f),
-                        border = BorderStroke(
-                            1.5.dp,
-                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                        ),
-                        colors = CardDefaults.outlinedCardColors(
-                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.White,
-                        ),
+                listOf(false to "AM", true to "PM").forEach { (pm, label) ->
+                    val selected = isPm == pm
+                    Box(
+                        modifier = Modifier
+                            .size(width = 56.dp, height = 38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (selected) primary else surfaceVar)
+                            .clickable { switchPeriod(pm) },
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = formatTimeSlot(time),
-                            modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 14.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            label,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selected) Color.White else onSurfaceVar,
                         )
                     }
                 }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(72.dp))
 
         Button(
-            onClick = {
-                val t = selectedTime ?: return@Button
-                onSelectTime(t)
-            },
-            enabled = selectedTime != null,
+            onClick = { onSelectTime(timeString) },
+            enabled = isValidClinicTime(hour, minute, isPm),
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(26.dp),
         ) {
             Text("Next Step")
+        }
+
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+/** Up-arrow → value text → down-arrow; used for both hour and minute. */
+@Composable
+private fun TimeSegment(
+    value: String,
+    onUp: () -> Unit,
+    onDown: () -> Unit,
+    primary: Color,
+    onSurface: Color,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        IconButton(onClick = onUp, modifier = Modifier.size(44.dp)) {
+            Icon(
+                Icons.Filled.KeyboardArrowUp,
+                contentDescription = "Increase",
+                tint = primary,
+                modifier = Modifier.size(36.dp),
+            )
+        }
+        Text(
+            text = value,
+            style = MaterialTheme.typography.displayLarge.copy(
+                fontSize = 64.sp,
+                fontWeight = FontWeight.Bold,
+            ),
+            color = onSurface,
+        )
+        IconButton(onClick = onDown, modifier = Modifier.size(44.dp)) {
+            Icon(
+                Icons.Filled.KeyboardArrowDown,
+                contentDescription = "Decrease",
+                tint = primary,
+                modifier = Modifier.size(36.dp),
+            )
         }
     }
 }

@@ -494,7 +494,8 @@ internal fun appointmentOccursOnDate(scheduledAt: String, date: LocalDate): Bool
 
 internal fun appointmentWeekDays(selectedDate: LocalDate): List<LocalDate> {
     val weekStart = selectedDate.minusDays((selectedDate.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
-    return List(7) { index -> weekStart.plusDays(index.toLong()) }
+    // Mon–Sat only — clinic is closed on Sundays
+    return List(6) { index -> weekStart.plusDays(index.toLong()) }
 }
 
 private fun appointmentCountsByDate(appointments: List<Appointment>): Map<LocalDate, Int> =

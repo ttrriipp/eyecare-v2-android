@@ -132,7 +132,14 @@ fun EyecareNavGraph(
                     composable<Home> {
                         HomeScreen(
                             onNavigateToAppointments = {
-                                navController.navigate(Appointments)
+                                navController.navigate(Appointments) {
+                                    popUpTo<MainGraph> {
+                                        saveState = true
+                                        inclusive = false
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             },
                             onNavigateToBooking = { navController.navigate(BookAppointment) },
                             onNavigateToOrderDetail = { navController.navigate(OrderDetail(it)) },

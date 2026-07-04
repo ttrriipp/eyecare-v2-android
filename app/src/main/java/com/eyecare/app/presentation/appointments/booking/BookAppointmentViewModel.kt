@@ -110,12 +110,12 @@ class BookAppointmentViewModel @Inject constructor(
     companion object {
         private val TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm")
 
-        /** Generate 30-minute time slots from 9:00 to 17:00 */
+        /** Generate 30-minute time slots from 9:00 to 18:30 (clinic hours: 9 AM–6:30 PM) */
         fun generateTimeSlots(): List<String> {
             val slots = mutableListOf<String>()
             var time = LocalTime.of(9, 0)
-            val end = LocalTime.of(17, 0)
-            while (time.isBefore(end)) {
+            val end = LocalTime.of(18, 30)
+            while (!time.isAfter(end)) {
                 slots.add(time.format(TIME_FORMAT))
                 time = time.plusMinutes(30)
             }
