@@ -78,6 +78,26 @@ com.eyecare.app/
 - **Images:** `buildImageUrl(path)` prepends storage base URL. Prefer variant images → fallback to product images.
 - **Pagination:** `PaginationMeta` (currentPage, lastPage). ViewModel tracks `hasMorePages` + `loadMore()`.
 - **Navigation:** Type-safe routes via `@Serializable` objects/data classes. Auth/Main graph split.
+- **Bottom-nav tab switches:** use `popUpTo<MainGraph> { saveState = true; inclusive = false }` + `launchSingleTop = true` + `restoreState = true` so switching tabs doesn't grow the back-stack or lose scroll position.
+- **Wizard flows (e.g. booking):** on terminal success, pop the wizard's own route off the stack with `popUpTo(WizardRoute) { inclusive = true }` before navigating to the result screen.
+
+## Booking Wizard — Date & Time Selection
+
+`presentation/appointments/booking/BookAppointmentScreen.kt`, Step2/Step3:
+
+- **Step2 (date):** Material3 `DatePicker` with a `SelectableDates` override that blocks past dates and Sundays (clinic closed). Selected date parsed/formatted via UTC epoch millis.
+- **Step3 (time):** digital HH:MM picker — up/down arrows per segment, AM/PM tap-toggle on the right. No analog clock, no seconds.
+  - Clinic hours: 9:00 AM – 6:30 PM, enforced by `isValidClinicTime(hour12, minute, isPm)`.
+  - Hour steps wrap correctly across the AM/PM boundary (`11 AM → 12 PM`, `12 PM → 1 PM → … → 6 PM → 12 PM`); the PM cycle must include the `12 -> 1` case or the hour overflows to 13 and silently invalidates every minute value.
+  - Minute steps are in **5-minute increments** (0, 5, 10, …, 55), wrapping and guarded by `isValidClinicTime` so the picker can't be pushed past 6:30 PM.
+
+## Product Catalog — Filters
+
+`presentation/catalog/ProductListScreen.kt`, `FilterRow`:
+
+- All filter/sort controls (All, categories, Brand dropdown, Sort dropdown, Clear) live in a **single horizontally-scrollable `LazyRow`**, not a stacked multi-row layout.
+- Brand and Sort are `FilterChip`s that open a `DropdownMenu` on tap.
+- "Clear" only renders when a filter or non-default sort is active.
 
 ## Backend API (base: `/api`)
 
@@ -110,9 +130,13 @@ Auth: Sanctum token in `Authorization: Bearer {token}`. Stored via `TokenManager
 
 | Element | Value |
 |---|---|
-| Primary color | `#4F8DD7` |
+| Primary color | `#29B6F6` (logo cyan) |
+| Text / on-surface | `#3D3535` (logo charcoal) |
+| Background | `#F8F9FA` (warm off-white) |
 | App name | Eyecare |
 | Font | Instrument Sans (Google Fonts, downloaded at runtime) |
+
+Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.colorScheme` via `ui/theme/Theme.kt` (light scheme only — no dark theme defined yet). Cards use pure white (`CardSurface`) with a subtle 8%-black border (`CardBorder`, mapped to `outlineVariant`) so they float above the warm background.
 
 ## Active Specs
 
