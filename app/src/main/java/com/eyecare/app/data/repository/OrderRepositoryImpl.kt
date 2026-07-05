@@ -60,9 +60,9 @@ class OrderRepositoryImpl @Inject constructor(
     )
 
     private fun OrderDtos.OrderItemDto.toDomain() = OrderItem(
-        id = id, productVariantId = productVariantId, lensTypeId = lensTypeId,
+        id = id, productVariantId = productVariantId, lensCategoryId = lensCategoryId ?: lensTypeId,
         productId = productId, productName = productName, variantName = variantName,
-        variantSku = variantSku, lensTypeName = lensTypeName,
+        variantSku = variantSku, lensCategoryName = lensCategoryName ?: lensTypeName,
         unitPrice = unitPrice, quantity = quantity, subtotal = subtotal,
         imageUrl = (variantImages.firstOrNull() ?: productImages.firstOrNull()),
     )

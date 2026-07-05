@@ -278,7 +278,7 @@ private fun OrderItemRow(item: OrderItem) {
                 fontWeight = FontWeight.SemiBold)
             Text(item.variantName, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            item.lensTypeName?.let {
+            item.lensCategoryName?.let {
                 Text("Lens: $it", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

@@ -23,11 +23,13 @@ object OrderDtos {
     data class OrderItemDto(
         val id: Int,
         @SerialName("product_variant_id") val productVariantId: Int,
+        @SerialName("lens_category_id") val lensCategoryId: Int? = null,
         @SerialName("lens_type_id") val lensTypeId: Int? = null,
         @SerialName("product_id") val productId: Int,
         @SerialName("product_name") val productName: String,
         @SerialName("variant_name") val variantName: String,
         @SerialName("variant_sku") val variantSku: String,
+        @SerialName("lens_category_name") val lensCategoryName: String? = null,
         @SerialName("lens_type_name") val lensTypeName: String? = null,
         @SerialName("unit_price") val unitPrice: String,
         val quantity: Int,
