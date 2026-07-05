@@ -132,7 +132,7 @@ fun AppointmentListScreen(
                                 AppointmentCard(
                                     appointment = appt,
                                     onClick = { onNavigateToDetail(appt.id) },
-                                    onReschedule = onNavigateToBook,
+                                    onReschedule = { onNavigateToDetail(appt.id) },
                                     onCancel = { onNavigateToDetail(appt.id) },
                                 )
                             }

@@ -89,6 +89,18 @@ fun AppointmentDetailScreen(
         )
     }
 
+    if (uiState is AppointmentDetailUiState.Success) {
+        val state = uiState as AppointmentDetailUiState.Success
+        if (state.showRescheduleSheet) {
+            RescheduleBottomSheet(
+                isSubmitting = state.isRescheduling,
+                errorMessage = state.rescheduleError,
+                onDismiss = viewModel::dismissRescheduleSheet,
+                onConfirm = viewModel::rescheduleAppointment,
+            )
+        }
+    }
+
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
             windowInsets = WindowInsets(0),
@@ -152,8 +164,18 @@ fun AppointmentDetailScreen(
                         }
                     }
 
-                    if (appt.status == AppointmentStatus.PENDING || appt.status == AppointmentStatus.CONFIRMED) {
+                    if (appt.status == AppointmentStatus.PENDING ||
+                        appt.status == AppointmentStatus.CONFIRMED ||
+                        appt.status == AppointmentStatus.RESCHEDULED
+                    ) {
                         Spacer(Modifier.height(8.dp))
+                        if (state.rescheduleError != null) {
+                            Text(
+                                state.rescheduleError,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                         if (state.cancelError != null) {
                             Text(
                                 state.cancelError,
@@ -161,21 +183,33 @@ fun AppointmentDetailScreen(
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        OutlinedButton(
-                            onClick = { showCancelDialog = true },
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !state.isCancelling,
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error,
-                            ),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            if (state.isCancelling) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.height(16.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            } else {
-                                Text("Cancel Appointment")
+                            OutlinedButton(
+                                onClick = viewModel::showRescheduleSheet,
+                                modifier = Modifier.weight(1f),
+                                enabled = !state.isCancelling,
+                            ) {
+                                Text("Reschedule")
+                            }
+                            OutlinedButton(
+                                onClick = { showCancelDialog = true },
+                                modifier = Modifier.weight(1f),
+                                enabled = !state.isCancelling,
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error,
+                                ),
+                            ) {
+                                if (state.isCancelling) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.height(16.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Text("Cancel")
+                                }
                             }
                         }
                     }

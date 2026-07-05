@@ -22,6 +22,9 @@ sealed interface AppointmentDetailUiState {
         val hasFeedback: Boolean = false,
         val isCancelling: Boolean = false,
         val cancelError: String? = null,
+        val showRescheduleSheet: Boolean = false,
+        val isRescheduling: Boolean = false,
+        val rescheduleError: String? = null,
     ) : AppointmentDetailUiState
     data class Error(val message: String) : AppointmentDetailUiState
 }
@@ -53,6 +56,35 @@ class AppointmentDetailViewModel @Inject constructor(
                     _uiState.value = current.copy(
                         isCancelling = false,
                         cancelError = it.message ?: "Failed to cancel appointment",
+                    )
+                },
+            )
+        }
+    }
+
+    fun showRescheduleSheet() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        _uiState.value = current.copy(showRescheduleSheet = true, rescheduleError = null)
+    }
+
+    fun dismissRescheduleSheet() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        _uiState.value = current.copy(showRescheduleSheet = false, rescheduleError = null)
+    }
+
+    fun rescheduleAppointment(scheduledAt: String) {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        _uiState.value = current.copy(isRescheduling = true, rescheduleError = null)
+        viewModelScope.launch {
+            repository.rescheduleAppointment(appointmentId, scheduledAt).fold(
+                onSuccess = { load() },
+                onFailure = {
+                    _uiState.value = current.copy(
+                        isRescheduling = false,
+                        rescheduleError = it.message ?: "Failed to reschedule appointment",
                     )
                 },
             )
