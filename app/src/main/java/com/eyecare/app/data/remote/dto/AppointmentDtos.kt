@@ -36,6 +36,11 @@ object AppointmentDtos {
     )
 
     @Serializable
+    data class RescheduleRequest(
+        @SerialName("scheduled_at") val scheduledAt: String,
+    )
+
+    @Serializable
     data class VisitReasonDto(
         val id: Int,
         val name: String,

@@ -19,6 +19,12 @@ interface AppointmentApiService {
     @POST("appointments/{id}/cancel")
     suspend fun cancelAppointment(@Path("id") id: Int): AppointmentDtos.AppointmentResponse
 
+    @POST("appointments/{id}/reschedule")
+    suspend fun rescheduleAppointment(
+        @Path("id") id: Int,
+        @Body request: AppointmentDtos.RescheduleRequest,
+    ): AppointmentDtos.AppointmentResponse
+
     @GET("visit-reasons")
     suspend fun getVisitReasons(): AppointmentDtos.VisitReasonListResponse
 }
