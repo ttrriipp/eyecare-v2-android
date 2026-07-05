@@ -80,6 +80,7 @@ com.eyecare.app/
 - **Navigation:** Type-safe routes via `@Serializable` objects/data classes. Auth/Main graph split.
 - **Bottom-nav tab switches:** use `popUpTo<MainGraph> { saveState = true; inclusive = false }` + `launchSingleTop = true` + `restoreState = true` so switching tabs doesn't grow the back-stack or lose scroll position.
 - **Wizard flows (e.g. booking):** on terminal success, pop the wizard's own route off the stack with `popUpTo(WizardRoute) { inclusive = true }` before navigating to the result screen.
+- **Backend alias fields:** when the backend returns two field names for the same value (e.g. `lens_category_id` canonical + `lens_type_id` backward-compat alias), the DTO parses both but the domain model exposes only the canonical name. Repository mapping prefers canonical, falls back to alias: `lensCategoryId = lensCategoryId ?: lensTypeId`. Request bodies (e.g. `OrderItemRequest`) may keep using the alias name if the backend documents it as accepted — no need to migrate outbound fields the backend still supports.
 
 ## Booking Wizard — Date & Time Selection
 
@@ -90,6 +91,17 @@ com.eyecare.app/
   - Clinic hours: 9:00 AM – 6:30 PM, enforced by `isValidClinicTime(hour12, minute, isPm)`.
   - Hour steps wrap correctly across the AM/PM boundary (`11 AM → 12 PM`, `12 PM → 1 PM → … → 6 PM → 12 PM`); the PM cycle must include the `12 -> 1` case or the hour overflows to 13 and silently invalidates every minute value.
   - Minute steps are in **5-minute increments** (0, 5, 10, …, 55), wrapping and guarded by `isValidClinicTime` so the picker can't be pushed past 6:30 PM.
+
+## Appointment Reschedule — Bottom Sheet
+
+`presentation/appointments/RescheduleBottomSheet.kt`, invoked from `AppointmentDetailScreen.kt`:
+
+- Rescheduling an **existing** appointment calls `POST /appointments/{id}/reschedule` — it does NOT create a new appointment. Never route the "Reschedule" action through the booking wizard (`BookAppointmentScreen`).
+- UI is a `ModalBottomSheet` with a `SecondaryTabRow` (Date / Time tabs) rather than a multi-step wizard — reschedule only needs date + time, no visit reason or notes re-entry.
+- Reimplements the same `SelectableDates` (no past dates, no Sundays) and digital HH:MM clinic-hours picker (`isValidClinicTime`, 9:00 AM–6:30 PM, 5-min steps) as the booking wizard, but as private composables local to this file — intentionally not shared/extracted, since `BookAppointmentScreen`'s versions are `private`.
+- Reschedule and Cancel are available for `PENDING`, `CONFIRMED`, and `RESCHEDULED` statuses (backend allows `rescheduled → rescheduled` and `rescheduled → cancelled`). Both the appointment list card and the detail screen use this same status set.
+- The list screen's "Reschedule" button navigates to `AppointmentDetailScreen` (not the booking wizard) — actual reschedule happens via the sheet on the detail screen.
+- On success, `AppointmentDetailViewModel.load()` reloads the appointment; the sheet's `showRescheduleSheet` flag resets to its `false` default on the new `Success` state, dismissing it automatically.
 
 ## Product Catalog — Filters
 
@@ -109,8 +121,9 @@ PATCH  /user                          → update profile
 GET    /appointments, /appointments/{id}
 POST   /appointments                  → book (pending)
 POST   /appointments/{id}/cancel
+POST   /appointments/{id}/reschedule  → reschedule own appointment (pending/confirmed/rescheduled only)
 GET    /visit-reasons                 → [{id, name, duration_minutes}]
-GET    /products, /products/{id}      → frame-only, paginated
+GET    /products, /products/{id}      → frame-only, paginated (supports search/brand/category/min_price/max_price/in_stock/sort)
 GET    /orders, /orders/{id}          → paginated, includes billing_id
 POST   /orders                        → submit (requested)
 POST   /orders/{id}/cancel
@@ -140,9 +153,14 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 
 ## Active Specs
 
-- `docs/specs/backend-alignment-v2-spec.md` — Current: fixing remaining API misalignments (11 tasks)
+- `docs/specs/backend-alignment-v2-spec.md` — Complete: fixed initial API misalignments (11 tasks)
+- `docs/specs/backend-alignment-v3-spec.md` — Complete: reschedule endpoint, or_number removal, lens_category_id fields, price filter params (6 tasks)
 - `docs/specs/implementation-plan-v2.md` — Task breakdown for alignment v2
 - `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
+
+## Known Issues
+
+- `ProductListViewModelTest.kt` has a pre-existing compile error (`vm.selectCategory("Frames")` passes a `String` where `selectCategory(categoryId: Int?)` expects an `Int?`). This blocks `./gradlew testDebugUnitTest` for the whole module. Predates backend-alignment-v3-spec (confirmed via `git stash` against a clean checkout). Not fixed — out of scope for API alignment work. Needs a follow-up fix: either change the test to pass a category ID, or add a name-based lookup if that's the intended UX.
 
 ## Boundaries
 
