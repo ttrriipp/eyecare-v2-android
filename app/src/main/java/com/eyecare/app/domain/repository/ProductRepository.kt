@@ -12,6 +12,8 @@ interface ProductRepository {
         categoryId: Int? = null,
         sort: String? = null,
         inStock: Boolean? = null,
+        minPrice: Double? = null,
+        maxPrice: Double? = null,
     ): Result<List<Product>>
 
     suspend fun getProduct(id: Int): Result<Product>

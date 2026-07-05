@@ -16,6 +16,8 @@ interface ProductApiService {
         @Query("category") categoryId: Int? = null,
         @Query("sort") sort: String? = null,
         @Query("in_stock") inStock: Boolean? = null,
+        @Query("min_price") minPrice: Double? = null,
+        @Query("max_price") maxPrice: Double? = null,
     ): ProductDtos.PaginatedProductResponse
 
     @GET("products/{id}")

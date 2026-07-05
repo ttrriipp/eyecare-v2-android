@@ -30,8 +30,11 @@ class ProductRepositoryImpl @Inject constructor(
         categoryId: Int?,
         sort: String?,
         inStock: Boolean?,
+        minPrice: Double?,
+        maxPrice: Double?,
     ): Result<List<Product>> {
-        val hasFilters = search != null || brandId != null || categoryId != null || sort != null || inStock != null
+        val hasFilters = search != null || brandId != null || categoryId != null || sort != null ||
+            inStock != null || minPrice != null || maxPrice != null
         return try {
             val response = api.getProducts(
                 page = page,
@@ -40,6 +43,8 @@ class ProductRepositoryImpl @Inject constructor(
                 categoryId = categoryId,
                 sort = sort,
                 inStock = inStock,
+                minPrice = minPrice,
+                maxPrice = maxPrice,
             )
             lastMeta = response.meta
             // Only cache unfiltered page 1 results
