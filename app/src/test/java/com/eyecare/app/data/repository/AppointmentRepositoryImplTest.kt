@@ -93,4 +93,33 @@ class AppointmentRepositoryImplTest {
             result.exceptionOrNull()
         )
     }
+
+    @Test
+    fun `rescheduleAppointment returns updated appointment with rescheduled status`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""
+            {"data":{"id":4,"visit_reason":"eye_exam","status":"rescheduled",
+            "scheduled_at":"2026-11-01T13:00:00Z","contact_notes":null,"staff_notes":null}}
+        """.trimIndent()))
+
+        val result = repository.rescheduleAppointment(4, "2026-11-01T13:00:00Z")
+        assertTrue(result.isSuccess)
+        val appt = result.getOrThrow()
+        assertEquals(4, appt.id)
+        assertEquals(AppointmentStatus.RESCHEDULED, appt.status)
+        assertEquals("2026-11-01T13:00:00Z", appt.scheduledAt)
+    }
+
+    @Test
+    fun `rescheduleAppointment 422 maps to ValidationError`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(422).setBody("""
+            {"message":"This time slot is not available","errors":{"scheduled_at":["This time slot is not available."]}}
+        """.trimIndent()))
+
+        val result = repository.rescheduleAppointment(4, "2026-11-01T13:00:00Z")
+        assertTrue(result.isFailure)
+        assertInstanceOf(
+            com.eyecare.app.domain.model.AppointmentError.ValidationError::class.java,
+            result.exceptionOrNull()
+        )
+    }
 }

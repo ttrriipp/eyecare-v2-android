@@ -73,7 +73,7 @@ fun RescheduleBottomSheet(
     onConfirm: (scheduledAt: String) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
-    var tabIndex by remember { mutableStateOf(0) } // 0 = date, 1 = time
+    var tabIndex by remember { mutableIntStateOf(0) } // 0 = date, 1 = time
     var selectedDate by remember { mutableStateOf<String?>(null) }
     var selectedTime by remember { mutableStateOf<String?>(null) }
 
@@ -133,7 +133,7 @@ fun RescheduleBottomSheet(
                 onClick = {
                     val date = selectedDate ?: return@Button
                     val time = selectedTime ?: return@Button
-                    onConfirm("${date}T$time:00")
+                    onConfirm("${date}T$time:00Z")
                 },
                 enabled = !isSubmitting && selectedDate != null && selectedTime != null,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
