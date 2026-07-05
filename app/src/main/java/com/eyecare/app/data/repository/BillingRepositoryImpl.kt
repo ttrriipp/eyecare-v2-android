@@ -25,7 +25,6 @@ class BillingRepositoryImpl @Inject constructor(
     private fun BillingDtos.BillingDto.toDomain() = Billing(
         id = id,
         billingNumber = billingNumber,
-        orNumber = orNumber,
         status = BillingStatus.from(status),
         subtotal = subtotal,
         discountAmount = discountAmount,

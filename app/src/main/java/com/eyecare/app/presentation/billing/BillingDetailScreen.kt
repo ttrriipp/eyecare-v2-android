@@ -142,12 +142,6 @@ private fun BillingContent(billing: Billing) {
                     )
                     BillingStatusChip(billing.status)
                 }
-                billing.orNumber?.let {
-                    Text(
-                        it, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
                 billing.issuedAt?.let {
                     Text(
                         "Issued: ${it.take(10)}", style = MaterialTheme.typography.bodySmall,

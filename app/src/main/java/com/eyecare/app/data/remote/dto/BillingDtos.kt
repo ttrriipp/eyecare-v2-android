@@ -9,7 +9,6 @@ object BillingDtos {
     data class BillingDto(
         val id: Int,
         @SerialName("billing_number") val billingNumber: String,
-        @SerialName("or_number") val orNumber: String? = null,
         val status: String,
         val subtotal: String,
         @SerialName("discount_amount") val discountAmount: String,
