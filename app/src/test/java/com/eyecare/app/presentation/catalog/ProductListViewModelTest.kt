@@ -18,6 +18,12 @@ import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+/**
+ * `ProductListViewModel` delegates all filtering (search, brand, category, sort, in-stock) to
+ * the repository via `getProducts(...)` query params — it does not filter in-memory. So these
+ * tests mock the repository to return different result sets per filter combination, rather than
+ * asserting on client-side filtering of a single fixed product list.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProductListViewModelTest {
 
@@ -33,26 +39,40 @@ class ProductListViewModelTest {
         images = emptyList(),
     )
 
-    private val products = listOf(
+    private val allProducts = listOf(
         makeProduct(1, "Frames", arEligible = true),
         makeProduct(2, "Sunglasses"),
         makeProduct(3, "Frames"),
         makeProduct(4, "Contacts"),
     )
+    private val framesProducts = allProducts.filter { it.category == "Frames" }
+    private val product1Only = allProducts.filter { it.id == 1 }
 
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
+        coEvery { repo.getBrands() } returns Result.success(emptyList())
+        coEvery { repo.getCategories() } returns Result.success(emptyList())
     }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
+    /** Stubs `getProducts` for the default (no search/brand/category/in-stock) filter state. */
+    private fun stubDefaultProducts(result: Result<List<Product>> = Result.success(allProducts)) {
+        coEvery {
+            repo.getProducts(
+                page = 1, search = null, brandId = null, categoryId = null,
+                sort = "name", inStock = null, minPrice = null, maxPrice = null,
+            )
+        } returns result
+        coEvery { repo.hasMorePages(any()) } returns false
+    }
+
     @Test
     fun `initial state is Loading then Success with all products`() = runTest {
-        coEvery { repo.getProducts(any()) } returns Result.success(products)
-                coEvery { repo.hasMorePages(any()) } returns false
+        stubDefaultProducts()
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {
@@ -65,9 +85,14 @@ class ProductListViewModelTest {
     }
 
     @Test
-    fun `selecting Frames category filters to frames only`() = runTest {
-        coEvery { repo.getProducts(any()) } returns Result.success(products)
-                coEvery { repo.hasMorePages(any()) } returns false
+    fun `selecting a category id filters via the repository`() = runTest {
+        stubDefaultProducts()
+        coEvery {
+            repo.getProducts(
+                page = 1, search = null, brandId = null, categoryId = 1,
+                sort = "name", inStock = null, minPrice = null, maxPrice = null,
+            )
+        } returns Result.success(framesProducts)
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {
@@ -75,7 +100,8 @@ class ProductListViewModelTest {
             dispatcher.scheduler.advanceUntilIdle()
             awaitItem() // Success (all)
 
-            vm.selectCategory("Frames")
+            vm.selectCategory(1)
+            dispatcher.scheduler.advanceUntilIdle()
             val filtered = awaitItem() as ProductListUiState.Success
             assertEquals(2, filtered.products.size)
             filtered.products.forEach { assertEquals("Frames", it.category) }
@@ -84,9 +110,14 @@ class ProductListViewModelTest {
     }
 
     @Test
-    fun `selecting All category shows all products`() = runTest {
-        coEvery { repo.getProducts(any()) } returns Result.success(products)
-                coEvery { repo.hasMorePages(any()) } returns false
+    fun `clearing category selection shows all products again`() = runTest {
+        stubDefaultProducts()
+        coEvery {
+            repo.getProducts(
+                page = 1, search = null, brandId = null, categoryId = 1,
+                sort = "name", inStock = null, minPrice = null, maxPrice = null,
+            )
+        } returns Result.success(framesProducts)
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {
@@ -94,9 +125,12 @@ class ProductListViewModelTest {
             dispatcher.scheduler.advanceUntilIdle()
             awaitItem() // Success (all)
 
-            vm.selectCategory("Frames")
+            vm.selectCategory(1)
+            dispatcher.scheduler.advanceUntilIdle()
             awaitItem() // filtered
-            vm.selectCategory("All")
+
+            vm.selectCategory(null)
+            dispatcher.scheduler.advanceUntilIdle()
             val all = awaitItem() as ProductListUiState.Success
             assertEquals(4, all.products.size)
             cancelAndIgnoreRemainingEvents()
@@ -104,9 +138,14 @@ class ProductListViewModelTest {
     }
 
     @Test
-    fun `search query filters products by name`() = runTest {
-        coEvery { repo.getProducts(any()) } returns Result.success(products)
-                coEvery { repo.hasMorePages(any()) } returns false
+    fun `search query is forwarded to the repository`() = runTest {
+        stubDefaultProducts()
+        coEvery {
+            repo.getProducts(
+                page = 1, search = "Product 1", brandId = null, categoryId = null,
+                sort = "name", inStock = null, minPrice = null, maxPrice = null,
+            )
+        } returns Result.success(product1Only)
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {
@@ -115,6 +154,7 @@ class ProductListViewModelTest {
             awaitItem() // Success
 
             vm.search("Product 1")
+            dispatcher.scheduler.advanceUntilIdle()
             val filtered = awaitItem() as ProductListUiState.Success
             assertEquals(1, filtered.products.size)
             assertEquals(1, filtered.products[0].id)
@@ -124,8 +164,7 @@ class ProductListViewModelTest {
 
     @Test
     fun `error from repo emits Error state`() = runTest {
-        coEvery { repo.getProducts(any()) } returns Result.failure(RuntimeException("offline"))
-                coEvery { repo.hasMorePages(any()) } returns false
+        stubDefaultProducts(Result.failure(RuntimeException("offline")))
         val vm = ProductListViewModel(repo)
 
         vm.uiState.test {
