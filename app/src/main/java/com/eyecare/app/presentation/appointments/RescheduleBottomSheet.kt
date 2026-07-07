@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -31,6 +32,7 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -48,6 +50,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private fun formatPickedDate(date: String): String =
+    runCatching {
+        LocalDate.parse(date).format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US))
+    }.getOrDefault(date)
+
+private fun formatPickedTime(time: String): String =
+    runCatching {
+        java.time.LocalTime.parse(time).format(DateTimeFormatter.ofPattern("h:mm a", Locale.US))
+    }.getOrDefault(time)
 
 // ── Clinic hours: 9:00 AM – 6:30 PM ──────────────────────────────────────────
 private fun isValidClinicTime(hour12: Int, minute: Int, isPm: Boolean): Boolean {
@@ -76,6 +90,40 @@ fun RescheduleBottomSheet(
     var tabIndex by remember { mutableIntStateOf(0) } // 0 = date, 1 = time
     var selectedDate by remember { mutableStateOf<String?>(null) }
     var selectedTime by remember { mutableStateOf<String?>(null) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showConfirmDialog) {
+        val date = selectedDate
+        val time = selectedTime
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Confirm Reschedule") },
+            text = {
+                Text(
+                    if (date != null && time != null) {
+                        "Reschedule this appointment to ${formatPickedDate(date)} at ${formatPickedTime(time)}?"
+                    } else {
+                        "Reschedule this appointment?"
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmDialog = false
+                        if (date != null && time != null) onConfirm("${date}T$time:00Z")
+                    },
+                ) {
+                    Text("Reschedule")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text("Keep Current Time")
+                }
+            },
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -130,11 +178,7 @@ fun RescheduleBottomSheet(
             Spacer(Modifier.height(16.dp))
 
             Button(
-                onClick = {
-                    val date = selectedDate ?: return@Button
-                    val time = selectedTime ?: return@Button
-                    onConfirm("${date}T$time:00Z")
-                },
+                onClick = { showConfirmDialog = true },
                 enabled = !isSubmitting && selectedDate != null && selectedTime != null,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(26.dp),

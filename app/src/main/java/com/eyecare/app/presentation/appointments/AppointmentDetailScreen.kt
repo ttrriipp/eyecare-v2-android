@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.tooling.preview.Preview
@@ -99,6 +100,24 @@ fun AppointmentDetailScreen(
                 onConfirm = viewModel::rescheduleAppointment,
             )
         }
+        if (state.showRescheduleSuccessDialog) {
+            AlertDialog(
+                onDismissRequest = viewModel::dismissRescheduleSuccessDialog,
+                title = { Text("Appointment Rescheduled") },
+                text = {
+                    Text(
+                        "Your appointment is now set for " +
+                            "${formatAppointmentDate(state.appointment.scheduledAt)} at " +
+                            "${formatAppointmentTime(state.appointment.scheduledAt)}.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = viewModel::dismissRescheduleSuccessDialog) {
+                        Text("Got it")
+                    }
+                },
+            )
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -143,7 +162,10 @@ fun AppointmentDetailScreen(
                                 )
                                 StatusChip(appt.status)
                             }
-                            DetailRow("Date & Time", appt.scheduledAt.take(16).replace("T", " "))
+                            DetailRow(
+                                "Date & Time",
+                                "${formatAppointmentDate(appt.scheduledAt)} at ${formatAppointmentTime(appt.scheduledAt)}",
+                            )
                             if (!appt.contactNotes.isNullOrBlank())
                                 DetailRow("Your notes", appt.contactNotes)
                             if (!appt.staffNotes.isNullOrBlank())
@@ -187,12 +209,17 @@ fun AppointmentDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            OutlinedButton(
+                            Button(
                                 onClick = viewModel::showRescheduleSheet,
                                 modifier = Modifier.weight(1f),
                                 enabled = !state.isCancelling,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                    contentColor = MaterialTheme.colorScheme.primary,
+                                ),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
                             ) {
-                                Text("Reschedule")
+                                Text("Reschedule", fontWeight = FontWeight.SemiBold)
                             }
                             OutlinedButton(
                                 onClick = { showCancelDialog = true },

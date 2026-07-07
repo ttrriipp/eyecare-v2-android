@@ -25,6 +25,7 @@ sealed interface AppointmentDetailUiState {
         val showRescheduleSheet: Boolean = false,
         val isRescheduling: Boolean = false,
         val rescheduleError: String? = null,
+        val showRescheduleSuccessDialog: Boolean = false,
     ) : AppointmentDetailUiState
     data class Error(val message: String) : AppointmentDetailUiState
 }
@@ -80,7 +81,16 @@ class AppointmentDetailViewModel @Inject constructor(
         _uiState.value = current.copy(isRescheduling = true, rescheduleError = null)
         viewModelScope.launch {
             repository.rescheduleAppointment(appointmentId, scheduledAt).fold(
-                onSuccess = { load() },
+                onSuccess = { updatedAppointment ->
+                    // Use the appointment returned by the reschedule call directly, rather than
+                    // re-fetching, so the screen reflects exactly what the server just confirmed.
+                    _uiState.value = current.copy(
+                        appointment = updatedAppointment,
+                        isRescheduling = false,
+                        showRescheduleSheet = false,
+                        showRescheduleSuccessDialog = true,
+                    )
+                },
                 onFailure = {
                     _uiState.value = current.copy(
                         isRescheduling = false,
@@ -89,6 +99,12 @@ class AppointmentDetailViewModel @Inject constructor(
                 },
             )
         }
+    }
+
+    fun dismissRescheduleSuccessDialog() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        _uiState.value = current.copy(showRescheduleSuccessDialog = false)
     }
 
     private fun load() {
