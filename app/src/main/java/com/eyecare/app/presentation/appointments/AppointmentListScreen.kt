@@ -39,6 +39,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
@@ -76,6 +79,8 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+private enum class AppointmentViewMode { BY_DAY, ALL }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppointmentListScreen(
@@ -100,11 +105,15 @@ fun AppointmentListScreen(
                 }
                 is AppointmentListUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
                 is AppointmentListUiState.Success -> {
+                    var viewMode by remember { mutableStateOf(AppointmentViewMode.ALL) }
                     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
                     val weekDays = remember(selectedDate) { appointmentWeekDays(selectedDate) }
                     val appointmentCounts = remember(state.appointments) { appointmentCountsByDate(state.appointments) }
                     val visibleAppointments = state.appointments.filter { appointment ->
                         appointmentOccursOnDate(appointment.scheduledAt, selectedDate)
+                    }
+                    val groupedAllAppointments = remember(state.appointments) {
+                        groupAppointmentsForAllView(state.appointments)
                     }
 
                     LazyColumn(
@@ -114,27 +123,55 @@ fun AppointmentListScreen(
                         item {
                             Text("Appointments", style = MaterialTheme.typography.displayLarge)
                             Spacer(Modifier.height(12.dp))
-                            WeeklyAppointmentCalendar(
-                                weekDays = weekDays,
-                                selectedDate = selectedDate,
-                                appointmentCounts = appointmentCounts,
-                                onPreviousWeek = { selectedDate = selectedDate.minusWeeks(1) },
-                                onNextWeek = { selectedDate = selectedDate.plusWeeks(1) },
-                                onDateSelected = { selectedDate = it },
+                            AppointmentViewModeToggle(
+                                viewMode = viewMode,
+                                onViewModeChange = { viewMode = it },
                             )
+                            Spacer(Modifier.height(12.dp))
+                            if (viewMode == AppointmentViewMode.BY_DAY) {
+                                WeeklyAppointmentCalendar(
+                                    weekDays = weekDays,
+                                    selectedDate = selectedDate,
+                                    appointmentCounts = appointmentCounts,
+                                    onPreviousWeek = { selectedDate = selectedDate.minusWeeks(1) },
+                                    onNextWeek = { selectedDate = selectedDate.plusWeeks(1) },
+                                    onDateSelected = { selectedDate = it },
+                                )
+                            }
                         }
-                        if (visibleAppointments.isEmpty()) {
-                            item {
-                                EmptyDayCard(selectedDate)
+                        if (viewMode == AppointmentViewMode.BY_DAY) {
+                            if (visibleAppointments.isEmpty()) {
+                                item {
+                                    EmptyDayCard(selectedDate)
+                                }
+                            } else {
+                                items(visibleAppointments, key = { it.id }) { appt ->
+                                    AppointmentCard(
+                                        appointment = appt,
+                                        onClick = { onNavigateToDetail(appt.id) },
+                                        onReschedule = { onNavigateToDetail(appt.id) },
+                                        onCancel = { onNavigateToDetail(appt.id) },
+                                    )
+                                }
                             }
                         } else {
-                            items(visibleAppointments, key = { it.id }) { appt ->
-                                AppointmentCard(
-                                    appointment = appt,
-                                    onClick = { onNavigateToDetail(appt.id) },
-                                    onReschedule = { onNavigateToDetail(appt.id) },
-                                    onCancel = { onNavigateToDetail(appt.id) },
-                                )
+                            groupedAllAppointments.forEach { section ->
+                                item(key = "header-${section.title}") {
+                                    Text(
+                                        section.title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                items(section.appointments, key = { it.id }) { appt ->
+                                    AppointmentCard(
+                                        appointment = appt,
+                                        onClick = { onNavigateToDetail(appt.id) },
+                                        onReschedule = { onNavigateToDetail(appt.id) },
+                                        onCancel = { onNavigateToDetail(appt.id) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -170,6 +207,27 @@ fun AppointmentListScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AppointmentViewModeToggle(
+    viewMode: AppointmentViewMode,
+    onViewModeChange: (AppointmentViewMode) -> Unit,
+) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        SegmentedButton(
+            selected = viewMode == AppointmentViewMode.BY_DAY,
+            onClick = { onViewModeChange(AppointmentViewMode.BY_DAY) },
+            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+            label = { Text("By Day") },
+        )
+        SegmentedButton(
+            selected = viewMode == AppointmentViewMode.ALL,
+            onClick = { onViewModeChange(AppointmentViewMode.ALL) },
+            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+            label = { Text("All") },
+        )
     }
 }
 
@@ -500,6 +558,28 @@ internal fun appointmentWeekDays(selectedDate: LocalDate): List<LocalDate> {
 
 private fun appointmentCountsByDate(appointments: List<Appointment>): Map<LocalDate, Int> =
     appointments.mapNotNull { parseAppointmentDate(it.scheduledAt) }.groupingBy { it }.eachCount()
+
+internal data class AppointmentListSection(val title: String, val appointments: List<Appointment>)
+
+internal fun groupAppointmentsForAllView(appointments: List<Appointment>): List<AppointmentListSection> {
+    val now = LocalDateTime.now()
+
+    val (upcoming, past) = appointments.partition { appointment ->
+        val dateTime = parseAppointmentDateTime(appointment.scheduledAt)
+        dateTime == null || !dateTime.isBefore(now)
+    }
+
+    val upcomingSorted = upcoming.sortedBy { appointmentSortKey(it.scheduledAt) }
+    val pastSorted = past.sortedByDescending { appointmentSortKey(it.scheduledAt) }
+
+    val sections = mutableListOf<AppointmentListSection>()
+    if (upcomingSorted.isNotEmpty()) sections += AppointmentListSection("Upcoming", upcomingSorted)
+    if (pastSorted.isNotEmpty()) sections += AppointmentListSection("Past", pastSorted)
+    return sections
+}
+
+private fun appointmentSortKey(scheduledAt: String): LocalDateTime =
+    parseAppointmentDateTime(scheduledAt) ?: LocalDateTime.MIN
 
 private fun parseAppointmentDate(value: String): LocalDate? = parseAppointmentDateTime(value)?.toLocalDate()
 
