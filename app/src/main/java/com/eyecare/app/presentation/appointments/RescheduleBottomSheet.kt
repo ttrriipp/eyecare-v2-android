@@ -18,7 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -32,7 +32,6 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -48,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -95,33 +95,21 @@ fun RescheduleBottomSheet(
     if (showConfirmDialog) {
         val date = selectedDate
         val time = selectedTime
-        AlertDialog(
+        AppConfirmationDialog(
+            icon = Icons.Outlined.EventAvailable,
+            title = "Confirm Reschedule",
+            message = if (date != null && time != null) {
+                "Reschedule this appointment to ${formatPickedDate(date)} at ${formatPickedTime(time)}?"
+            } else {
+                "Reschedule this appointment?"
+            },
+            confirmLabel = "Reschedule",
+            dismissLabel = "Keep Current Time",
+            onConfirm = {
+                showConfirmDialog = false
+                if (date != null && time != null) onConfirm("${date}T$time:00Z")
+            },
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text("Confirm Reschedule") },
-            text = {
-                Text(
-                    if (date != null && time != null) {
-                        "Reschedule this appointment to ${formatPickedDate(date)} at ${formatPickedTime(time)}?"
-                    } else {
-                        "Reschedule this appointment?"
-                    },
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showConfirmDialog = false
-                        if (date != null && time != null) onConfirm("${date}T$time:00Z")
-                    },
-                ) {
-                    Text("Reschedule")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirmDialog = false }) {
-                    Text("Keep Current Time")
-                }
-            },
         )
     }
 

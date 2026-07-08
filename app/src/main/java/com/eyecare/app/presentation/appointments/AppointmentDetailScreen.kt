@@ -13,7 +13,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -25,7 +26,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -44,6 +44,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.eyecare.app.ui.theme.EyecareTheme
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentStatus
@@ -68,25 +69,19 @@ fun AppointmentDetailScreen(
     }
 
     if (showCancelDialog) {
-        AlertDialog(
+        AppConfirmationDialog(
+            icon = Icons.Outlined.EventBusy,
+            iconTint = MaterialTheme.colorScheme.error,
+            isDestructive = true,
+            title = "Cancel Appointment",
+            message = "Are you sure you want to cancel this appointment? This action cannot be undone.",
+            confirmLabel = "Cancel Appointment",
+            dismissLabel = "Keep Appointment",
+            onConfirm = {
+                showCancelDialog = false
+                viewModel.cancelAppointment()
+            },
             onDismissRequest = { showCancelDialog = false },
-            title = { Text("Cancel Appointment") },
-            text = { Text("Are you sure you want to cancel this appointment? This action cannot be undone.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showCancelDialog = false
-                        viewModel.cancelAppointment()
-                    },
-                ) {
-                    Text("Cancel Appointment", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCancelDialog = false }) {
-                    Text("Keep Appointment")
-                }
-            },
         )
     }
 
@@ -101,21 +96,15 @@ fun AppointmentDetailScreen(
             )
         }
         if (state.showRescheduleSuccessDialog) {
-            AlertDialog(
+            AppConfirmationDialog(
+                icon = Icons.Outlined.EventAvailable,
+                title = "Appointment Rescheduled",
+                message = "Your appointment is now set for " +
+                    "${formatAppointmentDate(state.appointment.scheduledAt)} at " +
+                    "${formatAppointmentTime(state.appointment.scheduledAt)}.",
+                confirmLabel = "Got it",
+                onConfirm = viewModel::dismissRescheduleSuccessDialog,
                 onDismissRequest = viewModel::dismissRescheduleSuccessDialog,
-                title = { Text("Appointment Rescheduled") },
-                text = {
-                    Text(
-                        "Your appointment is now set for " +
-                            "${formatAppointmentDate(state.appointment.scheduledAt)} at " +
-                            "${formatAppointmentTime(state.appointment.scheduledAt)}.",
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = viewModel::dismissRescheduleSuccessDialog) {
-                        Text("Got it")
-                    }
-                },
             )
         }
     }
