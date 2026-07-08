@@ -64,10 +64,11 @@ fun SplitBottomNavBar(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Dark pill — 4 tabs
+        // Nav bar — 4 tabs. Shape matches the chat FAB's squircle (16.dp) rather than a full
+        // pill, so the two bottom-bar elements read as one consistent shape language.
         Surface(
             modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(40.dp),
+            shape = RoundedCornerShape(16.dp),
             shadowElevation = 2.dp,
             color = MaterialTheme.colorScheme.surface,
         ) {
@@ -150,7 +151,7 @@ private fun NavTabItem(
     Box(
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .clip(RoundedCornerShape(32.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(bgColor)
             .clickable(role = Role.Tab) { onClick() }
             .padding(horizontal = 6.dp, vertical = 8.dp),

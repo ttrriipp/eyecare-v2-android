@@ -5,8 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -99,22 +102,32 @@ fun AppConfirmationDialog(
                 Spacer(Modifier.height(24.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    // IntrinsicSize.Min + fillMaxHeight on each button lets both buttons grow
+                    // to match the taller one when a longer label (e.g. "Keep Current Time")
+                    // wraps to two lines, instead of clipping/overflowing at a fixed height.
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (dismissLabel != null) {
                         OutlinedButton(
                             onClick = onDismissRequest,
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                             shape = RoundedCornerShape(50),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                         ) {
-                            Text(dismissLabel, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                dismissLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center,
+                            )
                         }
                     }
                     Button(
                         onClick = onConfirm,
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         shape = RoundedCornerShape(50),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                         colors = if (isDestructive) {
                             ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.error,
@@ -124,7 +137,12 @@ fun AppConfirmationDialog(
                             ButtonDefaults.buttonColors()
                         },
                     ) {
-                        Text(confirmLabel, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            confirmLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             }
