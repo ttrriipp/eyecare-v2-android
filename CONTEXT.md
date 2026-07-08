@@ -106,6 +106,21 @@ com.eyecare.app/
 - The detail screen's "Reschedule" button uses the same filled, theme-tinted `Button` style (primary color at 12% alpha background, primary content color, no elevation) as the list screen's card action buttons, rather than the plain `OutlinedButton` used elsewhere.
 - **Known limitation (unresolved):** the displayed date/time for a rescheduled appointment does not reliably match what the user picked — the backend's exact timezone handling for `scheduled_at` on reschedule has not been conclusively determined (repeated attempts at device-timezone conversion, a fixed clinic-timezone conversion, and literal pass-through display all failed to consistently match the picked time against observed responses). Current behavior is a literal pass-through (no timezone conversion) on both encode and display. If revisiting, capture the raw HTTP response body for `POST /appointments/{id}/reschedule` via the debug `HttpLoggingInterceptor` logs before changing this again.
 
+## Themed Confirmation Dialogs
+
+`presentation/common/components/AppConfirmationDialog.kt`:
+
+- Shared composable used in place of the stock Material3 `AlertDialog` wherever the app needs a confirmation or acknowledgement prompt (reschedule confirm, reschedule success, cancel-appointment confirm in `AppointmentDetailScreen.kt`, reschedule confirm in `RescheduleBottomSheet.kt`). The stock `AlertDialog` doesn't match the app's visual language (pill buttons, tinted icon badges, `CardBorder`-outlined surfaces), so this wraps a raw `Dialog` with a rounded `Surface` (24dp), a circular icon badge tinted at 12% alpha, and pill-shaped (`RoundedCornerShape(50)`) action buttons.
+- Takes `confirmLabel` only for a single acknowledgement, or both `confirmLabel` + `dismissLabel` for a yes/no confirmation. `isDestructive = true` swaps the confirm button to error-colored (used for the Cancel Appointment flow).
+- **Button sizing:** the action-button `Row` uses `height(IntrinsicSize.Min)` with both buttons set to `fillMaxHeight()`, rather than a fixed height — this lets both buttons grow together if a longer label (e.g. "Keep Current Time") needs to wrap to two lines, instead of the text clipping/overflowing. Button text uses `labelMedium` (not the default larger button text style) with tighter `contentPadding` to give long labels more room to fit on one line where possible.
+
+## Bottom Navigation Shape
+
+`presentation/navigation/SplitBottomNavBar.kt`:
+
+- The nav-tab container and the chat FAB share the same `RoundedCornerShape(16.dp)` squircle shape (previously the nav-tab container was a full pill at 40dp) so the two bottom-bar elements read as one consistent shape language rather than two different corner treatments sitting side by side.
+- The selected-tab inner highlight is `RoundedCornerShape(12.dp)` (reduced from 32dp) to stay proportional inside the smaller-radius outer container.
+
 ## Product Catalog — Filters
 
 `presentation/catalog/ProductListScreen.kt`, `FilterRow`:
