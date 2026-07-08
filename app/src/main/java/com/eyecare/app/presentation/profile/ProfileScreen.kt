@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.History
@@ -47,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -63,6 +65,8 @@ fun ProfileScreen(
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToFeedbackHistory: () -> Unit = {},
     onNavigateToEditProfile: () -> Unit = {},
+    onNavigateToMessages: () -> Unit = {},
+    unreadMessageCount: Int = 0,
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -119,6 +123,13 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column {
+                ProfileNavRow(
+                    Icons.AutoMirrored.Outlined.Chat,
+                    "Messages",
+                    onClick = onNavigateToMessages,
+                    badgeCount = unreadMessageCount,
+                )
+                HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outline)
                 ProfileNavRow(Icons.Outlined.History, "Order History", onClick = onNavigateToOrders)
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outline)
                 ProfileNavRow(Icons.Outlined.LocalHospital, "Prescriptions", onClick = onNavigateToPrescriptions)
@@ -228,7 +239,7 @@ private fun UserInfoCard(user: User, onEdit: () -> Unit) {
 }
 
 @Composable
-private fun ProfileNavRow(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun ProfileNavRow(icon: ImageVector, label: String, onClick: () -> Unit, badgeCount: Int = 0) {
     Surface(onClick = onClick, color = Color.Transparent) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
@@ -244,6 +255,21 @@ private fun ProfileNavRow(icon: ImageVector, label: String, onClick: () -> Unit)
                     modifier = Modifier.size(22.dp),
                 )
                 Text(label, style = MaterialTheme.typography.bodyMedium)
+                if (badgeCount > 0) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = if (badgeCount > 9) "9+" else badgeCount.toString(),
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 11.sp),
+                            )
+                        }
+                    }
+                }
             }
             Icon(
                 Icons.Outlined.ChevronRight, contentDescription = null,

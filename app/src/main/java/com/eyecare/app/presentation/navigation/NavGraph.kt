@@ -258,6 +258,8 @@ fun EyecareNavGraph(
                             onNavigateToPrescriptions = { navController.navigate(PrescriptionList) },
                             onNavigateToFeedbackHistory = { navController.navigate(FeedbackHistory) },
                             onNavigateToEditProfile = { navController.navigate(EditProfile) },
+                            onNavigateToMessages = { navController.navigate(Chat) },
+                            unreadMessageCount = unreadCount,
                         )
                     }
                     composable<EditProfile> {
@@ -271,7 +273,7 @@ fun EyecareNavGraph(
                 }
             }
 
-        // Floating navbar — overlaid on content, no background behind it
+        // Floating navbar — overlaid on content, centered horizontally, no background behind it
         if (showBottomNav && currentRoute != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 SplitBottomNavBar(
@@ -286,8 +288,6 @@ fun EyecareNavGraph(
                             restoreState = true
                         }
                     },
-                    onChatClick = { navController.navigate(Chat) },
-                    unreadCount = unreadCount,
                 )
             }
         }

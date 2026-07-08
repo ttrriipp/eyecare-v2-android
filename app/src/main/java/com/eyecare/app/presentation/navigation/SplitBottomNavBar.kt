@@ -11,15 +11,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.RemoveRedEye
@@ -47,34 +45,31 @@ private val tabs = listOf(
     TabItem(Profile, Icons.Outlined.Person, "Profile"),
 )
 
-// Nav pill background uses theme surface so it adapts when the theme changes
+private val TAB_WIDTH = 76.dp
+
+// Nav pill background uses theme surface so it adapts when the theme changes.
+// Messaging lives inside Profile now (not a bottom-bar destination), so this bar is just the
+// 4-tab group — sized to its content and centered horizontally, rather than stretched full-width.
 @Composable
 fun SplitBottomNavBar(
     currentRoute: Any,
     onTabSelected: (Any) -> Unit,
-    onChatClick: () -> Unit,
-    unreadCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Box(
         modifier = modifier
-            .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        // Nav bar — 4 tabs. Shape matches the chat FAB's squircle (16.dp) rather than a full
-        // pill, so the two bottom-bar elements read as one consistent shape language.
         Surface(
-            modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(16.dp),
             shadowElevation = 2.dp,
             color = MaterialTheme.colorScheme.surface,
         ) {
             Row(
                 modifier = Modifier.padding(6.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 tabs.forEach { tab ->
                     val selected = currentRoute::class == tab.route::class
@@ -83,38 +78,7 @@ fun SplitBottomNavBar(
                         label = tab.label,
                         selected = selected,
                         onClick = { onTabSelected(tab.route) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-
-        // Blue chat FAB with unread badge
-        Box {
-            Surface(
-                onClick = onChatClick,
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.primary,
-                shadowElevation = 2.dp,
-                modifier = Modifier.size(56.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Outlined.Chat, contentDescription = "Chat", tint = Color.White)
-                }
-            }
-            if (unreadCount > 0) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.error),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = if (unreadCount > 9) "9+" else unreadCount.toString(),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 10.sp),
+                        modifier = Modifier.width(TAB_WIDTH),
                     )
                 }
             }
