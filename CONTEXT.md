@@ -101,7 +101,10 @@ com.eyecare.app/
 - Reimplements the same `SelectableDates` (no past dates, no Sundays) and digital HH:MM clinic-hours picker (`isValidClinicTime`, 9:00 AM–6:30 PM, 5-min steps) as the booking wizard, but as private composables local to this file — intentionally not shared/extracted, since `BookAppointmentScreen`'s versions are `private`.
 - Reschedule and Cancel are available for `PENDING`, `CONFIRMED`, and `RESCHEDULED` statuses (backend allows `rescheduled → rescheduled` and `rescheduled → cancelled`). Both the appointment list card and the detail screen use this same status set.
 - The list screen's "Reschedule" button navigates to `AppointmentDetailScreen` (not the booking wizard) — actual reschedule happens via the sheet on the detail screen.
-- On success, `AppointmentDetailViewModel.load()` reloads the appointment; the sheet's `showRescheduleSheet` flag resets to its `false` default on the new `Success` state, dismissing it automatically.
+- **Confirm-before-submit:** tapping "Confirm Reschedule" in the sheet does not submit immediately — it opens an `AlertDialog` ("Reschedule this appointment to [date] at [time]?") with **Reschedule** / **Keep Current Time** actions. Only the "Reschedule" action calls `onConfirm(scheduledAt)`. Uses local `formatPickedDate`/`formatPickedTime` helpers (operate on the raw picker strings, not on a combined `scheduled_at` string — separate from `formatAppointmentDate`/`formatAppointmentTime` in `AppointmentListScreen.kt`).
+- **On success:** `AppointmentDetailViewModel.rescheduleAppointment` uses the `Appointment` returned directly by the `POST /appointments/{id}/reschedule` response — it does **not** call `load()` to re-fetch. This avoids an extra network round trip and any risk of transiently showing stale data from a second GET. `showRescheduleSheet` is set to `false` and `showRescheduleSuccessDialog` to `true` in the same state update, which dismisses the bottom sheet and immediately shows a confirmation `AlertDialog` ("Appointment Rescheduled — Your appointment is now set for [date] at [time]"), dismissed via `dismissRescheduleSuccessDialog()`.
+- The detail screen's "Reschedule" button uses the same filled, theme-tinted `Button` style (primary color at 12% alpha background, primary content color, no elevation) as the list screen's card action buttons, rather than the plain `OutlinedButton` used elsewhere.
+- **Known limitation (unresolved):** the displayed date/time for a rescheduled appointment does not reliably match what the user picked — the backend's exact timezone handling for `scheduled_at` on reschedule has not been conclusively determined (repeated attempts at device-timezone conversion, a fixed clinic-timezone conversion, and literal pass-through display all failed to consistently match the picked time against observed responses). Current behavior is a literal pass-through (no timezone conversion) on both encode and display. If revisiting, capture the raw HTTP response body for `POST /appointments/{id}/reschedule` via the debug `HttpLoggingInterceptor` logs before changing this again.
 
 ## Product Catalog — Filters
 
@@ -160,7 +163,7 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 
 ## Known Issues
 
-- `ProductListViewModelTest.kt` has a pre-existing compile error (`vm.selectCategory("Frames")` passes a `String` where `selectCategory(categoryId: Int?)` expects an `Int?`). This blocks `./gradlew testDebugUnitTest` for the whole module. Predates backend-alignment-v3-spec (confirmed via `git stash` against a clean checkout). Not fixed — out of scope for API alignment work. Needs a follow-up fix: either change the test to pass a category ID, or add a name-based lookup if that's the intended UX.
+- Reschedule timezone mismatch is unresolved — see the "Known limitation" note under Appointment Reschedule above.
 
 ## Boundaries
 
