@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,18 +26,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.EditCalendar
+import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +51,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -79,7 +85,7 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private enum class AppointmentViewMode { BY_DAY, ALL }
+internal enum class AppointmentListTab { UPCOMING, HISTORY }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,30 +111,50 @@ fun AppointmentListScreen(
                 }
                 is AppointmentListUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
                 is AppointmentListUiState.Success -> {
-                    var viewMode by remember { mutableStateOf(AppointmentViewMode.ALL) }
+                    var selectedTab by remember { mutableStateOf(AppointmentListTab.UPCOMING) }
+                    var dateFilterEnabled by remember { mutableStateOf(false) }
                     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
                     val weekDays = remember(selectedDate) { appointmentWeekDays(selectedDate) }
                     val appointmentCounts = remember(state.appointments) { appointmentCountsByDate(state.appointments) }
-                    val visibleAppointments = state.appointments.filter { appointment ->
-                        appointmentOccursOnDate(appointment.scheduledAt, selectedDate)
+                    val appointmentsForSelectedTab = remember(state.appointments, selectedTab) {
+                        appointmentsForTab(state.appointments, selectedTab)
                     }
-                    val groupedAllAppointments = remember(state.appointments) {
-                        groupAppointmentsForAllView(state.appointments)
+                    val visibleAppointments = remember(
+                        appointmentsForSelectedTab,
+                        selectedTab,
+                        dateFilterEnabled,
+                        selectedDate,
+                    ) {
+                        if (selectedTab == AppointmentListTab.UPCOMING && dateFilterEnabled) {
+                            appointmentsForSelectedTab.filter { appointment ->
+                                appointmentOccursOnDate(appointment.scheduledAt, selectedDate)
+                            }
+                        } else {
+                            appointmentsForSelectedTab
+                        }
                     }
 
                     LazyColumn(
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 112.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         item {
-                            Text("Appointments", style = MaterialTheme.typography.displayLarge)
-                            Spacer(Modifier.height(12.dp))
-                            AppointmentViewModeToggle(
-                                viewMode = viewMode,
-                                onViewModeChange = { viewMode = it },
+                            AppointmentListHeader(
+                                dateFilterEnabled = dateFilterEnabled,
+                                showCalendarAction = selectedTab == AppointmentListTab.UPCOMING,
+                                onCalendarClick = { dateFilterEnabled = !dateFilterEnabled },
                             )
-                            Spacer(Modifier.height(12.dp))
-                            if (viewMode == AppointmentViewMode.BY_DAY) {
+                            Spacer(Modifier.height(16.dp))
+                            AppointmentListTabs(
+                                selectedTab = selectedTab,
+                                onTabSelected = {
+                                    selectedTab = it
+                                    if (it == AppointmentListTab.HISTORY) dateFilterEnabled = false
+                                },
+                            )
+                        }
+                        if (selectedTab == AppointmentListTab.UPCOMING && dateFilterEnabled) {
+                            item {
                                 WeeklyAppointmentCalendar(
                                     weekDays = weekDays,
                                     selectedDate = selectedDate,
@@ -137,41 +163,32 @@ fun AppointmentListScreen(
                                     onNextWeek = { selectedDate = selectedDate.plusWeeks(1) },
                                     onDateSelected = { selectedDate = it },
                                 )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                ) {
+                                    TextButton(onClick = { dateFilterEnabled = false }) {
+                                        Text("Show all upcoming")
+                                    }
+                                }
                             }
                         }
-                        if (viewMode == AppointmentViewMode.BY_DAY) {
-                            if (visibleAppointments.isEmpty()) {
-                                item {
+                        if (visibleAppointments.isEmpty()) {
+                            item {
+                                if (selectedTab == AppointmentListTab.UPCOMING && dateFilterEnabled) {
                                     EmptyDayCard(selectedDate)
-                                }
-                            } else {
-                                items(visibleAppointments, key = { it.id }) { appt ->
-                                    AppointmentCard(
-                                        appointment = appt,
-                                        onClick = { onNavigateToDetail(appt.id) },
-                                        onReschedule = { onNavigateToDetail(appt.id) },
-                                        onCancel = { onNavigateToDetail(appt.id) },
-                                    )
+                                } else {
+                                    EmptyAppointmentTab(selectedTab)
                                 }
                             }
                         } else {
-                            groupedAllAppointments.forEach { section ->
-                                item(key = "header-${section.title}") {
-                                    Text(
-                                        section.title,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                items(section.appointments, key = { it.id }) { appt ->
-                                    AppointmentCard(
-                                        appointment = appt,
-                                        onClick = { onNavigateToDetail(appt.id) },
-                                        onReschedule = { onNavigateToDetail(appt.id) },
-                                        onCancel = { onNavigateToDetail(appt.id) },
-                                    )
-                                }
+                            items(visibleAppointments, key = { it.id }) { appointment ->
+                                AppointmentCard(
+                                    appointment = appointment,
+                                    onClick = { onNavigateToDetail(appointment.id) },
+                                    onReschedule = { onNavigateToDetail(appointment.id) },
+                                    onCancel = { onNavigateToDetail(appointment.id) },
+                                )
                             }
                         }
                     }
@@ -179,55 +196,83 @@ fun AppointmentListScreen(
             }
         }
 
-        Surface(
+        ExtendedFloatingActionButton(
             onClick = onNavigateToBook,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = 116.dp),
-            shape = RoundedCornerShape(50),
-            color = MaterialTheme.colorScheme.primary,
-            shadowElevation = 2.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+            icon = {
                 Icon(
                     Icons.Filled.Add,
                     contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp),
                 )
+            },
+            text = {
                 Text(
-                    "Book New",
-                    style = MaterialTheme.typography.titleSmall,
+                    "Book appointment",
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
                 )
+            },
+            shape = RoundedCornerShape(50),
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        )
+    }
+}
+
+@Composable
+private fun AppointmentListHeader(
+    dateFilterEnabled: Boolean,
+    showCalendarAction: Boolean,
+    onCalendarClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Appointments", style = MaterialTheme.typography.displayLarge)
+        IconButton(
+            onClick = onCalendarClick,
+            enabled = showCalendarAction,
+            modifier = Modifier.size(48.dp),
+        ) {
+            if (showCalendarAction) {
+                Icon(
+                    Icons.Outlined.CalendarMonth,
+                    contentDescription = if (dateFilterEnabled) "Close date filter" else "Filter by date",
+                    tint = if (dateFilterEnabled) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Spacer(Modifier.size(24.dp))
             }
         }
     }
 }
 
 @Composable
-private fun AppointmentViewModeToggle(
-    viewMode: AppointmentViewMode,
-    onViewModeChange: (AppointmentViewMode) -> Unit,
+private fun AppointmentListTabs(
+    selectedTab: AppointmentListTab,
+    onTabSelected: (AppointmentListTab) -> Unit,
 ) {
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        SegmentedButton(
-            selected = viewMode == AppointmentViewMode.BY_DAY,
-            onClick = { onViewModeChange(AppointmentViewMode.BY_DAY) },
-            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-            label = { Text("By Day") },
-        )
-        SegmentedButton(
-            selected = viewMode == AppointmentViewMode.ALL,
-            onClick = { onViewModeChange(AppointmentViewMode.ALL) },
-            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-            label = { Text("All") },
-        )
+        AppointmentListTab.entries.forEach { tab ->
+            SegmentedButton(
+                selected = selectedTab == tab,
+                onClick = { onTabSelected(tab) },
+                shape = SegmentedButtonDefaults.itemShape(index = tab.ordinal, count = AppointmentListTab.entries.size),
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    activeContentColor = MaterialTheme.colorScheme.primary,
+                    activeBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
+                label = { Text(if (tab == AppointmentListTab.UPCOMING) "Upcoming" else "History") },
+            )
+        }
     }
 }
 
@@ -366,6 +411,32 @@ private fun EmptyDayCard(selectedDate: LocalDate) {
 }
 
 @Composable
+private fun EmptyAppointmentTab(tab: AppointmentListTab) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                if (tab == AppointmentListTab.UPCOMING) "No upcoming appointments" else "No appointment history",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                if (tab == AppointmentListTab.UPCOMING) "Book an appointment when you're ready."
+                else "Completed and cancelled appointments will appear here.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun AppointmentCard(
     appointment: Appointment,
     onClick: () -> Unit,
@@ -374,32 +445,104 @@ private fun AppointmentCard(
 ) {
     val showActions = appointment.status == AppointmentStatus.PENDING ||
         appointment.status == AppointmentStatus.CONFIRMED
+    var actionMenuExpanded by remember { mutableStateOf(false) }
 
     Card(
-        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            AppointmentStatusPill(appointment.status)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppointmentStatusPill(appointment.status)
+                if (showActions) {
+                    Box {
+                        IconButton(
+                            onClick = { actionMenuExpanded = true },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Appointment actions")
+                        }
+                        DropdownMenu(
+                            expanded = actionMenuExpanded,
+                            onDismissRequest = { actionMenuExpanded = false },
+                            modifier = Modifier.width(224.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 8.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "Reschedule",
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Outlined.EditCalendar,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                },
+                                onClick = {
+                                    actionMenuExpanded = false
+                                    onReschedule()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "Cancel appointment",
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Outlined.EventBusy,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                                onClick = {
+                                    actionMenuExpanded = false
+                                    onCancel()
+                                },
+                            )
+                        }
+                    }
+                }
+            }
 
-            Text(
-                formatAppointmentTitle(appointment.visitReason),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick),
+                verticalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Text(
+                    formatAppointmentTitle(appointment.visitReason),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppointmentInfoRow(
                     icon = Icons.Outlined.CalendarMonth,
                     text = formatAppointmentDate(appointment.scheduledAt),
@@ -408,45 +551,6 @@ private fun AppointmentCard(
                     icon = Icons.Outlined.AccessTime,
                     text = formatAppointmentTime(appointment.scheduledAt),
                 )
-                AppointmentInfoRow(
-                    icon = Icons.AutoMirrored.Outlined.Notes,
-                    text = appointment.staffNotes?.takeIf { it.isNotBlank() } ?: "No staff note yet",
-                )
-            }
-
-            if (showActions) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Button(
-                        onClick = onReschedule,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                            contentColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-                    ) {
-                        Text("Reschedule", fontWeight = FontWeight.SemiBold)
-                    }
-
-                    Button(
-                        onClick = onCancel,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.08f),
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-                    ) {
-                        Text("Cancel", fontWeight = FontWeight.SemiBold)
-                    }
-                }
             }
         }
     }
@@ -559,23 +663,24 @@ internal fun appointmentWeekDays(selectedDate: LocalDate): List<LocalDate> {
 private fun appointmentCountsByDate(appointments: List<Appointment>): Map<LocalDate, Int> =
     appointments.mapNotNull { parseAppointmentDate(it.scheduledAt) }.groupingBy { it }.eachCount()
 
-internal data class AppointmentListSection(val title: String, val appointments: List<Appointment>)
-
-internal fun groupAppointmentsForAllView(appointments: List<Appointment>): List<AppointmentListSection> {
-    val now = LocalDateTime.now()
-
-    val (upcoming, past) = appointments.partition { appointment ->
+internal fun appointmentsForTab(
+    appointments: List<Appointment>,
+    tab: AppointmentListTab,
+    now: LocalDateTime = LocalDateTime.now(),
+): List<Appointment> {
+    val terminalStatuses = setOf(
+        AppointmentStatus.COMPLETED,
+        AppointmentStatus.NO_SHOW,
+        AppointmentStatus.CANCELLED,
+    )
+    val (upcoming, history) = appointments.partition { appointment ->
         val dateTime = parseAppointmentDateTime(appointment.scheduledAt)
-        dateTime == null || !dateTime.isBefore(now)
+        appointment.status !in terminalStatuses && (dateTime == null || !dateTime.isBefore(now))
     }
-
-    val upcomingSorted = upcoming.sortedBy { appointmentSortKey(it.scheduledAt) }
-    val pastSorted = past.sortedByDescending { appointmentSortKey(it.scheduledAt) }
-
-    val sections = mutableListOf<AppointmentListSection>()
-    if (upcomingSorted.isNotEmpty()) sections += AppointmentListSection("Upcoming", upcomingSorted)
-    if (pastSorted.isNotEmpty()) sections += AppointmentListSection("Past", pastSorted)
-    return sections
+    return when (tab) {
+        AppointmentListTab.UPCOMING -> upcoming.sortedBy { appointmentSortKey(it.scheduledAt) }
+        AppointmentListTab.HISTORY -> history.sortedByDescending { appointmentSortKey(it.scheduledAt) }
+    }
 }
 
 private fun appointmentSortKey(scheduledAt: String): LocalDateTime =
