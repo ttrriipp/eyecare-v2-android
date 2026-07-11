@@ -176,8 +176,7 @@ fun AppointmentDetailScreen(
                     }
 
                     if (appt.status == AppointmentStatus.PENDING ||
-                        appt.status == AppointmentStatus.CONFIRMED ||
-                        appt.status == AppointmentStatus.RESCHEDULED
+                        appt.status == AppointmentStatus.CONFIRMED
                     ) {
                         Spacer(Modifier.height(8.dp))
                         if (state.rescheduleError != null) {

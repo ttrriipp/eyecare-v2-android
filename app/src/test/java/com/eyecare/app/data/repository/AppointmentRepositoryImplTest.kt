@@ -69,6 +69,25 @@ class AppointmentRepositoryImplTest {
     }
 
     @Test
+    fun `getAppointment maps arrived and no_show statuses`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""
+            {"data":{"id":2,"visit_reason":"follow_up","status":"arrived",
+            "scheduled_at":"2026-10-25T14:00:00Z","contact_notes":null,"staff_notes":null}}
+        """.trimIndent()))
+
+        val arrived = repository.getAppointment(2).getOrThrow()
+        assertEquals(AppointmentStatus.ARRIVED, arrived.status)
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""
+            {"data":{"id":3,"visit_reason":"follow_up","status":"no_show",
+            "scheduled_at":"2026-10-25T14:00:00Z","contact_notes":null,"staff_notes":null}}
+        """.trimIndent()))
+
+        val noShow = repository.getAppointment(3).getOrThrow()
+        assertEquals(AppointmentStatus.NO_SHOW, noShow.status)
+    }
+
+    @Test
     fun `createAppointment returns created appointment`() = runTest {
         server.enqueue(MockResponse().setResponseCode(201).setBody("""
             {"data":{"id":3,"visit_reason":"prescription_check","status":"pending",
@@ -95,9 +114,9 @@ class AppointmentRepositoryImplTest {
     }
 
     @Test
-    fun `rescheduleAppointment returns updated appointment with rescheduled status`() = runTest {
+    fun `rescheduleAppointment returns updated appointment pending for staff confirmation`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("""
-            {"data":{"id":4,"visit_reason":"eye_exam","status":"rescheduled",
+            {"data":{"id":4,"visit_reason":"eye_exam","status":"pending",
             "scheduled_at":"2026-11-01T13:00:00Z","contact_notes":null,"staff_notes":null}}
         """.trimIndent()))
 
@@ -105,7 +124,7 @@ class AppointmentRepositoryImplTest {
         assertTrue(result.isSuccess)
         val appt = result.getOrThrow()
         assertEquals(4, appt.id)
-        assertEquals(AppointmentStatus.RESCHEDULED, appt.status)
+        assertEquals(AppointmentStatus.PENDING, appt.status)
         assertEquals("2026-11-01T13:00:00Z", appt.scheduledAt)
     }
 

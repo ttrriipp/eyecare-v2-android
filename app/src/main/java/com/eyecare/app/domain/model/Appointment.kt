@@ -13,14 +13,15 @@ data class Appointment(
 )
 
 enum class AppointmentStatus {
-    PENDING, CONFIRMED, RESCHEDULED, CANCELLED, COMPLETED;
+    PENDING, CONFIRMED, ARRIVED, COMPLETED, NO_SHOW, CANCELLED;
 
     companion object {
         fun from(value: String): AppointmentStatus = when (value.lowercase()) {
             "confirmed" -> CONFIRMED
-            "rescheduled" -> RESCHEDULED
+            "arrived" -> ARRIVED
             "cancelled" -> CANCELLED
             "completed" -> COMPLETED
+            "no_show" -> NO_SHOW
             else -> PENDING
         }
     }

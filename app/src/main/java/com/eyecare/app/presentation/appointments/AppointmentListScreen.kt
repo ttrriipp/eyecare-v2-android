@@ -373,8 +373,7 @@ private fun AppointmentCard(
     onCancel: () -> Unit,
 ) {
     val showActions = appointment.status == AppointmentStatus.PENDING ||
-        appointment.status == AppointmentStatus.CONFIRMED ||
-        appointment.status == AppointmentStatus.RESCHEDULED
+        appointment.status == AppointmentStatus.CONFIRMED
 
     Card(
         onClick = onClick,
@@ -521,9 +520,10 @@ fun StatusChip(status: AppointmentStatus, textColor: Color = Color.Unspecified) 
 private fun appointmentStatusLabelAndColor(status: AppointmentStatus): Pair<String, Color> = when (status) {
     AppointmentStatus.PENDING -> "Pending" to StatusPending
     AppointmentStatus.CONFIRMED -> "Confirmed" to StatusConfirmed
+    AppointmentStatus.ARRIVED -> "Arrived" to StatusInfo
     AppointmentStatus.COMPLETED -> "Completed" to OnSurfaceVariant
+    AppointmentStatus.NO_SHOW -> "No Show" to StatusCancelled
     AppointmentStatus.CANCELLED -> "Cancelled" to StatusCancelled
-    AppointmentStatus.RESCHEDULED -> "Rescheduled" to StatusInfo
 }
 
 internal fun formatAppointmentTitle(visitReason: String): String = visitReason
