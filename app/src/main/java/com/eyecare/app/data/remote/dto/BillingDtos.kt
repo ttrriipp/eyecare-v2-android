@@ -15,6 +15,7 @@ object BillingDtos {
         @SerialName("total_amount") val totalAmount: String,
         @SerialName("amount_paid") val amountPaid: String,
         @SerialName("balance_due") val balanceDue: String,
+        val notes: String? = null,
         @SerialName("issued_at") val issuedAt: String? = null,
         @SerialName("created_at") val createdAt: String,
         val items: List<BillingItemDto> = emptyList(),

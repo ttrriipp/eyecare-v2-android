@@ -13,6 +13,7 @@ data class Billing(
     val createdAt: String,
     val items: List<BillingItem>,
     val payments: List<Payment>,
+    val notes: String? = null,
 )
 
 data class BillingItem(

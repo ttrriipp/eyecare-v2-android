@@ -42,7 +42,7 @@ Update existing JUnit 5 tests that express the API contract. Prefer repository m
 - [x] Task 3: Align reschedule time selection with clinic hours and slot intervals.
   - Acceptance: Rescheduling offers 09:00-17:00 in 15-minute increments.
   - Verify: source assertions for stale 5-minute/18:30 values and `./gradlew assembleDebug`.
-- [ ] Task 4: Add optional billing notes to the DTO, domain model, repository mapping, and detail UI.
+- [x] Task 4: Add optional billing notes to the DTO, domain model, repository mapping, and detail UI.
   - Acceptance: Billing responses with or without notes deserialize, map, and render correctly.
   - Verify: targeted billing tests and `./gradlew assembleDebug`.
 - [ ] Task 5: Synchronize backend alignment documentation and run final verification.
@@ -71,3 +71,4 @@ Update existing JUnit 5 tests that express the API contract. Prefer repository m
 - Task 1: `assembleDebug` passes. The targeted repository test cannot compile because the unrelated `ProductListViewModelTest` still passes `String` category names to an `Int?` API at lines 78, 97, and 99.
 - Task 2: Source checks confirm no stale 18:30/5-minute booking values; `assembleDebug` passes. The targeted unit test remains blocked by the same unrelated catalog test compile errors.
 - Task 3: Source checks confirm no stale 18:30/5-minute reschedule values; `assembleDebug` passes.
+- Task 4: `assembleDebug` passes. Repository contract tests cover present and omitted notes; execution is blocked only by the same unrelated catalog test compile errors.

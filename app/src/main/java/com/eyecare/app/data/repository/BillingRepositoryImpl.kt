@@ -31,6 +31,7 @@ class BillingRepositoryImpl @Inject constructor(
         totalAmount = totalAmount,
         amountPaid = amountPaid,
         balanceDue = balanceDue,
+        notes = notes,
         issuedAt = issuedAt,
         createdAt = createdAt,
         items = items.map { it.toDomain() },

@@ -148,6 +148,15 @@ private fun BillingContent(billing: Billing) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                billing.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Text(
+                        "Notes",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(notes, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
 
