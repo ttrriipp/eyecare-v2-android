@@ -45,7 +45,7 @@ Update existing JUnit 5 tests that express the API contract. Prefer repository m
 - [x] Task 4: Add optional billing notes to the DTO, domain model, repository mapping, and detail UI.
   - Acceptance: Billing responses with or without notes deserialize, map, and render correctly.
   - Verify: targeted billing tests and `./gradlew assembleDebug`.
-- [ ] Task 5: Synchronize backend alignment documentation and run final verification.
+- [x] Task 5: Synchronize backend alignment documentation and run final verification.
   - Acceptance: This spec and `docs/BACKEND_CONTEXT.md` describe the implemented Android compatibility state.
   - Verify: final `./gradlew assembleDebug` and applicable targeted tests.
 
@@ -72,3 +72,4 @@ Update existing JUnit 5 tests that express the API contract. Prefer repository m
 - Task 2: Source checks confirm no stale 18:30/5-minute booking values; `assembleDebug` passes. The targeted unit test remains blocked by the same unrelated catalog test compile errors.
 - Task 3: Source checks confirm no stale 18:30/5-minute reschedule values; `assembleDebug` passes.
 - Task 4: `assembleDebug` passes. Repository contract tests cover present and omitted notes; execution is blocked only by the same unrelated catalog test compile errors.
+- Task 5: Final source checks find no stale rescheduled lifecycle state or 18:30/5-minute picker values; final `assembleDebug` passes. Full/targeted unit-test execution remains blocked by the pre-existing `ProductListViewModelTest` compile errors documented above.
