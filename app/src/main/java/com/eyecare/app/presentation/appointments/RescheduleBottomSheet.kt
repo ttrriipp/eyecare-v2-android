@@ -63,14 +63,14 @@ private fun formatPickedTime(time: String): String =
         java.time.LocalTime.parse(time).format(DateTimeFormatter.ofPattern("h:mm a", Locale.US))
     }.getOrDefault(time)
 
-// ── Clinic hours: 9:00 AM – 6:30 PM ──────────────────────────────────────────
+// ── Clinic hours: 9:00 AM - 5:00 PM ──────────────────────────────────────────
 private fun isValidClinicTime(hour12: Int, minute: Int, isPm: Boolean): Boolean {
     val hour24 = when {
         !isPm && hour12 == 12 -> 0
         isPm && hour12 != 12  -> hour12 + 12
         else                  -> hour12
     }
-    return (hour24 * 60 + minute) in (9 * 60)..(18 * 60 + 30)
+    return (hour24 * 60 + minute) in (9 * 60)..(17 * 60)
 }
 
 /**
@@ -263,7 +263,7 @@ private fun RescheduleTimeStep(
             isPm = true
             hour = 12
         } else if (isPm) {
-            hour = when (hour) { 12 -> 1; 6 -> 12; else -> hour + 1 }
+            hour = when (hour) { 12 -> 1; 5 -> 12; else -> hour + 1 }
         } else {
             hour += 1
         }
@@ -281,16 +281,16 @@ private fun RescheduleTimeStep(
         if (!isValidClinicTime(hour, minute, isPm)) minute = 0
     }
     fun nextMinute() {
-        val n = if (minute >= 55) 0 else minute + 5
+        val n = if (minute >= 45) 0 else minute + 15
         if (isValidClinicTime(hour, n, isPm)) minute = n
     }
     fun prevMinute() {
-        val p = if (minute <= 0) 55 else minute - 5
+        val p = if (minute <= 0) 45 else minute - 15
         if (isValidClinicTime(hour, p, isPm)) minute = p
     }
     fun switchPeriod(newIsPm: Boolean) {
         isPm = newIsPm
-        hour = if (newIsPm) { if (hour in 1..6 || hour == 12) hour else 12 }
+        hour = if (newIsPm) { if (hour in 1..5 || hour == 12) hour else 12 }
                else         { if (hour in 9..11) hour else 9 }
         if (!isValidClinicTime(hour, minute, isPm)) minute = 0
     }
@@ -318,7 +318,7 @@ private fun RescheduleTimeStep(
         ) {
             Text("Select Time", style = MaterialTheme.typography.titleMedium)
             Text(
-                "9:00 AM – 6:30 PM",
+                "9:00 AM – 5:00 PM",
                 style = MaterialTheme.typography.labelSmall,
                 color = primary,
                 fontWeight = FontWeight.Medium,
