@@ -56,8 +56,10 @@ class AppointmentRepositoryImplTest {
     @Test
     fun `getAppointment maps single item correctly`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("""
-            {"data":{"id":2,"visit_reason":"follow_up","status":"confirmed",
-            "scheduled_at":"2026-10-25T14:00:00Z","contact_notes":null,"staff_notes":"All good"}}
+            {"data":{"id":2,"appointment_number":"APT-2026-000002","visit_reason":"follow_up",
+            "status":"confirmed","scheduled_at":"2026-10-25T14:00:00Z","contact_notes":null,
+            "staff_notes":"All good","source":"mobile_app",
+            "assigned_optometrist":{"id":7,"name":"Dr. Santos"}}}
         """.trimIndent()))
 
         val result = repository.getAppointment(2)
@@ -66,6 +68,9 @@ class AppointmentRepositoryImplTest {
         assertEquals(2, appt.id)
         assertEquals(AppointmentStatus.CONFIRMED, appt.status)
         assertEquals("All good", appt.staffNotes)
+        assertEquals("APT-2026-000002", appt.appointmentNumber)
+        assertEquals("mobile_app", appt.source)
+        assertEquals("Dr. Santos", appt.assignedOptometrist?.name)
     }
 
     @Test

@@ -27,6 +27,13 @@ class AppointmentFormattingTest {
     }
 
     @Test
+    fun `formatAppointmentSource converts backend source code to readable text`() {
+        assertEquals("Mobile app", formatAppointmentSource("mobile_app"))
+        assertEquals("Phone call", formatAppointmentSource("phone_call"))
+        assertEquals("Staff created", formatAppointmentSource("staff_created"))
+    }
+
+    @Test
     fun `appointmentWeekDays returns monday through saturday for selected week`() {
         val days = appointmentWeekDays(LocalDate.of(2026, 10, 24))
 
