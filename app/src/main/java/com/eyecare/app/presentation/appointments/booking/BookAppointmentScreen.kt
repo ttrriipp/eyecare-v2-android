@@ -272,14 +272,14 @@ private fun Step2DateSelection(
     }
 }
 
-// ── Clinic hours: 9:00 AM – 6:30 PM ──────────────────────────────────────────
+// ── Clinic hours: 9:00 AM - 5:00 PM ──────────────────────────────────────────
 private fun isValidClinicTime(hour12: Int, minute: Int, isPm: Boolean): Boolean {
     val hour24 = when {
         !isPm && hour12 == 12 -> 0
         isPm && hour12 != 12  -> hour12 + 12
         else                  -> hour12
     }
-    return (hour24 * 60 + minute) in (9 * 60)..(18 * 60 + 30)
+    return (hour24 * 60 + minute) in (9 * 60)..(17 * 60)
 }
 
 @Composable
@@ -290,10 +290,10 @@ private fun Step3TimeSelection(
     // Start at 9:00 AM — first valid slot
     var isPm by remember { mutableStateOf(false) }
     var hour by remember { mutableIntStateOf(9) }   // 12-hr format (1–12)
-    var minute by remember { mutableIntStateOf(0) } // 0, 5, 10, …, 55 in steps of 5
+    var minute by remember { mutableIntStateOf(0) } // 0, 15, 30, 45
 
     // ── Hour navigation ──────────────────────────────────────────────────────
-    // AM: 9→10→11→[flip to PM 12→1→…→6→wrap PM 12]
+    // AM: 9→10→11→[flip to PM 12→1→…→5→wrap PM 12]
     // Going backwards: PM 12→[flip to AM 11→10→9→wrap AM 11]
     fun nextHour() {
         if (!isPm && hour == 11) {
@@ -301,7 +301,7 @@ private fun Step3TimeSelection(
             isPm = true
             hour = 12
         } else if (isPm) {
-            hour = when (hour) { 12 -> 1; 6 -> 12; else -> hour + 1 }
+            hour = when (hour) { 12 -> 1; 5 -> 12; else -> hour + 1 }
         } else {
             hour += 1
         }
@@ -320,20 +320,20 @@ private fun Step3TimeSelection(
         if (!isValidClinicTime(hour, minute, isPm)) minute = 0
     }
 
-    // ── Minute navigation (5-min steps, guarded by clinic end time) ─────────
+    // ── Minute navigation (15-min steps, guarded by clinic end time) ────────
     fun nextMinute() {
-        val n = if (minute >= 55) 0 else minute + 5
+        val n = if (minute >= 45) 0 else minute + 15
         if (isValidClinicTime(hour, n, isPm)) minute = n
     }
     fun prevMinute() {
-        val p = if (minute <= 0) 55 else minute - 5
+        val p = if (minute <= 0) 45 else minute - 15
         if (isValidClinicTime(hour, p, isPm)) minute = p
     }
 
     // ── AM / PM switch — clamp hour into the new period's valid range ────────
     fun switchPeriod(newIsPm: Boolean) {
         isPm = newIsPm
-        hour = if (newIsPm) { if (hour in 1..6 || hour == 12) hour else 12 }
+        hour = if (newIsPm) { if (hour in 1..5 || hour == 12) hour else 12 }
                else         { if (hour in 9..11) hour else 9 }
         if (!isValidClinicTime(hour, minute, isPm)) minute = 0
     }
@@ -368,7 +368,7 @@ private fun Step3TimeSelection(
         ) {
             Text("Select Time", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "9:00 AM – 6:30 PM",
+                "9:00 AM – 5:00 PM",
                 style = MaterialTheme.typography.labelSmall,
                 color = primary,
                 fontWeight = FontWeight.Medium,

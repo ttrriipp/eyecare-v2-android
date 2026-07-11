@@ -143,4 +143,14 @@ class BookAppointmentViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `generateTimeSlots returns backend clinic hours in 15 minute intervals`() {
+        val slots = BookAppointmentViewModel.generateTimeSlots()
+
+        assertEquals("09:00", slots.first())
+        assertEquals("17:00", slots.last())
+        assertEquals(listOf("09:00", "09:15", "09:30", "09:45", "10:00"), slots.take(5))
+        assertEquals(33, slots.size)
+    }
 }
