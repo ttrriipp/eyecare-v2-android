@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -20,7 +21,6 @@ import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.EditCalendar
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material3.Button
@@ -31,6 +31,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -161,144 +162,166 @@ private fun AppointmentDetailContent(
     val appointment = state.appointment
     val canManage = appointment.status == AppointmentStatus.PENDING ||
         appointment.status == AppointmentStatus.CONFIRMED
+    val canLeaveFeedback = appointment.status == AppointmentStatus.COMPLETED && !state.hasFeedback
+    val customerNote = appointment.contactNotes?.takeIf { it.isNotBlank() }
+    val clinicNote = appointment.staffNotes?.takeIf { it.isNotBlank() }
+    val bottomContentPadding = when {
+        canManage -> 164.dp
+        canLeaveFeedback -> 92.dp
+        else -> 24.dp
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = bottomContentPadding),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top,
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top,
                     ) {
-                        Text(
-                            formatAppointmentTitle(appointment.visitReason),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        appointment.appointmentNumber?.let { number ->
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            appointment.appointmentNumber?.let { number ->
+                                Text(
+                                    number,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             Text(
-                                number,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                formatAppointmentTitle(appointment.visitReason),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        AppointmentDetailStatusBadge(appointment.status)
+                    }
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            AppointmentMetadataRow(
+                                icon = Icons.Outlined.CalendarMonth,
+                                label = "Date",
+                                value = formatAppointmentDate(appointment.scheduledAt),
+                            )
+                            AppointmentMetadataRow(
+                                icon = Icons.Outlined.AccessTime,
+                                label = "Time",
+                                value = formatAppointmentTime(appointment.scheduledAt),
                             )
                         }
                     }
-                    AppointmentDetailStatusBadge(appointment.status)
-                }
 
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
+                    appointment.assignedOptometrist?.let { optometrist ->
                         AppointmentMetadataRow(
-                            icon = Icons.Outlined.CalendarMonth,
-                            label = "Date",
-                            value = formatAppointmentDate(appointment.scheduledAt),
-                        )
-                        AppointmentMetadataRow(
-                            icon = Icons.Outlined.AccessTime,
-                            label = "Time",
-                            value = formatAppointmentTime(appointment.scheduledAt),
+                            icon = Icons.Outlined.Person,
+                            label = "Optometrist",
+                            value = optometrist.name,
                         )
                     }
                 }
-
-                appointment.assignedOptometrist?.let { optometrist ->
-                    AppointmentMetadataRow(
-                        icon = Icons.Outlined.Person,
-                        label = "Optometrist",
-                        value = optometrist.name,
-                    )
-                }
-                appointment.source?.let { source ->
-                    AppointmentMetadataRow(
-                        icon = Icons.Outlined.Info,
-                        label = "Booked via",
-                        value = formatAppointmentSource(source),
-                    )
-                }
             }
+
+            if (customerNote != null || clinicNote != null) {
+                AppointmentNotesSection(customerNote = customerNote, clinicNote = clinicNote)
+            }
+
+            state.rescheduleError?.let { AppointmentActionError(it) }
+            state.cancelError?.let { AppointmentActionError(it) }
+
         }
 
-        appointment.contactNotes?.takeIf { it.isNotBlank() }?.let { note ->
-            AppointmentNoteSection(title = "Your booking note", note = note)
-        }
-        appointment.staffNotes?.takeIf { it.isNotBlank() }?.let { note ->
-            AppointmentNoteSection(title = "Clinic note", note = note)
-        }
-
-        state.rescheduleError?.let { AppointmentActionError(it) }
-        state.cancelError?.let { AppointmentActionError(it) }
-
-        if (canManage) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+        if (canManage || canLeaveFeedback) {
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+                color = MaterialTheme.colorScheme.background,
+                shadowElevation = 4.dp,
             ) {
-                Button(
-                    onClick = onReschedule,
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.isCancelling,
-                    shape = RoundedCornerShape(50),
+                Column(
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Icon(Icons.Outlined.EditCalendar, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.size(8.dp))
-                    Text("Reschedule", fontWeight = FontWeight.SemiBold)
-                }
-                OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.isCancelling,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) {
-                    if (state.isCancelling) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Outlined.EventBusy, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.size(8.dp))
-                        Text("Cancel", fontWeight = FontWeight.SemiBold)
+                    if (canManage) {
+                        Button(
+                            onClick = onReschedule,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            enabled = !state.isCancelling,
+                            shape = RoundedCornerShape(50),
+                        ) {
+                            Icon(
+                                Icons.Outlined.EditCalendar,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.size(8.dp))
+                            Text("Reschedule", fontWeight = FontWeight.SemiBold)
+                        }
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            enabled = !state.isCancelling,
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                        ) {
+                            if (state.isCancelling) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(
+                                    Icons.Outlined.EventBusy,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.size(8.dp))
+                                Text("Cancel appointment", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    if (canLeaveFeedback) {
+                        Button(
+                            onClick = onLeaveFeedback,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(50),
+                        ) {
+                            Icon(
+                                Icons.Outlined.RateReview,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.size(8.dp))
+                            Text("Leave feedback", fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             }
         }
-
-        if (appointment.status == AppointmentStatus.COMPLETED && !state.hasFeedback) {
-            Button(
-                onClick = onLeaveFeedback,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(50),
-            ) {
-                Icon(Icons.Outlined.RateReview, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.size(8.dp))
-                Text("Leave feedback", fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -330,7 +353,7 @@ private fun AppointmentMetadataRow(
 }
 
 @Composable
-private fun AppointmentNoteSection(title: String, note: String) {
+private fun AppointmentNotesSection(customerNote: String?, clinicNote: String?) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -338,15 +361,31 @@ private fun AppointmentNoteSection(title: String, note: String) {
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            Text(
-                note,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            customerNote?.let { note ->
+                AppointmentNoteItem(label = "Your note", note = note)
+            }
+            if (customerNote != null && clinicNote != null) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+            clinicNote?.let { note ->
+                AppointmentNoteItem(label = "Clinic note", note = note)
+            }
         }
+    }
+}
+
+@Composable
+private fun AppointmentNoteItem(label: String, note: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            note,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -387,10 +426,6 @@ private fun AppointmentActionError(message: String) {
     }
 }
 
-internal fun formatAppointmentSource(source: String): String = source
-    .replace("_", " ")
-    .lowercase()
-    .replaceFirstChar { it.uppercase() }
 
 
 @Preview(showBackground = true)
