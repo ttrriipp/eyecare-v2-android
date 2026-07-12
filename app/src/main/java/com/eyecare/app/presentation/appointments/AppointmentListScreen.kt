@@ -7,8 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,18 +25,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.AccessTime
-import androidx.compose.material.icons.outlined.EditCalendar
-import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -186,8 +179,6 @@ fun AppointmentListScreen(
                                 AppointmentCard(
                                     appointment = appointment,
                                     onClick = { onNavigateToDetail(appointment.id) },
-                                    onReschedule = { onNavigateToDetail(appointment.id) },
-                                    onCancel = { onNavigateToDetail(appointment.id) },
                                 )
                             }
                         }
@@ -440,14 +431,9 @@ private fun EmptyAppointmentTab(tab: AppointmentListTab) {
 private fun AppointmentCard(
     appointment: Appointment,
     onClick: () -> Unit,
-    onReschedule: () -> Unit,
-    onCancel: () -> Unit,
 ) {
-    val showActions = appointment.status == AppointmentStatus.PENDING ||
-        appointment.status == AppointmentStatus.CONFIRMED
-    var actionMenuExpanded by remember { mutableStateOf(false) }
-
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -459,79 +445,10 @@ private fun AppointmentCard(
                 .padding(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AppointmentStatusPill(appointment.status)
-                if (showActions) {
-                    Box {
-                        IconButton(
-                            onClick = { actionMenuExpanded = true },
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "Appointment actions")
-                        }
-                        DropdownMenu(
-                            expanded = actionMenuExpanded,
-                            onDismissRequest = { actionMenuExpanded = false },
-                            modifier = Modifier.width(224.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 0.dp,
-                            shadowElevation = 8.dp,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        ) {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        "Reschedule",
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Outlined.EditCalendar,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                },
-                                onClick = {
-                                    actionMenuExpanded = false
-                                    onReschedule()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        "Cancel appointment",
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Outlined.EventBusy,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
-                                    )
-                                },
-                                onClick = {
-                                    actionMenuExpanded = false
-                                    onCancel()
-                                },
-                            )
-                        }
-                    }
-                }
-            }
+            AppointmentStatusPill(appointment.status)
 
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onClick),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(9.dp),
             ) {
                 Text(
