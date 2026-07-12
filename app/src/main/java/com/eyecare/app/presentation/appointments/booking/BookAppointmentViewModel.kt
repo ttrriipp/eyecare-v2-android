@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.VisitReason
 import com.eyecare.app.domain.repository.AppointmentRepository
+import com.eyecare.app.presentation.appointments.formatClinicScheduledAt
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -79,7 +80,7 @@ class BookAppointmentViewModel @Inject constructor(
 
     fun selectTime(time: String) {
         val date = _uiState.value.selectedDate ?: return
-        val dateTime = "${date}T${time}:00Z"
+        val dateTime = formatClinicScheduledAt(date, time)
         _uiState.update { it.copy(step = 4, selectedDateTime = dateTime) }
     }
 

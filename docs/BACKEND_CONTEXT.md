@@ -498,7 +498,7 @@ Backend Alignment V4 updates the Android client to match the current mobile cont
 
 - Appointment lifecycle mapping supports `pending`, `confirmed`, `arrived`, `completed`, `no_show`, and `cancelled`. `appointment_rescheduled` remains a notification event and is not represented as an appointment status.
 - Customer cancel/reschedule controls are shown only for `pending` and `confirmed` appointments. A successful customer reschedule is parsed as `pending` for staff reconfirmation.
-- Booking and reschedule pickers use the configured 09:00-17:00 clinic window with 15-minute increments; Sunday remains unavailable.
+- Booking and reschedule pickers use the configured 09:00-17:00 clinic window with 15-minute increments; Sunday remains unavailable. Android submits picker values as ISO-8601 timestamps with the explicit `Asia/Manila` offset (`+08:00`) so clinic-local times are not mislabeled as UTC.
 - Billing detail responses accept nullable or omitted `notes`, map the field at the repository boundary, and display nonblank notes.
 - Android does not yet call `GET /appointments/availability`. The route parameters are documented, but the response payload and the mechanism for excluding the current appointment during reschedule lookup are not. Until those contracts are documented, the client submits a locally constrained time and presents backend 422 validation errors instead of guessing an API shape.
 

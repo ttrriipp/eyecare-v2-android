@@ -107,7 +107,7 @@ fun RescheduleBottomSheet(
             dismissLabel = "Keep Current Time",
             onConfirm = {
                 showConfirmDialog = false
-                if (date != null && time != null) onConfirm("${date}T$time:00Z")
+                if (date != null && time != null) onConfirm(formatClinicScheduledAt(date, time))
             },
             onDismissRequest = { showConfirmDialog = false },
         )

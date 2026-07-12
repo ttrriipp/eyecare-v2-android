@@ -12,6 +12,14 @@ import org.junit.jupiter.api.Test
 class AppointmentFormattingTest {
 
     @Test
+    fun `formatClinicScheduledAt preserves Philippine clinic time`() {
+        assertEquals(
+            "2026-07-13T09:00:00+08:00",
+            formatClinicScheduledAt("2026-07-13", "09:00"),
+        )
+    }
+
+    @Test
     fun `formatAppointmentTitle converts backend visit reason to readable title`() {
         assertEquals("Comprehensive Eye Exam", formatAppointmentTitle("comprehensive_eye_exam"))
     }

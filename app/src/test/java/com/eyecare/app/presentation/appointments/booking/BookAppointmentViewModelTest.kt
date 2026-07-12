@@ -69,7 +69,7 @@ class BookAppointmentViewModelTest {
         vm.selectDate("2026-10-24")
         vm.selectTime("09:00")
         assertEquals(4, vm.uiState.value.step)
-        assertEquals("2026-10-24T09:00:00Z", vm.uiState.value.selectedDateTime)
+        assertEquals("2026-10-24T09:00:00+08:00", vm.uiState.value.selectedDateTime)
     }
 
     @Test
