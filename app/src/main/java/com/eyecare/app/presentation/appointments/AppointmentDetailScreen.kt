@@ -88,10 +88,10 @@ fun AppointmentDetailScreen(
             icon = Icons.Outlined.EventBusy,
             iconTint = MaterialTheme.colorScheme.error,
             isDestructive = true,
-            title = "Cancel Appointment",
-            message = "Are you sure you want to cancel this appointment? This action cannot be undone.",
-            confirmLabel = "Cancel Appointment",
-            dismissLabel = "Keep Appointment",
+            title = "Cancel appointment?",
+            message = "This can't be undone.",
+            confirmLabel = "Cancel",
+            dismissLabel = "Keep",
             onConfirm = {
                 showCancelDialog = false
                 viewModel.cancelAppointment()
