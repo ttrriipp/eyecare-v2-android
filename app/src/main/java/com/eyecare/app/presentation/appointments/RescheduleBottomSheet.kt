@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -143,10 +144,7 @@ fun RescheduleBottomSheet(
             if (tabIndex == 0) {
                 RescheduleDateStep(
                     selectedDate = selectedDate,
-                    onSelectDate = {
-                        selectedDate = it
-                        tabIndex = 1
-                    },
+                    onSelectDate = { selectedDate = it },
                 )
             } else {
                 RescheduleTimeStep(
@@ -166,19 +164,22 @@ fun RescheduleBottomSheet(
             Spacer(Modifier.height(16.dp))
 
             Button(
-                onClick = { showConfirmDialog = true },
-                enabled = !isSubmitting && selectedDate != null && selectedTime != null,
+                onClick = {
+                    if (tabIndex == 0) tabIndex = 1 else showConfirmDialog = true
+                },
+                enabled = !isSubmitting && selectedDate != null &&
+                    (tabIndex == 0 || selectedTime != null),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(26.dp),
             ) {
-                if (isSubmitting) {
+                if (isSubmitting && tabIndex == 1) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                 } else {
-                    Text("Confirm Reschedule")
+                    Text(if (tabIndex == 0) "Continue to time" else "Review reschedule")
                 }
             }
         }
@@ -206,6 +207,14 @@ private fun RescheduleDateStep(
         },
     )
 
+    LaunchedEffect(datePickerState.selectedDateMillis) {
+        datePickerState.selectedDateMillis?.let { millis ->
+            val date = java.time.Instant.ofEpochMilli(millis)
+                .atZone(java.time.ZoneOffset.UTC).toLocalDate()
+            onSelectDate(date.toString())
+        }
+    }
+
     Column {
         DatePicker(
             state = datePickerState,
@@ -231,22 +240,6 @@ private fun RescheduleDateStep(
                 disabledDayContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
             ),
         )
-
-        Spacer(Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                val millis = datePickerState.selectedDateMillis ?: return@Button
-                val date = java.time.Instant.ofEpochMilli(millis)
-                    .atZone(java.time.ZoneOffset.UTC).toLocalDate()
-                onSelectDate(date.toString())
-            },
-            enabled = datePickerState.selectedDateMillis != null,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(26.dp),
-        ) {
-            Text("Next: Pick Time")
-        }
     }
 }
 
@@ -301,6 +294,10 @@ private fun RescheduleTimeStep(
         else                -> hour
     }
     val timeString = "%02d:%02d".format(hour24, minute)
+
+    LaunchedEffect(timeString) {
+        onSelectTime(timeString)
+    }
 
     val primary      = MaterialTheme.colorScheme.primary
     val onSurface    = MaterialTheme.colorScheme.onSurface
@@ -382,17 +379,6 @@ private fun RescheduleTimeStep(
                     }
                 }
             }
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        Button(
-            onClick = { onSelectTime(timeString) },
-            enabled = isValidClinicTime(hour, minute, isPm),
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = RoundedCornerShape(24.dp),
-        ) {
-            Text("Use This Time")
         }
     }
 }
