@@ -65,7 +65,7 @@ Update existing JUnit 5 tests that express the API contract. Prefer repository m
 - `./gradlew assembleDebug` succeeds.
 
 ## Open Questions
-- `GET /appointments/availability` is listed with request parameters, but its response shape and reschedule exclusion contract are not documented. Android keeps client-side slot selection and relies on booking/reschedule 422 validation until that contract is documented; no guessed DTO is introduced.
+- Resolved by Backend Alignment V5: the availability response and reschedule self-exclusion contract are now documented in `docs/BACKEND_CONTEXT.md` and implemented under `docs/specs/backend-alignment-v5-spec.md`.
 
 ## Verification Notes
 - Task 1: `assembleDebug` passes. The targeted repository test cannot compile because the unrelated `ProductListViewModelTest` still passes `String` category names to an `Int?` API at lines 78, 97, and 99.
