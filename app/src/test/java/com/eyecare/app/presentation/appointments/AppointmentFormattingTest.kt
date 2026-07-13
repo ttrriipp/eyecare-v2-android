@@ -40,6 +40,24 @@ class AppointmentFormattingTest {
     }
 
     @Test
+    fun `earliest booking time respects now and visit duration`() {
+        val now = LocalDateTime.of(2026, 7, 13, 10, 19)
+
+        assertEquals(LocalTime.of(10, 30), earliestBookingTime(LocalDate.of(2026, 7, 13), 30, now))
+        assertEquals(LocalTime.of(9, 0), earliestBookingTime(LocalDate.of(2026, 7, 14), 60, now))
+        assertEquals(null, earliestBookingTime(LocalDate.of(2026, 7, 13), 60, now.withHour(16).withMinute(30)))
+    }
+
+    @Test
+    fun `booking selection must be in the future and fit clinic hours`() {
+        val now = LocalDateTime.of(2026, 7, 13, 10, 19)
+
+        assertFalse(isBookableAppointmentTime(LocalDateTime.of(2026, 7, 13, 10, 15), 30, now))
+        assertTrue(isBookableAppointmentTime(LocalDateTime.of(2026, 7, 13, 10, 30), 30, now))
+        assertFalse(isBookableAppointmentTime(LocalDateTime.of(2026, 7, 13, 16, 45), 30, now))
+    }
+
+    @Test
     fun `formatAppointmentTitle converts backend visit reason to readable title`() {
         assertEquals("Comprehensive Eye Exam", formatAppointmentTitle("comprehensive_eye_exam"))
     }

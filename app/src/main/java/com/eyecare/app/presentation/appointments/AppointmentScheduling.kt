@@ -21,8 +21,33 @@ internal fun parseClinicDateTime(value: String): LocalDateTime? =
     }.getOrNull() ?: runCatching { LocalDateTime.parse(value) }.getOrNull()
 
 internal fun nextClinicSlot(time: LocalTime): LocalTime {
-    val roundedMinutes = ((time.hour * 60 + time.minute + 14) / 15) * 15
+    val extraMinute = if (time.second > 0 || time.nano > 0) 1 else 0
+    val roundedMinutes = ((time.hour * 60 + time.minute + extraMinute + 14) / 15) * 15
     return LocalTime.of((roundedMinutes / 60).coerceAtMost(23), roundedMinutes % 60)
+}
+
+internal fun isBookableAppointmentTime(
+    candidate: LocalDateTime,
+    durationMinutes: Int,
+    now: LocalDateTime,
+): Boolean = candidate.isAfter(now) &&
+    candidate.dayOfWeek != java.time.DayOfWeek.SUNDAY &&
+    !candidate.toLocalTime().isBefore(LocalTime.of(9, 0)) &&
+    !candidate.plusMinutes(durationMinutes.toLong()).isAfter(candidate.toLocalDate().atTime(17, 0))
+
+internal fun earliestBookingTime(
+    date: LocalDate,
+    durationMinutes: Int,
+    now: LocalDateTime,
+): LocalTime? {
+    if (date.isBefore(now.toLocalDate()) || date.dayOfWeek == java.time.DayOfWeek.SUNDAY) return null
+    val candidateTime = if (date == now.toLocalDate()) {
+        maxOf(LocalTime.of(9, 0), nextClinicSlot(now.toLocalTime()))
+    } else {
+        LocalTime.of(9, 0)
+    }
+    val candidate = date.atTime(candidateTime)
+    return candidateTime.takeIf { isBookableAppointmentTime(candidate, durationMinutes, now) }
 }
 
 internal enum class RescheduleSelectionError { PAST, UNCHANGED }

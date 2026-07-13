@@ -94,6 +94,7 @@ com.eyecare.app/
   - Minute steps are in **15-minute increments** (0, 15, 30, 45), guarded by `isValidClinicTime` so the picker cannot be pushed past 5:00 PM.
 - **Step1 (visit reason):** compact navigation rows keep the reason name primary, show duration as a trailing clock value, and use a chevron to communicate immediate progression. The four-step indicator uses a primary active fill with a subdued surface track.
 - Android system Back and the app-bar Back button share the same wizard behavior: Steps 2–4 return to the previous step, while Step 1 exits to the appointment list.
+- Steps 2–4 keep their primary action above the system navigation area with contextual labels. Booking dates require at least one remaining slot for the selected visit duration; today's time starts at the next 15-minute slot, and past or clinic-overrun selections cannot advance. Review shows a readable clinic-local date/time and a compact optional notes field.
 
 ## Appointment Reschedule — Bottom Sheet
 

@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -63,10 +65,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
+import com.eyecare.app.presentation.appointments.earliestBookingTime
+import com.eyecare.app.presentation.appointments.formatAppointmentDate
+import com.eyecare.app.presentation.appointments.formatAppointmentTime
+import com.eyecare.app.presentation.appointments.isBookableAppointmentTime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.VisitReason as DomainVisitReason
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 // AM/PM and valid hour sets are defined per-composable — no file-level time slot list needed
 
@@ -133,10 +141,14 @@ fun BookAppointmentScreen(
                 )
                 2 -> Step2DateSelection(
                     selectedDate = state.selectedDate,
+                    durationMinutes = state.visitReasons.firstOrNull { it.id == state.selectedReasonId }
+                        ?.durationMinutes ?: 30,
                     onSelectDate = viewModel::selectDate,
                 )
                 3 -> Step3TimeSelection(
                     selectedDate = state.selectedDate,
+                    durationMinutes = state.visitReasons.firstOrNull { it.id == state.selectedReasonId }
+                        ?.durationMinutes ?: 30,
                     onSelectTime = viewModel::selectTime,
                 )
                 4 -> Step4ConfirmNotes(
@@ -157,7 +169,7 @@ private fun Step1ReasonSelection(
     onSelectReason: (Int, String) -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().padding(16.dp).navigationBarsPadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Select Visit Reason", style = MaterialTheme.typography.headlineMedium)
@@ -231,20 +243,26 @@ private fun Step1ReasonSelection(
 @Composable
 private fun Step2DateSelection(
     selectedDate: String?,
+    durationMinutes: Int,
     onSelectDate: (String) -> Unit,
 ) {
-    val today = remember { LocalDate.now() }
+    val now = remember { LocalDateTime.now(CLINIC_TIME_ZONE) }
+    val today = now.toLocalDate()
+    val firstAvailableDate = remember(durationMinutes, now) {
+        generateSequence(today) { it.plusDays(1) }
+            .first { earliestBookingTime(it, durationMinutes, now) != null }
+    }
 
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = selectedDate?.let {
             runCatching { LocalDate.parse(it).toEpochDay() * 86400000L }.getOrNull()
-        } ?: (today.toEpochDay() * 86400000L),
+        } ?: (firstAvailableDate.toEpochDay() * 86400000L),
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
                 val date = java.time.Instant.ofEpochMilli(utcTimeMillis)
                     .atZone(java.time.ZoneOffset.UTC).toLocalDate()
                 // Block past dates and Sundays — clinic is closed on Sundays
-                return !date.isBefore(today) && date.dayOfWeek != java.time.DayOfWeek.SUNDAY
+                return earliestBookingTime(date, durationMinutes, now) != null
             }
         },
     )
@@ -280,7 +298,7 @@ private fun Step2DateSelection(
             ),
         )
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.weight(1f))
 
         Button(
             onClick = {
@@ -293,7 +311,7 @@ private fun Step2DateSelection(
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(26.dp),
         ) {
-            Text("Next Step")
+            Text("Continue to time")
         }
     }
 }
@@ -311,12 +329,18 @@ private fun isValidClinicTime(hour12: Int, minute: Int, isPm: Boolean): Boolean 
 @Composable
 private fun Step3TimeSelection(
     selectedDate: String?,
+    durationMinutes: Int,
     onSelectTime: (String) -> Unit,
 ) {
     // Start at 9:00 AM — first valid slot
-    var isPm by remember { mutableStateOf(false) }
-    var hour by remember { mutableIntStateOf(9) }   // 12-hr format (1–12)
-    var minute by remember { mutableIntStateOf(0) } // 0, 15, 30, 45
+    val now = remember { LocalDateTime.now(CLINIC_TIME_ZONE) }
+    val date = selectedDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+    val initialTime = date?.let { earliestBookingTime(it, durationMinutes, now) }
+        ?: java.time.LocalTime.of(9, 0)
+    val initialHour12 = initialTime.hour % 12
+    var isPm by remember { mutableStateOf(initialTime.hour >= 12) }
+    var hour by remember { mutableIntStateOf(if (initialHour12 == 0) 12 else initialHour12) }
+    var minute by remember { mutableIntStateOf(initialTime.minute) }
 
     // ── Hour navigation ──────────────────────────────────────────────────────
     // AM: 9→10→11→[flip to PM 12→1→…→5→wrap PM 12]
@@ -371,6 +395,9 @@ private fun Step3TimeSelection(
         else                -> hour
     }
     val timeString = "%02d:%02d".format(hour24, minute)
+    val isBookable = date?.atTime(hour24, minute)?.let {
+        isBookableAppointmentTime(it, durationMinutes, now)
+    } == true
 
     val primary      = MaterialTheme.colorScheme.primary
     val onSurface    = MaterialTheme.colorScheme.onSurface
@@ -381,7 +408,7 @@ private fun Step3TimeSelection(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp)
-            .verticalScroll(rememberScrollState()),
+            .navigationBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(8.dp))
@@ -467,15 +494,24 @@ private fun Step3TimeSelection(
             }
         }
 
-        Spacer(Modifier.height(72.dp))
+        if (!isBookable) {
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "Choose a future time that fits within clinic hours.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
 
         Button(
             onClick = { onSelectTime(timeString) },
-            enabled = isValidClinicTime(hour, minute, isPm),
+            enabled = isBookable,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(26.dp),
         ) {
-            Text("Next Step")
+            Text("Review appointment")
         }
 
         Spacer(Modifier.height(16.dp))
@@ -527,7 +563,7 @@ private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
     var notes by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().padding(16.dp).navigationBarsPadding().imePadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Review & Confirm", style = MaterialTheme.typography.headlineMedium)
@@ -544,7 +580,13 @@ private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
                 )
                 Spacer(Modifier.height(4.dp))
                 Text("Date & Time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(state.selectedDateTime?.take(16)?.replace("T", " ") ?: "", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    state.selectedDateTime?.let {
+                        "${formatAppointmentDate(it)} at ${formatAppointmentTime(it)}"
+                    } ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                )
             }
         }
 
@@ -553,15 +595,15 @@ private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
             onValueChange = { if (it.length <= 1000) notes = it },
             label = { Text("Contact notes (optional)") },
             placeholder = { Text("Any notes for the clinic…") },
-            modifier = Modifier.fillMaxWidth().height(120.dp),
-            maxLines = 5,
+            modifier = Modifier.fillMaxWidth().height(104.dp),
+            maxLines = 4,
         )
 
         if (state.result is BookingResult.Error) {
             Text((state.result as BookingResult.Error).message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.weight(1f))
         Button(
             onClick = { onSubmit(notes.takeIf { it.isNotBlank() }) },
             enabled = !state.isLoading,
