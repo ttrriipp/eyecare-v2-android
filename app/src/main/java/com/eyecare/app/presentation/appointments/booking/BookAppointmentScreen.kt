@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.appointments.booking
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -80,6 +81,10 @@ fun BookAppointmentScreen(
 
     LaunchedEffect(state.result) {
         if (state.result is BookingResult.Success) onBooked()
+    }
+
+    BackHandler {
+        if (state.step > 1) viewModel.goBack() else onBack()
     }
 
     Column(Modifier.fillMaxSize()) {

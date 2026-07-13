@@ -93,6 +93,7 @@ com.eyecare.app/
   - Hour steps wrap correctly across the AM/PM boundary (`11 AM → 12 PM`, `12 PM → 1 PM → … → 5 PM`); the PM cycle must include the `12 -> 1` case or the hour overflows to 13 and silently invalidates every minute value.
   - Minute steps are in **15-minute increments** (0, 15, 30, 45), guarded by `isValidClinicTime` so the picker cannot be pushed past 5:00 PM.
 - **Step1 (visit reason):** compact navigation rows keep the reason name primary, show duration as a trailing clock value, and use a chevron to communicate immediate progression. The four-step indicator uses a primary active fill with a subdued surface track.
+- Android system Back and the app-bar Back button share the same wizard behavior: Steps 2–4 return to the previous step, while Step 1 exits to the appointment list.
 
 ## Appointment Reschedule — Bottom Sheet
 
