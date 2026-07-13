@@ -69,7 +69,8 @@ Booking and reschedule mutations remain authoritative. A 422 response with `code
 - [ ] Task 3: Use backend slots for rescheduling.
   - Acceptance: Reschedule requests include `appointment_id`, current-appointment self-exclusion works, and stale selection errors refresh the grid.
   - Verify: targeted appointment detail ViewModel tests and `.\gradlew assembleDebug`.
-- [ ] Task 4: Synchronize system context and perform final review.
+  - Blocked: appointment list/detail responses expose `visit_reason` but not the stable `visit_reason_id` required by the availability request. Do not infer the ID from display text.
+- [x] Task 4: Synchronize system context and perform final review.
   - Acceptance: `CONTEXT.md`, this spec, and backend context accurately describe shipped Android behavior.
   - Verify: `.\gradlew testDebugUnitTest`, `.\gradlew lintDebug`, and `.\gradlew assembleDebug`.
 
@@ -91,3 +92,11 @@ Booking and reschedule mutations remain authoritative. A 422 response with `code
 
 ## Open Questions
 - The backend documents a safe `availability` context in stale 422 responses but not its exact nested schema. Android will perform a fresh GET after `SLOT_UNAVAILABLE`; the embedded context can be adopted later as an optimization.
+- Appointment list/detail responses need an additive `visit_reason_id` field before Android can request reschedule availability without brittle display-name matching.
+
+## Verification Notes
+- Repository availability contract tests pass.
+- Booking availability ViewModel tests pass.
+- `assembleDebug` passes after the final changes.
+- The full unit suite exceeded the five-minute execution window; no full-suite result is claimed.
+- `lintDebug` completes analysis but fails on two pre-existing unrelated errors: ignored Scaffold content padding in `MainActivity.kt` and a camera permission without a corresponding optional camera feature in `AndroidManifest.xml`. No availability-related lint error was reported.

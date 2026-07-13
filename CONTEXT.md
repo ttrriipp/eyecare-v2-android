@@ -87,14 +87,12 @@ com.eyecare.app/
 `presentation/appointments/booking/BookAppointmentScreen.kt`, Step2/Step3:
 
 - **Step2 (date):** Material3 `DatePicker` with a `SelectableDates` override that blocks past dates and Sundays (clinic closed). Selected date parsed/formatted via UTC epoch millis.
-- **Step3 (time):** digital HH:MM picker — up/down arrows per segment, AM/PM tap-toggle on the right. No analog clock, no seconds.
-  - Clinic hours: 9:00 AM – 5:00 PM in 15-minute increments, enforced by `isValidClinicTime(hour12, minute, isPm)`.
-  - Booking and rescheduling encode the selected clinic-local time with the explicit `Asia/Manila` offset (`+08:00`) before submitting it to the API. API response timestamps, including UTC (`Z`) values, are converted to `Asia/Manila` before display and date grouping.
-  - Hour steps wrap correctly across the AM/PM boundary (`11 AM → 12 PM`, `12 PM → 1 PM → … → 5 PM`); the PM cycle must include the `12 -> 1` case or the hour overflows to 13 and silently invalidates every minute value.
-  - Minute steps are in **15-minute increments** (0, 15, 30, 45), guarded by `isValidClinicTime` so the picker cannot be pushed past 5:00 PM.
+- **Step3 (time):** calls `GET /appointments/availability` for the selected date and visit-reason ID, then displays the returned starts in a stable three-column grid. Capacity-blocked times remain visible but disabled; elapsed times are hidden. Loading, retry, closed-day, and no-availability states are handled inline.
+  - Selecting a slot submits the backend's offset-bearing `starts_at` value unchanged. API response timestamps, including UTC (`Z`) values, are converted to `Asia/Manila` before display and date grouping.
+  - Booking mutations remain authoritative. A 422 with `code = SLOT_UNAVAILABLE` returns the wizard to Step3, refreshes availability, and asks the customer to choose another time.
 - **Step1 (visit reason):** compact navigation rows keep the reason name primary, show duration as a trailing clock value, and use a chevron to communicate immediate progression. The four-step indicator uses a primary active fill with a subdued surface track.
 - Android system Back and the app-bar Back button share the same wizard behavior: Steps 2–4 return to the previous step, while Step 1 exits to the appointment list.
-- All four steps use the same 16dp top and horizontal content grid. Steps 2–4 also share the same bottom navigation inset for stable primary-action placement, with contextual labels. Booking dates require at least one remaining slot for the selected visit duration; today's time starts at the next 15-minute slot, and past or clinic-overrun selections cannot advance. Review shows clinic-local Date and Time as separate icon rows and uses a compact optional notes field.
+- All four steps use the same 16dp top and horizontal content grid. Past dates, Sundays, and dates without enough remaining clinic hours for the selected visit duration cannot advance. Backend capacity is loaded after date selection. Review shows clinic-local Date and Time as separate icon rows and uses a compact optional notes field.
 
 ## Appointment Reschedule — Bottom Sheet
 
@@ -110,6 +108,7 @@ com.eyecare.app/
 - **On success:** `AppointmentDetailViewModel.rescheduleAppointment` uses the `Appointment` returned directly by the `POST /appointments/{id}/reschedule` response — it does **not** call `load()` to re-fetch. This avoids an extra network round trip and any risk of transiently showing stale data from a second GET. `showRescheduleSheet` is set to `false` and `showRescheduleSuccessDialog` to `true` in the same state update, which dismisses the bottom sheet and immediately shows a confirmation `AlertDialog` ("Appointment Rescheduled — Your appointment is now set for [date] at [time]"), dismissed via `dismissRescheduleSuccessDialog()`.
 - The detail screen's "Reschedule" button uses the same filled, theme-tinted `Button` style (primary color at 12% alpha background, primary content color, no elevation) as the list screen's card action buttons, rather than the plain `OutlinedButton` used elsewhere.
 - **Scheduling timezone:** picker values represent Philippine clinic-local time. Booking and rescheduling submit an ISO-8601 timestamp with the explicit `Asia/Manila` offset; response timestamps are converted by instant to `Asia/Manila` for display, filtering, and date grouping.
+- **Availability limitation:** rescheduling still uses the locally constrained picker and authoritative backend validation. The availability endpoint requires `visit_reason_id`, while appointment responses currently expose only the display label `visit_reason`; Android will not infer a stable ID by matching display text. Add `visit_reason_id` to appointment list/detail responses before wiring reschedule availability.
 
 ## Themed Confirmation Dialogs
 
@@ -142,9 +141,10 @@ POST   /login, /register, /logout
 GET    /user                          → {data: {id, name, email, phone, role}}
 PATCH  /user                          → update profile
 GET    /appointments, /appointments/{id}
+GET    /appointments/availability     → slot grid for date + visit_reason_id; optional appointment_id for reschedule
 POST   /appointments                  → book (pending)
 POST   /appointments/{id}/cancel
-POST   /appointments/{id}/reschedule  → reschedule own appointment (pending/confirmed/rescheduled only)
+POST   /appointments/{id}/reschedule  → reschedule own appointment (pending/confirmed only)
 GET    /visit-reasons                 → [{id, name, duration_minutes}]
 GET    /products, /products/{id}      → frame-only, paginated (supports search/brand/category/min_price/max_price/in_stock/sort)
 GET    /orders, /orders/{id}          → paginated, includes billing_id
@@ -178,6 +178,7 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 
 - `docs/specs/backend-alignment-v2-spec.md` — Complete: fixed initial API misalignments (11 tasks)
 - `docs/specs/backend-alignment-v3-spec.md` — Complete: reschedule endpoint, or_number removal, lens_category_id fields, price filter params (6 tasks)
+- `docs/specs/backend-alignment-v5-spec.md` — In progress: booking availability complete; reschedule availability awaits `visit_reason_id` in appointment responses
 - `docs/specs/implementation-plan-v2.md` — Task breakdown for alignment v2
 - `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
 
