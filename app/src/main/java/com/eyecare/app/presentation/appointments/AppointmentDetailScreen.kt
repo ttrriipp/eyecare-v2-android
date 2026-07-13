@@ -261,6 +261,7 @@ private fun AppointmentDetailContent(
 
             if (canManage || customerNote != null || clinicNote != null) {
                 AppointmentNotesSection(
+                    modifier = Modifier.padding(top = 4.dp),
                     customerNote = customerNote,
                     clinicNote = clinicNote,
                     canEditCustomerNote = canManage,
@@ -413,6 +414,7 @@ private fun AppointmentMetadataRow(
 
 @Composable
 private fun AppointmentNotesSection(
+    modifier: Modifier = Modifier,
     customerNote: String?,
     clinicNote: String?,
     canEditCustomerNote: Boolean,
@@ -428,76 +430,78 @@ private fun AppointmentNotesSection(
     val normalizedOriginal = customerNote?.trim()?.ifBlank { null }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
-            if (isEditing) {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { if (it.length <= CONTACT_NOTE_MAX_LENGTH) draft = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isSaving,
-                    label = { Text("Your booking note") },
-                    placeholder = { Text("Anything the clinic should know?") },
-                    minLines = 3,
-                    maxLines = 6,
-                    supportingText = {
-                        Text("${draft.length}/$CONTACT_NOTE_MAX_LENGTH")
-                    },
-                )
-                error?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = onDismissEditor,
-                        modifier = Modifier.weight(1f),
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (isEditing) {
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = { if (it.length <= CONTACT_NOTE_MAX_LENGTH) draft = it },
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !isSaving,
-                    ) {
-                        Text("Cancel")
+                        label = { Text("Your booking note") },
+                        placeholder = { Text("Anything the clinic should know?") },
+                        minLines = 3,
+                        maxLines = 6,
+                        supportingText = {
+                            Text("${draft.length}/$CONTACT_NOTE_MAX_LENGTH")
+                        },
+                    )
+                    error?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
                     }
-                    Button(
-                        onClick = { onSave(draft) },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isSaving && normalizedDraft != normalizedOriginal,
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        if (isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
-                        } else {
-                            Icon(Icons.Outlined.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.size(8.dp))
-                            Text("Save")
+                        OutlinedButton(
+                            onClick = onDismissEditor,
+                            modifier = Modifier.weight(1f),
+                            enabled = !isSaving,
+                        ) {
+                            Text("Cancel")
+                        }
+                        Button(
+                            onClick = { onSave(draft) },
+                            modifier = Modifier.weight(1f),
+                            enabled = !isSaving && normalizedDraft != normalizedOriginal,
+                        ) {
+                            if (isSaving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            } else {
+                                Icon(Icons.Outlined.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.size(8.dp))
+                                Text("Save")
+                            }
                         }
                     }
+                } else if (canEditCustomerNote) {
+                    EditableCustomerNote(note = customerNote, onEdit = onEdit)
+                } else if (customerNote != null) {
+                    AppointmentNoteItem(label = "Your booking note", note = customerNote)
                 }
-            } else if (canEditCustomerNote) {
-                EditableCustomerNote(note = customerNote, onEdit = onEdit)
-            } else if (customerNote != null) {
-                AppointmentNoteItem(label = "Your booking note", note = customerNote)
-            }
-            if ((customerNote != null || isEditing || canEditCustomerNote) && clinicNote != null) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
-            clinicNote?.let { note ->
-                AppointmentNoteItem(label = "Clinic note", note = note)
+                if ((customerNote != null || isEditing || canEditCustomerNote) && clinicNote != null) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                clinicNote?.let { note ->
+                    AppointmentNoteItem(label = "Clinic note", note = note)
+                }
             }
         }
     }
@@ -510,7 +514,7 @@ private fun EditableCustomerNote(note: String?, onEdit: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
             modifier = Modifier.weight(1f),
