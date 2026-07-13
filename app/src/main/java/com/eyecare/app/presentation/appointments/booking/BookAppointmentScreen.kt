@@ -269,7 +269,7 @@ private fun Step2DateSelection(
     )
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(bottom = 12.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 12.dp)
             .navigationBarsPadding(),
     ) {
         Text("Select Date", style = MaterialTheme.typography.headlineMedium)
@@ -410,12 +410,10 @@ private fun Step3TimeSelection(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp)
-            .padding(bottom = 12.dp)
+            .padding(top = 16.dp, bottom = 12.dp)
             .navigationBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(8.dp))
-
         // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -565,7 +563,7 @@ private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
     var notes by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(bottom = 12.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 12.dp)
             .navigationBarsPadding().imePadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
