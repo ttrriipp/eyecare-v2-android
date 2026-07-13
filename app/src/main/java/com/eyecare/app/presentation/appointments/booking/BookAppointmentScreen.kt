@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -268,7 +269,8 @@ private fun Step2DateSelection(
     )
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(bottom = 12.dp)
+            .navigationBarsPadding(),
     ) {
         Text("Select Date", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
@@ -407,7 +409,8 @@ private fun Step3TimeSelection(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 12.dp)
             .navigationBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -514,7 +517,6 @@ private fun Step3TimeSelection(
             Text("Review appointment")
         }
 
-        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -563,7 +565,8 @@ private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
     var notes by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp).navigationBarsPadding().imePadding(),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(bottom = 12.dp)
+            .navigationBarsPadding().imePadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Review & Confirm", style = MaterialTheme.typography.headlineMedium)
@@ -578,14 +581,16 @@ private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
                     state.selectedReason?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "",
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(Modifier.height(4.dp))
-                Text("Date & Time", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(
-                    state.selectedDateTime?.let {
-                        "${formatAppointmentDate(it)} at ${formatAppointmentTime(it)}"
-                    } ?: "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
+                Spacer(Modifier.height(8.dp))
+                BookingReviewMetadataRow(
+                    icon = Icons.Outlined.CalendarMonth,
+                    label = "Date",
+                    value = state.selectedDateTime?.let(::formatAppointmentDate) ?: "",
+                )
+                BookingReviewMetadataRow(
+                    icon = Icons.Outlined.AccessTime,
+                    label = "Time",
+                    value = state.selectedDateTime?.let(::formatAppointmentTime) ?: "",
                 )
             }
         }
@@ -612,6 +617,33 @@ private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
         ) {
             if (state.isLoading) CircularProgressIndicator(Modifier.height(20.dp))
             else Text("Confirm Booking")
+        }
+    }
+}
+
+@Composable
+private fun BookingReviewMetadataRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
         }
     }
 }
