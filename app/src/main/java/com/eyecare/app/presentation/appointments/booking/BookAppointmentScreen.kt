@@ -24,9 +24,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.outlined.RemoveRedEye
+import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -100,9 +101,9 @@ fun BookAppointmentScreen(
             repeat(4) { index ->
                 LinearProgressIndicator(
                     progress = { if (index < state.step) 1f else 0f },
-                    modifier = Modifier.weight(1f).height(4.dp),
+                    modifier = Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(50)),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.outline,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
             }
         }
@@ -177,23 +178,43 @@ private fun Step1ReasonSelection(
                 Card(
                     onClick = { onSelectReason(reason.id, reason.name) },
                     modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(2.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(1.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Row(
-                        modifier = Modifier.padding(20.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Column {
-                            Text(reason.name, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            reason.name,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.AccessTime,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                             Text(
                                 "${reason.durationMinutes} min",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
