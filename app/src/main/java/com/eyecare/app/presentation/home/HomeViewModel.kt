@@ -27,7 +27,9 @@ sealed interface HomeUiState {
         val nextAppointment: Appointment?,
         val activeOrder: Order?,
         val expiringPrescription: Prescription?,
-        val newArrivals: List<Product>,
+        val featuredFrames: List<Product>,
+        val accessories: List<Product>,
+        val eyeCareEssentials: List<Product>,
     ) : HomeUiState
     data class Error(val message: String) : HomeUiState
 }
@@ -91,8 +93,37 @@ class HomeViewModel @Inject constructor(
                 nextAppointment = nextAppointment,
                 activeOrder = activeOrder,
                 expiringPrescription = expiringPrescription,
-                newArrivals = products.take(6),
+                featuredFrames = products
+                    .filter { it.productType.equals("frame", ignoreCase = true) }
+                    .take(HOME_SHELF_LIMIT),
+                accessories = products
+                    .filter {
+                        it.productType.equals("general", ignoreCase = true) &&
+                            it.category.isAccessoryCategory()
+                    }
+                    .take(HOME_SHELF_LIMIT),
+                eyeCareEssentials = products
+                    .filter {
+                        it.productType.equals("general", ignoreCase = true) &&
+                            !it.category.isAccessoryCategory()
+                    }
+                    .take(HOME_SHELF_LIMIT),
             )
         }
+    }
+
+    private fun String.isAccessoryCategory(): Boolean {
+        val normalized = lowercase()
+            .replace(Regex("[_-]+"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        val words = normalized.split(" ")
+        return normalized.contains("accessor") ||
+            normalized.contains("cleaning kit") ||
+            words.any { it == "case" || it == "cases" }
+    }
+
+    private companion object {
+        const val HOME_SHELF_LIMIT = 4
     }
 }

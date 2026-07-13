@@ -170,8 +170,8 @@ fun HomeScreen(
                     OrderTrackerCard(order, onClick = { onNavigateToOrderDetail(order.id) })
                 }
 
-                // New Arrivals Carousel
-                if (state.newArrivals.isNotEmpty()) {
+                // Featured frames carousel (replaced by editorial shelves in the next UI slice)
+                if (state.featuredFrames.isNotEmpty()) {
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         elevation = CardDefaults.cardElevation(2.dp),
@@ -182,7 +182,7 @@ fun HomeScreen(
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically) {
-                                Text("New Arrivals", style = MaterialTheme.typography.headlineMedium,
+                                Text("Featured Frames", style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold)
                                 TextButton(onClick = onNavigateToCatalog) { Text("See all") }
                             }
@@ -191,7 +191,7 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                items(state.newArrivals, key = { it.id }) { product ->
+                                items(state.featuredFrames, key = { it.id }) { product ->
                                     NewArrivalCard(product, onClick = { onNavigateToProductDetail(product.id) })
                                 }
                             }

@@ -53,8 +53,12 @@ class HomeViewModelTest {
         orderRepo = mockk()
         productRepo = mockk()
         prescriptionRepo = mockk()
+        coEvery { appointmentRepo.getAppointments() } returns Result.success(emptyList())
+        coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
+        coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { productRepo.getProducts(any()) } returns Result.success(emptyList())
         coEvery { productRepo.hasMorePages(any()) } returns false
+        coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(emptyList())
     }
 
     @AfterEach
@@ -104,4 +108,57 @@ class HomeViewModelTest {
         val state = vm().uiState.value as HomeUiState.Success
         assertNull(state.expiringPrescription)
     }
+
+    @Test
+    fun `products are curated into capped home groups in source order`() = runTest {
+        val products = listOf(
+            product(1, productType = "frame", category = "Eyeglasses"),
+            product(2, productType = "general", category = "Contact Lens Accessories"),
+            product(3, productType = "general", category = "Cleaning Kit"),
+            product(4, productType = "general", category = "Contact Solutions"),
+            product(5, productType = "service", category = "Eye Exam"),
+            product(6, productType = "frame", category = "Sunglasses"),
+            product(7, productType = "frame", category = "Eyeglasses"),
+            product(8, productType = "frame", category = "Eyeglasses"),
+            product(9, productType = "frame", category = "Eyeglasses"),
+        )
+        coEvery { productRepo.getProducts(any()) } returns Result.success(products)
+
+        val state = vm().uiState.value as HomeUiState.Success
+
+        assertEquals(listOf(1, 6, 7, 8), state.featuredFrames.map(Product::id))
+        assertEquals(listOf(2, 3), state.accessories.map(Product::id))
+        assertEquals(listOf(4), state.eyeCareEssentials.map(Product::id))
+    }
+
+    @Test
+    fun `accessory category matching ignores case and separator differences`() = runTest {
+        val products = listOf(
+            product(1, productType = "general", category = "ACCESSORY"),
+            product(2, productType = "general", category = "Protective_Cases"),
+            product(3, productType = "general", category = "cleaning-kits"),
+        )
+        coEvery { productRepo.getProducts(any()) } returns Result.success(products)
+
+        val state = vm().uiState.value as HomeUiState.Success
+
+        assertEquals(listOf(1, 2, 3), state.accessories.map(Product::id))
+        assertEquals(emptyList<Product>(), state.eyeCareEssentials)
+    }
+
+    private fun product(
+        id: Int,
+        productType: String,
+        category: String,
+    ) = Product(
+        id = id,
+        name = "Product $id",
+        slug = "product-$id",
+        description = null,
+        productType = productType,
+        brand = "Padilla Optical",
+        category = category,
+        variants = emptyList(),
+        images = emptyList(),
+    )
 }
