@@ -3,17 +3,16 @@ package com.eyecare.app.presentation.appointments.booking
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentAvailability
+import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.VisitReason
 import com.eyecare.app.domain.repository.AppointmentRepository
-import com.eyecare.app.presentation.appointments.formatClinicScheduledAt
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 sealed interface BookingResult {
@@ -30,6 +29,10 @@ data class BookingState(
     val selectedReasonName: String? = null,
     val selectedDate: String? = null,
     val selectedDateTime: String? = null,
+    val availability: AppointmentAvailability? = null,
+    val availabilityLoading: Boolean = false,
+    val availabilityError: String? = null,
+    val availabilityNotice: String? = null,
     val isLoading: Boolean = false,
     val result: BookingResult? = null,
 ) {
@@ -71,17 +74,57 @@ class BookAppointmentViewModel @Inject constructor(
     }
 
     fun selectReason(id: Int, name: String) {
-        _uiState.update { it.copy(step = 2, selectedReasonId = id, selectedReasonName = name) }
+        _uiState.update {
+            it.copy(
+                step = 2,
+                selectedReasonId = id,
+                selectedReasonName = name,
+                selectedDate = null,
+                selectedDateTime = null,
+                availability = null,
+                availabilityError = null,
+                availabilityNotice = null,
+            )
+        }
     }
 
     fun selectDate(date: String) {
-        _uiState.update { it.copy(step = 3, selectedDate = date) }
+        val reasonId = _uiState.value.selectedReasonId ?: return
+        _uiState.update {
+            it.copy(
+                step = 3,
+                selectedDate = date,
+                selectedDateTime = null,
+                availability = null,
+                availabilityLoading = true,
+                availabilityError = null,
+                availabilityNotice = null,
+            )
+        }
+        fetchAvailability(date, reasonId)
     }
 
-    fun selectTime(time: String) {
-        val date = _uiState.value.selectedDate ?: return
-        val dateTime = formatClinicScheduledAt(date, time)
-        _uiState.update { it.copy(step = 4, selectedDateTime = dateTime) }
+    fun retryAvailability() {
+        val state = _uiState.value
+        val date = state.selectedDate ?: return
+        val reasonId = state.selectedReasonId ?: return
+        _uiState.update {
+            it.copy(
+                availability = null,
+                availabilityLoading = true,
+                availabilityError = null,
+            )
+        }
+        fetchAvailability(date, reasonId)
+    }
+
+    fun selectTime(startsAt: String) {
+        val isAvailable = _uiState.value.availability?.slots
+            ?.any { it.startsAt == startsAt && it.available } == true
+        if (!isAvailable) return
+        _uiState.update {
+            it.copy(step = 4, selectedDateTime = startsAt, availabilityNotice = null)
+        }
     }
 
     fun goBack() {
@@ -96,31 +139,74 @@ class BookAppointmentViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val result = repository.createAppointment(reasonId, dateTime, contactNotes?.takeIf { it.isNotBlank() })
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    result = result.fold(
-                        onSuccess = { appt -> BookingResult.Success(appt) },
-                        onFailure = { err -> BookingResult.Error(err.message ?: "Booking failed") },
-                    ),
-                )
-            }
+            result.fold(
+                onSuccess = { appointment ->
+                    _uiState.update {
+                        it.copy(isLoading = false, result = BookingResult.Success(appointment))
+                    }
+                },
+                onFailure = { error ->
+                    if (error is AppointmentError.ValidationError && error.code == SLOT_UNAVAILABLE) {
+                        val current = _uiState.value
+                        val date = current.selectedDate
+                        val selectedReasonId = current.selectedReasonId
+                        _uiState.update {
+                            it.copy(
+                                step = 3,
+                                selectedDateTime = null,
+                                availability = null,
+                                availabilityLoading = date != null && selectedReasonId != null,
+                                availabilityError = null,
+                                availabilityNotice = STALE_SLOT_MESSAGE,
+                                isLoading = false,
+                                result = null,
+                            )
+                        }
+                        if (date != null && selectedReasonId != null) {
+                            fetchAvailability(date, selectedReasonId)
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                result = BookingResult.Error(error.message ?: "Booking failed"),
+                            )
+                        }
+                    }
+                },
+            )
+        }
+    }
+
+    private fun fetchAvailability(date: String, reasonId: Int) {
+        viewModelScope.launch {
+            repository.getAppointmentAvailability(date, reasonId).fold(
+                onSuccess = { availability ->
+                    _uiState.update { state ->
+                        if (state.selectedDate != date || state.selectedReasonId != reasonId) state
+                        else state.copy(
+                            availability = availability,
+                            availabilityLoading = false,
+                            availabilityError = null,
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update { state ->
+                        if (state.selectedDate != date || state.selectedReasonId != reasonId) state
+                        else state.copy(
+                            availability = null,
+                            availabilityLoading = false,
+                            availabilityError = error.message ?: "Unable to load available times",
+                        )
+                    }
+                },
+            )
         }
     }
 
     companion object {
-        private val TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm")
-
-        /** Generate 15-minute time slots from 9:00 to 17:00. */
-        fun generateTimeSlots(): List<String> {
-            val slots = mutableListOf<String>()
-            var time = LocalTime.of(9, 0)
-            val end = LocalTime.of(17, 0)
-            while (!time.isAfter(end)) {
-                slots.add(time.format(TIME_FORMAT))
-                time = time.plusMinutes(15)
-            }
-            return slots
-        }
+        private const val SLOT_UNAVAILABLE = "SLOT_UNAVAILABLE"
+        const val STALE_SLOT_MESSAGE = "That time was just taken. Choose another available time."
     }
 }

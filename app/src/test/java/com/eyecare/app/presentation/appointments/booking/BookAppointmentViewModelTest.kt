@@ -2,6 +2,9 @@ package com.eyecare.app.presentation.appointments.booking
 
 import app.cash.turbine.test
 import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentAvailability
+import com.eyecare.app.domain.model.AppointmentError
+import com.eyecare.app.domain.model.AppointmentSlot
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.VisitReason
 import com.eyecare.app.domain.repository.AppointmentRepository
@@ -31,12 +34,39 @@ class BookAppointmentViewModelTest {
         VisitReason(1, "Eye Exam", 30),
         VisitReason(2, "Follow-up", 15),
     )
+    private val fakeAvailability = AppointmentAvailability(
+        date = "2026-10-24",
+        timezone = "Asia/Manila",
+        intervalMinutes = 15,
+        visitReasonId = 1,
+        visitDurationMinutes = 30,
+        optometristId = null,
+        appointmentId = null,
+        dayStatus = "open",
+        generatedAt = "2026-10-24T08:00:00+08:00",
+        slots = listOf(
+            AppointmentSlot(
+                startsAt = "2026-10-24T09:00:00+08:00",
+                endsAt = "2026-10-24T09:30:00+08:00",
+                available = true,
+                reason = null,
+            ),
+            AppointmentSlot(
+                startsAt = "2026-10-24T09:15:00+08:00",
+                endsAt = "2026-10-24T09:45:00+08:00",
+                available = false,
+                reason = "capacity_reached",
+            ),
+        ),
+    )
 
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
         coEvery { repo.getVisitReasons() } returns Result.success(fakeReasons)
+        coEvery { repo.getAppointmentAvailability(any(), any(), null) } returns
+            Result.success(fakeAvailability)
         vm = BookAppointmentViewModel(repo)
     }
 
@@ -64,12 +94,42 @@ class BookAppointmentViewModelTest {
     }
 
     @Test
+    fun `selectDate loads backend availability`() = runTest {
+        vm.selectReason(1, "Eye Exam")
+
+        vm.uiState.test {
+            awaitItem()
+            vm.selectDate("2026-10-24")
+            val loading = awaitItem()
+            assertEquals(true, loading.availabilityLoading)
+            dispatcher.scheduler.advanceUntilIdle()
+            val loaded = awaitItem()
+            assertEquals(fakeAvailability, loaded.availability)
+            assertEquals(false, loaded.availabilityLoading)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `selectTime advances to step 4`() = runTest {
         vm.selectReason(1, "Eye Exam")
         vm.selectDate("2026-10-24")
-        vm.selectTime("09:00")
+        dispatcher.scheduler.advanceUntilIdle()
+        vm.selectTime("2026-10-24T09:00:00+08:00")
         assertEquals(4, vm.uiState.value.step)
         assertEquals("2026-10-24T09:00:00+08:00", vm.uiState.value.selectedDateTime)
+    }
+
+    @Test
+    fun `selectTime ignores unavailable backend slot`() = runTest {
+        vm.selectReason(1, "Eye Exam")
+        vm.selectDate("2026-10-24")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.selectTime("2026-10-24T09:15:00+08:00")
+
+        assertEquals(3, vm.uiState.value.step)
+        assertEquals(null, vm.uiState.value.selectedDateTime)
     }
 
     @Test
@@ -83,7 +143,8 @@ class BookAppointmentViewModelTest {
     fun `goBack from step 4 returns to step 3 preserving selections`() = runTest {
         vm.selectReason(1, "Eye Exam")
         vm.selectDate("2026-10-24")
-        vm.selectTime("09:00")
+        dispatcher.scheduler.advanceUntilIdle()
+        vm.selectTime("2026-10-24T09:00:00+08:00")
         vm.goBack()
         assertEquals(3, vm.uiState.value.step)
         assertEquals("Eye Exam", vm.uiState.value.selectedReason)
@@ -94,7 +155,8 @@ class BookAppointmentViewModelTest {
         coEvery { repo.createAppointment(any(), any(), anyNullable()) } returns Result.success(fakeAppt)
         vm.selectReason(1, "Eye Exam")
         vm.selectDate("2026-10-24")
-        vm.selectTime("09:00")
+        dispatcher.scheduler.advanceUntilIdle()
+        vm.selectTime("2026-10-24T09:00:00+08:00")
 
         vm.uiState.test {
             awaitItem() // current state (step 4)
@@ -114,7 +176,8 @@ class BookAppointmentViewModelTest {
             Result.failure(RuntimeException("Server error"))
         vm.selectReason(1, "Eye Exam")
         vm.selectDate("2026-10-24")
-        vm.selectTime("09:00")
+        dispatcher.scheduler.advanceUntilIdle()
+        vm.selectTime("2026-10-24T09:00:00+08:00")
 
         vm.uiState.test {
             awaitItem()
@@ -132,7 +195,8 @@ class BookAppointmentViewModelTest {
         coEvery { repo.createAppointment(any(), any(), null) } returns Result.success(fakeAppt)
         vm.selectReason(2, "Follow-up")
         vm.selectDate("2026-10-24")
-        vm.selectTime("09:00")
+        dispatcher.scheduler.advanceUntilIdle()
+        vm.selectTime("2026-10-24T09:00:00+08:00")
 
         vm.uiState.test {
             awaitItem()
@@ -145,12 +209,25 @@ class BookAppointmentViewModelTest {
     }
 
     @Test
-    fun `generateTimeSlots returns backend clinic hours in 15 minute intervals`() {
-        val slots = BookAppointmentViewModel.generateTimeSlots()
+    fun `stale slot returns to time selection and refreshes availability`() = runTest {
+        coEvery { repo.createAppointment(any(), any(), anyNullable()) } returns Result.failure(
+            AppointmentError.ValidationError(
+                fieldErrors = mapOf("scheduled_at" to listOf("This time slot is not available.")),
+                code = "SLOT_UNAVAILABLE",
+            ),
+        )
+        vm.selectReason(1, "Eye Exam")
+        vm.selectDate("2026-10-24")
+        dispatcher.scheduler.advanceUntilIdle()
+        vm.selectTime("2026-10-24T09:00:00+08:00")
 
-        assertEquals("09:00", slots.first())
-        assertEquals("17:00", slots.last())
-        assertEquals(listOf("09:00", "09:15", "09:30", "09:45", "10:00"), slots.take(5))
-        assertEquals(33, slots.size)
+        vm.submit(null)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(3, state.step)
+        assertEquals(null, state.selectedDateTime)
+        assertEquals("That time was just taken. Choose another available time.", state.availabilityNotice)
+        assertEquals(fakeAvailability, state.availability)
     }
 }

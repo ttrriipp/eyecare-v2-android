@@ -63,7 +63,7 @@ Booking and reschedule mutations remain authoritative. A 422 response with `code
 - [x] Task 1: Add the availability API and domain contract.
   - Acceptance: Repository callers can fetch a mapped availability grid for booking or rescheduling, including unavailable reasons and offset-bearing timestamps.
   - Verify: `.\gradlew testDebugUnitTest --tests "*AppointmentRepositoryImplTest*"`.
-- [ ] Task 2: Replace booking's manual time picker with backend slots.
+- [x] Task 2: Replace booking's manual time picker with backend slots.
   - Acceptance: Booking loads availability for the selected reason/date, only permits available selections, and represents loading, retry, and empty states.
   - Verify: `.\gradlew testDebugUnitTest --tests "*BookAppointmentViewModelTest*"` and `.\gradlew assembleDebug`.
 - [ ] Task 3: Use backend slots for rescheduling.

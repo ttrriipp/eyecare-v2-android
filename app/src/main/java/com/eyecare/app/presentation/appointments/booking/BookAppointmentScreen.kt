@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -72,6 +76,7 @@ import com.eyecare.app.presentation.appointments.formatAppointmentDate
 import com.eyecare.app.presentation.appointments.formatAppointmentTime
 import com.eyecare.app.presentation.appointments.isBookableAppointmentTime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.VisitReason as DomainVisitReason
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -146,10 +151,13 @@ fun BookAppointmentScreen(
                         ?.durationMinutes ?: 30,
                     onSelectDate = viewModel::selectDate,
                 )
-                3 -> Step3TimeSelection(
-                    selectedDate = state.selectedDate,
-                    durationMinutes = state.visitReasons.firstOrNull { it.id == state.selectedReasonId }
-                        ?.durationMinutes ?: 30,
+                3 -> Step3AvailabilitySelection(
+                    availability = state.availability,
+                    isLoading = state.availabilityLoading,
+                    error = state.availabilityError,
+                    notice = state.availabilityNotice,
+                    onRetry = viewModel::retryAvailability,
+                    onChooseAnotherDate = viewModel::goBack,
                     onSelectTime = viewModel::selectTime,
                 )
                 4 -> Step4ConfirmNotes(
@@ -556,6 +564,131 @@ private fun TimeSegment(
             )
         }
     }
+}
+
+@Composable
+private fun Step3AvailabilitySelection(
+    availability: AppointmentAvailability?,
+    isLoading: Boolean,
+    error: String?,
+    notice: String?,
+    onRetry: () -> Unit,
+    onChooseAnotherDate: () -> Unit,
+    onSelectTime: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+            .padding(top = 16.dp, bottom = 12.dp)
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Select Time", style = MaterialTheme.typography.headlineMedium)
+            availability?.let {
+                Text(
+                    "${it.visitDurationMinutes} min visit",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+
+        notice?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        when {
+            isLoading -> BookingAvailabilityCenteredContent {
+                CircularProgressIndicator()
+            }
+            error != null -> BookingAvailabilityCenteredContent {
+                Text(
+                    text = "Available times could not be loaded.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = onRetry) { Text("Try again") }
+            }
+            availability != null -> {
+                val visibleSlots = availability.slots.filter { it.reason != "elapsed" }
+                val availableCount = visibleSlots.count { it.available }
+                if (availability.dayStatus == "closed" || availableCount == 0) {
+                    BookingAvailabilityCenteredContent {
+                        Text(
+                            text = if (availability.dayStatus == "closed") {
+                                "The clinic is closed on this date."
+                            } else {
+                                "No times are available on this date."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedButton(onClick = onChooseAnotherDate) {
+                            Text("Choose another date")
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "$availableCount available ${if (availableCount == 1) "time" else "times"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(visibleSlots, key = { it.startsAt }) { slot ->
+                            OutlinedButton(
+                                onClick = { onSelectTime(slot.startsAt) },
+                                enabled = slot.available,
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+                            ) {
+                                Text(
+                                    text = formatAppointmentTime(slot.startsAt),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            else -> BookingAvailabilityCenteredContent {
+                Text(
+                    text = "Choose a date to see available times.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.BookingAvailabilityCenteredContent(
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().weight(1f),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        content = content,
+    )
 }
 
 @Composable
