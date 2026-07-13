@@ -32,6 +32,31 @@ object AppointmentDtos {
     data class AppointmentResponse(val data: AppointmentDto)
 
     @Serializable
+    data class AvailabilitySlotDto(
+        @SerialName("starts_at") val startsAt: String,
+        @SerialName("ends_at") val endsAt: String,
+        val available: Boolean,
+        val reason: String? = null,
+    )
+
+    @Serializable
+    data class AppointmentAvailabilityDto(
+        val date: String,
+        val timezone: String,
+        @SerialName("interval_minutes") val intervalMinutes: Int,
+        @SerialName("visit_reason_id") val visitReasonId: Int,
+        @SerialName("visit_duration_minutes") val visitDurationMinutes: Int,
+        @SerialName("optometrist_id") val optometristId: Int? = null,
+        @SerialName("appointment_id") val appointmentId: Int? = null,
+        @SerialName("day_status") val dayStatus: String,
+        @SerialName("generated_at") val generatedAt: String,
+        val slots: List<AvailabilitySlotDto>,
+    )
+
+    @Serializable
+    data class AppointmentAvailabilityResponse(val data: AppointmentAvailabilityDto)
+
+    @Serializable
     data class CreateAppointmentRequest(
         @SerialName("visit_reason_id") val visitReasonId: Int,
         @SerialName("scheduled_at") val scheduledAt: String,
@@ -56,6 +81,7 @@ object AppointmentDtos {
     @Serializable
     data class ValidationErrorBody(
         val message: String,
+        val code: String? = null,
         val errors: Map<String, List<String>> = emptyMap(),
     )
 }

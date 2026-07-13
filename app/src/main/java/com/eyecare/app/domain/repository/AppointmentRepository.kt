@@ -1,11 +1,17 @@
 package com.eyecare.app.domain.repository
 
 import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.VisitReason
 
 interface AppointmentRepository {
     suspend fun getAppointments(): Result<List<Appointment>>
     suspend fun getAppointment(id: Int): Result<Appointment>
+    suspend fun getAppointmentAvailability(
+        date: String,
+        visitReasonId: Int,
+        appointmentId: Int? = null,
+    ): Result<AppointmentAvailability>
     suspend fun createAppointment(
         visitReasonId: Int,
         scheduledAt: String,

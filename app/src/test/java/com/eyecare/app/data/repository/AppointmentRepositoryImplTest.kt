@@ -12,6 +12,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -93,6 +94,54 @@ class AppointmentRepositoryImplTest {
     }
 
     @Test
+    fun `getAppointmentAvailability maps slot grid and booking query`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""
+            {"data":{"date":"2026-07-13","timezone":"Asia/Manila","interval_minutes":15,
+            "visit_reason_id":1,"visit_duration_minutes":30,"optometrist_id":null,
+            "appointment_id":null,"day_status":"open","generated_at":"2026-07-13T08:12:04+08:00",
+            "slots":[
+              {"starts_at":"2026-07-13T09:00:00+08:00","ends_at":"2026-07-13T09:30:00+08:00",
+               "available":true,"reason":null},
+              {"starts_at":"2026-07-13T09:15:00+08:00","ends_at":"2026-07-13T09:45:00+08:00",
+               "available":false,"reason":"capacity_reached"}
+            ]}}
+        """.trimIndent()))
+
+        val availability = repository.getAppointmentAvailability("2026-07-13", 1).getOrThrow()
+
+        val request = server.takeRequest()
+        assertEquals("/appointments/availability?date=2026-07-13&visit_reason_id=1", request.path)
+        assertEquals("Asia/Manila", availability.timezone)
+        assertEquals(15, availability.intervalMinutes)
+        assertEquals(30, availability.visitDurationMinutes)
+        assertEquals(2, availability.slots.size)
+        assertTrue(availability.slots.first().available)
+        assertNull(availability.slots.first().reason)
+        assertEquals("capacity_reached", availability.slots.last().reason)
+    }
+
+    @Test
+    fun `getAppointmentAvailability maps closed day and reschedule query`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""
+            {"data":{"date":"2026-07-19","timezone":"Asia/Manila","interval_minutes":15,
+            "visit_reason_id":2,"visit_duration_minutes":15,"optometrist_id":null,
+            "appointment_id":4,"day_status":"closed","generated_at":"2026-07-13T08:12:04+08:00",
+            "slots":[]}}
+        """.trimIndent()))
+
+        val availability = repository.getAppointmentAvailability("2026-07-19", 2, 4).getOrThrow()
+
+        val request = server.takeRequest()
+        assertEquals(
+            "/appointments/availability?date=2026-07-19&visit_reason_id=2&appointment_id=4",
+            request.path,
+        )
+        assertEquals("closed", availability.dayStatus)
+        assertEquals(4, availability.appointmentId)
+        assertTrue(availability.slots.isEmpty())
+    }
+
+    @Test
     fun `createAppointment returns created appointment`() = runTest {
         server.enqueue(MockResponse().setResponseCode(201).setBody("""
             {"data":{"id":3,"visit_reason":"prescription_check","status":"pending",
@@ -115,6 +164,23 @@ class AppointmentRepositoryImplTest {
         assertInstanceOf(
             com.eyecare.app.domain.model.AppointmentError.ValidationError::class.java,
             result.exceptionOrNull()
+        )
+    }
+
+    @Test
+    fun `createAppointment preserves stale slot error code`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(422).setBody("""
+            {"message":"This time slot is not available","code":"SLOT_UNAVAILABLE",
+            "errors":{"scheduled_at":["This time slot is not available."]},
+            "availability":{"date":"2026-07-13","visit_reason_id":1}}
+        """.trimIndent()))
+
+        val error = repository.createAppointment(1, "2026-07-13T09:00:00+08:00", null).exceptionOrNull()
+
+        assertInstanceOf(com.eyecare.app.domain.model.AppointmentError.ValidationError::class.java, error)
+        assertEquals(
+            "SLOT_UNAVAILABLE",
+            (error as com.eyecare.app.domain.model.AppointmentError.ValidationError).code,
         )
     }
 

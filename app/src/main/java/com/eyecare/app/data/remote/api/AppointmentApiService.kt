@@ -5,6 +5,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface AppointmentApiService {
     @GET("appointments")
@@ -12,6 +13,13 @@ interface AppointmentApiService {
 
     @GET("appointments/{id}")
     suspend fun getAppointment(@Path("id") id: Int): AppointmentDtos.AppointmentResponse
+
+    @GET("appointments/availability")
+    suspend fun getAppointmentAvailability(
+        @Query("date") date: String,
+        @Query("visit_reason_id") visitReasonId: Int,
+        @Query("appointment_id") appointmentId: Int? = null,
+    ): AppointmentDtos.AppointmentAvailabilityResponse
 
     @POST("appointments")
     suspend fun createAppointment(@Body request: AppointmentDtos.CreateAppointmentRequest): AppointmentDtos.AppointmentResponse

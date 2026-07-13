@@ -60,7 +60,7 @@ Booking and reschedule mutations remain authoritative. A 422 response with `code
 - Compose behavior is kept state-driven; build verification catches API and layout integration issues.
 
 ## Implementation Tasks
-- [ ] Task 1: Add the availability API and domain contract.
+- [x] Task 1: Add the availability API and domain contract.
   - Acceptance: Repository callers can fetch a mapped availability grid for booking or rescheduling, including unavailable reasons and offset-bearing timestamps.
   - Verify: `.\gradlew testDebugUnitTest --tests "*AppointmentRepositoryImplTest*"`.
 - [ ] Task 2: Replace booking's manual time picker with backend slots.
