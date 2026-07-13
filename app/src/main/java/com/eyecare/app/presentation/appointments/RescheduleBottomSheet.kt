@@ -86,7 +86,7 @@ fun RescheduleBottomSheet(
     onDismiss: () -> Unit,
     onConfirm: (scheduledAt: String) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var tabIndex by remember { mutableIntStateOf(0) } // 0 = date, 1 = time
     var selectedDate by remember { mutableStateOf<String?>(null) }
     var selectedTime by remember { mutableStateOf<String?>(null) }
