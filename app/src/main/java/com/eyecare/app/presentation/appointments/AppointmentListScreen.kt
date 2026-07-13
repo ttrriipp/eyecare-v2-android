@@ -44,7 +44,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -156,14 +155,6 @@ fun AppointmentListScreen(
                                     onNextWeek = { selectedDate = selectedDate.plusWeeks(1) },
                                     onDateSelected = { selectedDate = it },
                                 )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End,
-                                ) {
-                                    TextButton(onClick = { dateFilterEnabled = false }) {
-                                        Text("Show all upcoming")
-                                    }
-                                }
                             }
                         }
                         if (visibleAppointments.isEmpty()) {
