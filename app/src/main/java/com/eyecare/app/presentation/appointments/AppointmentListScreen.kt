@@ -606,7 +606,9 @@ private fun appointmentSortKey(scheduledAt: String): LocalDateTime =
 private fun parseAppointmentDate(value: String): LocalDate? = parseAppointmentDateTime(value)?.toLocalDate()
 
 private fun parseAppointmentDateTime(value: String): LocalDateTime? =
-    runCatching { OffsetDateTime.parse(value).toLocalDateTime() }.getOrNull()
+    runCatching {
+        OffsetDateTime.parse(value).atZoneSameInstant(CLINIC_TIME_ZONE).toLocalDateTime()
+    }.getOrNull()
         ?: runCatching { LocalDateTime.parse(value) }.getOrNull()
         ?: runCatching { LocalDateTime.parse(value.replace(" ", "T").removeSuffix("Z")) }.getOrNull()
 

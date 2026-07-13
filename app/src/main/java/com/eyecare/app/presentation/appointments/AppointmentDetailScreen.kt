@@ -246,6 +246,8 @@ private fun AppointmentDetailContent(
                 }
             }
 
+            AppointmentStatusGuidance(appointment.status)
+
             if (customerNote != null || clinicNote != null) {
                 AppointmentNotesSection(customerNote = customerNote, clinicNote = clinicNote)
             }
@@ -321,6 +323,42 @@ private fun AppointmentDetailContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AppointmentStatusGuidance(status: AppointmentStatus) {
+    val (title, message) = when (status) {
+        AppointmentStatus.PENDING ->
+            "Waiting for confirmation" to "The clinic will confirm your schedule shortly."
+        AppointmentStatus.CONFIRMED ->
+            "Appointment confirmed" to "Please arrive a few minutes before your scheduled time."
+        else -> return
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = if (status == AppointmentStatus.PENDING) {
+                Icons.Outlined.AccessTime
+            } else {
+                Icons.Outlined.EventAvailable
+            },
+            contentDescription = null,
+            modifier = Modifier.size(22.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(
+                message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

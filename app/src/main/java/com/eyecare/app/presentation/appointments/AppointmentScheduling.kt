@@ -5,7 +5,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private val CLINIC_TIME_ZONE = ZoneId.of("Asia/Manila")
+internal val CLINIC_TIME_ZONE: ZoneId = ZoneId.of("Asia/Manila")
 
 internal fun formatClinicScheduledAt(date: String, time: String): String =
     LocalDate.parse(date)

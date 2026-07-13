@@ -26,12 +26,12 @@ class AppointmentFormattingTest {
 
     @Test
     fun `formatAppointmentDate formats iso timestamp`() {
-        assertEquals("Oct 24, 2026", formatAppointmentDate("2026-10-24T10:00:00Z"))
+        assertEquals("Oct 25, 2026", formatAppointmentDate("2026-10-24T17:00:00Z"))
     }
 
     @Test
     fun `formatAppointmentTime formats iso timestamp`() {
-        assertEquals("10:00 AM", formatAppointmentTime("2026-10-24T10:00:00Z"))
+        assertEquals("9:00 AM", formatAppointmentTime("2026-10-24T01:00:00Z"))
     }
 
     @Test
@@ -45,10 +45,10 @@ class AppointmentFormattingTest {
 
     @Test
     fun `appointmentOccursOnDate matches appointment scheduled day`() {
-        val scheduledAt = "2026-10-24T10:00:00Z"
+        val scheduledAt = "2026-10-24T17:00:00Z"
 
-        assertTrue(appointmentOccursOnDate(scheduledAt, LocalDate.of(2026, 10, 24)))
-        assertFalse(appointmentOccursOnDate(scheduledAt, LocalDate.of(2026, 10, 25)))
+        assertTrue(appointmentOccursOnDate(scheduledAt, LocalDate.of(2026, 10, 25)))
+        assertFalse(appointmentOccursOnDate(scheduledAt, LocalDate.of(2026, 10, 24)))
     }
 
     @Test
