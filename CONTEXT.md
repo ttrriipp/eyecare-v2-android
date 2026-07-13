@@ -109,6 +109,7 @@ com.eyecare.app/
 - The detail screen's "Reschedule" button uses the same filled, theme-tinted `Button` style (primary color at 12% alpha background, primary content color, no elevation) as the list screen's card action buttons, rather than the plain `OutlinedButton` used elsewhere.
 - **Scheduling timezone:** picker values represent Philippine clinic-local time. Booking and rescheduling submit an ISO-8601 timestamp with the explicit `Asia/Manila` offset; response timestamps are converted by instant to `Asia/Manila` for display, filtering, and date grouping.
 - **Availability limitation:** rescheduling still uses the locally constrained picker and authoritative backend validation. The availability endpoint requires `visit_reason_id`, while appointment responses currently expose only the display label `visit_reason`; Android will not infer a stable ID by matching display text. Add `visit_reason_id` to appointment list/detail responses before wiring reschedule availability.
+- **Customer note editing:** pending and confirmed appointments show an edit action in the Notes section. The inline editor accepts up to 1000 characters, sends trimmed text through `PATCH /appointments/{id}/contact-note`, and sends `null` when cleared. The returned appointment updates the screen directly; clinic notes remain read-only and all later statuses hide the edit action.
 
 ## Themed Confirmation Dialogs
 
@@ -145,6 +146,7 @@ GET    /appointments/availability     → slot grid for date + visit_reason_id; 
 POST   /appointments                  → book (pending)
 POST   /appointments/{id}/cancel
 POST   /appointments/{id}/reschedule  → reschedule own appointment (pending/confirmed only)
+PATCH  /appointments/{id}/contact-note → edit or clear own pending/confirmed appointment contact note
 GET    /visit-reasons                 → [{id, name, duration_minutes}]
 GET    /products, /products/{id}      → frame-only, paginated (supports search/brand/category/min_price/max_price/in_stock/sort)
 GET    /orders, /orders/{id}          → paginated, includes billing_id

@@ -69,6 +69,11 @@ object AppointmentDtos {
     )
 
     @Serializable
+    data class UpdateContactNoteRequest(
+        @SerialName("contact_notes") val contactNotes: String?,
+    )
+
+    @Serializable
     data class VisitReasonDto(
         val id: Int,
         val name: String,

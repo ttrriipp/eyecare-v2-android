@@ -5,6 +5,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.PATCH
 import retrofit2.http.Query
 
 interface AppointmentApiService {
@@ -31,6 +32,12 @@ interface AppointmentApiService {
     suspend fun rescheduleAppointment(
         @Path("id") id: Int,
         @Body request: AppointmentDtos.RescheduleRequest,
+    ): AppointmentDtos.AppointmentResponse
+
+    @PATCH("appointments/{id}/contact-note")
+    suspend fun updateAppointmentContactNote(
+        @Path("id") id: Int,
+        @Body request: AppointmentDtos.UpdateContactNoteRequest,
     ): AppointmentDtos.AppointmentResponse
 
     @GET("visit-reasons")

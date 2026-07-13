@@ -21,6 +21,8 @@ import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.EditCalendar
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material3.Button
@@ -34,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.WindowInsets
@@ -147,6 +150,9 @@ fun AppointmentDetailScreen(
                     state = state,
                     onReschedule = viewModel::showRescheduleSheet,
                     onCancel = { showCancelDialog = true },
+                    onEditContactNote = viewModel::startEditingContactNote,
+                    onDismissContactNoteEditor = viewModel::dismissContactNoteEditor,
+                    onSaveContactNote = viewModel::saveContactNote,
                     onLeaveFeedback = { onLeaveFeedback(state.appointment.id) },
                 )
             }
@@ -159,6 +165,9 @@ private fun AppointmentDetailContent(
     state: AppointmentDetailUiState.Success,
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
+    onEditContactNote: () -> Unit,
+    onDismissContactNoteEditor: () -> Unit,
+    onSaveContactNote: (String) -> Unit,
     onLeaveFeedback: () -> Unit,
 ) {
     val appointment = state.appointment
@@ -250,8 +259,18 @@ private fun AppointmentDetailContent(
 
             AppointmentStatusGuidance(appointment.status)
 
-            if (customerNote != null || clinicNote != null) {
-                AppointmentNotesSection(customerNote = customerNote, clinicNote = clinicNote)
+            if (canManage || customerNote != null || clinicNote != null) {
+                AppointmentNotesSection(
+                    customerNote = customerNote,
+                    clinicNote = clinicNote,
+                    canEditCustomerNote = canManage,
+                    isEditing = state.isEditingContactNote,
+                    isSaving = state.isSavingContactNote,
+                    error = state.contactNoteError,
+                    onEdit = onEditContactNote,
+                    onDismissEditor = onDismissContactNoteEditor,
+                    onSave = onSaveContactNote,
+                )
             }
 
             state.rescheduleError?.let { AppointmentActionError(it) }
@@ -275,7 +294,7 @@ private fun AppointmentDetailContent(
                         Button(
                             onClick = onReschedule,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
-                            enabled = !state.isCancelling,
+                            enabled = !state.isCancelling && !state.isSavingContactNote,
                             shape = RoundedCornerShape(50),
                         ) {
                             Icon(
@@ -289,7 +308,7 @@ private fun AppointmentDetailContent(
                         OutlinedButton(
                             onClick = onCancel,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
-                            enabled = !state.isCancelling,
+                            enabled = !state.isCancelling && !state.isSavingContactNote,
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error,
@@ -393,7 +412,21 @@ private fun AppointmentMetadataRow(
 }
 
 @Composable
-private fun AppointmentNotesSection(customerNote: String?, clinicNote: String?) {
+private fun AppointmentNotesSection(
+    customerNote: String?,
+    clinicNote: String?,
+    canEditCustomerNote: Boolean,
+    isEditing: Boolean,
+    isSaving: Boolean,
+    error: String?,
+    onEdit: () -> Unit,
+    onDismissEditor: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var draft by remember(customerNote, isEditing) { mutableStateOf(customerNote.orEmpty()) }
+    val normalizedDraft = draft.trim().ifBlank { null }
+    val normalizedOriginal = customerNote?.trim()?.ifBlank { null }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -403,11 +436,83 @@ private fun AppointmentNotesSection(customerNote: String?, clinicNote: String?) 
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            customerNote?.let { note ->
-                AppointmentNoteItem(label = "Your note", note = note)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                if (canEditCustomerNote && !isEditing) {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Outlined.Edit,
+                            contentDescription = if (customerNote == null) "Add appointment note" else "Edit appointment note",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
             }
-            if (customerNote != null && clinicNote != null) {
+
+            if (isEditing) {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { if (it.length <= CONTACT_NOTE_MAX_LENGTH) draft = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSaving,
+                    label = { Text("Your note") },
+                    placeholder = { Text("Anything the clinic should know?") },
+                    minLines = 3,
+                    maxLines = 6,
+                    supportingText = {
+                        Text("${draft.length}/$CONTACT_NOTE_MAX_LENGTH")
+                    },
+                )
+                error?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = onDismissEditor,
+                        modifier = Modifier.weight(1f),
+                        enabled = !isSaving,
+                    ) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = { onSave(draft) },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isSaving && normalizedDraft != normalizedOriginal,
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        } else {
+                            Icon(Icons.Outlined.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.size(8.dp))
+                            Text("Save")
+                        }
+                    }
+                }
+            } else if (customerNote != null) {
+                AppointmentNoteItem(label = "Your note", note = customerNote)
+            } else if (canEditCustomerNote) {
+                Text(
+                    "No note added",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if ((customerNote != null || isEditing || canEditCustomerNote) && clinicNote != null) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             clinicNote?.let { note ->
@@ -416,6 +521,8 @@ private fun AppointmentNotesSection(customerNote: String?, clinicNote: String?) 
         }
     }
 }
+
+private const val CONTACT_NOTE_MAX_LENGTH = 1000
 
 @Composable
 private fun AppointmentNoteItem(label: String, note: String) {

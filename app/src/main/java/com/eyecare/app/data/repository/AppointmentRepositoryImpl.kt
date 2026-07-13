@@ -67,6 +67,23 @@ class AppointmentRepositoryImpl @Inject constructor(
         throw throwable
     }
 
+    override suspend fun updateAppointmentContactNote(
+        id: Int,
+        contactNotes: String?,
+    ): Result<Appointment> = runCatching {
+        api.updateAppointmentContactNote(
+            id,
+            AppointmentDtos.UpdateContactNoteRequest(contactNotes),
+        ).data.toDomain()
+    }.recoverCatching { throwable ->
+        if (throwable is HttpException && throwable.code() == 422) {
+            val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
+            val parsed = json.decodeFromString<AppointmentDtos.ValidationErrorBody>(body)
+            throw AppointmentError.ValidationError(parsed.errors, parsed.code)
+        }
+        throw throwable
+    }
+
     override suspend fun getVisitReasons(): Result<List<VisitReason>> = runCatching {
         api.getVisitReasons().data.map { VisitReason(it.id, it.name, it.durationMinutes) }
     }

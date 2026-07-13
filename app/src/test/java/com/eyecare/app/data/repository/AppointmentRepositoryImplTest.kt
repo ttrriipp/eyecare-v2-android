@@ -212,4 +212,36 @@ class AppointmentRepositoryImplTest {
             result.exceptionOrNull()
         )
     }
+
+    @Test
+    fun `updateAppointmentContactNote sends dedicated patch and maps appointment`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""
+            {"data":{"id":4,"visit_reason":"Follow-up","status":"confirmed",
+            "scheduled_at":"2026-11-01T13:00:00+08:00","contact_notes":"Call before arrival",
+            "staff_notes":null}}
+        """.trimIndent()))
+
+        val result = repository.updateAppointmentContactNote(4, "Call before arrival")
+
+        val request = server.takeRequest()
+        assertEquals("PATCH", request.method)
+        assertEquals("/appointments/4/contact-note", request.path)
+        assertEquals("{\"contact_notes\":\"Call before arrival\"}", request.body.readUtf8())
+        assertEquals("Call before arrival", result.getOrThrow().contactNotes)
+        assertEquals(AppointmentStatus.CONFIRMED, result.getOrThrow().status)
+    }
+
+    @Test
+    fun `updateAppointmentContactNote sends null to clear note`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""
+            {"data":{"id":4,"visit_reason":"Follow-up","status":"pending",
+            "scheduled_at":"2026-11-01T13:00:00+08:00","contact_notes":null,
+            "staff_notes":null}}
+        """.trimIndent()))
+
+        val result = repository.updateAppointmentContactNote(4, null)
+
+        assertEquals("{\"contact_notes\":null}", server.takeRequest().body.readUtf8())
+        assertNull(result.getOrThrow().contactNotes)
+    }
 }

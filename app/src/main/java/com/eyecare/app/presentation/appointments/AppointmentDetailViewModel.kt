@@ -3,11 +3,10 @@ package com.eyecare.app.presentation.appointments
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.repository.AppointmentRepository
 import com.eyecare.app.domain.repository.FeedbackRepository
-import com.eyecare.app.presentation.navigation.AppointmentDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +25,9 @@ sealed interface AppointmentDetailUiState {
         val isRescheduling: Boolean = false,
         val rescheduleError: String? = null,
         val showRescheduleSuccessDialog: Boolean = false,
+        val isEditingContactNote: Boolean = false,
+        val isSavingContactNote: Boolean = false,
+        val contactNoteError: String? = null,
     ) : AppointmentDetailUiState
     data class Error(val message: String) : AppointmentDetailUiState
 }
@@ -37,7 +39,7 @@ class AppointmentDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val appointmentId: Int = savedStateHandle.toRoute<AppointmentDetail>().appointmentId
+    private val appointmentId: Int = checkNotNull(savedStateHandle["appointmentId"])
 
     private val _uiState = MutableStateFlow<AppointmentDetailUiState>(AppointmentDetailUiState.Loading)
     val uiState: StateFlow<AppointmentDetailUiState> = _uiState.asStateFlow()
@@ -113,6 +115,46 @@ class AppointmentDetailViewModel @Inject constructor(
         _uiState.value = current.copy(showRescheduleSuccessDialog = false)
     }
 
+    fun startEditingContactNote() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        if (current.appointment.status !in EDITABLE_NOTE_STATUSES) return
+        _uiState.value = current.copy(isEditingContactNote = true, contactNoteError = null)
+    }
+
+    fun dismissContactNoteEditor() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success || current.isSavingContactNote) return
+        _uiState.value = current.copy(isEditingContactNote = false, contactNoteError = null)
+    }
+
+    fun saveContactNote(note: String) {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        if (current.appointment.status !in EDITABLE_NOTE_STATUSES || current.isSavingContactNote) return
+        val normalizedNote = note.trim().ifBlank { null }
+        _uiState.value = current.copy(isSavingContactNote = true, contactNoteError = null)
+        viewModelScope.launch {
+            repository.updateAppointmentContactNote(appointmentId, normalizedNote).fold(
+                onSuccess = { updatedAppointment ->
+                    _uiState.value = current.copy(
+                        appointment = updatedAppointment,
+                        isEditingContactNote = false,
+                        isSavingContactNote = false,
+                        contactNoteError = null,
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = current.copy(
+                        isEditingContactNote = true,
+                        isSavingContactNote = false,
+                        contactNoteError = error.message ?: "Failed to save note",
+                    )
+                },
+            )
+        }
+    }
+
     private fun load() {
         viewModelScope.launch {
             val appointmentResult = repository.getAppointment(appointmentId)
@@ -126,5 +168,12 @@ class AppointmentDetailViewModel @Inject constructor(
                 onFailure = { AppointmentDetailUiState.Error(it.message ?: "Failed to load") },
             )
         }
+    }
+
+    companion object {
+        private val EDITABLE_NOTE_STATUSES = setOf(
+            AppointmentStatus.PENDING,
+            AppointmentStatus.CONFIRMED,
+        )
     }
 }
