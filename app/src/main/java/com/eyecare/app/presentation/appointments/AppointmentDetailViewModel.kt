@@ -75,6 +75,12 @@ class AppointmentDetailViewModel @Inject constructor(
         _uiState.value = current.copy(showRescheduleSheet = false, rescheduleError = null)
     }
 
+    fun clearRescheduleError() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success || current.rescheduleError == null) return
+        _uiState.value = current.copy(rescheduleError = null)
+    }
+
     fun rescheduleAppointment(scheduledAt: String) {
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success) return

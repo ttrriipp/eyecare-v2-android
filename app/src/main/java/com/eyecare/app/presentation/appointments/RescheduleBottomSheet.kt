@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -82,16 +83,33 @@ private fun isValidClinicTime(hour12: Int, minute: Int, isPm: Boolean): Boolean 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RescheduleBottomSheet(
+    currentScheduledAt: String,
     isSubmitting: Boolean,
     errorMessage: String?,
+    onSelectionChanged: () -> Unit,
     onDismiss: () -> Unit,
     onConfirm: (scheduledAt: String) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val currentDateTime = remember(currentScheduledAt) {
+        parseClinicDateTime(currentScheduledAt) ?: LocalDateTime.now(CLINIC_TIME_ZONE)
+    }
+    val openedAt = remember { LocalDateTime.now(CLINIC_TIME_ZONE) }
+    val initialTime = remember(currentDateTime, openedAt) {
+        if (currentDateTime.toLocalDate() == openedAt.toLocalDate() &&
+            !currentDateTime.toLocalTime().isAfter(openedAt.toLocalTime())
+        ) nextClinicSlot(openedAt.toLocalTime()) else currentDateTime.toLocalTime()
+    }
     var tabIndex by remember { mutableIntStateOf(0) } // 0 = date, 1 = time
-    var selectedDate by remember { mutableStateOf<String?>(null) }
-    var selectedTime by remember { mutableStateOf<String?>(null) }
+    var selectedDate by remember { mutableStateOf(currentDateTime.toLocalDate().toString()) }
+    var selectedTime by remember { mutableStateOf(initialTime.format(DateTimeFormatter.ofPattern("HH:mm"))) }
     var showConfirmDialog by remember { mutableStateOf(false) }
+    val selectedDateTime = runCatching {
+        LocalDate.parse(selectedDate).atTime(java.time.LocalTime.parse(selectedTime))
+    }.getOrNull()
+    val selectionError = selectedDateTime?.let {
+        validateRescheduleSelection(it, currentDateTime, openedAt)
+    }
 
     if (showConfirmDialog) {
         val date = selectedDate
@@ -99,16 +117,12 @@ fun RescheduleBottomSheet(
         AppConfirmationDialog(
             icon = Icons.Outlined.EventAvailable,
             title = "Confirm Reschedule",
-            message = if (date != null && time != null) {
-                "Reschedule this appointment to ${formatPickedDate(date)} at ${formatPickedTime(time)}?"
-            } else {
-                "Reschedule this appointment?"
-            },
+            message = "Reschedule this appointment to ${formatPickedDate(date)} at ${formatPickedTime(time)}?",
             confirmLabel = "Reschedule",
             dismissLabel = "Keep Current Time",
             onConfirm = {
                 showConfirmDialog = false
-                if (date != null && time != null) onConfirm(formatClinicScheduledAt(date, time))
+                onConfirm(formatClinicScheduledAt(date, time))
             },
             onDismissRequest = { showConfirmDialog = false },
         )
@@ -144,11 +158,18 @@ fun RescheduleBottomSheet(
             if (tabIndex == 0) {
                 RescheduleDateStep(
                     selectedDate = selectedDate,
-                    onSelectDate = { selectedDate = it },
+                    onSelectDate = {
+                        selectedDate = it
+                        onSelectionChanged()
+                    },
                 )
             } else {
                 RescheduleTimeStep(
-                    onSelectTime = { selectedTime = it },
+                    initialTime = initialTime,
+                    onSelectTime = {
+                        selectedTime = it
+                        onSelectionChanged()
+                    },
                 )
             }
 
@@ -161,14 +182,26 @@ fun RescheduleBottomSheet(
                 )
             }
 
+            if (tabIndex == 1 && selectionError != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (selectionError == RescheduleSelectionError.PAST) {
+                        "Choose a time after the current time."
+                    } else {
+                        "Choose a different date or time."
+                    },
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
             Spacer(Modifier.height(16.dp))
 
             Button(
                 onClick = {
                     if (tabIndex == 0) tabIndex = 1 else showConfirmDialog = true
                 },
-                enabled = !isSubmitting && selectedDate != null &&
-                    (tabIndex == 0 || selectedTime != null),
+                enabled = !isSubmitting && (tabIndex == 0 || selectionError == null),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(26.dp),
             ) {
@@ -192,7 +225,7 @@ private fun RescheduleDateStep(
     selectedDate: String?,
     onSelectDate: (String) -> Unit,
 ) {
-    val today = remember { LocalDate.now() }
+    val today = remember { LocalDate.now(CLINIC_TIME_ZONE) }
 
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = selectedDate?.let {
@@ -245,11 +278,13 @@ private fun RescheduleDateStep(
 
 @Composable
 private fun RescheduleTimeStep(
+    initialTime: java.time.LocalTime,
     onSelectTime: (String) -> Unit,
 ) {
-    var isPm by remember { mutableStateOf(false) }
-    var hour by remember { mutableIntStateOf(9) }
-    var minute by remember { mutableIntStateOf(0) }
+    val initialHour12 = initialTime.hour % 12
+    var isPm by remember { mutableStateOf(initialTime.hour >= 12) }
+    var hour by remember { mutableIntStateOf(if (initialHour12 == 0) 12 else initialHour12) }
+    var minute by remember { mutableIntStateOf(initialTime.minute) }
 
     fun nextHour() {
         if (!isPm && hour == 11) {

@@ -4,6 +4,7 @@ import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.AppointmentStatus
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -17,6 +18,25 @@ class AppointmentFormattingTest {
             "2026-07-13T09:00:00+08:00",
             formatClinicScheduledAt("2026-07-13", "09:00"),
         )
+    }
+
+    @Test
+    fun `nextClinicSlot rounds up to the next quarter hour`() {
+        assertEquals(LocalTime.of(10, 30), nextClinicSlot(LocalTime.of(10, 19)))
+        assertEquals(LocalTime.of(10, 30), nextClinicSlot(LocalTime.of(10, 30)))
+    }
+
+    @Test
+    fun `reschedule validation rejects past and unchanged selections`() {
+        val now = LocalDateTime.of(2026, 7, 14, 10, 19)
+        val current = LocalDateTime.of(2026, 7, 15, 9, 0)
+
+        assertEquals(
+            RescheduleSelectionError.PAST,
+            validateRescheduleSelection(LocalDateTime.of(2026, 7, 14, 9, 0), current, now),
+        )
+        assertEquals(RescheduleSelectionError.UNCHANGED, validateRescheduleSelection(current, current, now))
+        assertEquals(null, validateRescheduleSelection(current.plusMinutes(15), current, now))
     }
 
     @Test

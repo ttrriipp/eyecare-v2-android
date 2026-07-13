@@ -104,8 +104,10 @@ fun AppointmentDetailScreen(
         val state = uiState as AppointmentDetailUiState.Success
         if (state.showRescheduleSheet) {
             RescheduleBottomSheet(
+                currentScheduledAt = state.appointment.scheduledAt,
                 isSubmitting = state.isRescheduling,
                 errorMessage = state.rescheduleError,
+                onSelectionChanged = viewModel::clearRescheduleError,
                 onDismiss = viewModel::dismissRescheduleSheet,
                 onConfirm = viewModel::rescheduleAppointment,
             )
