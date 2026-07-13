@@ -434,24 +434,9 @@ private fun AppointmentNotesSection(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                if (canEditCustomerNote && !isEditing) {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
-                        Icon(
-                            Icons.Outlined.Edit,
-                            contentDescription = if (customerNote == null) "Add appointment note" else "Edit appointment note",
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
-            }
+            Text("Notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
             if (isEditing) {
                 OutlinedTextField(
@@ -459,7 +444,7 @@ private fun AppointmentNotesSection(
                     onValueChange = { if (it.length <= CONTACT_NOTE_MAX_LENGTH) draft = it },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isSaving,
-                    label = { Text("Your note") },
+                    label = { Text("Your booking note") },
                     placeholder = { Text("Anything the clinic should know?") },
                     minLines = 3,
                     maxLines = 6,
@@ -503,14 +488,10 @@ private fun AppointmentNotesSection(
                         }
                     }
                 }
-            } else if (customerNote != null) {
-                AppointmentNoteItem(label = "Your note", note = customerNote)
             } else if (canEditCustomerNote) {
-                Text(
-                    "No note added",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                EditableCustomerNote(note = customerNote, onEdit = onEdit)
+            } else if (customerNote != null) {
+                AppointmentNoteItem(label = "Your booking note", note = customerNote)
             }
             if ((customerNote != null || isEditing || canEditCustomerNote) && clinicNote != null) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -525,13 +506,56 @@ private fun AppointmentNotesSection(
 private const val CONTACT_NOTE_MAX_LENGTH = 1000
 
 @Composable
+private fun EditableCustomerNote(note: String?, onEdit: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                "Your booking note",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = note ?: "Add a note for the clinic",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (note == null) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+            )
+        }
+        IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+            Icon(
+                Icons.Outlined.Edit,
+                contentDescription = if (note == null) "Add appointment note" else "Edit appointment note",
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun AppointmentNoteItem(label: String, note: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Text(
             note,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
