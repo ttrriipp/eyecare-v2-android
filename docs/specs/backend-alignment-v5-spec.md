@@ -45,9 +45,9 @@ Booking and reschedule mutations remain authoritative. A 422 response with `code
 ## UX Behavior
 - Fetch slots when the customer selects a date and reason.
 - Show a loading state in the time step without advancing automatically.
-- Present slots in a stable grid using clinic-local formatted times.
-- Show capacity-blocked slots disabled so customers can understand the day's schedule.
-- Hide elapsed same-day slots because they are no longer actionable.
+- Retain the app's digital clock picker and initialize it to the first available backend start.
+- Disable Review when the displayed clock time is absent or unavailable in the backend grid.
+- Submit the exact offset-bearing `starts_at` value matched to the displayed clock time.
 - Show a concise empty state for closed days or days with no available times, with a control to choose another date.
 - Show an inline retry state when availability cannot be loaded.
 - Only an available slot can advance to Review & Confirm.

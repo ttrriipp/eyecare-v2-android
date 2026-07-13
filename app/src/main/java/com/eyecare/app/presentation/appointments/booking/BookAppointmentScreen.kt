@@ -151,13 +151,15 @@ fun BookAppointmentScreen(
                         ?.durationMinutes ?: 30,
                     onSelectDate = viewModel::selectDate,
                 )
-                3 -> Step3AvailabilitySelection(
+                3 -> Step3TimeSelection(
+                    selectedDate = state.selectedDate,
+                    durationMinutes = state.visitReasons.firstOrNull { it.id == state.selectedReasonId }
+                        ?.durationMinutes ?: 30,
                     availability = state.availability,
                     isLoading = state.availabilityLoading,
                     error = state.availabilityError,
                     notice = state.availabilityNotice,
                     onRetry = viewModel::retryAvailability,
-                    onChooseAnotherDate = viewModel::goBack,
                     onSelectTime = viewModel::selectTime,
                 )
                 4 -> Step4ConfirmNotes(
@@ -340,6 +342,11 @@ private fun isValidClinicTime(hour12: Int, minute: Int, isPm: Boolean): Boolean 
 private fun Step3TimeSelection(
     selectedDate: String?,
     durationMinutes: Int,
+    availability: AppointmentAvailability?,
+    isLoading: Boolean,
+    error: String?,
+    notice: String?,
+    onRetry: () -> Unit,
     onSelectTime: (String) -> Unit,
 ) {
     // Start at 9:00 AM — first valid slot
@@ -351,6 +358,18 @@ private fun Step3TimeSelection(
     var isPm by remember { mutableStateOf(initialTime.hour >= 12) }
     var hour by remember { mutableIntStateOf(if (initialHour12 == 0) 12 else initialHour12) }
     var minute by remember { mutableIntStateOf(initialTime.minute) }
+
+    LaunchedEffect(availability?.generatedAt) {
+        val firstAvailableTime = availability?.slots
+            ?.firstOrNull { it.available }
+            ?.let { runCatching { java.time.OffsetDateTime.parse(it.startsAt).toLocalTime() }.getOrNull() }
+        firstAvailableTime?.let {
+            isPm = it.hour >= 12
+            val availableHour12 = it.hour % 12
+            hour = if (availableHour12 == 0) 12 else availableHour12
+            minute = it.minute
+        }
+    }
 
     // ── Hour navigation ──────────────────────────────────────────────────────
     // AM: 9→10→11→[flip to PM 12→1→…→5→wrap PM 12]
@@ -405,9 +424,16 @@ private fun Step3TimeSelection(
         else                -> hour
     }
     val timeString = "%02d:%02d".format(hour24, minute)
-    val isBookable = date?.atTime(hour24, minute)?.let {
+    val fitsLocalRules = date?.atTime(hour24, minute)?.let {
         isBookableAppointmentTime(it, durationMinutes, now)
     } == true
+    val selectedSlot = availability?.slots?.firstOrNull { slot ->
+        runCatching {
+            java.time.OffsetDateTime.parse(slot.startsAt).toLocalTime() ==
+                java.time.LocalTime.of(hour24, minute)
+        }.getOrDefault(false)
+    }
+    val isBookable = fitsLocalRules && selectedSlot?.available == true
 
     val primary      = MaterialTheme.colorScheme.primary
     val onSurface    = MaterialTheme.colorScheme.onSurface
@@ -503,19 +529,76 @@ private fun Step3TimeSelection(
             }
         }
 
-        if (!isBookable) {
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "Choose a future time that fits within clinic hours.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
+        when {
+            notice != null -> {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    notice,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            isLoading -> {
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text(
+                        "Checking availability...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            error != null -> {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Available times could not be loaded.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                OutlinedButton(onClick = onRetry) { Text("Try again") }
+            }
+            availability?.dayStatus == "closed" -> {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "The clinic is closed on this date.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            availability != null && availability.slots.none { it.available } -> {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "No times are available on this date.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            !fitsLocalRules -> {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Choose a future time that fits within clinic hours.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            !isBookable -> {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "This time is not available. Choose another time.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
 
         Spacer(Modifier.weight(1f))
 
         Button(
-            onClick = { onSelectTime(timeString) },
+            onClick = { selectedSlot?.let { onSelectTime(it.startsAt) } },
             enabled = isBookable,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(26.dp),

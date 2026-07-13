@@ -87,8 +87,8 @@ com.eyecare.app/
 `presentation/appointments/booking/BookAppointmentScreen.kt`, Step2/Step3:
 
 - **Step2 (date):** Material3 `DatePicker` with a `SelectableDates` override that blocks past dates and Sundays (clinic closed). Selected date parsed/formatted via UTC epoch millis.
-- **Step3 (time):** calls `GET /appointments/availability` for the selected date and visit-reason ID, then displays the returned starts in a stable three-column grid. Capacity-blocked times remain visible but disabled; elapsed times are hidden. Loading, retry, closed-day, and no-availability states are handled inline.
-  - Selecting a slot submits the backend's offset-bearing `starts_at` value unchanged. API response timestamps, including UTC (`Z`) values, are converted to `Asia/Manila` before display and date grouping.
+- **Step3 (time):** retains the themed digital HH:MM picker with arrow controls and AM/PM toggle, while `GET /appointments/availability` supplies the valid starts for the selected date and visit reason. The clock initializes to the first available start; Review is disabled when the displayed time is unavailable.
+  - Selecting an available clock time submits the matching backend `starts_at` value unchanged. Loading, retry, closed-day, fully-booked, and unavailable-time states are handled inline. API response timestamps, including UTC (`Z`) values, are converted to `Asia/Manila` before display and date grouping.
   - Booking mutations remain authoritative. A 422 with `code = SLOT_UNAVAILABLE` returns the wizard to Step3, refreshes availability, and asks the customer to choose another time.
 - **Step1 (visit reason):** compact navigation rows keep the reason name primary, show duration as a trailing clock value, and use a chevron to communicate immediate progression. The four-step indicator uses a primary active fill with a subdued surface track.
 - Android system Back and the app-bar Back button share the same wizard behavior: Steps 2–4 return to the previous step, while Step 1 exits to the appointment list.
