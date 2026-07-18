@@ -146,6 +146,22 @@ class HomeViewModelTest {
         assertEquals(emptyList<Product>(), state.eyeCareEssentials)
     }
 
+    @Test
+    fun `non-frame retail product types appear in home product groups`() = runTest {
+        val products = listOf(
+            product(1, productType = "accessory", category = "Accessories"),
+            product(2, productType = "contact_lens", category = "Contact Lenses"),
+            product(3, productType = "lens", category = "Prescription Lenses"),
+            product(4, productType = "service", category = "Eye Exam"),
+        )
+        coEvery { productRepo.getProducts(any()) } returns Result.success(products)
+
+        val state = vm().uiState.value as HomeUiState.Success
+
+        assertEquals(listOf(1), state.accessories.map(Product::id))
+        assertEquals(listOf(2, 3), state.eyeCareEssentials.map(Product::id))
+    }
+
     private fun product(
         id: Int,
         productType: String,

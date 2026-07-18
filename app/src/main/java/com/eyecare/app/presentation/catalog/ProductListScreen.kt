@@ -28,6 +28,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -69,6 +72,13 @@ fun ProductListScreen(
             modifier = Modifier.padding(horizontal = 24.dp),
         )
 
+        val selectedTab = (uiState as? ProductListUiState.Success)?.selectedTab ?: CatalogTab.FRAMES
+        CatalogTabs(
+            selectedTab = selectedTab,
+            onTabSelected = viewModel::selectCatalogTab,
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp),
+        )
+
         // Search bar
         val filters = (uiState as? ProductListUiState.Success)?.filters ?: ProductFilters()
         var query by remember { mutableStateOf(filters.search) }
@@ -76,7 +86,16 @@ fun ProductListScreen(
         OutlinedTextField(
             value = query,
             onValueChange = { query = it; viewModel.search(it) },
-            placeholder = { Text("Search frames, brands…", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            placeholder = {
+                Text(
+                    text = if (selectedTab == CatalogTab.FRAMES) {
+                        "Search frames and brands"
+                    } else {
+                        "Search eye products"
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
             trailingIcon = {
                 if (query.isNotBlank()) {
@@ -118,7 +137,7 @@ fun ProductListScreen(
                     item(span = { GridItemSpan(2) }) {
                         FilterRow(
                             brands = state.brands,
-                            categories = state.categories,
+                            categories = categoriesForCatalogTab(state.categories, state.selectedTab),
                             filters = state.filters,
                             onSelectBrand = viewModel::selectBrand,
                             onSelectCategory = viewModel::selectCategory,
@@ -133,8 +152,15 @@ fun ProductListScreen(
                                 Modifier.fillMaxWidth().padding(vertical = 48.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text("No products found", style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    text = if (state.selectedTab == CatalogTab.FRAMES) {
+                                        "No frames found"
+                                    } else {
+                                        "No eye products found"
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
                     } else {
@@ -165,6 +191,35 @@ fun ProductListScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CatalogTabs(
+    selectedTab: CatalogTab,
+    onTabSelected: (CatalogTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
+        CatalogTab.entries.forEachIndexed { index, tab ->
+            SegmentedButton(
+                selected = selectedTab == tab,
+                onClick = { onTabSelected(tab) },
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = index,
+                    count = CatalogTab.entries.size,
+                ),
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    activeContentColor = MaterialTheme.colorScheme.primary,
+                    activeBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
+                label = { Text(tab.label) },
+            )
         }
     }
 }

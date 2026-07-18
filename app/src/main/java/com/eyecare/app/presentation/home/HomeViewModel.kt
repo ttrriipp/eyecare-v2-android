@@ -98,14 +98,12 @@ class HomeViewModel @Inject constructor(
                     .take(HOME_SHELF_LIMIT),
                 accessories = products
                     .filter {
-                        it.productType.equals("general", ignoreCase = true) &&
-                            it.category.isAccessoryCategory()
+                        it.isRetailEyeProduct() && it.category.isAccessoryCategory()
                     }
                     .take(HOME_SHELF_LIMIT),
                 eyeCareEssentials = products
                     .filter {
-                        it.productType.equals("general", ignoreCase = true) &&
-                            !it.category.isAccessoryCategory()
+                        it.isRetailEyeProduct() && !it.category.isAccessoryCategory()
                     }
                     .take(HOME_SHELF_LIMIT),
             )
@@ -122,6 +120,10 @@ class HomeViewModel @Inject constructor(
             normalized.contains("cleaning kit") ||
             words.any { it == "case" || it == "cases" }
     }
+
+    private fun Product.isRetailEyeProduct(): Boolean =
+        !productType.equals("frame", ignoreCase = true) &&
+            !productType.equals("service", ignoreCase = true)
 
     private companion object {
         const val HOME_SHELF_LIMIT = 4

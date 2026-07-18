@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.catalog
 
 import app.cash.turbine.test
+import com.eyecare.app.domain.model.Category
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.domain.model.ProductVariant
 import com.eyecare.app.domain.repository.ProductRepository
@@ -19,10 +20,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * `ProductListViewModel` delegates all filtering (search, brand, category, sort, in-stock) to
- * the repository via `getProducts(...)` query params — it does not filter in-memory. So these
- * tests mock the repository to return different result sets per filter combination, rather than
- * asserting on client-side filtering of a single fixed product list.
+ * `ProductListViewModel` delegates search, brand, category, sort, and stock filtering to the
+ * repository. Catalog tabs are filtered in-memory because the products endpoint does not expose
+ * a product-type query parameter.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProductListViewModelTest {
@@ -30,9 +30,14 @@ class ProductListViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repo: ProductRepository
 
-    private fun makeProduct(id: Int, category: String, arEligible: Boolean = false) = Product(
+    private fun makeProduct(
+        id: Int,
+        category: String,
+        productType: String = "frame",
+        arEligible: Boolean = false,
+    ) = Product(
         id = id, name = "Product $id", slug = "product-$id", description = null,
-        productType = "frame", brand = "Brand", category = category,
+        productType = productType, brand = "Brand", category = category,
         variants = if (arEligible) listOf(
             ProductVariant(id, "v", "sku", "100.00", null, null, true, true, "img.png", emptyList())
         ) else emptyList(),
@@ -42,8 +47,9 @@ class ProductListViewModelTest {
     private val allProducts = listOf(
         makeProduct(1, "Frames", arEligible = true),
         makeProduct(2, "Sunglasses"),
-        makeProduct(3, "Frames"),
-        makeProduct(4, "Contacts"),
+        makeProduct(3, "Cleaning Kits", productType = "general"),
+        makeProduct(4, "Contact Accessories", productType = "GENERAL"),
+        makeProduct(5, "Eye Drops", productType = "accessory"),
     )
     private val framesProducts = allProducts.filter { it.category == "Frames" }
     private val product1Only = allProducts.filter { it.id == 1 }
@@ -71,7 +77,7 @@ class ProductListViewModelTest {
     }
 
     @Test
-    fun `initial state is Loading then Success with all products`() = runTest {
+    fun `initial state shows frames by default`() = runTest {
         stubDefaultProducts()
         val vm = ProductListViewModel(repo)
 
@@ -79,9 +85,68 @@ class ProductListViewModelTest {
             assertInstanceOf(ProductListUiState.Loading::class.java, awaitItem())
             dispatcher.scheduler.advanceUntilIdle()
             val state = awaitItem() as ProductListUiState.Success
-            assertEquals(4, state.products.size)
+            assertEquals(CatalogTab.FRAMES, state.selectedTab)
+            assertEquals(listOf(1, 2), state.products.map { it.id })
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `selecting eye products shows every non-frame product`() = runTest {
+        stubDefaultProducts()
+        val vm = ProductListViewModel(repo)
+
+        vm.uiState.test {
+            awaitItem() // Loading
+            dispatcher.scheduler.advanceUntilIdle()
+            awaitItem() // Frames
+
+            vm.selectCatalogTab(CatalogTab.EYE_PRODUCTS)
+
+            val state = awaitItem() as ProductListUiState.Success
+            assertEquals(CatalogTab.EYE_PRODUCTS, state.selectedTab)
+            assertEquals(listOf(3, 4, 5), state.products.map { it.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `catalog tabs expose only their relevant category filters`() {
+        val categories = listOf(
+            Category(1, "Frames"),
+            Category(2, "Sunglasses"),
+            Category(3, "Contact Lenses"),
+            Category(4, "Accessories"),
+            Category(5, "Cleaning Kits"),
+        )
+
+        assertEquals(
+            listOf("Frames", "Sunglasses"),
+            categoriesForCatalogTab(categories, CatalogTab.FRAMES).map { it.name },
+        )
+        assertEquals(
+            listOf("Contact Lenses", "Accessories"),
+            categoriesForCatalogTab(categories, CatalogTab.EYE_PRODUCTS).map { it.name },
+        )
+    }
+
+    @Test
+    fun `filter options are retained when they load before products`() = runTest {
+        val brands = listOf(com.eyecare.app.domain.model.Brand(1, "VisionCraft"))
+        val categories = listOf(
+            Category(3, "Contact Lenses"),
+            Category(4, "Accessories"),
+        )
+        coEvery { repo.getBrands() } returns Result.success(brands)
+        coEvery { repo.getCategories() } returns Result.success(categories)
+        stubDefaultProducts()
+
+        val vm = ProductListViewModel(repo)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as ProductListUiState.Success
+        assertEquals(brands, state.brands)
+        assertEquals(categories, state.categories)
     }
 
     @Test
@@ -103,7 +168,7 @@ class ProductListViewModelTest {
             vm.selectCategory(1)
             dispatcher.scheduler.advanceUntilIdle()
             val filtered = awaitItem() as ProductListUiState.Success
-            assertEquals(2, filtered.products.size)
+            assertEquals(1, filtered.products.size)
             filtered.products.forEach { assertEquals("Frames", it.category) }
             cancelAndIgnoreRemainingEvents()
         }
@@ -132,7 +197,7 @@ class ProductListViewModelTest {
             vm.selectCategory(null)
             dispatcher.scheduler.advanceUntilIdle()
             val all = awaitItem() as ProductListUiState.Success
-            assertEquals(4, all.products.size)
+            assertEquals(listOf(1, 2), all.products.map { it.id })
             cancelAndIgnoreRemainingEvents()
         }
     }
