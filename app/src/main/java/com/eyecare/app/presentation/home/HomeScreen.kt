@@ -108,7 +108,7 @@ fun HomeLoadingContent(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxSize()
             .semantics { contentDescription = "Loading home" }
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Spacer(Modifier.height(8.dp))
@@ -156,7 +156,7 @@ fun HomeContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 24.dp)
             .padding(bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
@@ -181,7 +181,7 @@ fun HomeContent(
         if (state.expiringPrescription != null || state.activeOrder != null) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "Care updates",
+                    text = "Order Status",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -198,37 +198,47 @@ fun HomeContent(
             state.accessories.isNotEmpty() ||
             state.eyeCareEssentials.isNotEmpty()
         if (hasClinicProducts) {
-            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "From the clinic",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.SemiBold,
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "From the clinic",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "Selected for everyday eye care",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    HomeProductShelf(
+                        title = "Featured frames",
+                        products = state.featuredFrames,
+                        onSeeAll = onNavigateToCatalog,
+                        onProductClick = onNavigateToProductDetail,
                     )
-                    Text(
-                        text = "Selected for everyday eye care",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    HomeProductShelf(
+                        title = "Accessories",
+                        products = state.accessories,
+                        onSeeAll = onNavigateToCatalog,
+                        onProductClick = onNavigateToProductDetail,
+                    )
+                    HomeProductShelf(
+                        title = "Eye-care essentials",
+                        products = state.eyeCareEssentials,
+                        onSeeAll = onNavigateToCatalog,
+                        onProductClick = onNavigateToProductDetail,
                     )
                 }
-                HomeProductShelf(
-                    title = "Featured frames",
-                    products = state.featuredFrames,
-                    onSeeAll = onNavigateToCatalog,
-                    onProductClick = onNavigateToProductDetail,
-                )
-                HomeProductShelf(
-                    title = "Accessories",
-                    products = state.accessories,
-                    onSeeAll = onNavigateToCatalog,
-                    onProductClick = onNavigateToProductDetail,
-                )
-                HomeProductShelf(
-                    title = "Eye-care essentials",
-                    products = state.eyeCareEssentials,
-                    onSeeAll = onNavigateToCatalog,
-                    onProductClick = onNavigateToProductDetail,
-                )
             }
         }
     }
@@ -525,7 +535,7 @@ private fun HomeProductCard(product: Product, onClick: () -> Unit) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier
             .width(148.dp)
-            .defaultMinSize(minHeight = 48.dp),
+            .height(224.dp),
     ) {
         Column {
             Box(

@@ -99,7 +99,7 @@ class HomeScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Care updates").assertIsDisplayed()
+        composeRule.onNodeWithText("Order Status").assertIsDisplayed()
         composeRule.onNodeWithText("Prescription Expiring Soon").assertIsDisplayed()
         composeRule.onNodeWithText("ORD-008").assertIsDisplayed()
     }
