@@ -175,6 +175,32 @@ class ProductListViewModelTest {
     }
 
     @Test
+    fun `applying catalog filters updates brand and category together`() = runTest {
+        stubDefaultProducts()
+        coEvery {
+            repo.getProducts(
+                page = 1, search = null, brandId = 1, categoryId = 1,
+                sort = "name", inStock = null, minPrice = null, maxPrice = null,
+            )
+        } returns Result.success(framesProducts)
+        val vm = ProductListViewModel(repo)
+
+        vm.uiState.test {
+            awaitItem() // Loading
+            dispatcher.scheduler.advanceUntilIdle()
+            awaitItem() // Default products
+
+            vm.applyCatalogFilters(brandId = 1, categoryId = 1)
+            dispatcher.scheduler.advanceUntilIdle()
+
+            val filtered = awaitItem() as ProductListUiState.Success
+            assertEquals(1, filtered.filters.brandId)
+            assertEquals(1, filtered.filters.categoryId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `clearing category selection shows all products again`() = runTest {
         stubDefaultProducts()
         coEvery {

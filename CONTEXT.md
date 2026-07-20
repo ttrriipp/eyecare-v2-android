@@ -128,11 +128,30 @@ com.eyecare.app/
 
 ## Product Catalog — Filters
 
-`presentation/catalog/ProductListScreen.kt`, `FilterRow`:
+`presentation/catalog/ProductListScreen.kt`, `ProductListViewModel.kt`, and
+`presentation/catalog/components/CatalogFilterSheet.kt`:
 
-- All filter/sort controls (All, categories, Brand dropdown, Sort dropdown, Clear) live in a **single horizontally-scrollable `LazyRow`**, not a stacked multi-row layout.
-- Brand and Sort are `FilterChip`s that open a `DropdownMenu` on tap.
-- "Clear" only renders when a filter or non-default sort is active.
+- The catalog is split by a `SingleChoiceSegmentedButtonRow` into **Frames** (case-insensitive `product_type == "frame"`) and **Eye Products** (all other product types returned by the catalog endpoint). Frames is the default tab.
+- Search remains server-backed and debounced by 300ms. Its placeholder and the empty-state copy follow the active catalog tab.
+- The old horizontally scrolling category/brand chip row was replaced by a compact toolbar: **Filters** opens a `ModalBottomSheet`, while **Sort** remains a separate dropdown chip. The Filters label shows the number of active category/brand selections.
+- The filter sheet follows a two-pane mobile layout. The left rail switches between **Category** and **Brand**; the right pane shows the corresponding backend-provided options in a two-column grid. Selected options use both a tinted surface and a check icon.
+- Category and brand choices are draft state while the sheet is open. **Reset** clears both draft selections; **Apply** calls `ProductListViewModel.applyCatalogFilters(brandId, categoryId)` so both query parameters change together and trigger one page-1 reload. Dismissing the sheet does not apply draft changes.
+- Category options remain tab-specific. Frame filters recognize category names containing `frame`, `eyeglass`, or `sunglass`; Eye Product filters recognize contact-lens or accessory category names. Category identity still comes from the backend ID—the name matching only decides which options are relevant to each tab.
+- Switching catalog tabs preserves search, brand, and sort. An active category is cleared and products are reloaded because category choices are tab-specific.
+- Brands and categories are retained in dedicated ViewModel fields so filter metadata is not lost when those requests finish before the initial product request.
+- Tests in `ProductListViewModelTest` cover default tab grouping, non-frame Eye Products, tab-specific categories, filter-metadata load ordering, and atomic category+brand application.
+
+**Known pagination constraint:** the top-level Frames/Eye Products split is currently applied in memory after each mixed, paginated product response. If the loaded page contains no products for the selected tab, later matching pages may not be reachable from the current empty state. Prefer a backend `product_type` filter or deliberate page traversal before expanding this behavior.
+
+## Home Dashboard — Clinic Products
+
+`presentation/home/HomeScreen.kt` and `HomeViewModel.kt`:
+
+- **From the clinic** and its supporting copy live inside one outlined card. That container holds equal-size horizontal product cards grouped into **Featured frames**, **Accessories**, and **Eye-care essentials** shelves.
+- Featured frames use `product_type == "frame"`. Other retail product types—including `general`, `accessory`, `contact_lens`, and `lens`—are eligible for the non-frame shelves; `service` products are intentionally excluded.
+- Accessory grouping normalizes case, underscores, hyphens, and repeated whitespace, then recognizes accessory, cleaning-kit, case, and cases wording. Remaining non-frame retail products become Eye-care essentials.
+- Each Home shelf preserves source order and is capped at four products. The Home request currently reads only the first product page, so products outside that page are not candidates for a shelf.
+- Home grouping behavior is covered by `HomeViewModelTest`, including alternate non-frame product-type values and category-name normalization.
 
 ## Backend API (base: `/api`)
 
@@ -148,7 +167,8 @@ POST   /appointments/{id}/cancel
 POST   /appointments/{id}/reschedule  → reschedule own appointment (pending/confirmed only)
 PATCH  /appointments/{id}/contact-note → edit or clear own pending/confirmed appointment contact note
 GET    /visit-reasons                 → [{id, name, duration_minutes}]
-GET    /products, /products/{id}      → frame-only, paginated (supports search/brand/category/min_price/max_price/in_stock/sort)
+GET    /products, /products/{id}      → active frame/general catalog products, paginated (supports search/brand/category/min_price/max_price/in_stock/sort)
+GET    /brands, /categories           → filter metadata used by the Catalog filter sheet
 GET    /orders, /orders/{id}          → paginated, includes billing_id
 POST   /orders                        → submit (requested)
 POST   /orders/{id}/cancel

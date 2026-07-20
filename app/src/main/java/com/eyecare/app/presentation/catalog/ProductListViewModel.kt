@@ -108,6 +108,12 @@ class ProductListViewModel @Inject constructor(
         resetAndLoad()
     }
 
+    fun applyCatalogFilters(brandId: Int?, categoryId: Int?) {
+        if (filters.brandId == brandId && filters.categoryId == categoryId) return
+        filters = filters.copy(brandId = brandId, categoryId = categoryId)
+        resetAndLoad()
+    }
+
     fun selectSort(sort: SortOption) {
         filters = filters.copy(sort = sort)
         resetAndLoad()

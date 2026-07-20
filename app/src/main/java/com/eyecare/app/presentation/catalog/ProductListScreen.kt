@@ -5,18 +5,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -26,6 +26,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
@@ -38,16 +39,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.eyecare.app.domain.model.Brand
-import com.eyecare.app.domain.model.Category
+import com.eyecare.app.presentation.catalog.components.CatalogFilterSheet
 import com.eyecare.app.presentation.catalog.components.ProductCard
 import com.eyecare.app.presentation.common.components.ErrorContent
 
@@ -58,6 +58,7 @@ fun ProductListScreen(
     viewModel: ProductListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showFilters by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -135,14 +136,10 @@ fun ProductListScreen(
                 ) {
                     // Filter row
                     item(span = { GridItemSpan(2) }) {
-                        FilterRow(
-                            brands = state.brands,
-                            categories = categoriesForCatalogTab(state.categories, state.selectedTab),
+                        CatalogFilterBar(
                             filters = state.filters,
-                            onSelectBrand = viewModel::selectBrand,
-                            onSelectCategory = viewModel::selectCategory,
+                            onOpenFilters = { showFilters = true },
                             onSelectSort = viewModel::selectSort,
-                            onClearFilters = viewModel::clearFilters,
                         )
                     }
 
@@ -193,6 +190,21 @@ fun ProductListScreen(
             }
         }
     }
+
+    val state = uiState as? ProductListUiState.Success
+    if (showFilters && state != null) {
+        CatalogFilterSheet(
+            brands = state.brands,
+            categories = categoriesForCatalogTab(state.categories, state.selectedTab),
+            selectedBrandId = state.filters.brandId,
+            selectedCategoryId = state.filters.categoryId,
+            onDismiss = { showFilters = false },
+            onApply = { brandId, categoryId ->
+                viewModel.applyCatalogFilters(brandId, categoryId)
+                showFilters = false
+            },
+        )
+    }
 }
 
 @Composable
@@ -225,146 +237,60 @@ private fun CatalogTabs(
 }
 
 @Composable
-private fun FilterRow(
-    brands: List<Brand>,
-    categories: List<Category>,
+private fun CatalogFilterBar(
     filters: ProductFilters,
-    onSelectBrand: (Int?) -> Unit,
-    onSelectCategory: (Int?) -> Unit,
+    onOpenFilters: () -> Unit,
     onSelectSort: (SortOption) -> Unit,
-    onClearFilters: () -> Unit,
 ) {
-    val hasActiveFilters = filters.brandId != null || filters.categoryId != null ||
-        filters.sort != SortOption.NAME
+    val activeFilterCount = listOfNotNull(filters.brandId, filters.categoryId).size
 
-    // Single horizontally-scrollable row: All · categories · brand · sort · clear
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // "All" category chip
-        item {
+        OutlinedButton(
+            onClick = onOpenFilters,
+            shape = RoundedCornerShape(32.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.FilterList,
+                contentDescription = null,
+            )
+            Text(
+                text = if (activeFilterCount == 0) "Filters" else "Filters ($activeFilterCount)",
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        var sortExpanded by remember { mutableStateOf(false) }
+        Box {
             FilterChip(
-                selected = filters.categoryId == null,
-                onClick = { onSelectCategory(null) },
-                label = { Text("All") },
+                selected = filters.sort != SortOption.NAME,
+                onClick = { sortExpanded = true },
+                label = { Text("Sort: ${filters.sort.label}") },
                 shape = RoundedCornerShape(32.dp),
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = Color.White,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     containerColor = MaterialTheme.colorScheme.surface,
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
-                    selected = filters.categoryId == null,
-                    borderColor = MaterialTheme.colorScheme.outline,
-                    selectedBorderColor = Color.Transparent,
-                ),
-            )
-        }
-
-        // Category chips
-        items(categories) { cat ->
-            FilterChip(
-                selected = filters.categoryId == cat.id,
-                onClick = { onSelectCategory(if (filters.categoryId == cat.id) null else cat.id) },
-                label = { Text(cat.name) },
-                shape = RoundedCornerShape(32.dp),
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = Color.White,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    enabled = true,
-                    selected = filters.categoryId == cat.id,
-                    borderColor = MaterialTheme.colorScheme.outline,
-                    selectedBorderColor = Color.Transparent,
-                ),
-            )
-        }
-
-        // Brand dropdown chip
-        if (brands.isNotEmpty()) {
-            item {
-                var brandExpanded by remember { mutableStateOf(false) }
-                Box {
-                    FilterChip(
-                        selected = filters.brandId != null,
-                        onClick = { brandExpanded = true },
-                        label = {
-                            Text(
-                                filters.brandId?.let { id -> brands.find { it.id == id }?.name }
-                                    ?: "Brand",
-                            )
-                        },
-                        shape = RoundedCornerShape(32.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White,
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = filters.brandId != null,
-                            borderColor = MaterialTheme.colorScheme.outline,
-                            selectedBorderColor = Color.Transparent,
-                        ),
-                    )
-                    DropdownMenu(expanded = brandExpanded, onDismissRequest = { brandExpanded = false }) {
-                        DropdownMenuItem(
-                            text = { Text("All Brands") },
-                            onClick = { onSelectBrand(null); brandExpanded = false },
-                        )
-                        brands.forEach { brand ->
-                            DropdownMenuItem(
-                                text = { Text(brand.name) },
-                                onClick = { onSelectBrand(brand.id); brandExpanded = false },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Sort dropdown chip
-        item {
-            var sortExpanded by remember { mutableStateOf(false) }
-            Box {
-                FilterChip(
                     selected = filters.sort != SortOption.NAME,
-                    onClick = { sortExpanded = true },
-                    label = { Text(filters.sort.label) },
-                    shape = RoundedCornerShape(32.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
-                        selected = filters.sort != SortOption.NAME,
-                        borderColor = MaterialTheme.colorScheme.outline,
-                        selectedBorderColor = Color.Transparent,
-                    ),
-                )
-                DropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
-                    SortOption.entries.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option.label) },
-                            onClick = { onSelectSort(option); sortExpanded = false },
-                        )
-                    }
-                }
-            }
-        }
-
-        // Clear chip — only visible when filters are active
-        if (hasActiveFilters) {
-            item {
-                TextButton(onClick = onClearFilters) {
-                    Text("Clear", style = MaterialTheme.typography.labelMedium)
+                    borderColor = MaterialTheme.colorScheme.outline,
+                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                ),
+            )
+            DropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
+                SortOption.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.label) },
+                        onClick = { onSelectSort(option); sortExpanded = false },
+                    )
                 }
             }
         }
