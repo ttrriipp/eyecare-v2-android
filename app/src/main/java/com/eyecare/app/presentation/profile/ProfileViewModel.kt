@@ -23,6 +23,7 @@ sealed interface ProfileUiState {
         val editEmail: String = "",
         val editPhone: String = "",
         val fieldErrors: Map<String, List<String>> = emptyMap(),
+        val saveError: String? = null,
         val saveSuccess: Boolean = false,
     ) : ProfileUiState
     data class Error(val message: String) : ProfileUiState
@@ -53,6 +54,7 @@ class ProfileViewModel @Inject constructor(
                 editEmail = current.user.email,
                 editPhone = current.user.phone ?: "",
                 fieldErrors = emptyMap(),
+                saveError = null,
                 saveSuccess = false,
             )
         }
@@ -64,6 +66,7 @@ class ProfileViewModel @Inject constructor(
             _uiState.value = current.copy(
                 isEditing = false,
                 fieldErrors = emptyMap(),
+                saveError = null,
             )
         }
     }
@@ -71,28 +74,33 @@ class ProfileViewModel @Inject constructor(
     fun updateName(value: String) {
         val current = _uiState.value
         if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editName = value)
+            _uiState.value = current.copy(editName = value, saveError = null)
         }
     }
 
     fun updateEmail(value: String) {
         val current = _uiState.value
         if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editEmail = value)
+            _uiState.value = current.copy(editEmail = value, saveError = null)
         }
     }
 
     fun updatePhone(value: String) {
         val current = _uiState.value
         if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editPhone = value)
+            _uiState.value = current.copy(editPhone = value, saveError = null)
         }
     }
 
     fun saveProfile() {
         val current = _uiState.value
         if (current !is ProfileUiState.Success) return
-        _uiState.value = current.copy(isSaving = true, fieldErrors = emptyMap(), saveSuccess = false)
+        _uiState.value = current.copy(
+            isSaving = true,
+            fieldErrors = emptyMap(),
+            saveError = null,
+            saveSuccess = false,
+        )
         viewModelScope.launch {
             val phone = current.editPhone.ifBlank { null }
             authRepository.updateUser(current.editName, current.editEmail, phone).fold(
@@ -108,9 +116,13 @@ class ProfileViewModel @Inject constructor(
                         _uiState.value = current.copy(
                             isSaving = false,
                             fieldErrors = error.fieldErrors,
+                            saveError = null,
                         )
                     } else {
-                        _uiState.value = current.copy(isSaving = false)
+                        _uiState.value = current.copy(
+                            isSaving = false,
+                            saveError = "We couldn't save your changes. Please try again.",
+                        )
                     }
                 },
             )
@@ -133,4 +145,15 @@ class ProfileViewModel @Inject constructor(
             _loggedOut.value = true
         }
     }
+}
+
+internal fun hasProfileChanges(
+    user: User,
+    name: String,
+    email: String,
+    phone: String,
+): Boolean {
+    val originalPhone = user.phone?.takeIf { it.isNotBlank() }
+    val editedPhone = phone.takeIf { it.isNotBlank() }
+    return name != user.name || email != user.email || editedPhone != originalPhone
 }

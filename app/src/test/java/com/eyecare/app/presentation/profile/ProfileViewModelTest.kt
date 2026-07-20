@@ -4,6 +4,7 @@ import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.domain.model.User
 import com.eyecare.app.domain.repository.AuthRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -48,5 +51,39 @@ class ProfileViewModelTest {
         val vm = ProfileViewModel(authRepo, tokenManager)
         vm.logout()
         verify { tokenManager.clearToken() }
+    }
+
+    @Test
+    fun `profile changes normalize blank phone values`() {
+        val user = User(1, "Alex", "alex@example.com", null, "customer")
+
+        assertFalse(hasProfileChanges(user, "Alex", "alex@example.com", "   "))
+        assertTrue(hasProfileChanges(user, "Alex Rivera", "alex@example.com", ""))
+    }
+
+    @Test
+    fun `profile initials use first and last names with a safe fallback`() {
+        assertEquals("AR", profileInitials("Alex Marie Rivera"))
+        assertEquals("A", profileInitials("Alex"))
+        assertEquals("E", profileInitials("   "))
+    }
+
+    @Test
+    fun `save failure preserves draft and exposes a useful error`() = runTest {
+        val user = User(1, "Alex", "alex@example.com", null, "customer")
+        coEvery { authRepo.getUser() } returns Result.success(user)
+        coEvery { authRepo.updateUser(any(), any(), any()) } returns
+            Result.failure(IllegalStateException("Network unavailable"))
+        val vm = ProfileViewModel(authRepo, tokenManager)
+        vm.startEditing()
+        vm.updateName("Alex Rivera")
+
+        vm.saveProfile()
+
+        val state = vm.uiState.value as ProfileUiState.Success
+        assertEquals("Alex Rivera", state.editName)
+        assertEquals("We couldn't save your changes. Please try again.", state.saveError)
+        assertFalse(state.isSaving)
+        coVerify(exactly = 1) { authRepo.updateUser("Alex Rivera", "alex@example.com", null) }
     }
 }

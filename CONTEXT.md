@@ -153,6 +153,19 @@ com.eyecare.app/
 - Each Home shelf preserves source order and is capped at four products. The Home request currently reads only the first product page, so products outside that page are not candidates for a shelf.
 - Home grouping behavior is covered by `HomeViewModelTest`, including alternate non-frame product-type values and category-name normalization.
 
+## Profile — Patient Account Hub
+
+`presentation/profile/ProfileScreen.kt`, `EditProfileScreen.kt`, and `ProfileViewModel.kt`:
+
+- The main Profile screen uses an identity-first hierarchy: a warm outlined patient card with a name-derived initials avatar, name, email, optional phone, and a labelled **Edit profile** action. The avatar is display-only — there is no photo upload, camera/gallery picker, image permission, or storage flow.
+- **Care & activity** keeps the existing Messages, Order History, Prescriptions, and Feedback History destinations. Each row uses a restrained primary-tinted icon treatment and supporting copy; Messages retains the unread badge, caps its visible text at `9+`, and exposes the full count through accessibility semantics.
+- **Log out** is a full-width filled error-colored button. It opens the shared themed `AppConfirmationDialog` with **Log out** / **Stay signed in** actions before invoking the existing logout behavior.
+- Initial profile loading uses an accessible content-shaped placeholder; load errors retain the existing retry action. Profile data still refreshes on lifecycle resume so edits are reflected after returning from Edit Profile.
+- Edit Profile remains limited to the current Android contract: name, email, and nullable phone. Save submits directly without a redundant confirmation dialog. Fields and navigation actions are disabled while saving, validation errors remain attached to their fields, and non-validation failures preserve the draft and show concise inline feedback.
+- App-bar Back, system Back, and **Cancel** share dirty-state handling. Unchanged values exit immediately; changed values open the themed **Discard changes?** confirmation. Blank and whitespace-only phone drafts are normalized to the existing nullable-phone behavior when checking for changes.
+- The refresh is presentation-only: no backend endpoint, DTO, domain `User`, repository signature, navigation route, dependency, or global theme token changed. Backend-supported address editing remains out of scope because the current Android user/update contract does not expose it.
+- Stateless `ProfileContent`, `ProfileLoadingContent`, and `EditProfileContent` composables provide deterministic Compose UI-test seams. `ProfileViewModelTest` covers dirty comparison, initials fallback, and save-failure draft preservation; `ProfileScreenTest` covers the visible hierarchy, callbacks, optional phone, unread semantics, loading semantics, supported edit fields, direct save, and saving/error states.
+
 ## Backend API (base: `/api`)
 
 Key endpoints the app consumes:
@@ -202,6 +215,8 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 - `docs/specs/backend-alignment-v3-spec.md` — Complete: reschedule endpoint, or_number removal, lens_category_id fields, price filter params (6 tasks)
 - `docs/specs/backend-alignment-v5-spec.md` — In progress: booking availability complete; reschedule availability awaits `visit_reason_id` in appointment responses
 - `docs/specs/implementation-plan-v2.md` — Task breakdown for alignment v2
+- `docs/specs/profile-ui-refresh-spec.md` — Complete: approved UI-only Profile and Edit Profile refresh
+- `docs/specs/profile-ui-refresh-plan.md` — Complete: TDD task breakdown and verification plan for the profile refresh
 - `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
 
 ## Boundaries
