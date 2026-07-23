@@ -151,6 +151,7 @@ com.eyecare.app/
 
 - Only accessories can enter or submit the mobile order-request flow. Frame, contact-lens, optical-lens, legacy-general, and unknown deep links are rejected with a non-retryable customer-readable message.
 - Frames are browse-only: their detail screen can show AR and explains that customers should contact the clinic to order. The order action appears only for accessories.
+- A successfully loaded product with no active variants uses a product-aware **Temporarily unavailable** detail state. It keeps the product image, brand, name, and description visible, hides price/order actions, and offers **Check again**; transport and API failures continue to use the generic error state.
 - The customer order repository always serializes `is_non_prescription = true`; callers cannot override it.
 - Create-order items contain only `product_variant_id` and `quantity`. Historical order responses continue decoding both lens-category aliases, but neither alias exists in the outbound item DTO.
 
