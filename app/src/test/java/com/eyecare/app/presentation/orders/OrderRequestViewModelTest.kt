@@ -22,11 +22,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -39,9 +35,9 @@ class OrderRequestViewModelTest {
     private lateinit var appointmentRepo: AppointmentRepository
 
     private val fakeVariant = ProductVariant(1, "Black", "BK-001", "165.00", null, null, true, true, null, emptyList())
-    private val fakeProduct = Product(1, "Clubmaster", "clubmaster", null, "frame", "Ray-Ban", "Frames",
+    private val fakeProduct = Product(1, "Cleaning Kit", "cleaning-kit", null, "accessory", "VisionCare", "Accessories",
         listOf(fakeVariant), emptyList())
-    private val fakeOrder = Order(1, "ORD-001", null, null, false, OrderStatus.REQUESTED,
+    private val fakeOrder = Order(1, "ORD-001", null, null, true, OrderStatus.REQUESTED,
         "165.00", "165.00", emptyList(), "2026-10-24T10:00:00Z")
 
     @BeforeEach
@@ -64,17 +60,8 @@ class OrderRequestViewModelTest {
         val vm = vm()
         dispatcher.scheduler.advanceUntilIdle()
         val state = vm.uiState.value as OrderRequestUiState.Ready
-        assertEquals("Clubmaster", state.product.name)
+        assertEquals("Cleaning Kit", state.product.name)
         assertEquals(fakeVariant, state.selectedVariant)
-    }
-
-    @Test
-    fun `selectLensType updates selected lens type`() = runTest {
-        val vm = vm()
-        dispatcher.scheduler.advanceUntilIdle()
-        vm.selectLensType(LensType.BIFOCAL)
-        val state = vm.uiState.value as OrderRequestUiState.Ready
-        assertEquals(LensType.BIFOCAL, state.selectedLensType)
     }
 
     @Test
@@ -97,10 +84,9 @@ class OrderRequestViewModelTest {
 
     @Test
     fun `submit success emits Submitted`() = runTest {
-        coEvery { orderRepo.createOrder(any(), any(), any()) } returns Result.success(fakeOrder)
+        coEvery { orderRepo.createOrder(any(), any()) } returns Result.success(fakeOrder)
         val vm = vm()
         dispatcher.scheduler.advanceUntilIdle()
-        vm.selectLensType(LensType.SINGLE_VISION)
 
         vm.uiState.test {
             awaitItem() // Ready
@@ -114,68 +100,33 @@ class OrderRequestViewModelTest {
     }
 
     @Test
-    fun `submit without lens type emits validation error`() = runTest {
+    fun `non accessory product cannot enter order flow`() = runTest {
+        coEvery { productRepo.getProduct(1) } returns
+            Result.success(fakeProduct.copy(productType = "frame"))
         val vm = vm()
         dispatcher.scheduler.advanceUntilIdle()
-        // No lens type selected (default null)
-        vm.submit()
-        val state = vm.uiState.value as OrderRequestUiState.Ready
-        assertNotNull(state.error)
+
+        val state = vm.uiState.value as OrderRequestUiState.Error
+        assertEquals(false, state.canRetry)
+        coVerify(exactly = 0) { orderRepo.createOrder(any(), any()) }
     }
 
     @Test
-    fun `contact lens is always non prescription and submits without lens category`() = runTest {
-        coEvery { productRepo.getProduct(1) } returns
-            Result.success(fakeProduct.copy(productType = "contact_lens"))
-        coEvery { orderRepo.createOrder(any(), any(), any()) } returns Result.success(fakeOrder)
+    fun `accessory submission contains only variant and quantity`() = runTest {
+        coEvery { orderRepo.createOrder(any(), any()) } returns Result.success(fakeOrder)
         val vm = vm()
         dispatcher.scheduler.advanceUntilIdle()
-
-        assertTrue((vm.uiState.value as OrderRequestUiState.Ready).isNonPrescription)
-
-        vm.selectLensType(LensType.PROGRESSIVE)
-        vm.toggleNonPrescription(false)
+        vm.setQuantity(3)
         vm.submit()
         dispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 1) {
             orderRepo.createOrder(
                 appointmentId = null,
-                isNonPrescription = true,
-                items = match { items -> items.single().lensTypeId == null },
-            )
-        }
-    }
-
-    @Test
-    fun `accessory initializes as non prescription`() = runTest {
-        coEvery { productRepo.getProduct(1) } returns
-            Result.success(fakeProduct.copy(productType = "ACCESSORY"))
-
-        val vm = vm()
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertTrue((vm.uiState.value as OrderRequestUiState.Ready).isNonPrescription)
-    }
-
-    @Test
-    fun `frame keeps lens cutting choice and omits stale category when disabled`() = runTest {
-        coEvery { orderRepo.createOrder(any(), any(), any()) } returns Result.success(fakeOrder)
-        val vm = vm()
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertFalse((vm.uiState.value as OrderRequestUiState.Ready).isNonPrescription)
-
-        vm.selectLensType(LensType.SINGLE_VISION)
-        vm.toggleNonPrescription(true)
-        vm.submit()
-        dispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 1) {
-            orderRepo.createOrder(
-                appointmentId = null,
-                isNonPrescription = true,
-                items = match { items -> items.single().lensTypeId == null },
+                items = match { items ->
+                    items.single().productVariantId == fakeVariant.id &&
+                        items.single().quantity == 3
+                },
             )
         }
     }

@@ -35,10 +35,15 @@ class OrderRepositoryImpl @Inject constructor(
 
     override suspend fun createOrder(
         appointmentId: Int?,
-        isNonPrescription: Boolean,
         items: List<OrderDtos.OrderItemRequest>,
     ): Result<Order> = runCatching {
-        api.createOrder(OrderDtos.CreateOrderRequest(appointmentId, isNonPrescription, items)).data.toDomain()
+        api.createOrder(
+            OrderDtos.CreateOrderRequest(
+                appointmentId = appointmentId,
+                isNonPrescription = true,
+                items = items,
+            )
+        ).data.toDomain()
     }.recoverCatching { throwable ->
         if (throwable is HttpException && throwable.code() == 422) {
             val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""

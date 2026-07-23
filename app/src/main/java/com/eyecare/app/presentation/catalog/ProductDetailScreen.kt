@@ -54,7 +54,31 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.eyecare.app.domain.model.Product
+import com.eyecare.app.domain.model.ProductType
 import com.eyecare.app.domain.model.ProductVariant
+import com.eyecare.app.domain.model.isArReady
+import com.eyecare.app.domain.model.isMobileOrderable
+import com.eyecare.app.domain.model.type
+
+internal data class ProductDetailActions(
+    val showAr: Boolean,
+    val showOrder: Boolean,
+    val browseOnlyMessage: String?,
+)
+
+internal fun productDetailActions(
+    product: Product,
+    variant: ProductVariant,
+) = ProductDetailActions(
+    showAr = product.type == ProductType.FRAME && variant.isArReady,
+    showOrder = product.isMobileOrderable,
+    browseOnlyMessage = if (product.type == ProductType.FRAME) {
+        "Available for virtual try-on. Contact the clinic to order."
+    } else {
+        null
+    },
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +110,7 @@ fun ProductDetailScreen(
             is ProductDetailUiState.Success -> {
                 val product = state.product
                 val selected = state.selectedVariant
+                val actions = productDetailActions(product, selected)
 
                 Box(Modifier.fillMaxSize()) {
                 Column(
@@ -207,7 +232,20 @@ fun ProductDetailScreen(
                         .padding(horizontal = 24.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    if (selected.arEligible) {
+                    actions.browseOnlyMessage?.let { message ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            Text(
+                                text = message,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (actions.showAr) {
                         Button(
                             onClick = { onNavigateToAr(product.id, selected.id) },
                             modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -219,21 +257,23 @@ fun ProductDetailScreen(
                             Text("Try with AR", fontWeight = FontWeight.SemiBold)
                         }
                     }
-                    OutlinedButton(
-                        onClick = { onNavigateToOrder(product.id, selected.id) },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        shape = RoundedCornerShape(26.dp),
-                        border = BorderStroke(1.5.dp, if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
-                        enabled = selected.inStock,
-                    ) {
-                        Icon(Icons.Outlined.ShoppingBag, contentDescription = null,
-                            tint = if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            if (selected.inStock) "Order this frame" else "Out of Stock",
-                            color = if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                    if (actions.showOrder) {
+                        OutlinedButton(
+                            onClick = { onNavigateToOrder(product.id, selected.id) },
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(26.dp),
+                            border = BorderStroke(1.5.dp, if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
+                            enabled = selected.inStock,
+                        ) {
+                            Icon(Icons.Outlined.ShoppingBag, contentDescription = null,
+                                tint = if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (selected.inStock) "Order this item" else "Out of Stock",
+                                color = if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
                 } // end Box

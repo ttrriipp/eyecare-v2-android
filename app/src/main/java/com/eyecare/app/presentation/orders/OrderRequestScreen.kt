@@ -34,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.WindowInsets
@@ -90,7 +89,10 @@ fun OrderRequestScreen(
             is OrderRequestUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            is OrderRequestUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
+            is OrderRequestUiState.Error -> ErrorContent(
+                message = state.message,
+                onRetry = if (state.canRetry) viewModel::refresh else null,
+            )
             is OrderRequestUiState.Submitted -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator() // Brief flash before navigation
             }
@@ -150,57 +152,6 @@ private fun OrderRequestContent(
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-
-        if (state.supportsLensCutting) {
-            // Frame-only lens cutting choice
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column {
-                    Text("No lens cutting required", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Order this frame without optical lenses",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = state.isNonPrescription,
-                    onCheckedChange = viewModel::toggleNonPrescription,
-                )
-            }
-
-            if (!state.isNonPrescription) {
-                var expanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                    OutlinedTextField(
-                        value = state.selectedLensType?.label ?: "Select lens category",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Lens Category") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                        isError = state.error != null && state.selectedLensType == null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                        shape = RoundedCornerShape(12.dp),
-                    )
-                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        LensType.entries.forEach { lens ->
-                            DropdownMenuItem(
-                                text = { Text(lens.label) },
-                                onClick = {
-                                    viewModel.selectLensType(lens)
-                                    expanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-        }
 
         // Quantity selector
         Row(

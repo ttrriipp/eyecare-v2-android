@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.domain.model.ProductVariant
+import com.eyecare.app.domain.model.isMobileOrderable
 import com.eyecare.app.domain.repository.AppointmentRepository
 import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.ProductRepository
@@ -21,30 +22,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class LensType(val id: Int, val label: String) {
-    SINGLE_VISION(1, "Single Vision"),
-    BIFOCAL(2, "Bifocal"),
-    PROGRESSIVE(3, "Progressive"),
-}
-
 sealed interface OrderRequestUiState {
     data object Loading : OrderRequestUiState
     data class Ready(
         val product: Product,
         val selectedVariant: ProductVariant,
         val appointments: List<Appointment> = emptyList(),
-        val selectedLensType: LensType? = null,
         val quantity: Int = 1,
-        val isNonPrescription: Boolean = false,
         val linkedAppointmentId: Int? = null,
         val isSubmitting: Boolean = false,
         val error: String? = null,
-    ) : OrderRequestUiState {
-        val supportsLensCutting: Boolean
-            get() = product.productType.equals("frame", ignoreCase = true)
-    }
+    ) : OrderRequestUiState
     data class Submitted(val order: Order) : OrderRequestUiState
-    data class Error(val message: String) : OrderRequestUiState
+    data class Error(val message: String, val canRetry: Boolean = true) : OrderRequestUiState
 }
 
 @HiltViewModel(assistedFactory = OrderRequestViewModel.Factory::class)
@@ -69,40 +59,25 @@ class OrderRequestViewModel @AssistedInject constructor(
 
     init { load() }
 
-    fun selectLensType(lensType: LensType) = updateReady {
-        if (supportsLensCutting) copy(selectedLensType = lensType, error = null) else this
-    }
     fun setQuantity(qty: Int) = updateReady { copy(quantity = qty.coerceIn(1, 4)) }
-    fun toggleNonPrescription(value: Boolean) = updateReady {
-        if (supportsLensCutting) {
-            copy(
-                isNonPrescription = value,
-                selectedLensType = selectedLensType.takeUnless { value },
-                error = null,
-            )
-        } else {
-            copy(isNonPrescription = true, selectedLensType = null, error = null)
-        }
-    }
     fun linkAppointment(id: Int?) = updateReady { copy(linkedAppointmentId = id) }
 
     fun submit() {
         val state = _uiState.value as? OrderRequestUiState.Ready ?: return
-        if (state.supportsLensCutting && !state.isNonPrescription && state.selectedLensType == null) {
-            updateReady { copy(error = "Please select a lens category") }
+        if (!state.product.isMobileOrderable) {
+            _uiState.value = OrderRequestUiState.Error(
+                message = "This product is available to browse only and cannot be ordered in the app.",
+                canRetry = false,
+            )
             return
         }
         viewModelScope.launch {
             updateReady { copy(isSubmitting = true, error = null) }
             orderRepository.createOrder(
                 appointmentId = state.linkedAppointmentId,
-                isNonPrescription = state.isNonPrescription,
                 items = listOf(
                     OrderDtos.OrderItemRequest(
                         productVariantId = state.selectedVariant.id,
-                        lensTypeId = state.selectedLensType?.id?.takeIf {
-                            state.supportsLensCutting && !state.isNonPrescription
-                        },
                         quantity = state.quantity,
                     )
                 ),
@@ -125,6 +100,13 @@ class OrderRequestViewModel @AssistedInject constructor(
 
             productResult.fold(
                 onSuccess = { product ->
+                    if (!product.isMobileOrderable) {
+                        _uiState.value = OrderRequestUiState.Error(
+                            message = "This product is available to browse only and cannot be ordered in the app.",
+                            canRetry = false,
+                        )
+                        return@fold
+                    }
                     val variant = product.variants.firstOrNull { it.id == variantId }
                         ?: product.variants.firstOrNull()
                         ?: return@fold run { _uiState.value = OrderRequestUiState.Error("Variant not found") }
@@ -132,7 +114,6 @@ class OrderRequestViewModel @AssistedInject constructor(
                         product = product,
                         selectedVariant = variant,
                         appointments = appointmentsResult.getOrElse { emptyList() },
-                        isNonPrescription = !product.productType.equals("frame", ignoreCase = true),
                     )
                 },
                 onFailure = { _uiState.value = OrderRequestUiState.Error(it.message ?: "Failed to load") },

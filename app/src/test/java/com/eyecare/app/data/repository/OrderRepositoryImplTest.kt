@@ -12,6 +12,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -84,11 +85,14 @@ class OrderRepositoryImplTest {
 
         val result = repository.createOrder(
             appointmentId = null,
-            isNonPrescription = true,
-            items = listOf(OrderDtos.OrderItemRequest(1, 1, 1)),
+            items = listOf(OrderDtos.OrderItemRequest(1, 1)),
         )
         assertTrue(result.isSuccess)
         assertEquals("ORD-002", result.getOrThrow().orderNumber)
+        val requestBody = server.takeRequest().body.readUtf8()
+        assertTrue(requestBody.contains("\"is_non_prescription\":true"))
+        assertFalse(requestBody.contains("lens_category_id"))
+        assertFalse(requestBody.contains("lens_type_id"))
     }
 
     @Test
@@ -97,7 +101,7 @@ class OrderRepositoryImplTest {
             {"message":"Invalid items","errors":{"items":["Items are required."]}}
         """.trimIndent()))
 
-        val result = repository.createOrder(null, false, emptyList())
+        val result = repository.createOrder(null, emptyList())
         assertTrue(result.isFailure)
         assertInstanceOf(
             com.eyecare.app.domain.model.OrderError.ValidationError::class.java,

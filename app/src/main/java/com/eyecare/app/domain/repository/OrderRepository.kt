@@ -9,7 +9,6 @@ interface OrderRepository {
     suspend fun getOrder(id: Int): Result<Order>
     suspend fun createOrder(
         appointmentId: Int?,
-        isNonPrescription: Boolean,
         items: List<OrderDtos.OrderItemRequest>,
     ): Result<Order>
     suspend fun cancelOrder(id: Int): Result<Order>

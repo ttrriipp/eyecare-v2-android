@@ -65,7 +65,6 @@ object OrderDtos {
     @Serializable
     data class OrderItemRequest(
         @SerialName("product_variant_id") val productVariantId: Int,
-        @SerialName("lens_type_id") val lensTypeId: Int? = null,
         val quantity: Int,
     )
 
