@@ -1,6 +1,5 @@
 package com.eyecare.app.presentation.catalog
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import com.eyecare.app.presentation.common.buildImageUrl
 import androidx.compose.foundation.border
@@ -35,6 +34,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -49,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.presentation.common.components.ErrorContent
@@ -66,6 +67,21 @@ internal data class ProductDetailActions(
     val showOrder: Boolean,
     val browseOnlyMessage: String?,
 )
+
+internal data class ProductDetailFact(
+    val label: String,
+    val value: String,
+)
+
+internal fun productDetailFacts(
+    product: Product,
+    variant: ProductVariant,
+): List<ProductDetailFact> = buildList {
+    add(ProductDetailFact("Availability", if (variant.inStock) "In stock" else "Out of stock"))
+    variant.name.takeIf(String::isNotBlank)?.let { add(ProductDetailFact("Option", it)) }
+    variant.sku.takeIf(String::isNotBlank)?.let { add(ProductDetailFact("SKU", it)) }
+    product.category.takeIf(String::isNotBlank)?.let { add(ProductDetailFact("Category", it)) }
+}
 
 internal fun productDetailActions(
     product: Product,
@@ -130,12 +146,29 @@ fun ProductDetailScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(1f)
+                            .aspectRatio(if (images.isEmpty()) 1.65f else 1f)
                             .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
                     ) {
                         if (images.isEmpty()) {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("No image", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ShoppingBag,
+                                        contentDescription = null,
+                                        modifier = Modifier.padding(16.dp).size(32.dp),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    text = "Photo coming soon",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         } else {
                             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
@@ -178,7 +211,7 @@ fun ProductDetailScreen(
                         )
                         Text(
                             product.name,
-                            style = MaterialTheme.typography.displayLarge,
+                            style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Bold,
                         )
                         Spacer(Modifier.height(4.dp))
@@ -192,6 +225,12 @@ fun ProductDetailScreen(
                         // Description
                         if (!product.description.isNullOrBlank()) {
                             Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "About this item",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(Modifier.height(6.dp))
                             Text(
                                 android.text.Html.fromHtml(product.description, android.text.Html.FROM_HTML_MODE_COMPACT).toString().trim(),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -214,6 +253,18 @@ fun ProductDetailScreen(
                                 }
                             }
                         }
+
+                        Spacer(Modifier.height(20.dp))
+                        Text(
+                            text = "Product details",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        ProductFactsCard(
+                            facts = productDetailFacts(product, selected),
+                            inStock = selected.inStock,
+                        )
 
                         // Attributes (replaces dimensions)
                         val attributes = selected.attributes
@@ -262,25 +313,67 @@ fun ProductDetailScreen(
                         }
                     }
                     if (actions.showOrder) {
-                        OutlinedButton(
+                        Button(
                             onClick = { onNavigateToOrder(product.id, selected.id) },
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             shape = RoundedCornerShape(26.dp),
-                            border = BorderStroke(1.5.dp, if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
                             enabled = selected.inStock,
                         ) {
-                            Icon(Icons.Outlined.ShoppingBag, contentDescription = null,
-                                tint = if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Outlined.ShoppingBag, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 if (selected.inStock) "Order this item" else "Out of Stock",
-                                color = if (selected.inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.SemiBold,
                             )
                         }
                     }
                 }
                 } // end Box
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductFactsCard(
+    facts: List<ProductDetailFact>,
+    inStock: Boolean,
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            facts.forEachIndexed { index, fact ->
+                if (index > 0) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = fact.label,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = fact.value,
+                        modifier = Modifier.weight(1.5f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.End,
+                        color = if (fact.label == "Availability") {
+                            if (inStock) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                }
             }
         }
     }

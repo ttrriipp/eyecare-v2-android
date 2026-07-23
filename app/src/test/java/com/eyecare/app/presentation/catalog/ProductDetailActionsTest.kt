@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.catalog
 
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.domain.model.ProductVariant
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -30,6 +31,24 @@ class ProductDetailActionsTest {
         assertFalse(actions.showAr)
         assertTrue(actions.showOrder)
         assertNull(actions.browseOnlyMessage)
+    }
+
+    @Test
+    fun `accessory details expose useful facts when description and specifications are absent`() {
+        val variant = variant(arEligible = false, asset = null)
+        val product = product("accessory", variant).copy(category = "Cleaning Kits")
+
+        val facts = productDetailFacts(product, variant)
+
+        assertEquals(
+            listOf(
+                ProductDetailFact("Availability", "In stock"),
+                ProductDetailFact("Option", "Variant"),
+                ProductDetailFact("SKU", "SKU"),
+                ProductDetailFact("Category", "Cleaning Kits"),
+            ),
+            facts,
+        )
     }
 
     private fun product(type: String, variant: ProductVariant) = Product(
