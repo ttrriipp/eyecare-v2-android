@@ -109,6 +109,7 @@ com.eyecare.app/
 - The detail screen's "Reschedule" button uses the same filled, theme-tinted `Button` style (primary color at 12% alpha background, primary content color, no elevation) as the list screen's card action buttons, rather than the plain `OutlinedButton` used elsewhere.
 - **Scheduling timezone:** picker values represent Philippine clinic-local time. Booking and rescheduling submit an ISO-8601 timestamp with the explicit `Asia/Manila` offset; response timestamps are converted by instant to `Asia/Manila` for display, filtering, and date grouping.
 - **Availability limitation:** rescheduling still uses the locally constrained picker and authoritative backend validation. The availability endpoint requires `visit_reason_id`, while appointment responses currently expose only the display label `visit_reason`; Android will not infer a stable ID by matching display text. Add `visit_reason_id` to appointment list/detail responses before wiring reschedule availability.
+- **Staff reschedule reason:** appointment responses parse the nullable `last_reschedule_reason` into the domain model. A non-blank value appears on appointment detail in a distinct **Schedule changed by clinic** notice rather than being merged with customer or clinic notes. Customer rescheduling uses the returned appointment directly, so the notice disappears immediately when the backend clears the reason.
 - **Customer note editing:** pending and confirmed appointments show the edit action directly beside **Your booking note**. There is no generic Notes heading; the customer and clinic labels provide the complete hierarchy, with the clinic note remaining clearly read-only. The inline editor accepts up to 1000 characters, sends trimmed text through `PATCH /appointments/{id}/contact-note`, and sends `null` when cleared. The returned appointment updates the screen directly; all later statuses hide the edit action.
 
 ## Themed Confirmation Dialogs
@@ -142,6 +143,15 @@ com.eyecare.app/
 - Tests in `ProductListViewModelTest` cover default tab grouping, non-frame Eye Products, tab-specific categories, filter-metadata load ordering, and atomic category+brand application.
 
 **Known pagination constraint:** the top-level Frames/Eye Products split is currently applied in memory after each mixed, paginated product response. If the loaded page contains no products for the selected tab, later matching pages may not be reachable from the current empty state. Prefer a backend `product_type` filter or deliberate page traversal before expanding this behavior.
+
+## Order Requests — Product-Type Rules
+
+`presentation/orders/OrderRequestScreen.kt` and `OrderRequestViewModel.kt`:
+
+- Only `frame` products expose the **No lens cutting required** choice and optional **Lens Category** selector.
+- `contact_lens`, `accessory`, and unknown non-frame product types are treated conservatively as directly orderable non-prescription products. They always submit `is_non_prescription = true` with no lens-category alias.
+- Turning on **No lens cutting required** for a frame clears any prior lens-category selection so a hidden stale value cannot be submitted.
+- The outbound request continues to use the backend-supported `lens_type_id` compatibility alias. The fixed local category set remains until the backend documents a customer-facing lens-categories endpoint.
 
 ## Home Dashboard — Clinic Products
 
@@ -180,7 +190,7 @@ POST   /appointments/{id}/cancel
 POST   /appointments/{id}/reschedule  → reschedule own appointment (pending/confirmed only)
 PATCH  /appointments/{id}/contact-note → edit or clear own pending/confirmed appointment contact note
 GET    /visit-reasons                 → [{id, name, duration_minutes}]
-GET    /products, /products/{id}      → active frame/general catalog products, paginated (supports search/brand/category/min_price/max_price/in_stock/sort)
+GET    /products, /products/{id}      → active frame/contact_lens/accessory catalog products, paginated (supports search/brand/category/min_price/max_price/in_stock/sort)
 GET    /brands, /categories           → filter metadata used by the Catalog filter sheet
 GET    /orders, /orders/{id}          → paginated, includes billing_id
 POST   /orders                        → submit (requested)
@@ -214,6 +224,7 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 - `docs/specs/backend-alignment-v2-spec.md` — Complete: fixed initial API misalignments (11 tasks)
 - `docs/specs/backend-alignment-v3-spec.md` — Complete: reschedule endpoint, or_number removal, lens_category_id fields, price filter params (6 tasks)
 - `docs/specs/backend-alignment-v5-spec.md` — In progress: booking availability complete; reschedule availability awaits `visit_reason_id` in appointment responses
+- `docs/specs/backend-alignment-v6-spec.md` — Complete: product taxonomy, order invariants, and customer-visible staff reschedule reasons
 - `docs/specs/implementation-plan-v2.md` — Task breakdown for alignment v2
 - `docs/specs/profile-ui-refresh-spec.md` — Complete: approved UI-only Profile and Edit Profile refresh
 - `docs/specs/profile-ui-refresh-plan.md` — Complete: TDD task breakdown and verification plan for the profile refresh
