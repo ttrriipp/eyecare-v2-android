@@ -73,6 +73,16 @@ class AppointmentFormattingTest {
     }
 
     @Test
+    fun `displayable reschedule reason trims content and hides blanks`() {
+        assertEquals(
+            "Doctor availability changed",
+            displayableRescheduleReason("  Doctor availability changed  "),
+        )
+        assertEquals(null, displayableRescheduleReason("   "))
+        assertEquals(null, displayableRescheduleReason(null))
+    }
+
+    @Test
     fun `appointmentWeekDays returns monday through saturday for selected week`() {
         val days = appointmentWeekDays(LocalDate.of(2026, 10, 24))
 

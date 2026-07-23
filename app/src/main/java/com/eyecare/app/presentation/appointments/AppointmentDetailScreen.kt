@@ -176,6 +176,7 @@ private fun AppointmentDetailContent(
     val canLeaveFeedback = appointment.status == AppointmentStatus.COMPLETED && !state.hasFeedback
     val customerNote = appointment.contactNotes?.takeIf { it.isNotBlank() }
     val clinicNote = appointment.staffNotes?.takeIf { it.isNotBlank() }
+    val rescheduleReason = displayableRescheduleReason(appointment.lastRescheduleReason)
     val bottomContentPadding = when {
         canManage -> 164.dp
         canLeaveFeedback -> 92.dp
@@ -258,6 +259,8 @@ private fun AppointmentDetailContent(
             }
 
             AppointmentStatusGuidance(appointment.status)
+
+            rescheduleReason?.let { StaffRescheduleNotice(it) }
 
             if (canManage || customerNote != null || clinicNote != null) {
                 AppointmentNotesSection(
@@ -344,6 +347,43 @@ private fun AppointmentDetailContent(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+internal fun displayableRescheduleReason(reason: String?): String? =
+    reason?.trim()?.takeIf { it.isNotEmpty() }
+
+@Composable
+private fun StaffRescheduleNotice(reason: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.EditCalendar,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Schedule changed by clinic",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = reason,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

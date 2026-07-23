@@ -95,6 +95,7 @@ class AppointmentRepositoryImpl @Inject constructor(
         scheduledAt = scheduledAt,
         contactNotes = contactNotes,
         staffNotes = staffNotes,
+        lastRescheduleReason = lastRescheduleReason,
         appointmentNumber = appointmentNumber,
         source = source,
         assignedOptometrist = (assignedOptometrist ?: legacyAssignedStaff)?.let {

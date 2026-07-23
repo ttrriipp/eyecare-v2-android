@@ -9,6 +9,7 @@ data class Appointment(
     val scheduledAt: String,
     val contactNotes: String?,
     val staffNotes: String?,
+    val lastRescheduleReason: String? = null,
     val appointmentNumber: String? = null,
     val source: String? = null,
     val assignedOptometrist: AssignedOptometrist? = null,

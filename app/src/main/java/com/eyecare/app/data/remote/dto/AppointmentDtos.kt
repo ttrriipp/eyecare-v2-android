@@ -19,6 +19,7 @@ object AppointmentDtos {
         @SerialName("scheduled_at") val scheduledAt: String,
         @SerialName("contact_notes") val contactNotes: String? = null,
         @SerialName("staff_notes") val staffNotes: String? = null,
+        @SerialName("last_reschedule_reason") val lastRescheduleReason: String? = null,
         @SerialName("appointment_number") val appointmentNumber: String? = null,
         val source: String? = null,
         @SerialName("assigned_optometrist") val assignedOptometrist: AssignedProviderDto? = null,

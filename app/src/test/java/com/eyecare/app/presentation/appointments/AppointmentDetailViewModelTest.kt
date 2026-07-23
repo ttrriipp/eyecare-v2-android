@@ -36,6 +36,7 @@ class AppointmentDetailViewModelTest {
         scheduledAt = "2026-07-14T09:00:00+08:00",
         contactNotes = "Original note",
         staffNotes = null,
+        lastRescheduleReason = "Doctor availability changed",
     )
 
     @BeforeEach
@@ -111,5 +112,26 @@ class AppointmentDetailViewModelTest {
         assertTrue(state.isEditingContactNote)
         assertFalse(state.isSavingContactNote)
         assertEquals("Unable to save note", state.contactNoteError)
+    }
+
+    @Test
+    fun `customer reschedule uses returned appointment and clears staff reason without refetch`() = runTest {
+        val updated = appointment.copy(
+            scheduledAt = "2026-07-15T10:00:00+08:00",
+            status = AppointmentStatus.PENDING,
+            lastRescheduleReason = null,
+        )
+        coEvery {
+            appointments.rescheduleAppointment(4, "2026-07-15T10:00:00+08:00")
+        } returns Result.success(updated)
+
+        viewModel.rescheduleAppointment("2026-07-15T10:00:00+08:00")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
+        assertEquals(null, state.appointment.lastRescheduleReason)
+        assertEquals("2026-07-15T10:00:00+08:00", state.appointment.scheduledAt)
+        assertTrue(state.showRescheduleSuccessDialog)
+        coVerify(exactly = 1) { appointments.getAppointment(4) }
     }
 }

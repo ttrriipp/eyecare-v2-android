@@ -59,7 +59,8 @@ class AppointmentRepositoryImplTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("""
             {"data":{"id":2,"appointment_number":"APT-2026-000002","visit_reason":"follow_up",
             "status":"confirmed","scheduled_at":"2026-10-25T14:00:00Z","contact_notes":null,
-            "staff_notes":"All good","source":"mobile_app",
+            "staff_notes":"All good","last_reschedule_reason":"Doctor availability changed",
+            "source":"mobile_app",
             "assigned_optometrist":{"id":7,"name":"Dr. Santos"}}}
         """.trimIndent()))
 
@@ -69,6 +70,7 @@ class AppointmentRepositoryImplTest {
         assertEquals(2, appt.id)
         assertEquals(AppointmentStatus.CONFIRMED, appt.status)
         assertEquals("All good", appt.staffNotes)
+        assertEquals("Doctor availability changed", appt.lastRescheduleReason)
         assertEquals("APT-2026-000002", appt.appointmentNumber)
         assertEquals("mobile_app", appt.source)
         assertEquals("Dr. Santos", appt.assignedOptometrist?.name)
