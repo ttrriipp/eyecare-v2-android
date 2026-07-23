@@ -177,6 +177,18 @@ com.eyecare.app/
 - The refresh is presentation-only: no backend endpoint, DTO, domain `User`, repository signature, navigation route, dependency, or global theme token changed. Backend-supported address editing remains out of scope because the current Android user/update contract does not expose it.
 - Stateless `ProfileContent`, `ProfileLoadingContent`, and `EditProfileContent` composables provide deterministic Compose UI-test seams. `ProfileViewModelTest` covers dirty comparison, initials fallback, and save-failure draft preservation; `ProfileScreenTest` covers the visible hierarchy, callbacks, optional phone, unread semantics, loading semantics, supported edit fields, direct save, and saving/error states.
 
+## Messaging — Tappable Context Cards
+
+`data/remote/dto/MessageDtos.kt`, `data/repository/ChatRepositoryImpl.kt`,
+`domain/model/Message.kt`, `presentation/messaging/components/MessageBubble.kt`,
+and `presentation/navigation/NavGraph.kt`:
+
+- Inbound message `contexts` are preserved and mapped at the repository boundary to typed appointment, order, or unsupported domain variants. Missing contexts default to an empty list, so ordinary messages remain backward-compatible.
+- Mapping accepts both request aliases (`appointment`, `order`) and the backend's current polymorphic response values (`App\Models\Appointment`, `App\Models\Order`).
+- Appointment and order links render as distinct nested cards inside the existing message bubble. Each card has its own 56dp minimum tap target, icon, reference ID, directional affordance, and accessibility label; the surrounding bubble remains non-clickable.
+- Cards navigate through the existing type-safe `AppointmentDetail` and `OrderDetail` routes. Unknown/product contexts remain non-interactive rather than creating misleading navigation.
+- DTO and repository unit tests cover decoding, defaults, typed mapping, and unsupported values. `MessageBubbleTest` covers card rendering and callback IDs; it compiles in the Android test source set. Live device verification confirmed appointment 5 and order 1 cards open their corresponding detail screens.
+
 ## Backend API (base: `/api`)
 
 Key endpoints the app consumes:

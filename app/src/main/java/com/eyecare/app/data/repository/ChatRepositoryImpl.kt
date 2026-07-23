@@ -86,7 +86,7 @@ internal fun MessageDtos.MessageDto.toDomain() = Message(
         )
     },
     contexts = contexts.map { context ->
-        when (context.type.lowercase()) {
+        when (context.type.substringAfterLast('\\').lowercase()) {
             "appointment" -> MessageContext.Appointment(context.id)
             "order" -> MessageContext.Order(context.id)
             else -> MessageContext.Unsupported(context.type, context.id)

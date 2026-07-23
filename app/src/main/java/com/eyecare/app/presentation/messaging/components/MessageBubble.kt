@@ -28,12 +28,18 @@ import androidx.compose.ui.unit.dp
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.eyecare.app.BuildConfig
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
-import com.eyecare.app.BuildConfig
+import com.eyecare.app.domain.model.MessageContext
 
 @Composable
-fun MessageBubble(message: Message, isOwn: Boolean) {
+fun MessageBubble(
+    message: Message,
+    isOwn: Boolean,
+    onAppointmentClick: (Int) -> Unit = {},
+    onOrderClick: (Int) -> Unit = {},
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
         horizontalArrangement = if (isOwn) Arrangement.End else Arrangement.Start,
@@ -63,6 +69,30 @@ fun MessageBubble(message: Message, isOwn: Boolean) {
                 message.attachments.forEach { attachment ->
                     Spacer(Modifier.height(4.dp))
                     AttachmentContent(attachment, isOwn)
+                }
+
+                message.contexts.forEach { context ->
+                    when (context) {
+                        is MessageContext.Appointment -> {
+                            Spacer(Modifier.height(6.dp))
+                            MessageContextCard(
+                                context = context,
+                                isOwn = isOwn,
+                                onClick = { onAppointmentClick(context.id) },
+                            )
+                        }
+
+                        is MessageContext.Order -> {
+                            Spacer(Modifier.height(6.dp))
+                            MessageContextCard(
+                                context = context,
+                                isOwn = isOwn,
+                                onClick = { onOrderClick(context.id) },
+                            )
+                        }
+
+                        is MessageContext.Unsupported -> Unit
+                    }
                 }
 
                 Text(

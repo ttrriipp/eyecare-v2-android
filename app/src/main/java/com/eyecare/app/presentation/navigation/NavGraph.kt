@@ -268,7 +268,11 @@ fun EyecareNavGraph(
                         )
                     }
                     composable<Chat> {
-                        ChatScreen(onBack = { navController.popBackStack() })
+                        ChatScreen(
+                            onBack = { navController.popBackStack() },
+                            onAppointmentClick = { navController.navigate(AppointmentDetail(it)) },
+                            onOrderClick = { navController.navigate(OrderDetail(it)) },
+                        )
                     }
                 }
             }

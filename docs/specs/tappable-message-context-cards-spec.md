@@ -1,6 +1,6 @@
 # Spec: Tappable Message Context Cards
 
-Status: Approved for implementation from the user's 2026-07-23 request.
+Status: Implemented on 2026-07-23.
 
 ## Objective
 
@@ -106,12 +106,26 @@ spacing, a visible icon and text label, and a minimum 48dp tappable height.
 
 ## Implementation Tasks
 
-- [ ] Add failing DTO/domain mapping tests for inbound contexts.
-- [ ] Add the additive DTO field, typed domain variants, and repository mapping.
-- [ ] Add failing Compose rendering/tap tests.
-- [ ] Implement the message context card and callback plumbing.
-- [ ] Connect callbacks to type-safe routes in `NavGraph`.
-- [ ] Run full verification and validate on the connected phone.
+- [x] Add failing DTO/domain mapping tests for inbound contexts.
+- [x] Add the additive DTO field, typed domain variants, and repository mapping.
+- [x] Add failing Compose rendering/tap tests.
+- [x] Implement the message context card and callback plumbing.
+- [x] Connect callbacks to type-safe routes in `NavGraph`.
+- [x] Run full verification and validate on the connected phone.
+
+## Final Verification
+
+- `.\gradlew ktlintCheck testDebugUnitTest compileDebugAndroidTestKotlin assembleDebug`
+  passed.
+- The focused Compose test APK compiled. Execution through
+  `connectedDebugAndroidTest` was blocked by the physical phone with
+  `INSTALL_FAILED_USER_RESTRICTED`; no code/test assertion failed.
+- The rebuilt APK was installed normally. Existing appointment and order
+  context messages rendered their cards with `Open appointment 5` and
+  `Open order 1` accessibility labels.
+- Live taps opened appointment `APT-2026-000005` and order `ORD-DEMO-0001`.
+- The mapper accepts the backend's current `App\Models\Appointment` and
+  `App\Models\Order` response values as well as normalized request aliases.
 
 ## Open Questions
 

@@ -17,8 +17,8 @@ class ChatRepositoryMappingsTest {
             body = "Linked records",
             createdAt = "2026-07-23T10:00:00Z",
             contexts = listOf(
-                MessageDtos.ContextLinkDto("appointment", 7),
-                MessageDtos.ContextLinkDto("order", 12),
+                MessageDtos.ContextLinkDto("App\\Models\\Appointment", 7),
+                MessageDtos.ContextLinkDto("App\\Models\\Order", 12),
                 MessageDtos.ContextLinkDto("product", 20),
             ),
         ).toDomain()

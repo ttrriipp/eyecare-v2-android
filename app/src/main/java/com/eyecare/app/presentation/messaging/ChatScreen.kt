@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -32,7 +33,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -48,19 +48,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.messaging.components.AttachmentPreview
 import com.eyecare.app.presentation.messaging.components.AttachmentSheet
 import com.eyecare.app.presentation.messaging.components.ContextCard
 import com.eyecare.app.presentation.messaging.components.MessageBubble
-import com.eyecare.app.presentation.common.components.ErrorContent
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     onBack: () -> Unit,
+    onAppointmentClick: (Int) -> Unit = {},
+    onOrderClick: (Int) -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -147,7 +148,12 @@ fun ChatScreen(
                             modifier = Modifier.fillMaxSize().padding(vertical = 8.dp),
                         ) {
                             items(state.messages, key = { it.id }) { msg ->
-                                MessageBubble(message = msg, isOwn = msg.senderId == viewModel.currentUserId)
+                                MessageBubble(
+                                    message = msg,
+                                    isOwn = msg.senderId == viewModel.currentUserId,
+                                    onAppointmentClick = onAppointmentClick,
+                                    onOrderClick = onOrderClick,
+                                )
                             }
                         }
                     }
