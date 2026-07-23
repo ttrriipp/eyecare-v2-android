@@ -48,13 +48,16 @@ class ProductRepositoryImpl @Inject constructor(
                 maxPrice = maxPrice,
             )
             lastMeta = response.meta
-            val visibleDtos = response.data.filter { it.toDomain().forMobileCatalog() != null }
+            val visibleProducts = response.data.mapNotNull { it.toDomain().forMobileCatalog() }
+            val visibleProductIds = visibleProducts.mapTo(mutableSetOf(), Product::id)
             // Only cache unfiltered page 1 results
             if (page == 1 && !hasFilters) {
                 dao.clearAll()
-                dao.insertAll(visibleDtos.map { it.toEntity() })
+                dao.insertAll(
+                    response.data.filter { it.id in visibleProductIds }.map { it.toEntity() }
+                )
             }
-            Result.success(visibleDtos.mapNotNull { it.toDomain().forMobileCatalog() })
+            Result.success(visibleProducts)
         } catch (e: Exception) {
             // Fallback to cache only for unfiltered page 1
             if (page == 1 && !hasFilters) {
