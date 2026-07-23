@@ -92,7 +92,7 @@ fun ProductListScreen(
                     text = if (selectedTab == CatalogTab.FRAMES) {
                         "Search frames and brands"
                     } else {
-                        "Search eye products"
+                        "Search accessories and brands"
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -153,7 +153,7 @@ fun ProductListScreen(
                                     text = if (state.selectedTab == CatalogTab.FRAMES) {
                                         "No frames found"
                                     } else {
-                                        "No eye products found"
+                                        "No accessories found"
                                     },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,

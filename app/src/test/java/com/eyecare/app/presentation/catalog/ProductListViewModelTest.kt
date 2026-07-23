@@ -46,10 +46,10 @@ class ProductListViewModelTest {
 
     private val allProducts = listOf(
         makeProduct(1, "Frames", arEligible = true),
+        makeProduct(3, "Cleaning Kits", productType = "accessory"),
         makeProduct(2, "Sunglasses"),
-        makeProduct(3, "Cleaning Kits", productType = "general"),
-        makeProduct(4, "Contact Accessories", productType = "GENERAL"),
-        makeProduct(5, "Eye Drops", productType = "accessory"),
+        makeProduct(5, "Contact Lenses", productType = "contact_lens"),
+        makeProduct(4, "Eye Drops", productType = "ACCESSORY"),
     )
     private val framesProducts = allProducts.filter { it.category == "Frames" }
     private val product1Only = allProducts.filter { it.id == 1 }
@@ -92,7 +92,7 @@ class ProductListViewModelTest {
     }
 
     @Test
-    fun `selecting eye products shows every non-frame product`() = runTest {
+    fun `selecting accessories shows only accessory products in server order`() = runTest {
         stubDefaultProducts()
         val vm = ProductListViewModel(repo)
 
@@ -101,11 +101,11 @@ class ProductListViewModelTest {
             dispatcher.scheduler.advanceUntilIdle()
             awaitItem() // Frames
 
-            vm.selectCatalogTab(CatalogTab.EYE_PRODUCTS)
+            vm.selectCatalogTab(CatalogTab.ACCESSORIES)
 
             val state = awaitItem() as ProductListUiState.Success
-            assertEquals(CatalogTab.EYE_PRODUCTS, state.selectedTab)
-            assertEquals(listOf(3, 4, 5), state.products.map { it.id })
+            assertEquals(CatalogTab.ACCESSORIES, state.selectedTab)
+            assertEquals(listOf(3, 4), state.products.map { it.id })
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -125,8 +125,8 @@ class ProductListViewModelTest {
             categoriesForCatalogTab(categories, CatalogTab.FRAMES).map { it.name },
         )
         assertEquals(
-            listOf("Contact Lenses", "Accessories"),
-            categoriesForCatalogTab(categories, CatalogTab.EYE_PRODUCTS).map { it.name },
+            listOf("Accessories", "Cleaning Kits"),
+            categoriesForCatalogTab(categories, CatalogTab.ACCESSORIES).map { it.name },
         )
     }
 
@@ -264,5 +264,46 @@ class ProductListViewModelTest {
             assertInstanceOf(ProductListUiState.Error::class.java, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `initial load advances through mixed pages until selected tab has a product`() = runTest {
+        val accessory1 = makeProduct(1, "Accessories", productType = "accessory")
+        val accessory2 = makeProduct(2, "Cleaning Kits", productType = "accessory")
+        val frame = makeProduct(3, "Frames", productType = "frame", arEligible = true)
+        coEvery {
+            repo.getProducts(
+                page = 1, search = null, brandId = null, categoryId = null,
+                sort = "name", inStock = null, minPrice = null, maxPrice = null,
+            )
+        } returns Result.success(listOf(accessory1))
+        coEvery {
+            repo.getProducts(
+                page = 2, search = null, brandId = null, categoryId = null,
+                sort = "name", inStock = null, minPrice = null, maxPrice = null,
+            )
+        } returns Result.success(listOf(accessory2))
+        coEvery {
+            repo.getProducts(
+                page = 3, search = null, brandId = null, categoryId = null,
+                sort = "name", inStock = null, minPrice = null, maxPrice = null,
+            )
+        } returns Result.success(listOf(frame))
+        coEvery { repo.hasMorePages(1) } returns true
+        coEvery { repo.hasMorePages(2) } returns true
+        coEvery { repo.hasMorePages(3) } returns false
+
+        val vm = ProductListViewModel(repo)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as ProductListUiState.Success
+        assertEquals(listOf(3), state.products.map { it.id })
+        assertEquals(false, state.hasMorePages)
+
+        vm.selectCatalogTab(CatalogTab.ACCESSORIES)
+        assertEquals(
+            listOf(1, 2),
+            (vm.uiState.value as ProductListUiState.Success).products.map { it.id },
+        )
     }
 }

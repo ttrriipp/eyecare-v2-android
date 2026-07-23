@@ -113,9 +113,9 @@ class HomeViewModelTest {
     fun `products are curated into capped home groups in source order`() = runTest {
         val products = listOf(
             product(1, productType = "frame", category = "Eyeglasses"),
-            product(2, productType = "general", category = "Contact Lens Accessories"),
-            product(3, productType = "general", category = "Cleaning Kit"),
-            product(4, productType = "general", category = "Contact Solutions"),
+            product(2, productType = "accessory", category = "Contact Lens Accessories"),
+            product(3, productType = "accessory", category = "Cleaning Kit"),
+            product(4, productType = "accessory", category = "Contact Solutions"),
             product(5, productType = "service", category = "Eye Exam"),
             product(6, productType = "frame", category = "Sunglasses"),
             product(7, productType = "frame", category = "Eyeglasses"),
@@ -134,9 +134,9 @@ class HomeViewModelTest {
     @Test
     fun `accessory category matching ignores case and separator differences`() = runTest {
         val products = listOf(
-            product(1, productType = "general", category = "ACCESSORY"),
-            product(2, productType = "general", category = "Protective_Cases"),
-            product(3, productType = "general", category = "cleaning-kits"),
+            product(1, productType = "accessory", category = "ACCESSORY"),
+            product(2, productType = "accessory", category = "Protective_Cases"),
+            product(3, productType = "accessory", category = "cleaning-kits"),
         )
         coEvery { productRepo.getProducts(any()) } returns Result.success(products)
 
@@ -147,7 +147,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `non-frame retail product types appear in home product groups`() = runTest {
+    fun `non mobile product types do not appear in home product groups`() = runTest {
         val products = listOf(
             product(1, productType = "accessory", category = "Accessories"),
             product(2, productType = "contact_lens", category = "Contact Lenses"),
@@ -159,7 +159,7 @@ class HomeViewModelTest {
         val state = vm().uiState.value as HomeUiState.Success
 
         assertEquals(listOf(1), state.accessories.map(Product::id))
-        assertEquals(listOf(2, 3), state.eyeCareEssentials.map(Product::id))
+        assertEquals(emptyList<Product>(), state.eyeCareEssentials)
     }
 
     private fun product(

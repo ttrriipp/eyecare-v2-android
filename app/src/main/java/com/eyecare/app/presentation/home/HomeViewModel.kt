@@ -8,6 +8,8 @@ import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.model.OrderStatus
 import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.domain.model.Product
+import com.eyecare.app.domain.model.ProductType
+import com.eyecare.app.domain.model.type
 import com.eyecare.app.domain.repository.AppointmentRepository
 import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.PrescriptionRepository
@@ -94,7 +96,7 @@ class HomeViewModel @Inject constructor(
                 activeOrder = activeOrder,
                 expiringPrescription = expiringPrescription,
                 featuredFrames = products
-                    .filter { it.productType.equals("frame", ignoreCase = true) }
+                    .filter { it.type == ProductType.FRAME }
                     .take(HOME_SHELF_LIMIT),
                 accessories = products
                     .filter {
@@ -122,8 +124,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun Product.isRetailEyeProduct(): Boolean =
-        !productType.equals("frame", ignoreCase = true) &&
-            !productType.equals("service", ignoreCase = true)
+        type == ProductType.ACCESSORY
 
     private companion object {
         const val HOME_SHELF_LIMIT = 4

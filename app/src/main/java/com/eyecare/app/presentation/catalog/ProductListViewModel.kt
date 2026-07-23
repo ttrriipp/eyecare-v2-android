@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.Brand
 import com.eyecare.app.domain.model.Category
 import com.eyecare.app.domain.model.Product
+import com.eyecare.app.domain.model.ProductType
+import com.eyecare.app.domain.model.type
 import com.eyecare.app.domain.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -17,7 +19,7 @@ import javax.inject.Inject
 
 enum class CatalogTab(val label: String) {
     FRAMES("Frames"),
-    EYE_PRODUCTS("Eye Products"),
+    ACCESSORIES("Accessories"),
 }
 
 internal fun categoriesForCatalogTab(
@@ -27,9 +29,13 @@ internal fun categoriesForCatalogTab(
     val normalizedName = category.name.lowercase()
     when (tab) {
         CatalogTab.FRAMES -> listOf("frame", "eyeglass", "sunglass").any(normalizedName::contains)
-        CatalogTab.EYE_PRODUCTS ->
-            (normalizedName.contains("contact") && normalizedName.contains("lens")) ||
-                normalizedName.contains("accessor")
+        CatalogTab.ACCESSORIES -> listOf(
+            "accessor",
+            "clean",
+            "case",
+            "solution",
+            "eye drop",
+        ).any(normalizedName::contains)
     }
 }
 
@@ -147,6 +153,9 @@ class ProductListViewModel @Inject constructor(
             products = productsForSelectedTab(),
             selectedTab = selectedTab,
         )
+        if (productsForSelectedTab().isEmpty() && current.hasMorePages) {
+            loadMore()
+        }
     }
 
     fun loadMore() {
@@ -154,29 +163,32 @@ class ProductListViewModel @Inject constructor(
         if (current.isLoadingMore || !current.hasMorePages) return
         _uiState.value = current.copy(isLoadingMore = true)
         viewModelScope.launch {
-            currentPage++
-            repository.getProducts(
-                page = currentPage,
-                search = filters.search.takeIf { it.isNotBlank() },
-                brandId = filters.brandId,
-                categoryId = filters.categoryId,
-                sort = filters.sort.apiValue,
-                inStock = if (filters.inStockOnly) true else null,
-            ).fold(
-                onSuccess = { newProducts ->
-                    currentProducts.addAll(newProducts)
-                    val hasMore = repository.hasMorePages(currentPage)
-                    _uiState.value = current.copy(
-                        products = productsForSelectedTab(),
-                        isLoadingMore = false,
-                        hasMorePages = hasMore,
-                        selectedTab = selectedTab,
-                    )
-                },
-                onFailure = {
-                    currentPage--
+            val visibleCount = productsForSelectedTab().size
+            var hasMore = current.hasMorePages
+            do {
+                val nextPage = currentPage + 1
+                val result = repository.getProducts(
+                    page = nextPage,
+                    search = filters.search.takeIf { it.isNotBlank() },
+                    brandId = filters.brandId,
+                    categoryId = filters.categoryId,
+                    sort = filters.sort.apiValue,
+                    inStock = if (filters.inStockOnly) true else null,
+                )
+                if (result.isFailure) {
                     _uiState.value = current.copy(isLoadingMore = false)
-                },
+                    return@launch
+                }
+                currentPage = nextPage
+                currentProducts.addAll(result.getOrThrow())
+                hasMore = repository.hasMorePages(currentPage)
+            } while (productsForSelectedTab().size == visibleCount && hasMore)
+
+            _uiState.value = current.copy(
+                products = productsForSelectedTab(),
+                isLoadingMore = false,
+                hasMorePages = hasMore,
+                selectedTab = selectedTab,
             )
         }
     }
@@ -214,6 +226,9 @@ class ProductListViewModel @Inject constructor(
                         categories = availableCategories,
                         selectedTab = selectedTab,
                     )
+                    if (productsForSelectedTab().isEmpty() && hasMore) {
+                        loadMore()
+                    }
                 },
                 onFailure = {
                     _uiState.value = ProductListUiState.Error(it.message ?: "Failed to load")
@@ -237,10 +252,9 @@ class ProductListViewModel @Inject constructor(
     }
 
     private fun productsForSelectedTab(): List<Product> = currentProducts.filter { product ->
-        val isFrame = product.productType.equals("frame", ignoreCase = true)
         when (selectedTab) {
-            CatalogTab.FRAMES -> isFrame
-            CatalogTab.EYE_PRODUCTS -> !isFrame
+            CatalogTab.FRAMES -> product.type == ProductType.FRAME
+            CatalogTab.ACCESSORIES -> product.type == ProductType.ACCESSORY
         }
     }
 }
