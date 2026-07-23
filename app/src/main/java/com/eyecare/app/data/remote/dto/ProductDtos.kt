@@ -14,7 +14,7 @@ object ProductDtos {
         val description: String? = null,
         @SerialName("product_type") val productType: String,
         val brand: String,
-        val category: String,
+        val category: String? = null,
         val variants: List<VariantDto> = emptyList(),
         val images: List<String> = emptyList(),
     )

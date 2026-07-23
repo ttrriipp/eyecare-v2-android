@@ -88,7 +88,7 @@ class ProductRepositoryImpl @Inject constructor(
 
     private fun ProductDtos.ProductDto.toEntity() = ProductEntity(
         id = id, name = name, slug = slug, description = description,
-        productType = productType, brandName = brand, categoryName = category,
+        productType = productType, brandName = brand, categoryName = category.orEmpty(),
         variantsJson = json.encodeToString(variants),
         imagesJson = json.encodeToString(images),
     )
@@ -110,7 +110,7 @@ class ProductRepositoryImpl @Inject constructor(
 
     private fun ProductDtos.ProductDto.toDomain() = Product(
         id = id, name = name, slug = slug, description = description,
-        productType = productType, brand = brand, category = category,
+        productType = productType, brand = brand, category = category.orEmpty(),
         variants = variants.map { it.toDomain() },
         images = images,
     )

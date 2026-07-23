@@ -66,6 +66,20 @@ class ProductRepositoryImplTest {
     }
 
     @Test
+    fun `getProducts normalizes a null category at the repository boundary`() = runTest {
+        val productWithoutCategory = fakeProductDto.copy(category = null)
+        coEvery { api.getProducts(any(), any()) } returns
+            ProductDtos.PaginatedProductResponse(listOf(productWithoutCategory), fakeMeta)
+
+        val product = repository.getProducts().getOrThrow().single()
+
+        assertEquals("", product.category)
+        coVerify {
+            dao.insertAll(match { entities -> entities.single().categoryName == "" })
+        }
+    }
+
+    @Test
     fun `getProducts falls back to cache when network fails`() = runTest {
         coEvery { api.getProducts(any(), any()) } throws RuntimeException("No network")
         coEvery { dao.getAll() } returns listOf(fakeEntity)
