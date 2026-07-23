@@ -91,4 +91,22 @@ class ProductDetailViewModelTest {
 
         assertInstanceOf(ProductDetailUiState.Error::class.java, vm.uiState.value)
     }
+
+    @Test
+    fun `accessory without an active variant shows product-aware unavailable state`() = runTest {
+        val accessory = fakeProduct.copy(
+            name = "Lens Cleaning Kit",
+            productType = "accessory",
+            category = "Accessories",
+            variants = emptyList(),
+        )
+        coEvery { repo.getProduct(1) } returns Result.success(accessory)
+
+        val vm = ProductDetailViewModel(repo, 1)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertInstanceOf(ProductDetailUiState.Unavailable::class.java, state)
+        assertEquals(accessory, (state as ProductDetailUiState.Unavailable).product)
+    }
 }

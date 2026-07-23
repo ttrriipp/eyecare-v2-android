@@ -107,6 +107,10 @@ fun ProductDetailScreen(
                 CircularProgressIndicator()
             }
             is ProductDetailUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::refresh)
+            is ProductDetailUiState.Unavailable -> ProductUnavailableContent(
+                product = state.product,
+                onRetry = viewModel::refresh,
+            )
             is ProductDetailUiState.Success -> {
                 val product = state.product
                 val selected = state.selectedVariant
@@ -277,6 +281,111 @@ fun ProductDetailScreen(
                     }
                 }
                 } // end Box
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductUnavailableContent(
+    product: Product,
+    onRetry: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        val image = product.images.firstOrNull()
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.25f)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (image != null) {
+                AsyncImage(
+                    model = buildImageUrl(image),
+                    contentDescription = product.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Outlined.ShoppingBag,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Image unavailable",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (product.brand.isNotBlank()) {
+                Text(
+                    text = product.brand.uppercase(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = product.name,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            if (!product.description.isNullOrBlank()) {
+                Text(
+                    text = android.text.Html.fromHtml(
+                        product.description,
+                        android.text.Html.FROM_HTML_MODE_COMPACT,
+                    ).toString().trim(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Temporarily unavailable",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "This accessory has no available options right now. Please check again later.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            OutlinedButton(
+                onClick = onRetry,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(26.dp),
+            ) {
+                Text("Check again", fontWeight = FontWeight.SemiBold)
             }
         }
     }

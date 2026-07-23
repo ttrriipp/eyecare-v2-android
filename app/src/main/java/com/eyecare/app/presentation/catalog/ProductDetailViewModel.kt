@@ -20,6 +20,7 @@ sealed interface ProductDetailUiState {
         val product: Product,
         val selectedVariant: ProductVariant,
     ) : ProductDetailUiState
+    data class Unavailable(val product: Product) : ProductDetailUiState
     data class Error(val message: String) : ProductDetailUiState
 }
 
@@ -50,10 +51,11 @@ class ProductDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             _uiState.value = repository.getProduct(productId).fold(
                 onSuccess = { product ->
+                    val firstVariant = product.variants.firstOrNull()
+                        ?: return@fold ProductDetailUiState.Unavailable(product)
                     ProductDetailUiState.Success(
                         product = product,
-                        selectedVariant = product.variants.firstOrNull()
-                            ?: return@fold ProductDetailUiState.Error("No variants available"),
+                        selectedVariant = firstVariant,
                     )
                 },
                 onFailure = { ProductDetailUiState.Error(it.message ?: "Failed to load") },
