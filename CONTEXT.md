@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Customer-facing Android app for Padilla Optical Clinic (POCMS). Consumes a Laravel 13 REST API. Lets patients browse frames, book appointments, place orders, view prescriptions/billings, and chat with clinic staff.
+Customer-facing Android app for Padilla Optical Clinic (POCMS). Consumes a Laravel 13 REST API. Lets patients browse AR-ready frames and accessories, order accessories, book appointments, view prescriptions/billings, and chat with clinic staff.
 
 ## Tech Stack
 
@@ -132,37 +132,37 @@ com.eyecare.app/
 `presentation/catalog/ProductListScreen.kt`, `ProductListViewModel.kt`, and
 `presentation/catalog/components/CatalogFilterSheet.kt`:
 
-- The catalog is split by a `SingleChoiceSegmentedButtonRow` into **Frames** (case-insensitive `product_type == "frame"`) and **Eye Products** (all other product types returned by the catalog endpoint). Frames is the default tab.
+- The catalog is split by a `SingleChoiceSegmentedButtonRow` into **Frames** and **Accessories**. Frames is the default tab.
+- A centralized domain policy treats only `frame` and `accessory` as mobile catalog types. Unknown values, `contact_lens`, `lens`, and legacy `general` fail closed. Frames are visible only when they retain at least one AR-ready variant (`ar_eligible == true` plus a non-blank asset reference).
 - Search remains server-backed and debounced by 300ms. Its placeholder and the empty-state copy follow the active catalog tab.
 - The old horizontally scrolling category/brand chip row was replaced by a compact toolbar: **Filters** opens a `ModalBottomSheet`, while **Sort** remains a separate dropdown chip. The Filters label shows the number of active category/brand selections.
 - The filter sheet follows a two-pane mobile layout. The left rail switches between **Category** and **Brand**; the right pane shows the corresponding backend-provided options in a two-column grid. Selected options use both a tinted surface and a check icon.
 - Category and brand choices are draft state while the sheet is open. **Reset** clears both draft selections; **Apply** calls `ProductListViewModel.applyCatalogFilters(brandId, categoryId)` so both query parameters change together and trigger one page-1 reload. Dismissing the sheet does not apply draft changes.
-- Category options remain tab-specific. Frame filters recognize category names containing `frame`, `eyeglass`, or `sunglass`; Eye Product filters recognize contact-lens or accessory category names. Category identity still comes from the backend ID—the name matching only decides which options are relevant to each tab.
+- Category options remain tab-specific. Frame filters recognize category names containing `frame`, `eyeglass`, or `sunglass`; accessory filters conservatively recognize accessory, cleaning, case, solution, and eye-drop wording. Category identity still comes from the backend ID—the name matching only decides which options are relevant to each tab.
 - Product response `category` is nullable. The network DTO accepts `null`, and repository mapping normalizes it to an empty domain/cache value so uncategorized products remain browseable without changing the Room schema.
 - Switching catalog tabs preserves search, brand, and sort. An active category is cleared and products are reloaded because category choices are tab-specific.
 - Brands and categories are retained in dedicated ViewModel fields so filter metadata is not lost when those requests finish before the initial product request.
-- Tests in `ProductListViewModelTest` cover default tab grouping, non-frame Eye Products, tab-specific categories, filter-metadata load ordering, and atomic category+brand application.
-
-**Known pagination constraint:** the top-level Frames/Eye Products split is currently applied in memory after each mixed, paginated product response. If the loaded page contains no products for the selected tab, later matching pages may not be reachable from the current empty state. Prefer a backend `product_type` filter or deliberate page traversal before expanding this behavior.
+- Tests in `ProductListViewModelTest` cover default tab grouping, accessory-only grouping, tab-specific categories, filter-metadata load ordering, atomic category+brand application, and traversal across mixed pages.
+- Because the backend does not expose a `product_type` query parameter, tabs still filter mixed pages in memory. When a fetched page adds no product for the selected tab, the ViewModel advances until it finds a match or exhausts pagination while preserving relative server order.
 
 ## Order Requests — Product-Type Rules
 
 `presentation/orders/OrderRequestScreen.kt` and `OrderRequestViewModel.kt`:
 
-- Only `frame` products expose the **No lens cutting required** choice and optional **Lens Category** selector.
-- `contact_lens`, `accessory`, and unknown non-frame product types are treated conservatively as directly orderable non-prescription products. They always submit `is_non_prescription = true` with no lens-category alias.
-- Turning on **No lens cutting required** for a frame clears any prior lens-category selection so a hidden stale value cannot be submitted.
-- The outbound request continues to use the backend-supported `lens_type_id` compatibility alias. The fixed local category set remains until the backend documents a customer-facing lens-categories endpoint.
+- Only accessories can enter or submit the mobile order-request flow. Frame, contact-lens, optical-lens, legacy-general, and unknown deep links are rejected with a non-retryable customer-readable message.
+- Frames are browse-only: their detail screen can show AR and explains that customers should contact the clinic to order. The order action appears only for accessories.
+- The customer order repository always serializes `is_non_prescription = true`; callers cannot override it.
+- Create-order items contain only `product_variant_id` and `quantity`. Historical order responses continue decoding both lens-category aliases, but neither alias exists in the outbound item DTO.
 
 ## Home Dashboard — Clinic Products
 
 `presentation/home/HomeScreen.kt` and `HomeViewModel.kt`:
 
 - **From the clinic** and its supporting copy live inside one outlined card. That container holds equal-size horizontal product cards grouped into **Featured frames**, **Accessories**, and **Eye-care essentials** shelves.
-- Featured frames use `product_type == "frame"`. Other retail product types—including `general`, `accessory`, `contact_lens`, and `lens`—are eligible for the non-frame shelves; `service` products are intentionally excluded.
-- Accessory grouping normalizes case, underscores, hyphens, and repeated whitespace, then recognizes accessory, cleaning-kit, case, and cases wording. Remaining non-frame retail products become Eye-care essentials.
+- Featured frames use the centralized frame policy. Only accessories are eligible for the non-frame shelves; other and unknown types are excluded even if stale cache data contains them.
+- Accessory grouping normalizes case, underscores, hyphens, and repeated whitespace, then recognizes accessory, cleaning-kit, case, and cases wording. Remaining accessory products become Eye-care essentials.
 - Each Home shelf preserves source order and is capped at four products. The Home request currently reads only the first product page, so products outside that page are not candidates for a shelf.
-- Home grouping behavior is covered by `HomeViewModelTest`, including alternate non-frame product-type values and category-name normalization.
+- Home grouping behavior is covered by `HomeViewModelTest`, including disallowed product types and category-name normalization.
 
 ## Profile — Patient Account Hub
 
@@ -203,10 +203,10 @@ POST   /appointments/{id}/cancel
 POST   /appointments/{id}/reschedule  → reschedule own appointment (pending/confirmed only)
 PATCH  /appointments/{id}/contact-note → edit or clear own pending/confirmed appointment contact note
 GET    /visit-reasons                 → [{id, name, duration_minutes}]
-GET    /products, /products/{id}      → active frame/contact_lens/accessory catalog products, paginated (supports search/brand/category/min_price/max_price/in_stock/sort)
+GET    /products, /products/{id}      → active accessories plus browse-only AR-capable frames; frame variants are AR-ready only
 GET    /brands, /categories           → filter metadata used by the Catalog filter sheet
 GET    /orders, /orders/{id}          → paginated, includes billing_id
-POST   /orders                        → submit (requested)
+POST   /orders                        → submit accessory-only request with is_non_prescription=true
 POST   /orders/{id}/cancel
 GET    /billing/{id}                  → with items[] + payments[]
 GET    /prescriptions, /prescriptions/{id}
@@ -238,6 +238,7 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 - `docs/specs/backend-alignment-v3-spec.md` — Complete: reschedule endpoint, or_number removal, lens_category_id fields, price filter params (6 tasks)
 - `docs/specs/backend-alignment-v5-spec.md` — In progress: booking availability complete; reschedule availability awaits `visit_reason_id` in appointment responses
 - `docs/specs/backend-alignment-v6-spec.md` — Complete: product taxonomy, order invariants, and customer-visible staff reschedule reasons
+- `docs/specs/backend-alignment-v7-spec.md` — Complete: accessory-only mobile ordering, browse-only AR frames, cache safeguards, and mixed-page catalog traversal
 - `docs/specs/implementation-plan-v2.md` — Task breakdown for alignment v2
 - `docs/specs/profile-ui-refresh-spec.md` — Complete: approved UI-only Profile and Edit Profile refresh
 - `docs/specs/profile-ui-refresh-plan.md` — Complete: TDD task breakdown and verification plan for the profile refresh

@@ -1,7 +1,7 @@
 # Android Backend Alignment v7: Mobile Catalog and Ordering
 
-**Status:** Draft — awaiting human review  
-**Source of truth:** `docs/BACKEND_CONTEXT.md`  
+**Status:** Complete — approved and implemented July 23, 2026
+**Source of truth:** `docs/BACKEND_CONTEXT.md`
 **Scope:** Android catalog visibility, product detail actions, and customer order submission
 
 ## Objective
@@ -351,11 +351,13 @@ None of these questions blocks the safe contract alignment. The recommended defa
 - Catalog pagination does not strand valid products on later mixed pages.
 - Focused tests, full unit tests, lint, and debug assembly pass.
 
-## Review Gate
+## Review and Verification Result
 
-Do not begin implementation until this draft is reviewed and approved. Approval should explicitly confirm:
+Approved July 23, 2026 and implemented through isolated, verified commits.
 
-- accessory-only Android ordering;
-- browse-only AR frames;
-- removal of lens controls from the mobile order request;
-- the proposed cache and pagination safeguards.
+- Focused repository, catalog, home, order, and presentation-policy tests pass.
+- Full `testDebugUnitTest` passes.
+- `assembleDebug` passes.
+- `lintDebug` reaches the report gate but remains blocked by two unrelated pre-existing errors:
+  - unused Material 3 `Scaffold` content padding in `MainActivity.kt`;
+  - camera permission without the corresponding optional hardware feature in `AndroidManifest.xml`.
