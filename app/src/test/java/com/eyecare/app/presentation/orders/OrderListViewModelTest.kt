@@ -37,6 +37,7 @@ class OrderListViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
+        coEvery { repo.hasMorePages(any()) } returns false
     }
 
     @AfterEach

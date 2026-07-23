@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.messaging
 
+import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
@@ -10,6 +11,7 @@ import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -39,6 +41,7 @@ class ChatViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
+        coEvery { repo.markMessagesRead(any()) } returns Result.success(Unit)
         authRepo = mockk { coEvery { getUser() } returns Result.success(User(42, "Test", "t@t.com", null, "customer")) }
         appointmentRepo = mockk { coEvery { getAppointments() } returns Result.success(emptyList()) }
         orderRepo = mockk { coEvery { getOrders() } returns Result.success(emptyList()) }
@@ -55,13 +58,17 @@ class ChatViewModelTest {
         coEvery { repo.getMessages(1) } returns Result.success(listOf(fakeMessage))
         val vm = vm()
 
-        vm.uiState.test {
-            assertInstanceOf(ChatUiState.Loading::class.java, awaitItem())
-            dispatcher.scheduler.advanceUntilIdle()
-            val state = awaitItem() as ChatUiState.Success
-            assertEquals(1, state.messages.size)
-            assertEquals("Hello", state.messages[0].body)
-            cancelAndIgnoreRemainingEvents()
+        try {
+            vm.uiState.test {
+                assertInstanceOf(ChatUiState.Loading::class.java, awaitItem())
+                dispatcher.scheduler.runCurrent()
+                val state = awaitItem() as ChatUiState.Success
+                assertEquals(1, state.messages.size)
+                assertEquals("Hello", state.messages[0].body)
+                cancelAndIgnoreRemainingEvents()
+            }
+        } finally {
+            vm.viewModelScope.cancel()
         }
     }
 
@@ -74,26 +81,30 @@ class ChatViewModelTest {
         )
         val vm = vm()
 
-        vm.uiState.test {
-            awaitItem() // Loading
-            dispatcher.scheduler.advanceUntilIdle()
-            awaitItem() // Success with empty messages
+        try {
+            vm.uiState.test {
+                awaitItem() // Loading
+                dispatcher.scheduler.runCurrent()
+                awaitItem() // Success with empty messages
 
-            vm.sendMessage("Hi there")
-            dispatcher.scheduler.advanceUntilIdle()
+                vm.sendMessage("Hi there")
+                dispatcher.scheduler.runCurrent()
 
-            val sending = awaitItem() as ChatUiState.Success
-            if (sending.isSending) {
-                // consume the isSending=true state, then get final
-                dispatcher.scheduler.advanceUntilIdle()
-                val state = awaitItem() as ChatUiState.Success
-                assertEquals(1, state.messages.size)
-                assertEquals("Hi there", state.messages[0].body)
-            } else {
-                assertEquals(1, sending.messages.size)
-                assertEquals("Hi there", sending.messages[0].body)
+                val sending = awaitItem() as ChatUiState.Success
+                if (sending.isSending) {
+                    // consume the isSending=true state, then get final
+                    dispatcher.scheduler.runCurrent()
+                    val state = awaitItem() as ChatUiState.Success
+                    assertEquals(1, state.messages.size)
+                    assertEquals("Hi there", state.messages[0].body)
+                } else {
+                    assertEquals(1, sending.messages.size)
+                    assertEquals("Hi there", sending.messages[0].body)
+                }
+                cancelAndIgnoreRemainingEvents()
             }
-            cancelAndIgnoreRemainingEvents()
+        } finally {
+            vm.viewModelScope.cancel()
         }
     }
 
@@ -102,12 +113,16 @@ class ChatViewModelTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages(1) } returns Result.success(emptyList())
         val vm = vm()
-        dispatcher.scheduler.advanceUntilIdle()
 
-        val stateBefore = vm.uiState.value
-        vm.sendMessage("   ")
-        dispatcher.scheduler.advanceUntilIdle()
-        assertEquals(stateBefore, vm.uiState.value) // unchanged
+        try {
+            dispatcher.scheduler.runCurrent()
+            val stateBefore = vm.uiState.value
+            vm.sendMessage("   ")
+            dispatcher.scheduler.runCurrent()
+            assertEquals(stateBefore, vm.uiState.value) // unchanged
+        } finally {
+            vm.viewModelScope.cancel()
+        }
     }
 
     @Test
@@ -120,20 +135,24 @@ class ChatViewModelTest {
         )
         val vm = vm()
 
-        vm.uiState.test {
-            awaitItem() // Loading
-            dispatcher.scheduler.advanceUntilIdle()
-            val initial = awaitItem() as ChatUiState.Success
-            assertEquals(1, initial.messages.size)
+        try {
+            vm.uiState.test {
+                awaitItem() // Loading
+                dispatcher.scheduler.runCurrent()
+                val initial = awaitItem() as ChatUiState.Success
+                assertEquals(1, initial.messages.size)
 
-            // Advance past the poll interval (5 seconds)
-            dispatcher.scheduler.advanceTimeBy(5_001)
-            dispatcher.scheduler.advanceUntilIdle()
+                // Advance past the poll interval (5 seconds)
+                dispatcher.scheduler.advanceTimeBy(5_001)
+                dispatcher.scheduler.runCurrent()
 
-            val polled = awaitItem() as ChatUiState.Success
-            assertEquals(2, polled.messages.size)
-            assertEquals("New reply from clinic", polled.messages[1].body)
-            cancelAndIgnoreRemainingEvents()
+                val polled = awaitItem() as ChatUiState.Success
+                assertEquals(2, polled.messages.size)
+                assertEquals("New reply from clinic", polled.messages[1].body)
+                cancelAndIgnoreRemainingEvents()
+            }
+        } finally {
+            vm.viewModelScope.cancel()
         }
     }
 
@@ -142,11 +161,15 @@ class ChatViewModelTest {
         coEvery { repo.getConversation() } returns Result.failure(RuntimeException("offline"))
         val vm = vm()
 
-        vm.uiState.test {
-            awaitItem() // Loading
-            dispatcher.scheduler.advanceUntilIdle()
-            assertInstanceOf(ChatUiState.Error::class.java, awaitItem())
-            cancelAndIgnoreRemainingEvents()
+        try {
+            vm.uiState.test {
+                awaitItem() // Loading
+                dispatcher.scheduler.runCurrent()
+                assertInstanceOf(ChatUiState.Error::class.java, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        } finally {
+            vm.viewModelScope.cancel()
         }
     }
 }

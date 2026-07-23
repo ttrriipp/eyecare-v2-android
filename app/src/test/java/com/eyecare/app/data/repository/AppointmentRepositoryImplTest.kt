@@ -43,7 +43,8 @@ class AppointmentRepositoryImplTest {
     fun `getAppointments maps list correctly`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("""
             {"data":[{"id":1,"visit_reason":"eye_exam","status":"pending",
-            "scheduled_at":"2026-10-24T10:00:00Z","contact_notes":"test","staff_notes":null}]}
+            "scheduled_at":"2026-10-24T10:00:00Z","contact_notes":"test","staff_notes":null,
+            "last_reschedule_reason":"Clinic emergency"}]}
         """.trimIndent()))
 
         val result = repository.getAppointments()
@@ -52,6 +53,7 @@ class AppointmentRepositoryImplTest {
         assertEquals(1, list.size)
         assertEquals("eye_exam", list[0].visitReason)
         assertEquals(AppointmentStatus.PENDING, list[0].status)
+        assertEquals("Clinic emergency", list[0].lastRescheduleReason)
     }
 
     @Test

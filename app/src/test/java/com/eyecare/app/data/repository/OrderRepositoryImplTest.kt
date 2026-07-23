@@ -44,7 +44,8 @@ class OrderRepositoryImplTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("""
             {"data":[{"id":1,"order_number":"ORD-001","appointment_id":null,
             "is_non_prescription":true,"status":"requested","subtotal":"165.00",
-            "total_amount":"165.00","items":[],"created_at":"2026-10-24T10:00:00Z"}]}
+            "total_amount":"165.00","items":[],"created_at":"2026-10-24T10:00:00Z"}],
+            "meta":{"current_page":1,"last_page":1,"per_page":15,"total":1}}
         """.trimIndent()))
 
         val result = repository.getOrders()
