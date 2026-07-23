@@ -8,6 +8,7 @@ import com.eyecare.app.domain.model.Brand
 import com.eyecare.app.domain.model.Category
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.domain.model.ProductVariant
+import com.eyecare.app.domain.model.forMobileCatalog
 import com.eyecare.app.domain.repository.ProductRepository
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -47,17 +48,20 @@ class ProductRepositoryImpl @Inject constructor(
                 maxPrice = maxPrice,
             )
             lastMeta = response.meta
+            val visibleDtos = response.data.filter { it.toDomain().forMobileCatalog() != null }
             // Only cache unfiltered page 1 results
             if (page == 1 && !hasFilters) {
                 dao.clearAll()
-                dao.insertAll(response.data.map { it.toEntity() })
+                dao.insertAll(visibleDtos.map { it.toEntity() })
             }
-            Result.success(response.data.map { it.toDomain() })
+            Result.success(visibleDtos.mapNotNull { it.toDomain().forMobileCatalog() })
         } catch (e: Exception) {
             // Fallback to cache only for unfiltered page 1
             if (page == 1 && !hasFilters) {
                 val cached = dao.getAll()
-                if (cached.isNotEmpty()) Result.success(cached.map { it.toDomain() })
+                if (cached.isNotEmpty()) {
+                    Result.success(cached.mapNotNull { it.toDomain().forMobileCatalog() })
+                }
                 else Result.failure(e)
             } else {
                 Result.failure(e)
@@ -71,10 +75,12 @@ class ProductRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getProduct(id: Int): Result<Product> = try {
-        Result.success(api.getProduct(id).data.toDomain())
+        val product = api.getProduct(id).data.toDomain().forMobileCatalog()
+            ?: error("Product is unavailable in the mobile catalog")
+        Result.success(product)
     } catch (e: Exception) {
-        val cached = dao.getById(id)
-        if (cached != null) Result.success(cached.toDomain())
+        val cached = dao.getById(id)?.toDomain()?.forMobileCatalog()
+        if (cached != null) Result.success(cached)
         else Result.failure(e)
     }
 

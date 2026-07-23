@@ -24,3 +24,40 @@ data class ProductVariant(
     val arAssetReference: String?,
     val images: List<String>,
 )
+
+enum class ProductType {
+    FRAME,
+    ACCESSORY,
+    CONTACT_LENS,
+    LENS,
+    UNKNOWN;
+
+    companion object {
+        fun fromApi(value: String): ProductType = entries.firstOrNull {
+            it != UNKNOWN && it.name.equals(value, ignoreCase = true)
+        } ?: UNKNOWN
+    }
+}
+
+val Product.type: ProductType
+    get() = ProductType.fromApi(productType)
+
+val ProductVariant.isArReady: Boolean
+    get() = arEligible && !arAssetReference.isNullOrBlank()
+
+val Product.isMobileCatalogVisible: Boolean
+    get() = when (type) {
+        ProductType.ACCESSORY -> true
+        ProductType.FRAME -> variants.any(ProductVariant::isArReady)
+        else -> false
+    }
+
+val Product.isMobileOrderable: Boolean
+    get() = type == ProductType.ACCESSORY
+
+fun Product.forMobileCatalog(): Product? = when (type) {
+    ProductType.ACCESSORY -> this
+    ProductType.FRAME -> copy(variants = variants.filter(ProductVariant::isArReady))
+        .takeIf { it.variants.isNotEmpty() }
+    else -> null
+}

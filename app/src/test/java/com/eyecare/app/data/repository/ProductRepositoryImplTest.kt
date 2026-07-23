@@ -37,7 +37,11 @@ class ProductRepositoryImplTest {
     private val fakeEntity = ProductEntity(
         id = 1, name = "Clubmaster", slug = "clubmaster", description = "Classic",
         productType = "frame", brandName = "Ray-Ban", categoryName = "Frames",
-        variantsJson = "[]", imagesJson = "[]",
+        variantsJson = """
+            [{"id":1,"name":"Black","sku":"RB-001","price":"165.00",
+            "in_stock":true,"ar_eligible":true,"ar_asset_reference":"frames/rb001.png"}]
+        """.trimIndent(),
+        imagesJson = "[]",
     )
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -109,5 +113,55 @@ class ProductRepositoryImplTest {
         assertTrue(result.isSuccess)
         assertEquals(1, result.getOrThrow().id)
         assertTrue(result.getOrThrow().variants[0].arEligible)
+    }
+
+    @Test
+    fun `getProducts hides disallowed types and removes non AR ready frame variants`() = runTest {
+        val nonArVariant = fakeProductDto.variants.single().copy(
+            id = 2,
+            arAssetReference = null,
+        )
+        val accessory = fakeProductDto.copy(id = 2, productType = "accessory")
+        val contactLens = fakeProductDto.copy(id = 3, productType = "contact_lens")
+        coEvery { api.getProducts(any(), any()) } returns ProductDtos.PaginatedProductResponse(
+            listOf(
+                fakeProductDto.copy(variants = fakeProductDto.variants + nonArVariant),
+                accessory,
+                contactLens,
+            ),
+            fakeMeta,
+        )
+
+        val products = repository.getProducts().getOrThrow()
+
+        assertEquals(listOf(1, 2), products.map { it.id })
+        assertEquals(listOf(1), products.first().variants.map { it.id })
+        coVerify {
+            dao.insertAll(match { entities -> entities.map { it.id } == listOf(1, 2) })
+        }
+    }
+
+    @Test
+    fun `getProducts cache fallback hides legacy product types`() = runTest {
+        coEvery { api.getProducts(any(), any()) } throws RuntimeException("No network")
+        coEvery { dao.getAll() } returns listOf(
+            fakeEntity,
+            fakeEntity.copy(id = 2, productType = "general"),
+            fakeEntity.copy(id = 3, productType = "lens"),
+        )
+
+        val products = repository.getProducts().getOrThrow()
+
+        assertEquals(listOf(1), products.map { it.id })
+    }
+
+    @Test
+    fun `getProduct does not return a hidden cached product after network failure`() = runTest {
+        coEvery { api.getProduct(2) } throws RuntimeException("Not found")
+        coEvery { dao.getById(2) } returns fakeEntity.copy(id = 2, productType = "contact_lens")
+
+        val result = repository.getProduct(2)
+
+        assertTrue(result.isFailure)
     }
 }
