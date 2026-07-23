@@ -7,6 +7,7 @@ import com.eyecare.app.data.remote.dto.MessageDtos
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
+import com.eyecare.app.domain.model.MessageContext
 import com.eyecare.app.domain.repository.ChatRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -67,9 +68,28 @@ class ChatRepositoryImpl @Inject constructor(
         id = id, customerId = customerId, unreadCount = unreadCount, createdAt = createdAt,
     )
 
-    private fun MessageDtos.MessageDto.toDomain() = Message(
-        id = id, conversationId = conversationId, senderId = senderId,
-        body = body, readAt = readAt, createdAt = createdAt,
-        attachments = attachments.map { a -> MessageAttachment(a.id, a.originalName, a.mimeType, a.fileSize) },
-    )
 }
+
+internal fun MessageDtos.MessageDto.toDomain() = Message(
+    id = id,
+    conversationId = conversationId,
+    senderId = senderId,
+    body = body,
+    readAt = readAt,
+    createdAt = createdAt,
+    attachments = attachments.map { attachment ->
+        MessageAttachment(
+            id = attachment.id,
+            originalName = attachment.originalName,
+            mimeType = attachment.mimeType,
+            fileSize = attachment.fileSize,
+        )
+    },
+    contexts = contexts.map { context ->
+        when (context.type.lowercase()) {
+            "appointment" -> MessageContext.Appointment(context.id)
+            "order" -> MessageContext.Order(context.id)
+            else -> MessageContext.Unsupported(context.type, context.id)
+        }
+    },
+)

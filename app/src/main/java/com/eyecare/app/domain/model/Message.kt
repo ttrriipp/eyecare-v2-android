@@ -15,7 +15,16 @@ data class Message(
     val readAt: String?,
     val createdAt: String,
     val attachments: List<MessageAttachment>,
+    val contexts: List<MessageContext> = emptyList(),
 )
+
+sealed interface MessageContext {
+    val id: Int
+
+    data class Appointment(override val id: Int) : MessageContext
+    data class Order(override val id: Int) : MessageContext
+    data class Unsupported(val type: String, override val id: Int) : MessageContext
+}
 
 data class MessageAttachment(
     val id: Int,

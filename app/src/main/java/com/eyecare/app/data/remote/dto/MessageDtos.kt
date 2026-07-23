@@ -22,6 +22,7 @@ object MessageDtos {
         @SerialName("read_at") val readAt: String? = null,
         @SerialName("created_at") val createdAt: String,
         val attachments: List<AttachmentDto> = emptyList(),
+        val contexts: List<ContextLinkDto> = emptyList(),
     )
 
     @Serializable
@@ -37,7 +38,10 @@ object MessageDtos {
     @Serializable data class MessageResponse(val data: MessageDto)
 
     @Serializable
-    data class ContextLinkDto(val type: String, val id: Int)
+    data class ContextLinkDto(
+        val type: String,
+        val id: Int,
+    )
 
     @Serializable
     data class SendMessageRequest(
