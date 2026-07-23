@@ -112,7 +112,7 @@ private fun OrderRequestContent(
             .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Frame info card
+        // Product info card
         Card(
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(2.dp),
@@ -151,43 +151,52 @@ private fun OrderRequestContent(
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
-        // Non-prescription toggle
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column {
-                Text("Non-Prescription", style = MaterialTheme.typography.titleMedium)
-                Text("Frames only, no lenses", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Switch(
-                checked = state.isNonPrescription,
-                onCheckedChange = viewModel::toggleNonPrescription,
-            )
-        }
-
-        // Lens type selector (hidden when non-prescription)
-        if (!state.isNonPrescription) {
-            var expanded by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                OutlinedTextField(
-                    value = state.selectedLensType?.label ?: "Select lens type",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Lens Type") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                    isError = state.error != null && state.selectedLensType == null,
-                    modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
-                    shape = RoundedCornerShape(12.dp),
+        if (state.supportsLensCutting) {
+            // Frame-only lens cutting choice
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text("No lens cutting required", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Order this frame without optical lenses",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.isNonPrescription,
+                    onCheckedChange = viewModel::toggleNonPrescription,
                 )
-                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    LensType.entries.forEach { lens ->
-                        DropdownMenuItem(
-                            text = { Text(lens.label) },
-                            onClick = { viewModel.selectLensType(lens); expanded = false },
-                        )
+            }
+
+            if (!state.isNonPrescription) {
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                    OutlinedTextField(
+                        value = state.selectedLensType?.label ?: "Select lens category",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Lens Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                        isError = state.error != null && state.selectedLensType == null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true),
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        LensType.entries.forEach { lens ->
+                            DropdownMenuItem(
+                                text = { Text(lens.label) },
+                                onClick = {
+                                    viewModel.selectLensType(lens)
+                                    expanded = false
+                                },
+                            )
+                        }
                     }
                 }
             }

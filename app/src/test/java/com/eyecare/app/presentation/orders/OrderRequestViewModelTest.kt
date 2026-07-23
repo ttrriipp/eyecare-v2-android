@@ -12,6 +12,7 @@ import com.eyecare.app.domain.repository.AppointmentRepository
 import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.ProductRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,9 +22,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -118,5 +121,62 @@ class OrderRequestViewModelTest {
         vm.submit()
         val state = vm.uiState.value as OrderRequestUiState.Ready
         assertNotNull(state.error)
+    }
+
+    @Test
+    fun `contact lens is always non prescription and submits without lens category`() = runTest {
+        coEvery { productRepo.getProduct(1) } returns
+            Result.success(fakeProduct.copy(productType = "contact_lens"))
+        coEvery { orderRepo.createOrder(any(), any(), any()) } returns Result.success(fakeOrder)
+        val vm = vm()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue((vm.uiState.value as OrderRequestUiState.Ready).isNonPrescription)
+
+        vm.selectLensType(LensType.PROGRESSIVE)
+        vm.toggleNonPrescription(false)
+        vm.submit()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            orderRepo.createOrder(
+                appointmentId = null,
+                isNonPrescription = true,
+                items = match { items -> items.single().lensTypeId == null },
+            )
+        }
+    }
+
+    @Test
+    fun `accessory initializes as non prescription`() = runTest {
+        coEvery { productRepo.getProduct(1) } returns
+            Result.success(fakeProduct.copy(productType = "ACCESSORY"))
+
+        val vm = vm()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue((vm.uiState.value as OrderRequestUiState.Ready).isNonPrescription)
+    }
+
+    @Test
+    fun `frame keeps lens cutting choice and omits stale category when disabled`() = runTest {
+        coEvery { orderRepo.createOrder(any(), any(), any()) } returns Result.success(fakeOrder)
+        val vm = vm()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse((vm.uiState.value as OrderRequestUiState.Ready).isNonPrescription)
+
+        vm.selectLensType(LensType.SINGLE_VISION)
+        vm.toggleNonPrescription(true)
+        vm.submit()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            orderRepo.createOrder(
+                appointmentId = null,
+                isNonPrescription = true,
+                items = match { items -> items.single().lensTypeId == null },
+            )
+        }
     }
 }

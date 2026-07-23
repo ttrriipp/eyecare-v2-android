@@ -39,7 +39,10 @@ sealed interface OrderRequestUiState {
         val linkedAppointmentId: Int? = null,
         val isSubmitting: Boolean = false,
         val error: String? = null,
-    ) : OrderRequestUiState
+    ) : OrderRequestUiState {
+        val supportsLensCutting: Boolean
+            get() = product.productType.equals("frame", ignoreCase = true)
+    }
     data class Submitted(val order: Order) : OrderRequestUiState
     data class Error(val message: String) : OrderRequestUiState
 }
@@ -66,15 +69,27 @@ class OrderRequestViewModel @AssistedInject constructor(
 
     init { load() }
 
-    fun selectLensType(lensType: LensType) = updateReady { copy(selectedLensType = lensType, error = null) }
+    fun selectLensType(lensType: LensType) = updateReady {
+        if (supportsLensCutting) copy(selectedLensType = lensType, error = null) else this
+    }
     fun setQuantity(qty: Int) = updateReady { copy(quantity = qty.coerceIn(1, 4)) }
-    fun toggleNonPrescription(value: Boolean) = updateReady { copy(isNonPrescription = value) }
+    fun toggleNonPrescription(value: Boolean) = updateReady {
+        if (supportsLensCutting) {
+            copy(
+                isNonPrescription = value,
+                selectedLensType = selectedLensType.takeUnless { value },
+                error = null,
+            )
+        } else {
+            copy(isNonPrescription = true, selectedLensType = null, error = null)
+        }
+    }
     fun linkAppointment(id: Int?) = updateReady { copy(linkedAppointmentId = id) }
 
     fun submit() {
         val state = _uiState.value as? OrderRequestUiState.Ready ?: return
-        if (!state.isNonPrescription && state.selectedLensType == null) {
-            updateReady { copy(error = "Please select a lens type") }
+        if (state.supportsLensCutting && !state.isNonPrescription && state.selectedLensType == null) {
+            updateReady { copy(error = "Please select a lens category") }
             return
         }
         viewModelScope.launch {
@@ -85,7 +100,9 @@ class OrderRequestViewModel @AssistedInject constructor(
                 items = listOf(
                     OrderDtos.OrderItemRequest(
                         productVariantId = state.selectedVariant.id,
-                        lensTypeId = state.selectedLensType?.id,
+                        lensTypeId = state.selectedLensType?.id?.takeIf {
+                            state.supportsLensCutting && !state.isNonPrescription
+                        },
                         quantity = state.quantity,
                     )
                 ),
@@ -115,6 +132,7 @@ class OrderRequestViewModel @AssistedInject constructor(
                         product = product,
                         selectedVariant = variant,
                         appointments = appointmentsResult.getOrElse { emptyList() },
+                        isNonPrescription = !product.productType.equals("frame", ignoreCase = true),
                     )
                 },
                 onFailure = { _uiState.value = OrderRequestUiState.Error(it.message ?: "Failed to load") },
