@@ -150,7 +150,7 @@ com.eyecare.app/
 `presentation/orders/OrderRequestScreen.kt` and `OrderRequestViewModel.kt`:
 
 - Only accessories can enter or submit the mobile order-request flow. Frame, contact-lens, optical-lens, legacy-general, and unknown deep links are rejected with a non-retryable customer-readable message.
-- Frames are browse-only: their detail screen can show AR and explains that customers should contact the clinic to order. The order action appears only for accessories.
+- Frames are browse-only: their detail screen can show AR and explains that customers should contact the clinic to order. Neither product detail nor AR try-on exposes a frame-order action; the order action appears only for accessories.
 - Product detail uses a compact **Photo coming soon** treatment when both variant and product images are absent. A persistent details card shows availability, selected option, SKU, and category; backend-provided descriptions and variant attributes appear as About and Specifications sections. In-stock accessories use a filled primary order action.
 - A successfully loaded product with no active variants uses a product-aware **Temporarily unavailable** detail state. It keeps the product image, brand, name, and description visible, hides price/order actions, and offers **Check again**; transport and API failures continue to use the generic error state.
 - The customer order repository always serializes `is_non_prescription = true`; callers cannot override it.
