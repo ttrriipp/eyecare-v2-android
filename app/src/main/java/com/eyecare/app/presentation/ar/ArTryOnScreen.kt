@@ -20,10 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +48,6 @@ fun ArTryOnScreen(
     productId: Int,
     initialVariantId: Int,
     onBack: () -> Unit,
-    onNavigateToOrder: (productId: Int, variantId: Int) -> Unit,
 ) {
     val viewModel = hiltViewModel<ArViewModel, ArViewModel.Factory> {
         it.create(productId, initialVariantId)
@@ -125,7 +121,7 @@ fun ArTryOnScreen(
                     else -> {}
                 }
 
-                // Bottom sheet: variant chips + Order FAB
+                // Bottom sheet: AR-ready frame variants
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -133,28 +129,13 @@ fun ArTryOnScreen(
                         .background(Color.Black.copy(alpha = 0.4f))
                         .padding(bottom = 24.dp, top = 12.dp),
                 ) {
-                    Column {
-                        if (variants.isNotEmpty()) {
-                            VariantChipRow(
-                                variants = variants,
-                                selectedVariant = selectedVariant,
-                                onSelectVariant = viewModel::selectVariant,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        if (selectedVariant != null) {
-                            Spacer(Modifier.height(12.dp))
-                            ExtendedFloatingActionButton(
-                                onClick = { onNavigateToOrder(productId, selectedVariant!!.id) },
-                                icon = { Icon(Icons.Outlined.ShoppingBag, contentDescription = null) },
-                                text = { Text("Order this frame") },
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = Color.White,
-                                modifier = Modifier
-                                    .align(Alignment.End)
-                                    .padding(end = 16.dp),
-                            )
-                        }
+                    if (variants.isNotEmpty()) {
+                        VariantChipRow(
+                            variants = variants,
+                            selectedVariant = selectedVariant,
+                            onSelectVariant = viewModel::selectVariant,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }

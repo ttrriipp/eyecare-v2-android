@@ -169,7 +169,6 @@ fun EyecareNavGraph(
                             productId = route.productId,
                             initialVariantId = route.variantId,
                             onBack = { navController.popBackStack() },
-                            onNavigateToOrder = { pId, vId -> navController.navigate(OrderRequest(pId, vId)) },
                         )
                     }
                     composable<OrderRequest> { backStackEntry ->
