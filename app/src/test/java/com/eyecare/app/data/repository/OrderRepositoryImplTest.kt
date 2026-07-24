@@ -84,13 +84,13 @@ class OrderRepositoryImplTest {
         """.trimIndent()))
 
         val result = repository.createOrder(
-            appointmentId = null,
             items = listOf(OrderDtos.OrderItemRequest(1, 1)),
         )
         assertTrue(result.isSuccess)
         assertEquals("ORD-002", result.getOrThrow().orderNumber)
         val requestBody = server.takeRequest().body.readUtf8()
         assertTrue(requestBody.contains("\"is_non_prescription\":true"))
+        assertFalse(requestBody.contains("appointment_id"))
         assertFalse(requestBody.contains("lens_category_id"))
         assertFalse(requestBody.contains("lens_type_id"))
     }
@@ -101,7 +101,7 @@ class OrderRepositoryImplTest {
             {"message":"Invalid items","errors":{"items":["Items are required."]}}
         """.trimIndent()))
 
-        val result = repository.createOrder(null, emptyList())
+        val result = repository.createOrder(emptyList())
         assertTrue(result.isFailure)
         assertInstanceOf(
             com.eyecare.app.domain.model.OrderError.ValidationError::class.java,

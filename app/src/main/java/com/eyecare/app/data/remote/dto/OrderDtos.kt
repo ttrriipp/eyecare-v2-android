@@ -57,7 +57,6 @@ object OrderDtos {
 
     @Serializable
     data class CreateOrderRequest(
-        @SerialName("appointment_id") val appointmentId: Int? = null,
         @SerialName("is_non_prescription") val isNonPrescription: Boolean,
         val items: List<OrderItemRequest>,
     )

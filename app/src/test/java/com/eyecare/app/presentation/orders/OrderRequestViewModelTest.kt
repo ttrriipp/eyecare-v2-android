@@ -2,13 +2,10 @@ package com.eyecare.app.presentation.orders
 
 import app.cash.turbine.test
 import com.eyecare.app.data.remote.dto.OrderDtos
-import com.eyecare.app.domain.model.Appointment
-import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.model.OrderStatus
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.domain.model.ProductVariant
-import com.eyecare.app.domain.repository.AppointmentRepository
 import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.ProductRepository
 import io.mockk.coEvery
@@ -32,7 +29,6 @@ class OrderRequestViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var orderRepo: OrderRepository
     private lateinit var productRepo: ProductRepository
-    private lateinit var appointmentRepo: AppointmentRepository
 
     private val fakeVariant = ProductVariant(1, "Black", "BK-001", "165.00", null, null, true, true, null, emptyList())
     private val fakeProduct = Product(1, "Cleaning Kit", "cleaning-kit", null, "accessory", "VisionCare", "Accessories",
@@ -45,15 +41,13 @@ class OrderRequestViewModelTest {
         Dispatchers.setMain(dispatcher)
         orderRepo = mockk()
         productRepo = mockk()
-        appointmentRepo = mockk()
         coEvery { productRepo.getProduct(1) } returns Result.success(fakeProduct)
-        coEvery { appointmentRepo.getAppointments() } returns Result.success(emptyList())
     }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = OrderRequestViewModel(orderRepo, productRepo, appointmentRepo, 1, 1)
+    private fun vm() = OrderRequestViewModel(orderRepo, productRepo, 1, 1)
 
     @Test
     fun `initial state loads product and variant`() = runTest {
@@ -84,7 +78,7 @@ class OrderRequestViewModelTest {
 
     @Test
     fun `submit success emits Submitted`() = runTest {
-        coEvery { orderRepo.createOrder(any(), any()) } returns Result.success(fakeOrder)
+        coEvery { orderRepo.createOrder(any()) } returns Result.success(fakeOrder)
         val vm = vm()
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -108,12 +102,12 @@ class OrderRequestViewModelTest {
 
         val state = vm.uiState.value as OrderRequestUiState.Error
         assertEquals(false, state.canRetry)
-        coVerify(exactly = 0) { orderRepo.createOrder(any(), any()) }
+        coVerify(exactly = 0) { orderRepo.createOrder(any()) }
     }
 
     @Test
     fun `accessory submission contains only variant and quantity`() = runTest {
-        coEvery { orderRepo.createOrder(any(), any()) } returns Result.success(fakeOrder)
+        coEvery { orderRepo.createOrder(any()) } returns Result.success(fakeOrder)
         val vm = vm()
         dispatcher.scheduler.advanceUntilIdle()
         vm.setQuantity(3)
@@ -122,7 +116,6 @@ class OrderRequestViewModelTest {
 
         coVerify(exactly = 1) {
             orderRepo.createOrder(
-                appointmentId = null,
                 items = match { items ->
                     items.single().productVariantId == fakeVariant.id &&
                         items.single().quantity == 3

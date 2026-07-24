@@ -3,19 +3,16 @@ package com.eyecare.app.presentation.orders
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.data.remote.dto.OrderDtos
-import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.domain.model.ProductVariant
 import com.eyecare.app.domain.model.isMobileOrderable
-import com.eyecare.app.domain.repository.AppointmentRepository
 import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.ProductRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,9 +24,7 @@ sealed interface OrderRequestUiState {
     data class Ready(
         val product: Product,
         val selectedVariant: ProductVariant,
-        val appointments: List<Appointment> = emptyList(),
         val quantity: Int = 1,
-        val linkedAppointmentId: Int? = null,
         val isSubmitting: Boolean = false,
         val error: String? = null,
     ) : OrderRequestUiState
@@ -41,7 +36,6 @@ sealed interface OrderRequestUiState {
 class OrderRequestViewModel @AssistedInject constructor(
     private val orderRepository: OrderRepository,
     private val productRepository: ProductRepository,
-    private val appointmentRepository: AppointmentRepository,
     @Assisted("productId") private val productId: Int,
     @Assisted("variantId") private val variantId: Int,
 ) : ViewModel() {
@@ -60,7 +54,6 @@ class OrderRequestViewModel @AssistedInject constructor(
     init { load() }
 
     fun setQuantity(qty: Int) = updateReady { copy(quantity = qty.coerceIn(1, 4)) }
-    fun linkAppointment(id: Int?) = updateReady { copy(linkedAppointmentId = id) }
 
     fun submit() {
         val state = _uiState.value as? OrderRequestUiState.Ready ?: return
@@ -74,7 +67,6 @@ class OrderRequestViewModel @AssistedInject constructor(
         viewModelScope.launch {
             updateReady { copy(isSubmitting = true, error = null) }
             orderRepository.createOrder(
-                appointmentId = state.linkedAppointmentId,
                 items = listOf(
                     OrderDtos.OrderItemRequest(
                         productVariantId = state.selectedVariant.id,
@@ -92,13 +84,7 @@ class OrderRequestViewModel @AssistedInject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            val productDeferred = async { productRepository.getProduct(productId) }
-            val appointmentsDeferred = async { appointmentRepository.getAppointments() }
-
-            val productResult = productDeferred.await()
-            val appointmentsResult = appointmentsDeferred.await()
-
-            productResult.fold(
+            productRepository.getProduct(productId).fold(
                 onSuccess = { product ->
                     if (!product.isMobileOrderable) {
                         _uiState.value = OrderRequestUiState.Error(
@@ -113,7 +99,6 @@ class OrderRequestViewModel @AssistedInject constructor(
                     _uiState.value = OrderRequestUiState.Ready(
                         product = product,
                         selectedVariant = variant,
-                        appointments = appointmentsResult.getOrElse { emptyList() },
                     )
                 },
                 onFailure = { _uiState.value = OrderRequestUiState.Error(it.message ?: "Failed to load") },

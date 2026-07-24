@@ -34,12 +34,10 @@ class OrderRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createOrder(
-        appointmentId: Int?,
         items: List<OrderDtos.OrderItemRequest>,
     ): Result<Order> = runCatching {
         api.createOrder(
             OrderDtos.CreateOrderRequest(
-                appointmentId = appointmentId,
                 isNonPrescription = true,
                 items = items,
             )
