@@ -154,6 +154,7 @@ com.eyecare.app/
 - Product detail uses a compact **Photo coming soon** treatment when both variant and product images are absent. A persistent details card shows availability, selected option, SKU, and category; backend-provided descriptions and variant attributes appear as About and Specifications sections. In-stock accessories use a filled primary order action.
 - A successfully loaded product with no active variants uses a product-aware **Temporarily unavailable** detail state. It keeps the product image, brand, name, and description visible, hides price/order actions, and offers **Check again**; transport and API failures continue to use the generic error state.
 - The customer order repository always serializes `is_non_prescription = true`; callers cannot override it.
+- Customer accessory orders are independent retail requests: the order screen does not load or offer appointments, and the create-order payload omits `appointment_id`. Order responses still decode nullable `appointment_id` for historical and staff-created records.
 - Create-order items contain only `product_variant_id` and `quantity`. Historical order responses continue decoding both lens-category aliases, but neither alias exists in the outbound item DTO.
 
 ## Home Dashboard — Clinic Products
