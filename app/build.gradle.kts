@@ -29,12 +29,12 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2/api/\"")
+        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2/api/v1/\"")
     }
 
     buildTypes {
         debug {
-            val debugUrl = localProps.getProperty("api.base.url", "http://10.0.2.2/api/")
+            val debugUrl = localProps.getProperty("api.base.url", "http://10.0.2.2/api/v1/")
             buildConfigField("String", "API_BASE_URL", "\"$debugUrl\"")
         }
         release {
@@ -43,7 +43,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            val releaseUrl = localProps.getProperty("api.release.url", "https://your-production-url.com/api/")
+            val releaseUrl = localProps.getProperty("api.release.url", "https://your-production-url.com/api/v1/")
             buildConfigField("String", "API_BASE_URL", "\"$releaseUrl\"")
         }
     }
