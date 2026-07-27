@@ -4,16 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
-import com.eyecare.app.domain.model.Order
-import com.eyecare.app.domain.model.OrderStatus
+import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.Prescription
-import com.eyecare.app.domain.model.Product
-import com.eyecare.app.domain.model.ProductType
-import com.eyecare.app.domain.model.type
 import com.eyecare.app.domain.repository.AppointmentV1Repository
-import com.eyecare.app.domain.repository.OrderRepository
+import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.PrescriptionRepository
-import com.eyecare.app.domain.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,11 +22,8 @@ sealed interface HomeUiState {
     data object Loading : HomeUiState
     data class Success(
         val nextAppointment: AppointmentV1?,
-        val activeOrder: Order?,
         val expiringPrescription: Prescription?,
-        val featuredFrames: List<Product>,
-        val accessories: List<Product>,
-        val eyeCareEssentials: List<Product>,
+        val featuredFrames: List<Frame>,
     ) : HomeUiState
     data class Error(val message: String) : HomeUiState
 }
@@ -39,8 +31,7 @@ sealed interface HomeUiState {
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val appointmentRepository: AppointmentV1Repository,
-    private val orderRepository: OrderRepository,
-    private val productRepository: ProductRepository,
+    private val frameRepository: FrameRepository,
     private val prescriptionRepository: PrescriptionRepository,
 ) : ViewModel() {
 
@@ -54,15 +45,19 @@ class HomeViewModel @Inject constructor(
     private fun load() {
         _uiState.value = HomeUiState.Loading
         viewModelScope.launch {
-            val appointmentsDeferred = async { appointmentRepository.getAppointments() }
-            val ordersDeferred = async { orderRepository.getOrders() }
-            val productsDeferred = async { productRepository.getProducts() }
-            val prescriptionsDeferred = async { prescriptionRepository.getPrescriptions() }
+            val appointmentsDeferred = async {
+                runCatching { appointmentRepository.getAppointments(page = 1).getOrNull()?.data ?: emptyList() }
+            }
+            val framesDeferred = async {
+                runCatching { frameRepository.getFrames(page = 1).getOrDefault(emptyList()) }
+            }
+            val prescriptionsDeferred = async {
+                runCatching { prescriptionRepository.getPrescriptions(page = 1).getOrNull()?.data ?: emptyList() }
+            }
 
-            val appointments = appointmentsDeferred.await().getOrNull()?.data ?: emptyList()
-            val orders = ordersDeferred.await().getOrElse { emptyList() }
-            val products = productsDeferred.await().getOrElse { emptyList() }
-            val prescriptions = prescriptionsDeferred.await().getOrNull()?.data ?: emptyList()
+            val appointments = appointmentsDeferred.await().getOrDefault(emptyList())
+            val frames = framesDeferred.await().getOrDefault(emptyList())
+            val prescriptions = prescriptionsDeferred.await().getOrDefault(emptyList())
 
             val today = LocalDate.now()
 
@@ -72,10 +67,6 @@ class HomeViewModel @Inject constructor(
                         runCatching { !LocalDate.parse(it.scheduledAt.take(10)).isBefore(today) }.getOrElse { false }
                 }
                 .minByOrNull { it.scheduledAt }
-
-            val activeOrder = orders
-                .filter { it.status != OrderStatus.COMPLETED && it.status != OrderStatus.CANCELLED }
-                .maxByOrNull { it.createdAt }
 
             val expiringPrescription = prescriptions
                 .filter { p ->
@@ -93,38 +84,11 @@ class HomeViewModel @Inject constructor(
 
             _uiState.value = HomeUiState.Success(
                 nextAppointment = nextAppointment,
-                activeOrder = activeOrder,
                 expiringPrescription = expiringPrescription,
-                featuredFrames = products
-                    .filter { it.type == ProductType.FRAME }
-                    .take(HOME_SHELF_LIMIT),
-                accessories = products
-                    .filter {
-                        it.isRetailEyeProduct() && it.category.isAccessoryCategory()
-                    }
-                    .take(HOME_SHELF_LIMIT),
-                eyeCareEssentials = products
-                    .filter {
-                        it.isRetailEyeProduct() && !it.category.isAccessoryCategory()
-                    }
-                    .take(HOME_SHELF_LIMIT),
+                featuredFrames = frames.take(HOME_SHELF_LIMIT),
             )
         }
     }
-
-    private fun String.isAccessoryCategory(): Boolean {
-        val normalized = lowercase()
-            .replace(Regex("[_-]+"), " ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-        val words = normalized.split(" ")
-        return normalized.contains("accessor") ||
-            normalized.contains("cleaning kit") ||
-            words.any { it == "case" || it == "cases" }
-    }
-
-    private fun Product.isRetailEyeProduct(): Boolean =
-        type == ProductType.ACCESSORY
 
     private companion object {
         const val HOME_SHELF_LIMIT = 4

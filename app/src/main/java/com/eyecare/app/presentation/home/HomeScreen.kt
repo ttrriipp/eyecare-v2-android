@@ -53,8 +53,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.AppointmentV1
-import com.eyecare.app.domain.model.Order
-import com.eyecare.app.domain.model.OrderStatus
+import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.presentation.appointments.formatAppointmentDate
@@ -178,26 +177,20 @@ fun HomeContent(
             VisitTicket(appointment = appointment, onClick = onNavigateToAppointments)
         } ?: BookingInvitation(onClick = onNavigateToBooking)
 
-        if (state.expiringPrescription != null || state.activeOrder != null) {
+        if (state.expiringPrescription != null) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "Order Status",
+                    text = "Prescription Notice",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 state.expiringPrescription?.let { prescription ->
                     PrescriptionWarningCard(prescription, onBookExam = onNavigateToBooking)
                 }
-                state.activeOrder?.let { order ->
-                    OrderTrackerCard(order, onClick = { onNavigateToOrderDetail(order.id) })
-                }
             }
         }
 
-        val hasClinicProducts = state.featuredFrames.isNotEmpty() ||
-            state.accessories.isNotEmpty() ||
-            state.eyeCareEssentials.isNotEmpty()
-        if (hasClinicProducts) {
+        if (state.featuredFrames.isNotEmpty()) {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -210,33 +203,20 @@ fun HomeContent(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            text = "From the clinic",
+                            text = "Featured Frames",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = "Selected for everyday eye care",
+                            text = "Browse our AR-ready collection",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    HomeProductShelf(
-                        title = "Featured frames",
-                        products = state.featuredFrames,
+                    HomeFrameShelf(
+                        frames = state.featuredFrames,
                         onSeeAll = onNavigateToCatalog,
-                        onProductClick = onNavigateToProductDetail,
-                    )
-                    HomeProductShelf(
-                        title = "Accessories",
-                        products = state.accessories,
-                        onSeeAll = onNavigateToCatalog,
-                        onProductClick = onNavigateToProductDetail,
-                    )
-                    HomeProductShelf(
-                        title = "Eye-care essentials",
-                        products = state.eyeCareEssentials,
-                        onSeeAll = onNavigateToCatalog,
-                        onProductClick = onNavigateToProductDetail,
+                        onFrameClick = onNavigateToProductDetail,
                     )
                 }
             }
@@ -431,56 +411,62 @@ private fun PrescriptionWarningCard(
 }
 
 @Composable
-private fun OrderTrackerCard(order: Order, onClick: () -> Unit) {
-    val steps = listOf(
-        OrderStatus.REQUESTED,
-        OrderStatus.CONFIRMED,
-        OrderStatus.PROCESSING,
-        OrderStatus.READY_FOR_PICKUP,
-        OrderStatus.COMPLETED,
-    )
-    val currentStep = steps.indexOfFirst { it == order.status }.coerceAtLeast(0)
-    val progress = (currentStep + 1).toFloat() / steps.size
+private fun HomeFrameShelf(
+    frames: List<Frame>,
+    onSeeAll: () -> Unit,
+    onFrameClick: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Featured Frames", style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = onSeeAll, modifier = Modifier.defaultMinSize(minHeight = 48.dp)) {
+                Text("See all")
+            }
+        }
+        LazyRow(
+            contentPadding = PaddingValues(end = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            items(frames, key = { it.id }) { frame ->
+                FrameSummaryCard(frame = frame, onClick = { onFrameClick(frame.id) })
+            }
+        }
+    }
+}
 
+@Composable
+private fun FrameSummaryCard(frame: Frame, onClick: () -> Unit) {
+    val imageUrl = frame.variants.firstOrNull()?.images?.firstOrNull()?.let(::buildImageUrl)
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier
-            .fillMaxWidth()
-            .defaultMinSize(minHeight = 48.dp),
+        modifier = Modifier.width(148.dp).height(224.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    text = order.orderNumber,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = order.status.name
-                        .replace("_", " ")
-                        .lowercase(Locale.US)
-                        .replaceFirstChar { it.titlecase(Locale.US) },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium,
-                )
+        Column {
+            Box(
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                if (imageUrl != null) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = frame.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
             }
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.outline,
-            )
-            Text(
-                text = "${"%.0f".format(Locale.US, progress * 100)}% complete",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(Modifier.padding(8.dp)) {
+                Text(frame.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                frame.brand?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
         }
     }
 }
