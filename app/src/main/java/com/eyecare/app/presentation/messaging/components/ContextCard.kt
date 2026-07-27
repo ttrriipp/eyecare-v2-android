@@ -57,10 +57,10 @@ fun ContextCard(
                     )
                 }
                 is PendingContext.OrderContext -> {
-                    val o = context.order
-                    Text("Order", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    val o = context.jobOrder
+                    Text("Job Order", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     Text(
-                        "#${o.orderNumber} · ${o.status.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }}",
+                        "#${o.jobOrderNumber} · ${o.status.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }}",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }

@@ -5,12 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.Conversation
+import com.eyecare.app.domain.model.JobOrder
 import com.eyecare.app.domain.model.Message
-import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
-import com.eyecare.app.domain.repository.OrderRepository
+import com.eyecare.app.domain.repository.JobOrderRepository
 import com.eyecare.app.data.remote.dto.MessageDtos
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -31,7 +31,7 @@ data class PendingAttachment(
 
 sealed interface PendingContext {
     data class AppointmentContext(val appointment: AppointmentV1) : PendingContext
-    data class OrderContext(val order: Order) : PendingContext
+    data class OrderContext(val jobOrder: JobOrder) : PendingContext
 }
 
 sealed interface ChatUiState {
@@ -44,7 +44,7 @@ sealed interface ChatUiState {
         val pendingContext: PendingContext? = null,
         val attachmentError: String? = null,
         val appointments: List<AppointmentV1> = emptyList(),
-        val orders: List<Order> = emptyList(),
+        val orders: List<JobOrder> = emptyList(),
     ) : ChatUiState
     data class Error(val message: String) : ChatUiState
 }
@@ -54,7 +54,7 @@ class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val authRepository: AuthRepository,
     private val appointmentRepository: AppointmentV1Repository,
-    private val orderRepository: OrderRepository,
+    private val orderRepository: JobOrderRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Loading)
@@ -162,8 +162,8 @@ class ChatViewModel @Inject constructor(
                     MessageDtos.ContextLinkDto("appointment", a.id)
             }
             is PendingContext.OrderContext -> {
-                val o = ctx.order
-                "Order #${o.orderNumber}" to
+                val o = ctx.jobOrder
+                "Job Order #${o.jobOrderNumber}" to
                     MessageDtos.ContextLinkDto("order", o.id)
             }
         }
@@ -183,7 +183,7 @@ class ChatViewModel @Inject constructor(
         if (current.appointments.isNotEmpty() || current.orders.isNotEmpty()) return
         viewModelScope.launch {
             val appointments = appointmentRepository.getAppointments().getOrNull()?.data ?: emptyList()
-            val orders = orderRepository.getOrders().getOrDefault(emptyList())
+            val orders = orderRepository.getJobOrders().getOrNull()?.data ?: emptyList()
             _uiState.value = current.copy(appointments = appointments, orders = orders)
         }
     }

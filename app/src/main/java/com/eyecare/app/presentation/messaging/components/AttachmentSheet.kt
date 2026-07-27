@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.domain.model.AppointmentV1
-import com.eyecare.app.domain.model.Order
+import com.eyecare.app.domain.model.JobOrder
 
 private enum class SheetPage { MAIN, APPOINTMENTS, ORDERS }
 
@@ -42,10 +42,10 @@ private enum class SheetPage { MAIN, APPOINTMENTS, ORDERS }
 fun AttachmentSheet(
     sheetState: SheetState,
     appointments: List<AppointmentV1>,
-    orders: List<Order>,
+    orders: List<JobOrder>,
     onAttachFile: () -> Unit,
     onLinkAppointment: (AppointmentV1) -> Unit,
-    onLinkOrder: (Order) -> Unit,
+    onLinkOrder: (JobOrder) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var page by remember { mutableStateOf(SheetPage.MAIN) }
@@ -115,7 +115,7 @@ fun AttachmentSheet(
                         LazyColumn {
                             items(orders) { order ->
                                 PickerRow(
-                                    primary = "Order #${order.orderNumber}",
+                                    primary = "Job Order #${order.jobOrderNumber}",
                                     secondary = order.status.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() },
                                 ) {
                                     onLinkOrder(order)

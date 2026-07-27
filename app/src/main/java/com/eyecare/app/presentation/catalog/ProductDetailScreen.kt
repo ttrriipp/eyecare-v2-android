@@ -102,7 +102,7 @@ fun ProductDetailScreen(
     productId: Int,
     onBack: () -> Unit,
     onNavigateToAr: (productId: Int, variantId: Int) -> Unit,
-    onNavigateToOrder: (productId: Int, variantId: Int) -> Unit,
+    onNavigateToOrder: (productId: Int, variantId: Int) -> Unit = { _, _ -> },
 ) {
     val viewModel = hiltViewModel<ProductDetailViewModel, ProductDetailViewModel.Factory> { it.create(productId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

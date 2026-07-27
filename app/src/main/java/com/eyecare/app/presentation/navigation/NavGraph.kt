@@ -36,8 +36,6 @@ import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.feedback.FeedbackScreen
 import com.eyecare.app.presentation.intake.PatientIntakeScreen
-import com.eyecare.app.presentation.billing.BillingDetailScreen
-import com.eyecare.app.presentation.orders.OrderDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
 import com.eyecare.app.presentation.quotations.QuotationListScreen
@@ -46,9 +44,6 @@ import com.eyecare.app.presentation.joborders.JobOrderListScreen
 import com.eyecare.app.presentation.joborders.JobOrderDetailScreen
 import com.eyecare.app.presentation.invoices.InvoiceListScreen
 import com.eyecare.app.presentation.invoices.InvoiceDetailScreen
-import com.eyecare.app.presentation.orders.OrderDetailViewModel
-import com.eyecare.app.presentation.orders.OrderListScreen
-import com.eyecare.app.presentation.orders.OrderRequestScreen
 import com.eyecare.app.presentation.catalog.ProductDetailScreen
 import com.eyecare.app.presentation.catalog.ProductDetailViewModel
 import com.eyecare.app.presentation.catalog.ProductListScreen
@@ -89,10 +84,9 @@ fun EyecareNavGraph(
         !route.contains("Login") && !route.contains("Register") &&
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
             !route.contains("BookAppointment") && !route.contains("ProductDetail") &&
-            !route.contains("ArTryOn") && !route.contains("OrderRequest") &&
-            !route.contains("OrderDetail") && !route.contains("OrderList") &&
+            !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
             !route.contains("Prescription") && !route.contains("Feedback") &&
-            !route.contains("BillingDetail") && !route.contains("EditProfile") &&
+            !route.contains("EditProfile") &&
             !route.contains("PatientIntake") && !route.contains("Quotation") &&
             !route.contains("JobOrder") && !route.contains("Invoice")
     } ?: false
@@ -154,7 +148,6 @@ fun EyecareNavGraph(
                                 }
                             },
                             onNavigateToBooking = { navController.navigate(BookAppointment) },
-                            onNavigateToOrderDetail = { navController.navigate(OrderDetail(it)) },
                             onNavigateToCatalog = {
                                 navController.navigate(Frames) { launchSingleTop = true }
                             },
@@ -200,7 +193,6 @@ fun EyecareNavGraph(
                             productId = route.productId,
                             onBack = { navController.popBackStack() },
                             onNavigateToAr = { pId, vId -> navController.navigate(ArTryOn(pId, vId)) },
-                            onNavigateToOrder = { pId, vId -> navController.navigate(OrderRequest(pId, vId)) },
                         )
                     }
                     composable<ArTryOn> { backStackEntry ->
@@ -211,43 +203,12 @@ fun EyecareNavGraph(
                             onBack = { navController.popBackStack() },
                         )
                     }
-                    composable<OrderRequest> { backStackEntry ->
-                        val route = backStackEntry.toRoute<OrderRequest>()
-                        OrderRequestScreen(
-                            productId = route.productId,
-                            variantId = route.variantId,
-                            onBack = { navController.popBackStack() },
-                            onOrderSubmitted = { navController.navigate(OrderList) { popUpTo(OrderRequest(route.productId, route.variantId)) { inclusive = true } } },
-                        )
-                    }
-                    composable<OrderList> {
-                        OrderListScreen(
-                            onBack = { navController.popBackStack() },
-                            onNavigateToDetail = { navController.navigate(OrderDetail(it)) },
-                        )
-                    }
-                    composable<OrderDetail> { back ->
-                        val route = back.toRoute<OrderDetail>()
-                        OrderDetailScreen(
-                            orderId = route.orderId,
-                            onBack = { navController.popBackStack() },
-                            onViewBilling = { billingId -> navController.navigate(BillingDetail(billingId)) },
-                            onLeaveFeedback = { /* retired — order feedback no longer exists */ },
-                        )
-                    }
                     composable<FeedbackSubmit> { back ->
                         val route = back.toRoute<FeedbackSubmit>()
                         FeedbackScreen(
                             appointmentId = route.appointmentId,
                             onBack = { navController.popBackStack() },
                             onSubmitted = { navController.popBackStack() },
-                        )
-                    }
-                    composable<BillingDetail> { back ->
-                        val route = back.toRoute<BillingDetail>()
-                        BillingDetailScreen(
-                            billingId = route.billingId,
-                            onBack = { navController.popBackStack() },
                         )
                     }
                     composable<PrescriptionList> {
@@ -328,7 +289,6 @@ fun EyecareNavGraph(
                                     popUpTo(MainGraph) { inclusive = true }
                                 }
                             },
-                            onNavigateToOrders = { navController.navigate(OrderList) },
                             onNavigateToPrescriptions = { navController.navigate(PrescriptionList) },
                             onNavigateToReservations = { navController.navigate(FrameReservationList) },
                             onNavigateToQuotations = { navController.navigate(QuotationList) },
@@ -348,7 +308,7 @@ fun EyecareNavGraph(
                         ChatScreen(
                             onBack = { navController.popBackStack() },
                             onAppointmentClick = { navController.navigate(AppointmentDetail(it)) },
-                            onOrderClick = { navController.navigate(OrderDetail(it)) },
+                            onOrderClick = { navController.navigate(JobOrderDetail(it)) },
                         )
                     }
                 }

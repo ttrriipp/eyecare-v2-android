@@ -69,7 +69,6 @@ import java.util.Locale
 fun HomeScreen(
     onNavigateToAppointments: () -> Unit = {},
     onNavigateToBooking: () -> Unit = {},
-    onNavigateToOrderDetail: (Int) -> Unit = {},
     onNavigateToCatalog: () -> Unit = {},
     onNavigateToProductDetail: (Int) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
@@ -93,7 +92,6 @@ fun HomeScreen(
                 state = state,
                 onNavigateToAppointments = onNavigateToAppointments,
                 onNavigateToBooking = onNavigateToBooking,
-                onNavigateToOrderDetail = onNavigateToOrderDetail,
                 onNavigateToCatalog = onNavigateToCatalog,
                 onNavigateToProductDetail = onNavigateToProductDetail,
             )
@@ -146,7 +144,6 @@ fun HomeContent(
     state: HomeUiState.Success,
     onNavigateToAppointments: () -> Unit = {},
     onNavigateToBooking: () -> Unit = {},
-    onNavigateToOrderDetail: (Int) -> Unit = {},
     onNavigateToCatalog: () -> Unit = {},
     onNavigateToProductDetail: (Int) -> Unit = {},
     modifier: Modifier = Modifier,

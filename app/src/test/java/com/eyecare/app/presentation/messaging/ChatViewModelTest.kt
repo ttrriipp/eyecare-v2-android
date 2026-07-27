@@ -7,7 +7,7 @@ import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.User
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.AuthRepository
-import com.eyecare.app.domain.repository.OrderRepository
+import com.eyecare.app.domain.repository.JobOrderRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import io.mockk.coEvery
@@ -32,7 +32,7 @@ class ChatViewModelTest {
     private lateinit var repo: ChatRepository
     private lateinit var authRepo: AuthRepository
     private lateinit var appointmentRepo: AppointmentV1Repository
-    private lateinit var orderRepo: OrderRepository
+    private lateinit var orderRepo: JobOrderRepository
 
     private val fakeConversation = Conversation(1, null, 0, "2026-10-24T10:00:00Z")
     private val fakeMessage = Message(1, 1, 42, "Hello", null, "2026-10-24T10:00:00Z", emptyList())
@@ -43,7 +43,7 @@ class ChatViewModelTest {
         repo = mockk()
         authRepo = mockk { coEvery { getMe() } returns Result.success(User(42, "Test", "t@t.com", null, "customer", null, null, null, null, null, null, null)) }
         appointmentRepo = mockk { coEvery { getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0)) }
-        orderRepo = mockk { coEvery { getOrders() } returns Result.success(emptyList()) }
+        orderRepo = mockk { coEvery { getJobOrders(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0)) }
     }
 
     @AfterEach

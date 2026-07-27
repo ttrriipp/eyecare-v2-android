@@ -72,7 +72,6 @@ import com.eyecare.app.presentation.common.components.ErrorContent
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
-    onNavigateToOrders: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
     onNavigateToQuotations: () -> Unit = {},
@@ -111,7 +110,6 @@ fun ProfileScreen(
             unreadMessageCount = unreadMessageCount,
             onEditProfile = onNavigateToEditProfile,
             onNavigateToMessages = onNavigateToMessages,
-            onNavigateToOrders = onNavigateToOrders,
             onNavigateToPrescriptions = onNavigateToPrescriptions,
             onNavigateToReservations = onNavigateToReservations,
             onNavigateToQuotations = onNavigateToQuotations,
@@ -146,7 +144,6 @@ fun ProfileContent(
     modifier: Modifier = Modifier,
     onEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
-    onNavigateToOrders: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
     onNavigateToQuotations: () -> Unit = {},
@@ -193,13 +190,6 @@ fun ProfileContent(
                         supportingText = "Chat with the clinic",
                         onClick = onNavigateToMessages,
                         badgeCount = unreadMessageCount,
-                    )
-                    ProfileDivider()
-                    ProfileNavRow(
-                        icon = Icons.Outlined.History,
-                        label = "Order History",
-                        supportingText = "Track requests and purchases",
-                        onClick = onNavigateToOrders,
                     )
                     ProfileDivider()
                     ProfileNavRow(

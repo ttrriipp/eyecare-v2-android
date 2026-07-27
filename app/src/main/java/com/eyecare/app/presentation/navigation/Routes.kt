@@ -29,14 +29,6 @@ import kotlinx.serialization.Serializable
 // Reservation destinations
 @Serializable object FrameReservationList
 
-// Order destinations
-@Serializable data class OrderRequest(val productId: Int, val variantId: Int)
-@Serializable object OrderList
-@Serializable data class OrderDetail(val orderId: Int)
-
-// Billing
-@Serializable data class BillingDetail(val billingId: Int)
-
 // Prescriptions
 @Serializable object PrescriptionList
 @Serializable data class PrescriptionDetail(val prescriptionId: Int)
