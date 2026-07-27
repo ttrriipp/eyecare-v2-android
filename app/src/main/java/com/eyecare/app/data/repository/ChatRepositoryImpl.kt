@@ -62,14 +62,12 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun downloadAttachment(attachmentId: Int): Result<AttachmentDownload> = runCatching {
         val response = api.downloadAttachment(attachmentId)
-        val responseBody: ResponseBody = response.body() ?: error("Empty attachment response")
-        val contentDisposition = response.headers()["Content-Disposition"]
-        val fileName = contentDisposition
+        val body = response.body() ?: error("Empty attachment response")
+        val bytes = body.byteStream().readBytes()
+        val fileName = response.headers()["Content-Disposition"]
             ?.let { Regex("filename=\"?([^\"]+)\"?").find(it)?.groupValues?.get(1) }
             ?: "attachment_$attachmentId"
-        val mimeType: String = responseBody.contentType()?.toString() ?: "application/octet-stream"
-        val bytes: ByteArray = responseBody.source().readByteArray()
-        AttachmentDownload(fileName = fileName, mimeType = mimeType, bytes = bytes)
+        AttachmentDownload(fileName = fileName, mimeType = body.contentType()?.toString() ?: "application/octet-stream", bytes = bytes)
     }
 
     private fun MessageDtos.ConversationDto.toDomain() = Conversation(

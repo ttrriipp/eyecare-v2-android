@@ -13,4 +13,11 @@ interface ChatRepository {
         contexts: List<MessageDtos.ContextLinkDto>? = null,
     ): Result<Message>
     suspend fun sendFileMessage(uri: Uri, mimeType: String, fileName: String): Result<Message>
+    suspend fun downloadAttachment(attachmentId: Int): Result<AttachmentDownload>
 }
+
+data class AttachmentDownload(
+    val fileName: String,
+    val mimeType: String,
+    val bytes: ByteArray,
+)
