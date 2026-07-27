@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (9/60 tasks complete)
+Status: Approved — implementation in progress (10/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -265,13 +265,13 @@ paginated lists, v1 availability, and create-time referring source.
 referral-source validation, and backend slot selection.
 
 **Acceptance criteria:**
-- [ ] Referral source is required only when the backend type requires it.
-- [ ] Selected backend `starts_at` is submitted unchanged.
-- [ ] Slot-unavailable 422 returns the flow to time selection and refreshes.
+- [x] Referral source is required only when the backend type requires it.
+- [x] Selected backend `starts_at` is submitted unchanged.
+- [x] Slot-unavailable 422 returns the flow to time selection and refreshes.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*BookAppointmentViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*BookAppointmentViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 9
 
