@@ -62,7 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.EyecareTheme
@@ -427,7 +427,7 @@ private fun EmptyAppointmentTab(tab: AppointmentListTab) {
 
 @Composable
 private fun AppointmentCard(
-    appointment: Appointment,
+    appointment: AppointmentV1,
     onClick: () -> Unit,
 ) {
     Card(
@@ -450,7 +450,7 @@ private fun AppointmentCard(
                 verticalArrangement = Arrangement.spacedBy(9.dp),
             ) {
                 Text(
-                    formatAppointmentTitle(appointment.visitReason),
+                    formatAppointmentTitle(appointment.appointmentType),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -575,14 +575,14 @@ internal fun appointmentWeekDays(selectedDate: LocalDate): List<LocalDate> {
     return List(6) { index -> weekStart.plusDays(index.toLong()) }
 }
 
-private fun appointmentCountsByDate(appointments: List<Appointment>): Map<LocalDate, Int> =
+private fun appointmentCountsByDate(appointments: List<AppointmentV1>): Map<LocalDate, Int> =
     appointments.mapNotNull { parseAppointmentDate(it.scheduledAt) }.groupingBy { it }.eachCount()
 
 internal fun appointmentsForTab(
-    appointments: List<Appointment>,
+    appointments: List<AppointmentV1>,
     tab: AppointmentListTab,
     now: LocalDateTime = LocalDateTime.now(),
-): List<Appointment> {
+): List<AppointmentV1> {
     val terminalStatuses = setOf(
         AppointmentStatus.COMPLETED,
         AppointmentStatus.NO_SHOW,

@@ -1,6 +1,6 @@
 package com.eyecare.app.presentation.appointments
 
-import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -133,12 +133,17 @@ class AppointmentFormattingTest {
         assertEquals(listOf(2, 1, 3), result.map { it.id })
     }
 
-    private fun appointment(id: Int, status: AppointmentStatus, scheduledAt: String) = Appointment(
+    private fun appointment(id: Int, status: AppointmentStatus, scheduledAt: String) = AppointmentV1(
         id = id,
-        visitReason = "Eye Exam",
+        appointmentNumber = null,
+        appointmentType = "New Patient",
+        durationMinutes = 30,
+        referringSource = null,
         status = status,
         scheduledAt = scheduledAt,
         contactNotes = null,
-        staffNotes = null,
+        lastRescheduleReason = null,
+        source = null,
+        assignedOptometrist = null,
     )
 }
