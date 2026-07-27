@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (14/60 tasks complete)
+Status: Approved — implementation in progress (15/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -380,14 +380,14 @@ UI with the remaining patient mutations.
 contact-note mutation declarations after all consumers use v1.
 
 **Acceptance criteria:**
-- [ ] Appointment service contains exactly the seven approved setup/resource routes.
-- [ ] Retired request/response DTOs are gone.
-- [ ] No old appointment path remains in production or tests.
+- [x] Appointment service contains exactly the seven approved setup/resource routes.
+- [x] Retired request/response DTOs are gone.
+- [x] No old appointment path remains in production or tests.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*Appointment*"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] `rg -n "visit-reasons|appointments/availability|contact-note" app/src`
+- [x] `.\gradlew testDebugUnitTest --tests "*Appointment*"`
+- [x] `.\gradlew assembleDebug`
+- [x] `rg -n "visit-reasons|appointments/availability|contact-note" app/src`
 
 **Dependencies:** Tasks 10–14
 
@@ -402,10 +402,10 @@ contact-note mutation declarations after all consumers use v1.
 
 ## Checkpoint C — Scheduling
 
-- [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest --tests "*Appointment*" --tests "*BookAppointment*"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Booking, list, detail, reschedule, and cancel work end to end.
+- [x] `.\gradlew ktlintCheck`
+- [x] `.\gradlew testDebugUnitTest --tests "*Appointment*" --tests "*BookAppointment*"`
+- [x] `.\gradlew assembleDebug`
+- [x] Booking, list, detail, reschedule, and cancel work end to end.
 
 ## Phase D — Intake and Appointment Feedback
 
