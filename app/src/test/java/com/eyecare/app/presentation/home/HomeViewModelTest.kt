@@ -1,12 +1,13 @@
 package com.eyecare.app.presentation.home
 
-import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.model.OrderStatus
 import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.domain.model.Product
-import com.eyecare.app.domain.repository.AppointmentRepository
+import com.eyecare.app.domain.repository.AppointmentV1Repository
+import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.PrescriptionRepository
 import com.eyecare.app.domain.repository.ProductRepository
@@ -30,15 +31,15 @@ import java.time.LocalDate
 class HomeViewModelTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
-    private lateinit var appointmentRepo: AppointmentRepository
+    private lateinit var appointmentRepo: AppointmentV1Repository
     private lateinit var orderRepo: OrderRepository
     private lateinit var productRepo: ProductRepository
     private lateinit var prescriptionRepo: PrescriptionRepository
 
-    private val futureAppt = Appointment(1, "eye_exam", AppointmentStatus.CONFIRMED,
-        "${LocalDate.now().plusDays(3)}T10:00:00Z", null, null)
-    private val pastAppt = Appointment(2, "follow_up", AppointmentStatus.COMPLETED,
-        "${LocalDate.now().minusDays(5)}T10:00:00Z", null, null)
+    private val futureAppt = AppointmentV1(1, "APT-001", "New Patient", 30, null, AppointmentStatus.CONFIRMED,
+        "${LocalDate.now().plusDays(3)}T10:00:00+08:00", null, null, "mobile", null)
+    private val pastAppt = AppointmentV1(2, "APT-002", "Follow-up", 15, null, AppointmentStatus.COMPLETED,
+        "${LocalDate.now().minusDays(5)}T10:00:00+08:00", null, null, "mobile", null)
     private val activeOrder = Order(1, "ORD-001", null, null, false, OrderStatus.PROCESSING,
         "165.00", "165.00", emptyList(), "${LocalDate.now().minusDays(1)}T10:00:00Z")
     private val expiredPrescription = Prescription(1, 1, null, null, null, null,
@@ -53,7 +54,7 @@ class HomeViewModelTest {
         orderRepo = mockk()
         productRepo = mockk()
         prescriptionRepo = mockk()
-        coEvery { appointmentRepo.getAppointments() } returns Result.success(emptyList())
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
         coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { productRepo.getProducts(any()) } returns Result.success(emptyList())
@@ -68,7 +69,7 @@ class HomeViewModelTest {
 
     @Test
     fun `nextAppointment is the soonest future confirmed appointment`() = runTest {
-        coEvery { appointmentRepo.getAppointments() } returns Result.success(listOf(pastAppt, futureAppt))
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(listOf(pastAppt, futureAppt), 1, 1, 2))
         coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
                 coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(emptyList())
@@ -78,7 +79,7 @@ class HomeViewModelTest {
 
     @Test
     fun `activeOrder is the most recent non-completed order`() = runTest {
-        coEvery { appointmentRepo.getAppointments() } returns Result.success(emptyList())
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { orderRepo.getOrders(any()) } returns Result.success(listOf(activeOrder))
                 coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(emptyList())
@@ -88,7 +89,7 @@ class HomeViewModelTest {
 
     @Test
     fun `expiringPrescription is set when prescription expires within 30 days`() = runTest {
-        coEvery { appointmentRepo.getAppointments() } returns Result.success(emptyList())
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
                 coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(listOf(expiredPrescription))
@@ -101,7 +102,7 @@ class HomeViewModelTest {
         val healthyPrescription = expiredPrescription.copy(
             expiresAt = "${LocalDate.now().plusMonths(6)}"
         )
-        coEvery { appointmentRepo.getAppointments() } returns Result.success(emptyList())
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
                 coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(listOf(healthyPrescription))

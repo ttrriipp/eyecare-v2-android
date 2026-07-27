@@ -5,7 +5,7 @@ import app.cash.turbine.test
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.User
-import com.eyecare.app.domain.repository.AppointmentRepository
+import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.ChatRepository
@@ -31,7 +31,7 @@ class ChatViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repo: ChatRepository
     private lateinit var authRepo: AuthRepository
-    private lateinit var appointmentRepo: AppointmentRepository
+    private lateinit var appointmentRepo: AppointmentV1Repository
     private lateinit var orderRepo: OrderRepository
 
     private val fakeConversation = Conversation(1, null, 0, "2026-10-24T10:00:00Z")
@@ -43,7 +43,7 @@ class ChatViewModelTest {
         repo = mockk()
         coEvery { repo.markMessagesRead(any()) } returns Result.success(Unit)
         authRepo = mockk { coEvery { getMe() } returns Result.success(User(42, "Test", "t@t.com", null, "customer", null, null, null, null, null, null, null)) }
-        appointmentRepo = mockk { coEvery { getAppointments() } returns Result.success(emptyList()) }
+        appointmentRepo = mockk { coEvery { getAppointments(any()) } returns Result.success(com.eyecare.app.domain.repository.PaginatedResult(emptyList(), 1, 1, 0)) }
         orderRepo = mockk { coEvery { getOrders() } returns Result.success(emptyList()) }
     }
 

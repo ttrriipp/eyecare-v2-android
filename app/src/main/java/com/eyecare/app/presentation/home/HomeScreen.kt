@@ -52,7 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.model.OrderStatus
 import com.eyecare.app.domain.model.Prescription
@@ -246,7 +246,7 @@ fun HomeContent(
 
 @Composable
 private fun VisitTicket(
-    appointment: Appointment,
+    appointment: AppointmentV1,
     onClick: () -> Unit,
 ) {
     val formattedDate = formatAppointmentDate(appointment.scheduledAt)
@@ -305,7 +305,7 @@ private fun VisitTicket(
                     letterSpacing = 0.8.sp,
                 )
                 Text(
-                    text = formatAppointmentTitle(appointment.visitReason),
+                    text = formatAppointmentTitle(appointment.appointmentType),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,

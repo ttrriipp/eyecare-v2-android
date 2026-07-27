@@ -104,7 +104,7 @@ class AppointmentV1RepositoryImpl @Inject constructor(
         contactNotes = contactNotes,
         lastRescheduleReason = lastRescheduleReason,
         source = source,
-        assignedOptometrist = assignedOptometrist?.let { AssignedOptometrist(id = 0, name = it.name) },
+        assignedOptometrist = assignedOptometrist?.let { AssignedOptometrist(name = it.name) },
     )
 
     private fun AppointmentV1Dtos.AppointmentAvailabilityDto.toDomain() = AppointmentAvailability(

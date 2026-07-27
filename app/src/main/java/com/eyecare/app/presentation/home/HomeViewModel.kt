@@ -2,7 +2,7 @@ package com.eyecare.app.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.Order
 import com.eyecare.app.domain.model.OrderStatus
@@ -10,7 +10,7 @@ import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.domain.model.Product
 import com.eyecare.app.domain.model.ProductType
 import com.eyecare.app.domain.model.type
-import com.eyecare.app.domain.repository.AppointmentRepository
+import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.PrescriptionRepository
 import com.eyecare.app.domain.repository.ProductRepository
@@ -26,7 +26,7 @@ import javax.inject.Inject
 sealed interface HomeUiState {
     data object Loading : HomeUiState
     data class Success(
-        val nextAppointment: Appointment?,
+        val nextAppointment: AppointmentV1?,
         val activeOrder: Order?,
         val expiringPrescription: Prescription?,
         val featuredFrames: List<Product>,
@@ -38,7 +38,7 @@ sealed interface HomeUiState {
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val appointmentRepository: AppointmentRepository,
+    private val appointmentRepository: AppointmentV1Repository,
     private val orderRepository: OrderRepository,
     private val productRepository: ProductRepository,
     private val prescriptionRepository: PrescriptionRepository,
@@ -59,7 +59,7 @@ class HomeViewModel @Inject constructor(
             val productsDeferred = async { productRepository.getProducts() }
             val prescriptionsDeferred = async { prescriptionRepository.getPrescriptions() }
 
-            val appointments = appointmentsDeferred.await().getOrElse { emptyList() }
+            val appointments = appointmentsDeferred.await().getOrNull()?.data ?: emptyList()
             val orders = ordersDeferred.await().getOrElse { emptyList() }
             val products = productsDeferred.await().getOrElse { emptyList() }
             val prescriptions = prescriptionsDeferred.await().getOrElse { emptyList() }

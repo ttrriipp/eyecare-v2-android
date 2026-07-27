@@ -32,7 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.Order
 
 private enum class SheetPage { MAIN, APPOINTMENTS, ORDERS }
@@ -41,10 +41,10 @@ private enum class SheetPage { MAIN, APPOINTMENTS, ORDERS }
 @Composable
 fun AttachmentSheet(
     sheetState: SheetState,
-    appointments: List<Appointment>,
+    appointments: List<AppointmentV1>,
     orders: List<Order>,
     onAttachFile: () -> Unit,
-    onLinkAppointment: (Appointment) -> Unit,
+    onLinkAppointment: (AppointmentV1) -> Unit,
     onLinkOrder: (Order) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -87,7 +87,7 @@ fun AttachmentSheet(
                         LazyColumn {
                             items(appointments) { appt ->
                                 PickerRow(
-                                    primary = appt.visitReason.replace('_', ' ').replaceFirstChar { it.uppercase() },
+                                    primary = appt.appointmentType,
                                     secondary = "${appt.scheduledAt.take(10)} · ${appt.status.name.lowercase()}",
                                 ) {
                                     onLinkAppointment(appt)

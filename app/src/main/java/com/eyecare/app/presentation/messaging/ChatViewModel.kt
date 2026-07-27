@@ -3,11 +3,11 @@ package com.eyecare.app.presentation.messaging
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.domain.model.Appointment
+import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.Order
-import com.eyecare.app.domain.repository.AppointmentRepository
+import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.domain.repository.OrderRepository
@@ -32,7 +32,7 @@ data class PendingAttachment(
 
 /** Pending context link the user has chosen but not yet sent. */
 sealed interface PendingContext {
-    data class AppointmentContext(val appointment: Appointment) : PendingContext
+    data class AppointmentContext(val appointment: AppointmentV1) : PendingContext
     data class OrderContext(val order: Order) : PendingContext
 }
 
@@ -46,7 +46,7 @@ sealed interface ChatUiState {
         val pendingContext: PendingContext? = null,
         val attachmentError: String? = null,
         // For pickers in the bottom sheet
-        val appointments: List<Appointment> = emptyList(),
+        val appointments: List<AppointmentV1> = emptyList(),
         val orders: List<Order> = emptyList(),
     ) : ChatUiState
     data class Error(val message: String) : ChatUiState
@@ -56,7 +56,7 @@ sealed interface ChatUiState {
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val authRepository: AuthRepository,
-    private val appointmentRepository: AppointmentRepository,
+    private val appointmentRepository: AppointmentV1Repository,
     private val orderRepository: OrderRepository,
 ) : ViewModel() {
 
@@ -161,7 +161,7 @@ class ChatViewModel @Inject constructor(
         val (body, contextLink) = when (ctx) {
             is PendingContext.AppointmentContext -> {
                 val a = ctx.appointment
-                "📅 Appointment: ${a.visitReason.replace('_', ' ')} — ${a.scheduledAt.take(10)}" to
+                "📅 Appointment: ${a.appointmentType} — ${a.scheduledAt.take(10)}" to
                     MessageDtos.ContextLinkDto("appointment", a.id)
             }
             is PendingContext.OrderContext -> {
@@ -185,7 +185,7 @@ class ChatViewModel @Inject constructor(
         val current = _uiState.value as? ChatUiState.Success ?: return
         if (current.appointments.isNotEmpty() || current.orders.isNotEmpty()) return
         viewModelScope.launch {
-            val appointments = appointmentRepository.getAppointments().getOrDefault(emptyList())
+            val appointments = appointmentRepository.getAppointments().getOrNull()?.data ?: emptyList()
             val orders = orderRepository.getOrders().getOrDefault(emptyList())
             _uiState.value = current.copy(appointments = appointments, orders = orders)
         }

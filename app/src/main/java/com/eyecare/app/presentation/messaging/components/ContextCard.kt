@@ -52,7 +52,7 @@ fun ContextCard(
                     val a = context.appointment
                     Text("Appointment", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     Text(
-                        "${a.visitReason.replace('_', ' ').replaceFirstChar { it.uppercase() }} · ${a.scheduledAt.take(10)}",
+                        "${a.appointmentType} · ${a.scheduledAt.take(10)}",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
