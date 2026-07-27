@@ -48,6 +48,8 @@ import com.eyecare.app.presentation.catalog.ProductDetailViewModel
 import com.eyecare.app.presentation.catalog.ProductListScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
 import com.eyecare.app.presentation.frames.FrameListScreen
+import com.eyecare.app.presentation.reservations.CreateFrameReservationScreen
+import com.eyecare.app.presentation.reservations.FrameReservationListScreen
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.profile.EditProfileScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
@@ -168,7 +170,21 @@ fun EyecareNavGraph(
                             frameId = route.frameId,
                             onBack = { navController.popBackStack() },
                             onNavigateToAr = { fId, vId -> navController.navigate(ArTryOn(fId, vId)) },
-                            onNavigateToReserve = { fId, vId -> /* Task 34: reservation */ },
+                            onNavigateToReserve = { fId, vId -> navController.navigate(CreateFrameReservation(fId, vId)) },
+                        )
+                    }
+                    composable<CreateFrameReservation> { backStackEntry ->
+                        val route = backStackEntry.toRoute<CreateFrameReservation>()
+                        CreateFrameReservationScreen(
+                            frameId = route.frameId,
+                            variantId = route.variantId,
+                            onBack = { navController.popBackStack() },
+                            onSuccess = { navController.popBackStack() },
+                        )
+                    }
+                    composable<FrameReservationList> {
+                        FrameReservationListScreen(
+                            onBack = { navController.popBackStack() },
                         )
                     }
                     composable<ProductDetail> { backStackEntry ->
@@ -277,6 +293,7 @@ fun EyecareNavGraph(
                             },
                             onNavigateToOrders = { navController.navigate(OrderList) },
                             onNavigateToPrescriptions = { navController.navigate(PrescriptionList) },
+                            onNavigateToReservations = { navController.navigate(FrameReservationList) },
                             onNavigateToEditProfile = { navController.navigate(EditProfile) },
                             onNavigateToMessages = { navController.navigate(Chat) },
                             unreadMessageCount = unreadCount,

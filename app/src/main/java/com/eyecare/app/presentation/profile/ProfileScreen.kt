@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Email
@@ -70,6 +71,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onNavigateToOrders: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
+    onNavigateToReservations: () -> Unit = {},
     onNavigateToEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     unreadMessageCount: Int = 0,
@@ -105,6 +107,7 @@ fun ProfileScreen(
             onNavigateToMessages = onNavigateToMessages,
             onNavigateToOrders = onNavigateToOrders,
             onNavigateToPrescriptions = onNavigateToPrescriptions,
+            onNavigateToReservations = onNavigateToReservations,
             onLogoutClick = { showLogoutDialog = true },
         )
     }
@@ -136,6 +139,7 @@ fun ProfileContent(
     onNavigateToMessages: () -> Unit = {},
     onNavigateToOrders: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
+    onNavigateToReservations: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
     Column(
@@ -191,6 +195,13 @@ fun ProfileContent(
                         label = "Prescriptions",
                         supportingText = "View your optical records",
                         onClick = onNavigateToPrescriptions,
+                    )
+                    ProfileDivider()
+                    ProfileNavRow(
+                        icon = Icons.Outlined.Bookmark,
+                        label = "Reservations",
+                        supportingText = "Frame try-on reservations",
+                        onClick = onNavigateToReservations,
                     )
                 }
             }

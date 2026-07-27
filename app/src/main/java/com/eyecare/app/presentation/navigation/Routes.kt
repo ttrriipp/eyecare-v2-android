@@ -24,6 +24,10 @@ import kotlinx.serialization.Serializable
 
 // Frame sub-destinations
 @Serializable data class FrameDetail(val frameId: Int)
+@Serializable data class CreateFrameReservation(val frameId: Int, val variantId: Int)
+
+// Reservation destinations
+@Serializable object FrameReservationList
 
 // Order destinations
 @Serializable data class OrderRequest(val productId: Int, val variantId: Int)
