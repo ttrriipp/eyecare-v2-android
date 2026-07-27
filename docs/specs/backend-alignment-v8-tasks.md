@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (58/60 tasks complete)
+Status: Approved — implementation in progress (59/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -1073,9 +1073,9 @@ and no patient mutation actions.
 without request/cancel assumptions.
 
 **Acceptance criteria:**
-- [ ] Repository fixtures cover list and raw detail shapes.
-- [ ] ViewModel tests cover paging, detail retry, and unknown status.
-- [ ] No order-create/cancel test remains.
+- [x] Repository fixtures cover list and raw detail shapes.
+- [x] ViewModel tests cover paging, detail retry, and unknown status.
+- [x] No order-create/cancel test remains.
 
 **Verification:**
 - [x] `.\gradlew testDebugUnitTest --tests "*JobOrder*"`
