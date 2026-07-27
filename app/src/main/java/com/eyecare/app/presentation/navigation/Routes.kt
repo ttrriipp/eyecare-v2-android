@@ -38,7 +38,6 @@ import kotlinx.serialization.Serializable
 
 // Feedback
 @Serializable data class FeedbackSubmit(val appointmentId: Int = -1, val orderId: Int = -1)
-@Serializable object FeedbackHistory
 
 // Chat (FAB destination, not a tab)
 @Serializable object Chat

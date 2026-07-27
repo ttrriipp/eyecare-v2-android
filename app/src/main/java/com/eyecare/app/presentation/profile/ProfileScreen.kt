@@ -70,7 +70,6 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onNavigateToOrders: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
-    onNavigateToFeedbackHistory: () -> Unit = {},
     onNavigateToEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     unreadMessageCount: Int = 0,
@@ -106,7 +105,6 @@ fun ProfileScreen(
             onNavigateToMessages = onNavigateToMessages,
             onNavigateToOrders = onNavigateToOrders,
             onNavigateToPrescriptions = onNavigateToPrescriptions,
-            onNavigateToFeedbackHistory = onNavigateToFeedbackHistory,
             onLogoutClick = { showLogoutDialog = true },
         )
     }
@@ -138,7 +136,6 @@ fun ProfileContent(
     onNavigateToMessages: () -> Unit = {},
     onNavigateToOrders: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
-    onNavigateToFeedbackHistory: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
     Column(
@@ -194,13 +191,6 @@ fun ProfileContent(
                         label = "Prescriptions",
                         supportingText = "View your optical records",
                         onClick = onNavigateToPrescriptions,
-                    )
-                    ProfileDivider()
-                    ProfileNavRow(
-                        icon = Icons.Outlined.Star,
-                        label = "Feedback History",
-                        supportingText = "Review your clinic feedback",
-                        onClick = onNavigateToFeedbackHistory,
                     )
                 }
             }

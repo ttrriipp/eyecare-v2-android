@@ -34,7 +34,6 @@ import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
-import com.eyecare.app.presentation.feedback.FeedbackHistoryScreen
 import com.eyecare.app.presentation.feedback.FeedbackScreen
 import com.eyecare.app.presentation.intake.PatientIntakeScreen
 import com.eyecare.app.presentation.billing.BillingDetailScreen
@@ -206,7 +205,6 @@ fun EyecareNavGraph(
                             onSubmitted = { navController.popBackStack() },
                         )
                     }
-                    composable<FeedbackHistory> { FeedbackHistoryScreen(onBack = { navController.popBackStack() }) }
                     composable<BillingDetail> { back ->
                         val route = back.toRoute<BillingDetail>()
                         BillingDetailScreen(
@@ -264,7 +262,6 @@ fun EyecareNavGraph(
                             },
                             onNavigateToOrders = { navController.navigate(OrderList) },
                             onNavigateToPrescriptions = { navController.navigate(PrescriptionList) },
-                            onNavigateToFeedbackHistory = { navController.navigate(FeedbackHistory) },
                             onNavigateToEditProfile = { navController.navigate(EditProfile) },
                             onNavigateToMessages = { navController.navigate(Chat) },
                             unreadMessageCount = unreadCount,
