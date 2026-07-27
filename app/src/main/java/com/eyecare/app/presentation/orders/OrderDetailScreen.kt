@@ -66,7 +66,7 @@ fun OrderDetailScreen(
     orderId: Int,
     onBack: () -> Unit,
     onViewBilling: (billingId: Int) -> Unit,
-    onLeaveFeedback: (orderId: Int) -> Unit,
+    onLeaveFeedback: (orderId: Int) -> Unit = {},
 ) {
     val viewModel = hiltViewModel<OrderDetailViewModel, OrderDetailViewModel.Factory> { it.create(orderId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.repository.AppointmentV1Repository
-import com.eyecare.app.domain.repository.FeedbackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +31,6 @@ sealed interface AppointmentDetailUiState {
 @HiltViewModel
 class AppointmentDetailViewModel @Inject constructor(
     private val repository: AppointmentV1Repository,
-    private val feedbackRepository: FeedbackRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -117,15 +115,13 @@ class AppointmentDetailViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            val appointmentResult = repository.getAppointment(appointmentId)
-            val feedbackResult = feedbackRepository.getFeedbackHistory()
-            _uiState.value = appointmentResult.fold(
+            repository.getAppointment(appointmentId).fold(
                 onSuccess = { appointment ->
-                    val hasFeedback = feedbackResult.getOrDefault(emptyList())
-                        .any { it.appointmentId == appointmentId }
-                    AppointmentDetailUiState.Success(appointment, hasFeedback)
+                    _uiState.value = AppointmentDetailUiState.Success(appointment)
                 },
-                onFailure = { AppointmentDetailUiState.Error(it.message ?: "Failed to load") },
+                onFailure = {
+                    _uiState.value = AppointmentDetailUiState.Error(it.message ?: "Failed to load")
+                },
             )
         }
     }

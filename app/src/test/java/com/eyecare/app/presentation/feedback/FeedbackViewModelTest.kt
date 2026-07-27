@@ -14,7 +14,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -24,65 +23,60 @@ class FeedbackViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repo: FeedbackRepository
 
-    private val fakeFeedback = Feedback(1, appointmentId = 1, orderId = null,
-        rating = 5, comment = "Great!")
+    private val fakeFeedback = Feedback(1, appointmentId = 1, rating = 5, comment = "Great!")
 
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
-        coEvery { repo.getFeedbackHistory() } returns Result.success(listOf(fakeFeedback))
     }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `submit without rating emits validation error`() = runTest {
-        val vm = FeedbackViewModel(repo, appointmentId = 1, orderId = null)
-        vm.submit(rating = 0, comment = "")
-        assertInstanceOf(FeedbackUiState.ValidationError::class.java, vm.uiState.value)
-    }
-
-    @Test
-    fun `submit with valid rating emits Loading then Submitted`() = runTest {
-        coEvery { repo.submitFeedback(1, null, 5, "Great!") } returns Result.success(fakeFeedback)
-        val vm = FeedbackViewModel(repo, appointmentId = 1, orderId = null)
+    fun `submit success emits Submitted state`() = runTest {
+        coEvery { repo.submitFeedback(1, 5, "Great!") } returns Result.success(fakeFeedback)
+        val vm = FeedbackViewModel(repo, appointmentId = 1)
 
         vm.uiState.test {
-            awaitItem() // Idle
-            vm.submit(rating = 5, comment = "Great!")
-            val loading = awaitItem()
-            assertInstanceOf(FeedbackUiState.Loading::class.java, loading)
+            assertEquals(FeedbackUiState.Idle, awaitItem())
+            vm.submit(5, "Great!")
+            assertEquals(FeedbackUiState.Loading, awaitItem())
             dispatcher.scheduler.advanceUntilIdle()
-            assertInstanceOf(FeedbackUiState.Submitted::class.java, awaitItem())
+            val submitted = awaitItem() as FeedbackUiState.Submitted
+            assertEquals(5, submitted.feedback.rating)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `submit failure emits Error`() = runTest {
-        coEvery { repo.submitFeedback(any(), any(), any(), any()) } returns
-            Result.failure(RuntimeException("server error"))
-        val vm = FeedbackViewModel(repo, appointmentId = null, orderId = 1)
+    fun `submit with zero rating shows validation error`() = runTest {
+        val vm = FeedbackViewModel(repo, appointmentId = 1)
 
         vm.uiState.test {
             awaitItem()
-            vm.submit(rating = 4, comment = null)
-            awaitItem() // Loading
-            dispatcher.scheduler.advanceUntilIdle()
-            assertInstanceOf(FeedbackUiState.Error::class.java, awaitItem())
+            vm.submit(0, null)
+            val error = awaitItem() as FeedbackUiState.ValidationError
+            assertEquals("Please select a rating", error.message)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `history loads list of feedback`() = runTest {
-        coEvery { repo.getFeedbackHistory() } returns Result.success(listOf(fakeFeedback))
-        val vm = FeedbackViewModel(repo, appointmentId = 1, orderId = null)
-        dispatcher.scheduler.advanceUntilIdle()
-        val history = vm.history.value as FeedbackHistoryUiState.Success
-        assertEquals(1, history.items.size)
-        assertEquals(5, history.items[0].rating)
+    fun `submit error emits Error state`() = runTest {
+        coEvery { repo.submitFeedback(1, 3, any()) } returns
+            Result.failure(RuntimeException("Server error"))
+        val vm = FeedbackViewModel(repo, appointmentId = 1)
+
+        vm.uiState.test {
+            awaitItem()
+            vm.submit(3, null)
+            awaitItem() // Loading
+            dispatcher.scheduler.advanceUntilIdle()
+            val error = awaitItem() as FeedbackUiState.Error
+            assertEquals("Server error", error.message)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }

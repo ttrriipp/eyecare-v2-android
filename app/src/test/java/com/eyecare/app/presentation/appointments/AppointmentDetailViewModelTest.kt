@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.repository.AppointmentV1Repository
-import com.eyecare.app.domain.repository.FeedbackRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -26,7 +25,6 @@ class AppointmentDetailViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var appointments: AppointmentV1Repository
-    private lateinit var feedback: FeedbackRepository
     private lateinit var viewModel: AppointmentDetailViewModel
 
     private val appointment = AppointmentV1(
@@ -47,12 +45,9 @@ class AppointmentDetailViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         appointments = mockk()
-        feedback = mockk()
         coEvery { appointments.getAppointment(4) } returns Result.success(appointment)
-        coEvery { feedback.getFeedbackHistory() } returns Result.success(emptyList())
         viewModel = AppointmentDetailViewModel(
             repository = appointments,
-            feedbackRepository = feedback,
             savedStateHandle = SavedStateHandle(mapOf("appointmentId" to 4)),
         )
         dispatcher.scheduler.advanceUntilIdle()

@@ -193,14 +193,13 @@ fun EyecareNavGraph(
                             orderId = route.orderId,
                             onBack = { navController.popBackStack() },
                             onViewBilling = { billingId -> navController.navigate(BillingDetail(billingId)) },
-                            onLeaveFeedback = { id -> navController.navigate(FeedbackSubmit(orderId = id)) },
+                            onLeaveFeedback = { /* retired — order feedback no longer exists */ },
                         )
                     }
                     composable<FeedbackSubmit> { back ->
                         val route = back.toRoute<FeedbackSubmit>()
                         FeedbackScreen(
-                            appointmentId = route.appointmentId.takeIf { it != -1 },
-                            orderId = route.orderId.takeIf { it != -1 },
+                            appointmentId = route.appointmentId,
                             onBack = { navController.popBackStack() },
                             onSubmitted = { navController.popBackStack() },
                         )

@@ -4,11 +4,8 @@ import com.eyecare.app.domain.model.Feedback
 
 interface FeedbackRepository {
     suspend fun submitFeedback(
-        appointmentId: Int?,
-        orderId: Int?,
+        appointmentId: Int,
         rating: Int,
         comment: String?,
     ): Result<Feedback>
-
-    suspend fun getFeedbackHistory(): Result<List<Feedback>>
 }

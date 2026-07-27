@@ -21,37 +21,21 @@ sealed interface FeedbackUiState {
     data class Error(val message: String) : FeedbackUiState
 }
 
-sealed interface FeedbackHistoryUiState {
-    data object Loading : FeedbackHistoryUiState
-    data class Success(val items: List<Feedback>) : FeedbackHistoryUiState
-    data object Empty : FeedbackHistoryUiState
-    data class Error(val message: String) : FeedbackHistoryUiState
-}
-
 @HiltViewModel(assistedFactory = FeedbackViewModel.Factory::class)
 class FeedbackViewModel @AssistedInject constructor(
     private val repository: FeedbackRepository,
-    @Assisted("appointmentId") val appointmentId: Int?,
-    @Assisted("orderId") val orderId: Int?,
+    @Assisted("appointmentId") val appointmentId: Int,
 ) : ViewModel() {
 
     @AssistedFactory
     interface Factory {
         fun create(
-            @Assisted("appointmentId") appointmentId: Int?,
-            @Assisted("orderId") orderId: Int?,
+            @Assisted("appointmentId") appointmentId: Int,
         ): FeedbackViewModel
     }
 
     private val _uiState = MutableStateFlow<FeedbackUiState>(FeedbackUiState.Idle)
     val uiState: StateFlow<FeedbackUiState> = _uiState.asStateFlow()
-
-    private val _history = MutableStateFlow<FeedbackHistoryUiState>(FeedbackHistoryUiState.Loading)
-    val history: StateFlow<FeedbackHistoryUiState> = _history.asStateFlow()
-
-    init { loadHistory() }
-
-    fun retryHistory() = loadHistory()
 
     fun submit(rating: Int, comment: String?) {
         if (rating < 1) {
@@ -60,18 +44,9 @@ class FeedbackViewModel @AssistedInject constructor(
         }
         _uiState.value = FeedbackUiState.Loading
         viewModelScope.launch {
-            _uiState.value = repository.submitFeedback(appointmentId, orderId, rating, comment?.takeIf { it.isNotBlank() }).fold(
+            _uiState.value = repository.submitFeedback(appointmentId, rating, comment?.takeIf { it.isNotBlank() }).fold(
                 onSuccess = { FeedbackUiState.Submitted(it) },
                 onFailure = { FeedbackUiState.Error(it.message ?: "Submission failed") },
-            )
-        }
-    }
-
-    private fun loadHistory() {
-        viewModelScope.launch {
-            _history.value = repository.getFeedbackHistory().fold(
-                onSuccess = { if (it.isEmpty()) FeedbackHistoryUiState.Empty else FeedbackHistoryUiState.Success(it) },
-                onFailure = { FeedbackHistoryUiState.Error(it.message ?: "Failed to load") },
             )
         }
     }

@@ -46,13 +46,12 @@ import com.eyecare.app.ui.theme.StatusPending
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedbackScreen(
-    appointmentId: Int?,
-    orderId: Int?,
+    appointmentId: Int,
     onBack: () -> Unit,
     onSubmitted: () -> Unit,
 ) {
     val viewModel = hiltViewModel<FeedbackViewModel, FeedbackViewModel.Factory> {
-        it.create(appointmentId, orderId)
+        it.create(appointmentId)
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

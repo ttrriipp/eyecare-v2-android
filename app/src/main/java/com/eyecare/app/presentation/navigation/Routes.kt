@@ -37,7 +37,7 @@ import kotlinx.serialization.Serializable
 @Serializable object EditProfile
 
 // Feedback
-@Serializable data class FeedbackSubmit(val appointmentId: Int = -1, val orderId: Int = -1)
+@Serializable data class FeedbackSubmit(val appointmentId: Int)
 
 // Chat (FAB destination, not a tab)
 @Serializable object Chat
