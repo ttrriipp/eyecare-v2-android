@@ -192,36 +192,118 @@ and `presentation/navigation/NavGraph.kt`:
 - Cards navigate through the existing type-safe `AppointmentDetail` and `OrderDetail` routes. Unknown/product contexts remain non-interactive rather than creating misleading navigation.
 - DTO and repository unit tests cover decoding, defaults, typed mapping, and unsupported values. `MessageBubbleTest` covers card rendering and callback IDs; it compiles in the Android test source set. Live device verification confirmed appointment 5 and order 1 cards open their corresponding detail screens.
 
-## Backend API (base: `/api`)
+## Backend API (base: `/api/v1`)
 
-Key endpoints the app consumes:
+34 approved patient-mobile routes. Source of truth: `docs/API_CONTRACT.md`.
+
+**Auth:** Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). 401 → auto-logout via `AuthEventBus`.
+
+**Key endpoints the app consumes:**
 ```
-POST   /login, /register, /logout
-GET    /user                          → {data: {id, name, email, phone, role}}
-PATCH  /user                          → update profile
-GET    /appointments, /appointments/{id}
-GET    /appointments/availability     → slot grid for date + visit_reason_id; optional appointment_id for reschedule
-POST   /appointments                  → book (pending)
+POST   /register, /login, /logout
+GET    /me                              → patient profile with demographics
+PATCH  /me                              → update profile fields
+
+GET    /appointment-types               → [{id, name, duration_minutes, requires_referral}]
+GET    /appointment-availability         → slot grid for date + appointment_type_id
+GET    /appointments                    → paginated list
+POST   /appointments                    → book (pending)
+GET    /appointments/{id}               → single appointment
 POST   /appointments/{id}/cancel
-POST   /appointments/{id}/reschedule  → reschedule own appointment (pending/confirmed only)
-PATCH  /appointments/{id}/contact-note → edit or clear own pending/confirmed appointment contact note
-GET    /visit-reasons                 → [{id, name, duration_minutes}]
-GET    /products, /products/{id}      → active accessories plus browse-only AR-capable frames; frame variants are AR-ready only
-GET    /brands, /categories           → filter metadata used by the Catalog filter sheet
-GET    /orders, /orders/{id}          → paginated, includes billing_id
-POST   /orders                        → submit accessory-only request with is_non_prescription=true
-POST   /orders/{id}/cancel
-GET    /billing/{id}                  → with items[] + payments[]
-GET    /prescriptions, /prescriptions/{id}
-GET    /conversations                 → includes unread_count
-GET    /conversations/{id}/messages
-POST   /conversations/{id}/messages
-POST   /conversations/{id}/messages/read
-POST   /feedback
-GET    /feedback, /feedback/{id}
+POST   /appointments/{id}/reschedule
+
+GET    /appointments/{id}/intake        → nullable draft intake
+PUT    /appointments/{id}/intake        → save draft
+POST   /appointments/{id}/intake/submit → submit draft
+
+GET    /frames                          → paginated AR-ready frames
+GET    /frames/{id}                     → single frame
+
+GET    /frame-reservations              → unpaginated list
+POST   /frame-reservations              → create (1-5 variants)
+POST   /frame-reservations/{id}/cancel
+
+GET    /prescriptions                   → paginated, read-only
+GET    /prescriptions/{id}
+GET    /quotations                      → paginated, read-only
+GET    /quotations/{id}
+GET    /job-orders                      → paginated, read-only
+GET    /job-orders/{id}
+GET    /invoices                        → paginated, read-only
+GET    /invoices/{id}
+
+GET    /conversation                    → singleton patient conversation
+GET    /conversation/messages           → unpaginated, oldest-first
+POST   /conversation/messages           → send text + optional attachment/context
+GET    /conversation/attachments/{id}   → authenticated file download
+
+POST   /feedback                        → completed appointment only
+POST   /job-order-items/{id}/rating     → create/revise frame rating
 ```
 
-Auth: Sanctum token in `Authorization: Bearer {token}`. Stored via `TokenManager` (SharedPreferences). 401 → auto-logout via `AuthEventBus`.
+## Architecture
+
+MVVM + Clean Architecture: `data/` → `domain/` → `presentation/`
+
+```
+com.eyecare.app/
+├── data/
+│   ├── remote/
+│   │   ├── api/           Retrofit services by resource group
+│   │   ├── dto/           Kotlinx-serializable transport models
+│   │   └── interceptor/   Sanctum auth and 401 handling
+│   ├── local/             Frame-only Room cache
+│   └── repository/        DTO-to-domain mapping
+├── domain/
+│   ├── model/             Domain data classes + enums
+│   └── repository/        Repository interfaces
+├── presentation/
+│   ├── auth/              Login, Register
+│   ├── home/              Dashboard
+│   ├── frames/            Browse, detail, AR
+│   ├── reservations/      Frame reservation list/create/cancel
+│   ├── appointments/      List, detail, booking, reschedule
+│   ├── intake/            Patient intake draft/submit
+│   ├── prescriptions/     Read-only list/detail
+│   ├── quotations/        Read-only list/detail
+│   ├── joborders/         Read-only list/detail + rating
+│   ├── invoices/          Read-only list/detail
+│   ├── messaging/         Singleton conversation
+│   ├── feedback/          Completed-appointment submission
+│   ├── profile/           Patient profile + hub
+│   └── navigation/        Type-safe routes, bottom nav
+├── di/                    Hilt modules
+└── ui/theme/              Color, Type, Shape, Theme
+```
+
+## Root Navigation
+
+Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
+
+- Home: next appointment, expiring prescription, featured frames preview
+- Frames: searchable/paged catalog, detail, AR, reservation entry
+- Appointments: list, detail, booking, reschedule, cancel, intake, feedback
+- Profile: hub for Messages, Prescriptions, Reservations, Quotations, Job Orders, Invoices
+
+## Active Specs
+
+- `docs/specs/backend-alignment-v8-spec.md` — Complete: patient workflow migration (60 tasks)
+- `docs/specs/backend-alignment-v8-plan.md` — Complete: implementation plan
+- `docs/specs/backend-alignment-v8-tasks.md` — Complete: all acceptance criteria met
+- `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
+- `docs/API_CONTRACT.md` — Authoritative mobile API contract at commit `ebd1e2e`
+
+## Boundaries
+
+- **Never** use Gson — only Kotlinx Serialization
+- **Never** store tokens or health data in Room (only frame cache)
+- **Never** apply `org.jetbrains.kotlin.android` plugin (AGP 9 built-in)
+- **Never** add `android.disallowKotlinSourceSets=false`
+- **Always** run `./gradlew assembleDebug` after changes
+- **Always** map DTOs to domain models at repository boundary
+- **Always** use `sealed interface` for UI state
+- **Ask first** before adding new dependencies
+- **Ask first** before changing navigation graph structure
 
 ## Branding
 
