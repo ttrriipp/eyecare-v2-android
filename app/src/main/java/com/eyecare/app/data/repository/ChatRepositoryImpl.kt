@@ -8,6 +8,7 @@ import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
 import com.eyecare.app.domain.model.MessageContext
+import com.eyecare.app.domain.repository.AttachmentDownload
 import com.eyecare.app.domain.repository.ChatRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -56,6 +57,18 @@ class ChatRepositoryImpl @Inject constructor(
         } finally {
             tempFile.delete()
         }
+    }
+
+    override suspend fun downloadAttachment(attachmentId: Int): Result<AttachmentDownload> = runCatching {
+        val response = api.downloadAttachment(attachmentId)
+        val body = response.body() ?: error("Empty attachment response")
+        val contentDisposition = response.headers()["Content-Disposition"]
+        val fileName = contentDisposition
+            ?.let { Regex("filename=\"?([^\"]+)\"?").find(it)?.groupValues?.get(1) }
+            ?: "attachment"
+        val mimeType = body.contentType()?.toString() ?: "application/octet-stream"
+        val bytes = body.bytes()
+        AttachmentDownload(fileName = fileName, mimeType = mimeType, bytes = bytes)
     }
 
     private fun MessageDtos.ConversationDto.toDomain() = Conversation(
