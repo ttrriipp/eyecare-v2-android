@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (22/60 tasks complete)
+Status: Approved — implementation in progress (29/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -924,9 +924,9 @@ hub access.
 the expanded optical fields.
 
 **Acceptance criteria:**
-- [ ] List uses canonical links/meta.
-- [ ] Prism/base and numeric axis values decode correctly.
-- [ ] Detail remains patient-read-only.
+- [x] List uses canonical links/meta.
+- [x] Prism/base and numeric axis values decode correctly.
+- [x] Detail remains patient-read-only.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*PrescriptionRepositoryImplTest"`
@@ -973,9 +973,9 @@ new optical values.
 money, repository mapping, and read-only statuses.
 
 **Acceptance criteria:**
-- [ ] List/detail use one Quotation domain model.
-- [ ] Null revision and all five statuses decode safely.
-- [ ] No mutation method exists.
+- [x] List/detail use one Quotation domain model.
+- [x] Null revision and all five statuses decode safely.
+- [x] No mutation method exists.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*QuotationRepositoryImplTest"`
@@ -1023,9 +1023,9 @@ revision totals and immutable line items.
 files. Keep the legacy order files compiling until final cutover cleanup.
 
 **Acceptance criteria:**
-- [ ] Only GET list/detail methods remain.
-- [ ] Detail preserves nullable workflow timestamps and variant ID.
-- [ ] Unknown status is non-actionable.
+- [x] Only GET list/detail methods remain.
+- [x] Detail preserves nullable workflow timestamps and variant ID.
+- [x] Unknown status is non-actionable.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*JobOrderRepositoryImplTest"`
@@ -1147,9 +1147,9 @@ files with items and posted payments. Keep legacy billing compiling until Task
 56.
 
 **Acceptance criteria:**
-- [ ] List/detail decode numeric money and nullable invoice fields.
-- [ ] Only posted payments are exposed.
-- [ ] No PDF/download or payment mutation method remains.
+- [x] List/detail decode numeric money and nullable invoice fields.
+- [x] Only posted payments are exposed.
+- [x] No PDF/download or payment mutation method remains.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*InvoiceRepositoryImplTest"`
@@ -1230,9 +1230,9 @@ orders, ratings, and invoices and replace Order/Billing routes.
 fields with singleton patient conversation/message resources.
 
 **Acceptance criteria:**
-- [ ] Service contains exactly the four approved conversation routes.
-- [ ] Conversation uses `patient_id` and backend unread count.
-- [ ] Messages remain unpaginated oldest-first.
+- [x] Service contains exactly the four approved conversation routes.
+- [x] Conversation uses `patient_id` and backend unread count.
+- [x] Messages remain unpaginated oldest-first.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*MessageDtosTest"`
@@ -1254,9 +1254,9 @@ fields with singleton patient conversation/message resources.
 contexts, and add authenticated attachment download.
 
 **Acceptance criteria:**
-- [ ] Repository calls singleton paths only.
-- [ ] Multipart fields use sequential `contexts[N][type/id]`.
-- [ ] Attachment download returns binary metadata/content without public URLs.
+- [x] Repository calls singleton paths only.
+- [x] Multipart fields use sequential `contexts[N][type/id]`.
+- [x] Attachment download returns binary metadata/content without public URLs.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*ChatRepository*"`
