@@ -2,6 +2,7 @@ package com.eyecare.app.data.remote.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 object PrescriptionDtos {
 
@@ -30,7 +31,7 @@ object PrescriptionDtos {
     @Serializable
     data class PrescriptionListResponse(
         val data: List<PrescriptionDto>,
-        val links: PaginationLinks? = null,
+        val links: JsonElement? = null,
         val meta: PaginationMeta? = null,
     )
 

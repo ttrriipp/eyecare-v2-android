@@ -2,6 +2,7 @@ package com.eyecare.app.data.remote.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 object InvoiceDtos {
 
@@ -57,7 +58,7 @@ object InvoiceDtos {
     @Serializable
     data class InvoiceListResponse(
         val data: List<InvoiceDto>,
-        val links: PaginationLinks? = null,
+        val links: JsonElement? = null,
         val meta: PaginationMeta? = null,
     )
 

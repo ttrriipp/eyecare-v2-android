@@ -35,7 +35,7 @@ object FrameDtos {
     @Serializable
     data class PaginatedFrameResponse(
         val data: List<FrameDto>,
-        val links: PaginationLinks? = null,
+        val links: JsonElement? = null,
         val meta: PaginationMeta? = null,
     )
 
