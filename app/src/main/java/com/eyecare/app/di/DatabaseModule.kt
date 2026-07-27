@@ -3,6 +3,7 @@ package com.eyecare.app.di
 import android.content.Context
 import androidx.room.Room
 import com.eyecare.app.data.local.EyecareDatabase
+import com.eyecare.app.data.local.dao.FrameDao
 import com.eyecare.app.data.local.dao.ProductDao
 import dagger.Module
 import dagger.Provides
@@ -24,4 +25,7 @@ object DatabaseModule {
 
     @Provides
     fun provideProductDao(db: EyecareDatabase): ProductDao = db.productDao()
+
+    @Provides
+    fun provideFrameDao(db: EyecareDatabase): FrameDao = db.frameDao()
 }
