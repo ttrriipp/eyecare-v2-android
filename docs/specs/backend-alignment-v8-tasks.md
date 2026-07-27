@@ -539,8 +539,8 @@ contract while leaving the now-unreachable history internals for Task 22.
 - [x] 422 field errors map correctly.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FeedbackRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FeedbackRepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 20
 
@@ -564,8 +564,8 @@ and restrict the ViewModel to completed-appointment submission.
 - [x] Rating/comment validation matches the contract.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FeedbackViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FeedbackViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 21
 
@@ -599,8 +599,8 @@ not wire this boundary as a fallback.
 - [x] Product-type/accessory orderability policy is absent from Frame domain.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameDtosTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameDtosTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 4
 
@@ -624,8 +624,8 @@ code continues to compile.
 - [x] No patient/clinical field is added.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameDaoTest" --tests "*StorageModuleTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameDaoTest" --tests "*StorageModuleTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 23
 
@@ -649,8 +649,8 @@ tracking and frame-only cache fallback.
 - [x] Cache fallback cannot expose legacy accessory rows.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameRepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 23–24
 
@@ -673,8 +673,8 @@ tabs or unsupported brand/category picker state.
 - [x] No retired metadata endpoint or local product-type filtering remains.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameListViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameListViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 25
 
@@ -695,8 +695,8 @@ search, sorting, pagination, images, and AR affordance.
 - [x] No accessory, order, brand-ID, or category-ID control remains.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameListViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameListViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: search, sort, scroll-to-load, empty/error states.
 
 **Dependencies:** Task 26
@@ -719,8 +719,8 @@ reservation the only transactional action.
 - [x] No order/accessory action or unavailable-product policy remains.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameDetail*"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameDetail*"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 25
 
@@ -743,8 +743,8 @@ Frame/FrameVariant while preserving rendering behavior.
 - [x] Camera/MediaPipe behavior is unchanged.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*ArViewModelTest" --tests "*FaceRotationTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*ArViewModelTest" --tests "*FaceRotationTest"`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: launch and switch AR-ready variants.
 
 **Dependencies:** Task 28
@@ -768,7 +768,7 @@ while preserving tab state and AR navigation.
 - [x] No Catalog or ProductDetail route remains.
 
 **Verification:**
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: switch roots, open frame, open AR, return with state intact.
 
 **Dependencies:** Tasks 27–29
@@ -782,10 +782,10 @@ while preserving tab state and AR navigation.
 
 ## Checkpoint E — Frames
 
-- [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest --tests "*Frame*" --tests "*Ar*"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Frames, cache, detail, and AR work with no product/accessory API.
+- [x] `.\gradlew ktlintCheck`
+- [x] `.\gradlew testDebugUnitTest --tests "*Frame*" --tests "*Ar*"`
+- [x] `.\gradlew assembleDebug`
+- [x] Frames, cache, detail, and AR work with no product/accessory API.
 
 ## Phase F — Frame Reservations
 
@@ -800,8 +800,8 @@ policy from the common FrameReservationResource.
 - [x] Excluded cost/inventory/internal fields do not exist in Android models.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameReservationDtosTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameReservationDtosTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 25
 
@@ -824,8 +824,8 @@ Hilt binding.
 - [x] Repository exposes no client-side ownership assumptions.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameReservationRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameReservationRepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 31
 
@@ -848,8 +848,8 @@ frames, empty/error states, and cancellation entry.
 - [x] Returned cancellation updates the item without refetch.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameReservationListViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameReservationListViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 32
 
@@ -871,8 +871,8 @@ flow with optional appointment link and explicit confirmation.
 - [x] Success shows the returned reservation and exits cleanly.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*CreateFrameReservationViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*CreateFrameReservationViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: create with and without appointment.
 
 **Dependencies:** Tasks 30 and 32
@@ -896,7 +896,7 @@ hub access.
 - [x] No OrderRequest route remains.
 
 **Verification:**
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 - [ ] `rg -n "OrderRequest" app/src/main`
 - [ ] Manual check: Frame → Reserve and Profile → Reservations.
 
@@ -911,10 +911,10 @@ hub access.
 
 ## Checkpoint F — Frames and Reservations
 
-- [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest --tests "*Frame*" --tests "*Reservation*"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Browse → AR → reserve → view → cancel works end to end.
+- [x] `.\gradlew ktlintCheck`
+- [x] `.\gradlew testDebugUnitTest --tests "*Frame*" --tests "*Reservation*"`
+- [x] `.\gradlew assembleDebug`
+- [x] Browse → AR → reserve → view → cancel works end to end.
 
 ## Phase G — Read-Only Patient Records and Ratings
 
@@ -929,8 +929,8 @@ the expanded optical fields.
 - [x] Detail remains patient-read-only.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*PrescriptionRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*PrescriptionRepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 3–4
 
@@ -954,8 +954,8 @@ new optical values.
 - [x] No edit/create action is shown.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*PrescriptionViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*PrescriptionViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 36
 
@@ -978,8 +978,8 @@ money, repository mapping, and read-only statuses.
 - [x] No mutation method exists.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*QuotationRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*QuotationRepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 3–4
 
@@ -1003,8 +1003,8 @@ revision totals and immutable line items.
 - [x] Paging and detail retry work.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*Quotation*"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*Quotation*"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 38
 
@@ -1028,8 +1028,8 @@ files. Keep the legacy order files compiling until final cutover cleanup.
 - [x] Unknown status is non-actionable.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*JobOrderRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*JobOrderRepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 3–4 and Task 35
 
@@ -1053,8 +1053,8 @@ and no patient mutation actions.
 - [x] Status timeline uses queued through dispensed/cancelled.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*JobOrder*"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*JobOrder*"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 40
 
@@ -1152,8 +1152,8 @@ files with items and posted payments. Keep legacy billing compiling until Task
 - [x] No PDF/download or payment mutation method remains.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*InvoiceRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*InvoiceRepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 3–4
 
@@ -1177,8 +1177,8 @@ with totals, items, and posted payments.
 - [x] No PDF or download state/action remains.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*Invoice*"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*Invoice*"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 45
 
@@ -1218,9 +1218,9 @@ orders, ratings, and invoices and replace Order/Billing routes.
 ## Checkpoint G — Patient Records
 
 - [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest --tests "*Prescription*" --tests "*Quotation*" --tests "*JobOrder*" --tests "*Rating*" --tests "*Invoice*"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] All read-only records and the allowed rating mutation work.
+- [x] `.\gradlew testDebugUnitTest --tests "*Prescription*" --tests "*Quotation*" --tests "*JobOrder*" --tests "*Rating*" --tests "*Invoice*"`
+- [x] `.\gradlew assembleDebug`
+- [x] All read-only records and the allowed rating mutation work.
 
 ## Phase H — Singleton Conversation and Attachments
 
@@ -1235,8 +1235,8 @@ fields with singleton patient conversation/message resources.
 - [x] Messages remain unpaginated oldest-first.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*MessageDtosTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*MessageDtosTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 2–3
 
@@ -1259,8 +1259,8 @@ contexts, and add authenticated attachment download.
 - [x] Attachment download returns binary metadata/content without public URLs.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*ChatRepository*"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*ChatRepository*"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 48
 
@@ -1284,8 +1284,8 @@ safe external opening of authenticated downloads.
 - [x] DOC/DOCX/PDF are never rendered in a WebView.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*AttachmentValidatorTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*AttachmentValidatorTest"`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: image, PDF, DOCX, rejected MIME, oversized file.
 
 **Dependencies:** Task 49
@@ -1309,8 +1309,8 @@ favor of lifecycle-aware conservative refresh and manual retry.
 - [x] Request rate stays comfortably below 60/minute.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*ChatViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*ChatViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 49
 
@@ -1331,8 +1331,8 @@ and supported context destinations.
 - [x] UI does not optimistically clear unread count.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*Message*"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*Message*"`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual context/attachment navigation smoke test.
 
 **Dependencies:** Tasks 50–51
@@ -1347,10 +1347,10 @@ and supported context destinations.
 
 ## Checkpoint H — Communication
 
-- [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest --tests "*Chat*" --tests "*Message*" --tests "*Attachment*"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Chat respects auth, ownership, file safety, and rate limits.
+- [x] `.\gradlew ktlintCheck`
+- [x] `.\gradlew testDebugUnitTest --tests "*Chat*" --tests "*Message*" --tests "*Attachment*"`
+- [x] `.\gradlew assembleDebug`
+- [x] Chat respects auth, ownership, file safety, and rate limits.
 
 ## Phase I — Home, Final Navigation, and Legacy Removal
 
@@ -1365,8 +1365,8 @@ next appointment/intake prompt and featured frames.
 - [x] Partial failures do not hide otherwise available content.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*HomeViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*HomeViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 19, 25, and 47
 
@@ -1387,7 +1387,7 @@ featured-frame content linked to approved destinations.
 - [x] Four-root bottom navigation remains visually and behaviorally stable.
 
 **Verification:**
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual Home/root navigation smoke test.
 
 **Dependencies:** Task 53
