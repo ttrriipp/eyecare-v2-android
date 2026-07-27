@@ -8,7 +8,6 @@ import kotlinx.serialization.Serializable
 
 // Main graph — tab roots
 @Serializable object Home
-@Serializable object Catalog
 @Serializable object Frames
 @Serializable object Appointments
 @Serializable object Profile
@@ -18,11 +17,8 @@ import kotlinx.serialization.Serializable
 @Serializable object BookAppointment
 @Serializable data class PatientIntake(val appointmentId: Int)
 
-// Catalog sub-destinations
-@Serializable data class ProductDetail(val productId: Int)
-@Serializable data class ArTryOn(val frameId: Int, val variantId: Int)
-
 // Frame sub-destinations
+@Serializable data class ArTryOn(val frameId: Int, val variantId: Int)
 @Serializable data class FrameDetail(val frameId: Int)
 @Serializable data class CreateFrameReservation(val frameId: Int, val variantId: Int)
 

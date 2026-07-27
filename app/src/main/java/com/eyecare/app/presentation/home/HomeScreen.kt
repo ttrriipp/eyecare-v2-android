@@ -69,8 +69,8 @@ import java.util.Locale
 fun HomeScreen(
     onNavigateToAppointments: () -> Unit = {},
     onNavigateToBooking: () -> Unit = {},
-    onNavigateToCatalog: () -> Unit = {},
-    onNavigateToProductDetail: (Int) -> Unit = {},
+    onNavigateToFrames: () -> Unit = {},
+    onNavigateToFrameDetail: (Int) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -92,8 +92,8 @@ fun HomeScreen(
                 state = state,
                 onNavigateToAppointments = onNavigateToAppointments,
                 onNavigateToBooking = onNavigateToBooking,
-                onNavigateToCatalog = onNavigateToCatalog,
-                onNavigateToProductDetail = onNavigateToProductDetail,
+                onNavigateToFrames = onNavigateToFrames,
+                onNavigateToFrameDetail = onNavigateToFrameDetail,
             )
         }
     }
@@ -144,8 +144,8 @@ fun HomeContent(
     state: HomeUiState.Success,
     onNavigateToAppointments: () -> Unit = {},
     onNavigateToBooking: () -> Unit = {},
-    onNavigateToCatalog: () -> Unit = {},
-    onNavigateToProductDetail: (Int) -> Unit = {},
+    onNavigateToFrames: () -> Unit = {},
+    onNavigateToFrameDetail: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -212,8 +212,8 @@ fun HomeContent(
                     }
                     HomeFrameShelf(
                         frames = state.featuredFrames,
-                        onSeeAll = onNavigateToCatalog,
-                        onFrameClick = onNavigateToProductDetail,
+                        onSeeAll = onNavigateToFrames,
+                        onFrameClick = onNavigateToFrameDetail,
                     )
                 }
             }

@@ -44,9 +44,6 @@ import com.eyecare.app.presentation.joborders.JobOrderListScreen
 import com.eyecare.app.presentation.joborders.JobOrderDetailScreen
 import com.eyecare.app.presentation.invoices.InvoiceListScreen
 import com.eyecare.app.presentation.invoices.InvoiceDetailScreen
-import com.eyecare.app.presentation.catalog.ProductDetailScreen
-import com.eyecare.app.presentation.catalog.ProductDetailViewModel
-import com.eyecare.app.presentation.catalog.ProductListScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
 import com.eyecare.app.presentation.frames.FrameListScreen
 import com.eyecare.app.presentation.reservations.CreateFrameReservationScreen
@@ -83,7 +80,7 @@ fun EyecareNavGraph(
     val showBottomNav = currentDest?.route?.let { route ->
         !route.contains("Login") && !route.contains("Register") &&
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
-            !route.contains("BookAppointment") && !route.contains("ProductDetail") &&
+            !route.contains("BookAppointment") &&
             !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
             !route.contains("Prescription") && !route.contains("Feedback") &&
             !route.contains("EditProfile") &&
@@ -93,7 +90,7 @@ fun EyecareNavGraph(
 
     val currentRoute = if (showBottomNav && currentDest != null) when {
         currentDest.route?.contains("Home") == true -> Home
-        currentDest.route?.contains("Catalog") == true -> Catalog
+        currentDest.route?.contains("Frames") == true -> Frames
         currentDest.route?.contains("Appointments") == true -> Appointments
         currentDest.route?.contains("Profile") == true -> Profile
         else -> Home
@@ -148,15 +145,17 @@ fun EyecareNavGraph(
                                 }
                             },
                             onNavigateToBooking = { navController.navigate(BookAppointment) },
-                            onNavigateToCatalog = {
-                                navController.navigate(Frames) { launchSingleTop = true }
+                            onNavigateToFrames = {
+                                navController.navigate(Frames) {
+                                    popUpTo<MainGraph> {
+                                        saveState = true
+                                        inclusive = false
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             },
-                            onNavigateToProductDetail = { navController.navigate(ProductDetail(it)) },
-                        )
-                    }
-                    composable<Catalog> {
-                        ProductListScreen(
-                            onNavigateToDetail = { id -> navController.navigate(ProductDetail(id)) },
+                            onNavigateToFrameDetail = { navController.navigate(FrameDetail(it)) },
                         )
                     }
                     composable<Frames> {
@@ -185,14 +184,6 @@ fun EyecareNavGraph(
                     composable<FrameReservationList> {
                         FrameReservationListScreen(
                             onBack = { navController.popBackStack() },
-                        )
-                    }
-                    composable<ProductDetail> { backStackEntry ->
-                        val route = backStackEntry.toRoute<ProductDetail>()
-                        ProductDetailScreen(
-                            productId = route.productId,
-                            onBack = { navController.popBackStack() },
-                            onNavigateToAr = { pId, vId -> navController.navigate(ArTryOn(pId, vId)) },
                         )
                     }
                     composable<ArTryOn> { backStackEntry ->
