@@ -165,6 +165,7 @@ fun BookAppointmentScreen(
                 4 -> Step4ConfirmNotes(
                     state = state,
                     onSubmit = viewModel::submit,
+                    onUpdateReferringSource = viewModel::updateReferringSource,
                 )
             }
         }
@@ -775,8 +776,9 @@ private fun ColumnScope.BookingAvailabilityCenteredContent(
 }
 
 @Composable
-private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) {
+private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit, onUpdateReferringSource: (String) -> Unit = {}) {
     var notes by remember { mutableStateOf("") }
+    var referringSource by remember { mutableStateOf(state.referringSource ?: "") }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 12.dp)
@@ -818,13 +820,29 @@ private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
             maxLines = 4,
         )
 
+        if (state.selectedTypeRequiresReferral) {
+            OutlinedTextField(
+                value = referringSource,
+                onValueChange = { referringSource = it },
+                label = { Text("Referring source") },
+                placeholder = { Text("Doctor or clinic name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+        }
+
         if (state.result is BookingResult.Error) {
             Text((state.result as BookingResult.Error).message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
 
         Spacer(Modifier.weight(1f))
         Button(
-            onClick = { onSubmit(notes.takeIf { it.isNotBlank() }) },
+            onClick = {
+                if (state.selectedTypeRequiresReferral) {
+                    onUpdateReferringSource(referringSource.trim())
+                }
+                onSubmit(notes.takeIf { it.isNotBlank() })
+            },
             enabled = !state.isLoading,
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(26.dp),
