@@ -1,7 +1,10 @@
 package com.eyecare.app.data.remote.api
 
+import com.eyecare.app.data.remote.dto.FrameRatingDtos
 import com.eyecare.app.data.remote.dto.JobOrderDtos
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -14,4 +17,10 @@ interface JobOrderApiService {
 
     @GET("job-orders/{id}")
     suspend fun getJobOrder(@Path("id") id: Int): JobOrderDtos.JobOrderResponse
+
+    @POST("job-order-items/{id}/rating")
+    suspend fun submitRating(
+        @Path("id") jobOrderItemId: Int,
+        @Body request: FrameRatingDtos.SubmitRatingRequest,
+    ): FrameRatingDtos.FrameRatingResponse
 }

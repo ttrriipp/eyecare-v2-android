@@ -32,7 +32,7 @@ class JobOrderRepositoryImplTest {
             .client(OkHttpClient())
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
-        repository = JobOrderRepositoryImpl(retrofit.create(JobOrderApiService::class.java))
+        repository = JobOrderRepositoryImpl(retrofit.create(JobOrderApiService::class.java), json)
     }
 
     @AfterEach
