@@ -20,9 +20,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.Work
+import androidx.compose.material.icons.outlined.Cake
+import androidx.compose.material.icons.outlined.Wc
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -80,7 +84,18 @@ fun EditProfileScreen(
         val state = uiState as? ProfileUiState.Success
         if (
             state != null &&
-            hasProfileChanges(state.user, state.editName, state.editEmail, state.editPhone)
+            hasProfileChanges(
+                user = state.user,
+                name = state.editName,
+                email = state.editEmail,
+                phone = state.editPhone,
+                fullName = state.editFullName,
+                dateOfBirth = state.editDateOfBirth,
+                occupation = state.editOccupation,
+                address = state.editAddress,
+                gender = state.editGender,
+                contactEmail = state.editContactEmail,
+            )
         ) {
             showDiscardDialog = true
         } else {
@@ -107,6 +122,12 @@ fun EditProfileScreen(
             onNameChange = viewModel::updateName,
             onEmailChange = viewModel::updateEmail,
             onPhoneChange = viewModel::updatePhone,
+            onFullNameChange = viewModel::updateFullName,
+            onDateOfBirthChange = viewModel::updateDateOfBirth,
+            onOccupationChange = viewModel::updateOccupation,
+            onAddressChange = viewModel::updateAddress,
+            onGenderChange = viewModel::updateGender,
+            onContactEmailChange = viewModel::updateContactEmail,
             onSave = viewModel::saveProfile,
         )
     }
@@ -140,6 +161,12 @@ fun EditProfileContent(
     onNameChange: (String) -> Unit = {},
     onEmailChange: (String) -> Unit = {},
     onPhoneChange: (String) -> Unit = {},
+    onFullNameChange: (String) -> Unit = {},
+    onDateOfBirthChange: (String) -> Unit = {},
+    onOccupationChange: (String) -> Unit = {},
+    onAddressChange: (String) -> Unit = {},
+    onGenderChange: (String) -> Unit = {},
+    onContactEmailChange: (String) -> Unit = {},
     onSave: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize().imePadding()) {
@@ -229,6 +256,119 @@ fun EditProfileContent(
                         shape = MaterialTheme.shapes.small,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Next,
+                        ),
+                    )
+
+                    OutlinedTextField(
+                        value = state.editFullName,
+                        onValueChange = onFullNameChange,
+                        label = { Text("Full name") },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Person, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = state.fieldErrors.containsKey("full_name"),
+                        supportingText = fieldSupportingText(state, "full_name"),
+                        singleLine = true,
+                        enabled = !state.isSaving,
+                        shape = MaterialTheme.shapes.small,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next,
+                        ),
+                    )
+
+                    OutlinedTextField(
+                        value = state.editDateOfBirth,
+                        onValueChange = onDateOfBirthChange,
+                        label = { Text("Date of birth") },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Cake, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = state.fieldErrors.containsKey("date_of_birth"),
+                        supportingText = fieldSupportingText(state, "date_of_birth"),
+                        singleLine = true,
+                        enabled = !state.isSaving,
+                        shape = MaterialTheme.shapes.small,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Next,
+                        ),
+                    )
+
+                    OutlinedTextField(
+                        value = state.editOccupation,
+                        onValueChange = onOccupationChange,
+                        label = { Text("Occupation") },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Work, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = state.fieldErrors.containsKey("occupation"),
+                        supportingText = fieldSupportingText(state, "occupation"),
+                        singleLine = true,
+                        enabled = !state.isSaving,
+                        shape = MaterialTheme.shapes.small,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next,
+                        ),
+                    )
+
+                    OutlinedTextField(
+                        value = state.editAddress,
+                        onValueChange = onAddressChange,
+                        label = { Text("Address") },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.LocationOn, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = state.fieldErrors.containsKey("address"),
+                        supportingText = fieldSupportingText(state, "address"),
+                        singleLine = true,
+                        enabled = !state.isSaving,
+                        shape = MaterialTheme.shapes.small,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next,
+                        ),
+                    )
+
+                    OutlinedTextField(
+                        value = state.editGender,
+                        onValueChange = onGenderChange,
+                        label = { Text("Gender") },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Wc, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = state.fieldErrors.containsKey("gender"),
+                        supportingText = fieldSupportingText(state, "gender"),
+                        singleLine = true,
+                        enabled = !state.isSaving,
+                        shape = MaterialTheme.shapes.small,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Next,
+                        ),
+                    )
+
+                    OutlinedTextField(
+                        value = state.editContactEmail,
+                        onValueChange = onContactEmailChange,
+                        label = { Text("Contact email") },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Email, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = state.fieldErrors.containsKey("contact_email"),
+                        supportingText = fieldSupportingText(state, "contact_email"),
+                        singleLine = true,
+                        enabled = !state.isSaving,
+                        shape = MaterialTheme.shapes.small,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Done,
                         ),
                     )

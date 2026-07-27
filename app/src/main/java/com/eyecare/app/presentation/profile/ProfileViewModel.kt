@@ -23,6 +23,12 @@ sealed interface ProfileUiState {
         val editName: String = "",
         val editEmail: String = "",
         val editPhone: String = "",
+        val editFullName: String = "",
+        val editDateOfBirth: String = "",
+        val editOccupation: String = "",
+        val editAddress: String = "",
+        val editGender: String = "",
+        val editContactEmail: String = "",
         val fieldErrors: Map<String, List<String>> = emptyMap(),
         val saveError: String? = null,
         val saveSuccess: Boolean = false,
@@ -49,11 +55,18 @@ class ProfileViewModel @Inject constructor(
     fun startEditing() {
         val current = _uiState.value
         if (current is ProfileUiState.Success) {
+            val u = current.user
             _uiState.value = current.copy(
                 isEditing = true,
-                editName = current.user.name,
-                editEmail = current.user.email,
-                editPhone = current.user.phone ?: "",
+                editName = u.name,
+                editEmail = u.email,
+                editPhone = u.phone ?: "",
+                editFullName = u.fullName ?: "",
+                editDateOfBirth = u.dateOfBirth ?: "",
+                editOccupation = u.occupation ?: "",
+                editAddress = u.address ?: "",
+                editGender = u.gender ?: "",
+                editContactEmail = u.contactEmail ?: "",
                 fieldErrors = emptyMap(),
                 saveError = null,
                 saveSuccess = false,
@@ -93,6 +106,48 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun updateFullName(value: String) {
+        val current = _uiState.value
+        if (current is ProfileUiState.Success) {
+            _uiState.value = current.copy(editFullName = value, saveError = null)
+        }
+    }
+
+    fun updateDateOfBirth(value: String) {
+        val current = _uiState.value
+        if (current is ProfileUiState.Success) {
+            _uiState.value = current.copy(editDateOfBirth = value, saveError = null)
+        }
+    }
+
+    fun updateOccupation(value: String) {
+        val current = _uiState.value
+        if (current is ProfileUiState.Success) {
+            _uiState.value = current.copy(editOccupation = value, saveError = null)
+        }
+    }
+
+    fun updateAddress(value: String) {
+        val current = _uiState.value
+        if (current is ProfileUiState.Success) {
+            _uiState.value = current.copy(editAddress = value, saveError = null)
+        }
+    }
+
+    fun updateGender(value: String) {
+        val current = _uiState.value
+        if (current is ProfileUiState.Success) {
+            _uiState.value = current.copy(editGender = value, saveError = null)
+        }
+    }
+
+    fun updateContactEmail(value: String) {
+        val current = _uiState.value
+        if (current is ProfileUiState.Success) {
+            _uiState.value = current.copy(editContactEmail = value, saveError = null)
+        }
+    }
+
     fun saveProfile() {
         val current = _uiState.value
         if (current !is ProfileUiState.Success) return
@@ -103,12 +158,17 @@ class ProfileViewModel @Inject constructor(
             saveSuccess = false,
         )
         viewModelScope.launch {
-            val phone = current.editPhone.ifBlank { null }
             authRepository.updateMe(
                 UpdateProfileRequest(
                     name = current.editName,
                     email = current.editEmail,
-                    phone = phone,
+                    phone = current.editPhone.ifBlank { null },
+                    fullName = current.editFullName.ifBlank { null },
+                    dateOfBirth = current.editDateOfBirth.ifBlank { null },
+                    occupation = current.editOccupation.ifBlank { null },
+                    address = current.editAddress.ifBlank { null },
+                    gender = current.editGender.ifBlank { null },
+                    contactEmail = current.editContactEmail.ifBlank { null },
                 ),
             ).fold(
                 onSuccess = { user ->
@@ -159,8 +219,22 @@ internal fun hasProfileChanges(
     name: String,
     email: String,
     phone: String,
+    fullName: String = user.fullName ?: "",
+    dateOfBirth: String = user.dateOfBirth ?: "",
+    occupation: String = user.occupation ?: "",
+    address: String = user.address ?: "",
+    gender: String = user.gender ?: "",
+    contactEmail: String = user.contactEmail ?: "",
 ): Boolean {
     val originalPhone = user.phone?.takeIf { it.isNotBlank() }
     val editedPhone = phone.takeIf { it.isNotBlank() }
-    return name != user.name || email != user.email || editedPhone != originalPhone
+    return name != user.name ||
+        email != user.email ||
+        editedPhone != originalPhone ||
+        fullName != (user.fullName ?: "") ||
+        dateOfBirth != (user.dateOfBirth ?: "") ||
+        occupation != (user.occupation ?: "") ||
+        address != (user.address ?: "") ||
+        gender != (user.gender ?: "") ||
+        contactEmail != (user.contactEmail ?: "")
 }

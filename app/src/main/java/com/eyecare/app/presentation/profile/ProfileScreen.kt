@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -299,6 +300,9 @@ private fun PatientIdentityCard(user: User, onEditProfile: () -> Unit) {
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                user.patientNumber?.takeIf { it.isNotBlank() }?.let { patientNumber ->
+                    IdentityDetail(icon = Icons.Outlined.Person, text = patientNumber)
+                }
                 IdentityDetail(icon = Icons.Outlined.Email, text = user.email)
                 user.phone?.takeIf { it.isNotBlank() }?.let { phone ->
                     IdentityDetail(icon = Icons.Outlined.Phone, text = phone)

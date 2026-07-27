@@ -87,7 +87,17 @@ class ProfileViewModelTest {
         assertFalse(state.isSaving)
         coVerify(exactly = 1) {
             authRepo.updateMe(
-                UpdateProfileRequest(name = "Alex Rivera", email = "alex@example.com", phone = "09171234567"),
+                UpdateProfileRequest(
+                    name = "Alex Rivera",
+                    email = "alex@example.com",
+                    phone = "09171234567",
+                    fullName = "Alex",
+                    dateOfBirth = null,
+                    occupation = null,
+                    address = null,
+                    gender = null,
+                    contactEmail = null,
+                ),
             )
         }
     }
