@@ -1460,13 +1460,13 @@ cleanup set and may exceed the normal five-file task target.
 production Retrofit method/path to the approved allowlist.
 
 **Acceptance criteria:**
-- [ ] Exactly 34 method/path pairs are present.
-- [ ] Retired and unversioned paths fail the test.
-- [ ] Reservation/messages exceptions do not affect route count.
+- [x] Exactly 34 method/path pairs are present.
+- [x] Retired and unversioned paths fail the test.
+- [x] Reservation/messages exceptions do not affect route count.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 15, 21, 30, 35, 47, 52, 55, and 56
 
@@ -1482,14 +1482,14 @@ production Retrofit method/path to the approved allowlist.
 workflow and record verification evidence.
 
 **Acceptance criteria:**
-- [ ] `CONTEXT.md` describes all four roots and new resources.
-- [ ] Retired commerce/contact-note/mark-read behavior is absent.
-- [ ] V8 task statuses and verification results are accurate.
+- [x] `CONTEXT.md` describes all four roots and new resources.
+- [x] Retired commerce/contact-note/mark-read behavior is absent.
+- [x] V8 task statuses and verification results are accurate.
 
 **Verification:**
-- [ ] `git diff --check`
-- [ ] `rg -n "visit-reasons|/orders|billing PDF|contact-note|mark-read" CONTEXT.md`
-- [ ] `.\gradlew assembleDebug`
+- [x] `git diff --check`
+- [x] `rg -n "visit-reasons|/orders|billing PDF|contact-note|mark-read" CONTEXT.md`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 57
 
@@ -1507,16 +1507,16 @@ workflow and record verification evidence.
 weakening tests or hiding unrelated failures.
 
 **Acceptance criteria:**
-- [ ] Formatting, unit tests, lint, and debug assembly are executed.
-- [ ] V8-related failures are fixed.
-- [ ] Any unrelated pre-existing failure is documented with exact evidence.
+- [x] Formatting, unit tests, lint, and debug assembly are executed.
+- [x] V8-related failures are fixed.
+- [x] Any unrelated pre-existing failure is documented with exact evidence.
 
 **Verification:**
-- [ ] `.\gradlew ktlintFormat`
-- [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest`
-- [ ] `.\gradlew lintDebug`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew ktlintFormat`
+- [x] `.\gradlew ktlintCheck`
+- [x] `.\gradlew testDebugUnitTest`
+- [x] `.\gradlew lintDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 58
 
