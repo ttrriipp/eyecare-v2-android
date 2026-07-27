@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (18/60 tasks complete)
+Status: Approved — implementation in progress (19/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -485,13 +485,13 @@ states, field errors, and retry.
 appointment detail.
 
 **Acceptance criteria:**
-- [ ] Draft fields render validation and save state accessibly.
-- [ ] Submit requires confirmation.
-- [ ] Submitted/verified intake renders read-only.
+- [x] Draft fields render validation and save state accessibly.
+- [x] Submit requires confirmation.
+- [x] Submitted/verified intake renders read-only.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*PatientIntakeViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*PatientIntakeViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: draft save, submit, reopen read-only.
 
 **Dependencies:** Task 18
