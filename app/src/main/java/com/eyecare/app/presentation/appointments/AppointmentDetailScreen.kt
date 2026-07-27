@@ -72,6 +72,7 @@ import com.eyecare.app.ui.theme.StatusPending
 fun AppointmentDetailScreen(
     onBack: () -> Unit,
     onLeaveFeedback: (Int) -> Unit,
+    onNavigateToIntake: (Int) -> Unit = {},
     viewModel: AppointmentDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -151,6 +152,7 @@ fun AppointmentDetailScreen(
                     onReschedule = viewModel::showRescheduleSheet,
                     onCancel = { showCancelDialog = true },
                     onLeaveFeedback = { onLeaveFeedback(state.appointment.id) },
+                    onViewIntake = { onNavigateToIntake(state.appointment.id) },
                 )
             }
         }
@@ -163,6 +165,7 @@ private fun AppointmentDetailContent(
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
     onLeaveFeedback: () -> Unit,
+    onViewIntake: () -> Unit,
 ) {
     val appointment = state.appointment
     val canManage = appointment.status == AppointmentStatus.PENDING ||
@@ -339,6 +342,13 @@ private fun AppointmentDetailContent(
                             Spacer(Modifier.size(8.dp))
                             Text("Leave feedback", fontWeight = FontWeight.SemiBold)
                         }
+                    }
+                    OutlinedButton(
+                        onClick = onViewIntake,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(50),
+                    ) {
+                        Text("View Intake", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

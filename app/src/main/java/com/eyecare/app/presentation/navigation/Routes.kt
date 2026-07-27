@@ -15,6 +15,7 @@ import kotlinx.serialization.Serializable
 // Appointment sub-destinations
 @Serializable data class AppointmentDetail(val appointmentId: Int)
 @Serializable object BookAppointment
+@Serializable data class PatientIntake(val appointmentId: Int)
 
 // Catalog sub-destinations
 @Serializable data class ProductDetail(val productId: Int)

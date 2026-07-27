@@ -36,6 +36,7 @@ import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.feedback.FeedbackHistoryScreen
 import com.eyecare.app.presentation.feedback.FeedbackScreen
+import com.eyecare.app.presentation.intake.PatientIntakeScreen
 import com.eyecare.app.presentation.billing.BillingDetailScreen
 import com.eyecare.app.presentation.orders.OrderDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
@@ -82,7 +83,8 @@ fun EyecareNavGraph(
             !route.contains("ArTryOn") && !route.contains("OrderRequest") &&
             !route.contains("OrderDetail") && !route.contains("OrderList") &&
             !route.contains("Prescription") && !route.contains("Feedback") &&
-            !route.contains("BillingDetail") && !route.contains("EditProfile")
+            !route.contains("BillingDetail") && !route.contains("EditProfile") &&
+            !route.contains("PatientIntake")
     } ?: false
 
     val currentRoute = if (showBottomNav && currentDest != null) when {
@@ -232,6 +234,13 @@ fun EyecareNavGraph(
                         AppointmentDetailScreen(
                             onBack = { navController.popBackStack() },
                             onLeaveFeedback = { id -> navController.navigate(FeedbackSubmit(appointmentId = id)) },
+                            onNavigateToIntake = { appointmentId -> navController.navigate(PatientIntake(appointmentId)) },
+                        )
+                    }
+                    composable<PatientIntake> { backStackEntry ->
+                        val route = backStackEntry.toRoute<PatientIntake>()
+                        PatientIntakeScreen(
+                            onBack = { navController.popBackStack() },
                         )
                     }
                     composable<BookAppointment> {
