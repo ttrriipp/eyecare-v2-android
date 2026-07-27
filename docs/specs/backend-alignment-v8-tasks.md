@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (10/60 tasks complete)
+Status: Approved — implementation in progress (11/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -287,13 +287,13 @@ referral-source validation, and backend slot selection.
 the appointment-type contract.
 
 **Acceptance criteria:**
-- [ ] Referral source appears only for referral types.
-- [ ] Date/time UI continues using clinic-local display and backend timestamps.
-- [ ] No visit-reason terminology or hardcoded type IDs remain.
+- [x] Referral source appears only for referral types.
+- [x] Date/time UI continues using clinic-local display and backend timestamps.
+- [x] No visit-reason terminology or hardcoded type IDs remain.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*TimeFormatTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*TimeFormatTest"`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: referral and non-referral bookings.
 
 **Dependencies:** Task 10
