@@ -1,6 +1,6 @@
 package com.eyecare.app.presentation.ar
 
-import com.eyecare.app.domain.repository.ProductRepository
+import com.eyecare.app.domain.repository.FrameRepository
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -24,8 +24,8 @@ class ArViewModelTest {
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     private fun vm(): ArViewModel {
-        val repo = mockk<ProductRepository>(relaxed = true)
-        return ArViewModel(repo, productId = 1, initialVariantId = 1)
+        val repo = mockk<FrameRepository>(relaxed = true)
+        return ArViewModel(repo, frameId = 1, initialVariantId = 1)
     }
 
     @Test
