@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (16/60 tasks complete)
+Status: Approved — implementation in progress (17/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -439,13 +439,13 @@ for draft, submitted, and verified intake.
 network-only repository with Hilt.
 
 **Acceptance criteria:**
-- [ ] Load returns nullable intake; save handles 200 and 201.
-- [ ] Submit returns the immutable submitted resource.
-- [ ] No Room dependency or entity is introduced.
+- [x] Load returns nullable intake; save handles 200 and 201.
+- [x] Submit returns the immutable submitted resource.
+- [x] No Room dependency or entity is introduced.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*PatientIntakeRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*PatientIntakeRepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 16
 
