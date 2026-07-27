@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (8/60 tasks complete)
+Status: Approved — implementation in progress (9/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -241,13 +241,13 @@ old consumers compile-safe.
 paginated lists, v1 availability, and create-time referring source.
 
 **Acceptance criteria:**
-- [ ] Repository methods expose appointment types, pages, and `hasMorePages`.
-- [ ] Create sends `appointment_type_id` and conditional `referring_source`.
-- [ ] DTO-to-domain mapping preserves contract nullability.
+- [x] Repository methods expose appointment types, pages, and `hasMorePages`.
+- [x] Create sends `appointment_type_id` and conditional `referring_source`.
+- [x] DTO-to-domain mapping preserves contract nullability.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*AppointmentRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*AppointmentV1RepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 8
 
