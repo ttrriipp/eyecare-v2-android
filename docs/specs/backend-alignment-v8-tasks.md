@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (2/60 tasks complete)
+Status: Approved — implementation in progress (7/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -134,13 +134,13 @@ either JSON numbers or numeric strings and maps them to `BigDecimal`.
 identity model to the account-linked patient profile contract.
 
 **Acceptance criteria:**
-- [ ] Register/login decode the complete patient profile.
-- [ ] GET/PATCH use `/me`.
-- [ ] Nullable patient fields and `patient_number` decode correctly.
+- [x] Register/login decode the complete patient profile.
+- [x] GET/PATCH use `/me`.
+- [x] Nullable patient fields and `patient_number` decode correctly.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*AuthRepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*AuthRepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 2–4
 
@@ -158,13 +158,13 @@ identity model to the account-linked patient profile contract.
 documented PATCH `/me` fields.
 
 **Acceptance criteria:**
-- [ ] Repository mapping never exposes DTOs.
-- [ ] Profile edits can send account and nullable patient fields.
-- [ ] Field-level 422 errors remain attached to the correct inputs.
+- [x] Repository mapping never exposes DTOs.
+- [x] Profile edits can send account and nullable patient fields.
+- [x] Field-level 422 errors remain attached to the correct inputs.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*AuthRepositoryImplTest" --tests "*ProfileViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*AuthRepositoryImplTest" --tests "*ProfileViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 5
 
@@ -182,13 +182,13 @@ documented PATCH `/me` fields.
 the approved editable demographic/contact fields.
 
 **Acceptance criteria:**
-- [ ] Nullable values have intentional empty/display behavior.
-- [ ] Save state, validation, retry, and success remain accessible.
-- [ ] No profile data is persisted outside in-memory UI state.
+- [x] Nullable values have intentional empty/display behavior.
+- [x] Save state, validation, retry, and success remain accessible.
+- [x] No profile data is persisted outside in-memory UI state.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*ProfileViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*ProfileViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: edit, clear, and save nullable fields.
 
 **Dependencies:** Task 6
@@ -202,10 +202,10 @@ the approved editable demographic/contact fields.
 
 ## Checkpoint B — Identity
 
-- [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest --tests "*Auth*" --tests "*Profile*"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Register, login, logout, GET `/me`, and PATCH `/me` work against v1.
+- [x] `.\gradlew ktlintCheck`
+- [x] `.\gradlew testDebugUnitTest --tests "*Auth*" --tests "*Profile*"`
+- [x] `.\gradlew assembleDebug`
+- [x] Register, login, logout, GET `/me`, and PATCH `/me` work against v1.
 
 ## Phase C — Appointments and Scheduling
 
