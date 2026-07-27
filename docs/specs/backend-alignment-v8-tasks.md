@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (56/60 tasks complete)
+Status: Approved — implementation in progress (58/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -1096,13 +1096,13 @@ without request/cancel assumptions.
 and repository with server-authoritative error handling.
 
 **Acceptance criteria:**
-- [ ] Create/revision response maps complete revision history.
-- [ ] Request variant ID comes from the selected job-order item.
-- [ ] 403/404/422 are preserved without local override.
+- [x] Create/revision response maps complete revision history.
+- [x] Request variant ID comes from the selected job-order item.
+- [x] 403/404/422 are preserved without local override.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameRatingRepositoryTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameRatingRepositoryTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 42
 
@@ -1121,13 +1121,13 @@ and repository with server-authoritative error handling.
 dispensed job-order items.
 
 **Acceptance criteria:**
-- [ ] Action is shown only for dispensed items with a variant ID.
-- [ ] Rating/comment validation matches contract.
-- [ ] Returned current rating and revisions replace local state.
+- [x] Action is shown only for dispensed items with a variant ID.
+- [x] Rating/comment validation matches contract.
+- [x] Returned current rating and revisions replace local state.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameRatingViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameRatingViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: create and revise a rating.
 
 **Dependencies:** Task 43
