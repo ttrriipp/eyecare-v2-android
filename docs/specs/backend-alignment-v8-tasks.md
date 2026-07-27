@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (19/60 tasks complete)
+Status: Approved — implementation in progress (20/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -510,13 +510,13 @@ appointment detail.
 repository method.
 
 **Acceptance criteria:**
-- [ ] Profile and navigation expose no Feedback History action.
-- [ ] The history screen and destination are removed.
-- [ ] Feedback submission remains reachable from appointment detail.
+- [x] Profile and navigation expose no Feedback History action.
+- [x] The history screen and destination are removed.
+- [x] Feedback submission remains reachable from appointment detail.
 
 **Verification:**
-- [ ] `.\gradlew assembleDebug`
-- [ ] `rg -n "FeedbackHistoryScreen|FeedbackHistoryRoute" app/src/main`
+- [x] `.\gradlew assembleDebug`
+- [x] `rg -n "FeedbackHistoryScreen|FeedbackHistoryRoute" app/src/main`
 
 **Dependencies:** Task 19
 
