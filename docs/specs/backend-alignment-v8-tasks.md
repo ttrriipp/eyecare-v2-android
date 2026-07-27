@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (45/60 tasks complete)
+Status: Approved — implementation in progress (52/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -949,9 +949,9 @@ the expanded optical fields.
 new optical values.
 
 **Acceptance criteria:**
-- [ ] Load-more/exhaustion/retry work.
-- [ ] Nullable optical values have clear display behavior.
-- [ ] No edit/create action is shown.
+- [x] Load-more/exhaustion/retry work.
+- [x] Nullable optical values have clear display behavior.
+- [x] No edit/create action is shown.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*PrescriptionViewModelTest"`
@@ -998,9 +998,9 @@ money, repository mapping, and read-only statuses.
 revision totals and immutable line items.
 
 **Acceptance criteria:**
-- [ ] Draft/no-revision and presented-revision states render correctly.
-- [ ] Expired/accepted/declined statuses are read-only.
-- [ ] Paging and detail retry work.
+- [x] Draft/no-revision and presented-revision states render correctly.
+- [x] Expired/accepted/declined statuses are read-only.
+- [x] Paging and detail retry work.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*Quotation*"`
@@ -1048,9 +1048,9 @@ files. Keep the legacy order files compiling until final cutover cleanup.
 and no patient mutation actions.
 
 **Acceptance criteria:**
-- [ ] Job-order list pages and detail displays workflow/items.
-- [ ] Cancel/order creation actions are absent.
-- [ ] Status timeline uses queued through dispensed/cancelled.
+- [x] Job-order list pages and detail displays workflow/items.
+- [x] Cancel/order creation actions are absent.
+- [x] Status timeline uses queued through dispensed/cancelled.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*JobOrder*"`
@@ -1172,9 +1172,9 @@ files with items and posted payments. Keep legacy billing compiling until Task
 with totals, items, and posted payments.
 
 **Acceptance criteria:**
-- [ ] Invoice history pages and detail retry work.
-- [ ] Draft/issued/partial/paid/voided are read-only.
-- [ ] No PDF or download state/action remains.
+- [x] Invoice history pages and detail retry work.
+- [x] Draft/issued/partial/paid/voided are read-only.
+- [x] No PDF or download state/action remains.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*Invoice*"`
@@ -1197,9 +1197,9 @@ with totals, items, and posted payments.
 orders, ratings, and invoices and replace Order/Billing routes.
 
 **Acceptance criteria:**
-- [ ] All record lists/details are reachable from Profile.
-- [ ] OrderList/OrderDetail/BillingDetail routes are gone.
-- [ ] Back navigation returns to the correct record list.
+- [x] All record lists/details are reachable from Profile.
+- [x] OrderList/OrderDetail/BillingDetail routes are gone.
+- [x] Back navigation returns to the correct record list.
 
 **Verification:**
 - [ ] `.\gradlew assembleDebug`
