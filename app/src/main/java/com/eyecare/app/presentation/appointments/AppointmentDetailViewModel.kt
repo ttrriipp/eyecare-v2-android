@@ -25,9 +25,6 @@ sealed interface AppointmentDetailUiState {
         val isRescheduling: Boolean = false,
         val rescheduleError: String? = null,
         val showRescheduleSuccessDialog: Boolean = false,
-        val isEditingContactNote: Boolean = false,
-        val isSavingContactNote: Boolean = false,
-        val contactNoteError: String? = null,
     ) : AppointmentDetailUiState
     data class Error(val message: String) : AppointmentDetailUiState
 }
@@ -116,19 +113,6 @@ class AppointmentDetailViewModel @Inject constructor(
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success) return
         _uiState.value = current.copy(showRescheduleSuccessDialog = false)
-    }
-
-    fun startEditingContactNote() {
-        val current = _uiState.value
-        if (current !is AppointmentDetailUiState.Success) return
-        if (current.appointment.status !in EDITABLE_NOTE_STATUSES) return
-        _uiState.value = current.copy(isEditingContactNote = true, contactNoteError = null)
-    }
-
-    fun dismissContactNoteEditor() {
-        val current = _uiState.value
-        if (current !is AppointmentDetailUiState.Success || current.isSavingContactNote) return
-        _uiState.value = current.copy(isEditingContactNote = false, contactNoteError = null)
     }
 
     private fun load() {

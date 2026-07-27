@@ -292,7 +292,7 @@ private fun AppointmentDetailContent(
                         Button(
                             onClick = onReschedule,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
-                            enabled = !state.isCancelling && !state.isSavingContactNote,
+                            enabled = !state.isCancelling && !state.isRescheduling,
                             shape = RoundedCornerShape(50),
                         ) {
                             Icon(
@@ -306,7 +306,7 @@ private fun AppointmentDetailContent(
                         OutlinedButton(
                             onClick = onCancel,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
-                            enabled = !state.isCancelling && !state.isSavingContactNote,
+                            enabled = !state.isCancelling && !state.isRescheduling,
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error,
