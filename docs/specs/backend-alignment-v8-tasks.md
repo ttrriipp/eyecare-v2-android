@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (13/60 tasks complete)
+Status: Approved — implementation in progress (14/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -356,14 +356,14 @@ resources after cancel/reschedule.
 UI with the remaining patient mutations.
 
 **Acceptance criteria:**
-- [ ] No edit-contact-note control or repository call remains.
-- [ ] Create-time contact notes remain visible where returned.
-- [ ] Reschedule uses appointment-type duration and optional appointment context.
+- [x] No edit-contact-note control or repository call remains.
+- [x] Create-time contact notes remain visible where returned.
+- [x] Reschedule uses appointment-type duration and optional appointment context.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*AppointmentDetailViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] `rg -n "contact-note|updateAppointmentContactNote" app/src`
+- [x] `.\gradlew testDebugUnitTest --tests "*AppointmentDetailViewModelTest"`
+- [x] `.\gradlew assembleDebug`
+- [x] `rg -n "contact-note|updateAppointmentContactNote" app/src`
 
 **Dependencies:** Task 13
 
