@@ -40,7 +40,7 @@ private data class TabItem(val route: Any, val icon: ImageVector, val label: Str
 
 private val tabs = listOf(
     TabItem(Home, Icons.Outlined.Home, "Home"),
-    TabItem(Catalog, Icons.Outlined.RemoveRedEye, "Catalog"),
+    TabItem(Frames, Icons.Outlined.RemoveRedEye, "Frames"),
     TabItem(Appointments, Icons.Outlined.CalendarMonth, "Visits"),
     TabItem(Profile, Icons.Outlined.Person, "Profile"),
 )

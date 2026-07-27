@@ -46,6 +46,8 @@ import com.eyecare.app.presentation.orders.OrderRequestScreen
 import com.eyecare.app.presentation.catalog.ProductDetailScreen
 import com.eyecare.app.presentation.catalog.ProductDetailViewModel
 import com.eyecare.app.presentation.catalog.ProductListScreen
+import com.eyecare.app.presentation.frames.FrameDetailScreen
+import com.eyecare.app.presentation.frames.FrameListScreen
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.profile.EditProfileScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
@@ -145,7 +147,7 @@ fun EyecareNavGraph(
                             onNavigateToBooking = { navController.navigate(BookAppointment) },
                             onNavigateToOrderDetail = { navController.navigate(OrderDetail(it)) },
                             onNavigateToCatalog = {
-                                navController.navigate(Catalog) { launchSingleTop = true }
+                                navController.navigate(Frames) { launchSingleTop = true }
                             },
                             onNavigateToProductDetail = { navController.navigate(ProductDetail(it)) },
                         )
@@ -153,6 +155,20 @@ fun EyecareNavGraph(
                     composable<Catalog> {
                         ProductListScreen(
                             onNavigateToDetail = { id -> navController.navigate(ProductDetail(id)) },
+                        )
+                    }
+                    composable<Frames> {
+                        FrameListScreen(
+                            onNavigateToDetail = { id -> navController.navigate(FrameDetail(id)) },
+                        )
+                    }
+                    composable<FrameDetail> { backStackEntry ->
+                        val route = backStackEntry.toRoute<FrameDetail>()
+                        FrameDetailScreen(
+                            frameId = route.frameId,
+                            onBack = { navController.popBackStack() },
+                            onNavigateToAr = { fId, vId -> navController.navigate(ArTryOn(fId, vId)) },
+                            onNavigateToReserve = { fId, vId -> /* Task 34: reservation */ },
                         )
                     }
                     composable<ProductDetail> { backStackEntry ->
