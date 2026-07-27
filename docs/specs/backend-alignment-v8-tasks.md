@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (12/60 tasks complete)
+Status: Approved — implementation in progress (13/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -334,13 +334,13 @@ formatting, and action behavior.
 resources after cancel/reschedule.
 
 **Acceptance criteria:**
-- [ ] Cancel/reschedule are available only for pending/confirmed.
-- [ ] Successful mutations update from the response without refetch.
-- [ ] Authorization/validation errors remain distinct from transport errors.
+- [x] Cancel/reschedule are available only for pending/confirmed.
+- [x] Successful mutations update from the response without refetch.
+- [x] Authorization/validation errors remain distinct from transport errors.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*AppointmentDetailViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*AppointmentDetailViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 9
 
