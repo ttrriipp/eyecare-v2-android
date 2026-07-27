@@ -118,6 +118,14 @@ fun PrescriptionListScreen(
                             onClick = { onNavigateToDetail(prescription.id) },
                         )
                     }
+                    if (state.hasMorePages) {
+                        item {
+                            LaunchedEffect(Unit) { viewModel.loadMore() }
+                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -285,11 +293,13 @@ fun PrescriptionDetailScreen(
                         label = "OD — Right Eye",
                         sphere = p.odSphere, cylinder = p.odCylinder,
                         axis = p.odAxis, add = p.odAdd,
+                        prism = p.odPrism, base = p.odBase,
                     )
                     EyeCard(
                         label = "OS — Left Eye",
                         sphere = p.osSphere, cylinder = p.osCylinder,
                         axis = p.osAxis, add = p.osAdd,
+                        prism = p.osPrism, base = p.osBase,
                     )
 
                     // ── PD ────────────────────────────────────────────────
@@ -340,7 +350,7 @@ fun PrescriptionDetailScreen(
 }
 
 @Composable
-private fun EyeCard(label: String, sphere: String?, cylinder: String?, axis: Int?, add: String?) {
+private fun EyeCard(label: String, sphere: String?, cylinder: String?, axis: Int?, add: String?, prism: String? = null, base: String? = null) {
     Card(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(2.dp),
@@ -351,7 +361,7 @@ private fun EyeCard(label: String, sphere: String?, cylinder: String?, axis: Int
             Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                listOf("SPH" to sphere, "CYL" to cylinder, "AXIS" to axis?.toString(), "ADD" to add).forEach { (key, value) ->
+                listOf("SPH" to sphere, "CYL" to cylinder, "AXIS" to axis?.toString(), "ADD" to add, "PRISM" to prism, "BASE" to base).forEach { (key, value) ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Box(
