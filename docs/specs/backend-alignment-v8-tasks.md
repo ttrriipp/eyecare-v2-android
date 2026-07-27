@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (29/60 tasks complete)
+Status: Approved — implementation in progress (32/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -1279,9 +1279,9 @@ contexts, and add authenticated attachment download.
 safe external opening of authenticated downloads.
 
 **Acceptance criteria:**
-- [ ] Size/MIME validation matches contract for UX.
-- [ ] Temporary files use scoped content URIs and are cleaned up.
-- [ ] DOC/DOCX/PDF are never rendered in a WebView.
+- [x] Size/MIME validation matches contract for UX.
+- [x] Temporary files use scoped content URIs and are cleaned up.
+- [x] DOC/DOCX/PDF are never rendered in a WebView.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*AttachmentValidatorTest"`
@@ -1304,9 +1304,9 @@ safe external opening of authenticated downloads.
 favor of lifecycle-aware conservative refresh and manual retry.
 
 **Acceptance criteria:**
-- [ ] Opening chat never sends mark-read.
-- [ ] Refresh stops when chat is not visible.
-- [ ] Request rate stays comfortably below 60/minute.
+- [x] Opening chat never sends mark-read.
+- [x] Refresh stops when chat is not visible.
+- [x] Request rate stays comfortably below 60/minute.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*ChatViewModelTest"`
@@ -1326,9 +1326,9 @@ favor of lifecycle-aware conservative refresh and manual retry.
 and supported context destinations.
 
 **Acceptance criteria:**
-- [ ] Appointment contexts open appointment detail.
-- [ ] Frame product contexts may open frame detail; historical orders are non-interactive.
-- [ ] UI does not optimistically clear unread count.
+- [x] Appointment contexts open appointment detail.
+- [x] Frame product contexts may open frame detail; historical orders are non-interactive.
+- [x] UI does not optimistically clear unread count.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*Message*"`
