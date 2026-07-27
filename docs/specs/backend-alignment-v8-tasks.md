@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (1/60 tasks complete)
+Status: Approved — implementation in progress (2/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -57,13 +57,13 @@ error envelopes without changing runtime behavior.
 and reduce debug HTTP logging from BODY to BASIC.
 
 **Acceptance criteria:**
-- [ ] Debug and release Retrofit URLs resolve under `/api/v1/`.
-- [ ] Debug logging cannot print tokens, intake narratives, or response bodies.
-- [ ] Existing authorization-header behavior remains intact.
+- [x] Debug and release Retrofit URLs resolve under `/api/v1/`.
+- [x] Debug logging cannot print tokens, intake narratives, or response bodies.
+- [x] Existing authorization-header behavior remains intact.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*NetworkModuleTest" --tests "*AuthInterceptorTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*NetworkModuleTest" --tests "*AuthInterceptorTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 1
 
@@ -81,13 +81,13 @@ and reduce debug HTTP logging from BODY to BASIC.
 pagination envelope and structured errors.
 
 **Acceptance criteria:**
-- [ ] Paginated resources can share links/meta without leaking DTOs to domain.
-- [ ] Field errors remain `Map<String, List<String>>`.
-- [ ] Missing optional links decode safely.
+- [x] Paginated resources can share links/meta without leaking DTOs to domain.
+- [x] Field errors remain `Map<String, List<String>>`.
+- [x] Missing optional links decode safely.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*CommonApiDtosTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*CommonApiDtosTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 1
 
@@ -103,13 +103,13 @@ pagination envelope and structured errors.
 either JSON numbers or numeric strings and maps them to `BigDecimal`.
 
 **Acceptance criteria:**
-- [ ] `"4500.00"` and `4500.00` produce equal domain values.
-- [ ] Invalid, blank, NaN, and infinite values fail decoding.
-- [ ] Formatting does not use binary floating-point arithmetic.
+- [x] `"4500.00"` and `4500.00` produce equal domain values.
+- [x] Invalid, blank, NaN, and infinite values fail decoding.
+- [x] Formatting does not use binary floating-point arithmetic.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*MoneyValueSerializerTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*MoneyValueSerializerTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 3
 
@@ -121,10 +121,10 @@ either JSON numbers or numeric strings and maps them to `BigDecimal`.
 
 ## Checkpoint A — Foundation
 
-- [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Confirm no HTTP response body is written to Logcat.
+- [x] `.\gradlew ktlintCheck`
+- [x] `.\gradlew testDebugUnitTest`
+- [x] `.\gradlew assembleDebug`
+- [x] Confirm no HTTP response body is written to Logcat.
 
 ## Phase B — Authentication and Patient Profile
 
