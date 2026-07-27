@@ -29,6 +29,9 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.RequestQuote
+import androidx.compose.material.icons.outlined.Work
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,6 +75,9 @@ fun ProfileScreen(
     onNavigateToOrders: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
+    onNavigateToQuotations: () -> Unit = {},
+    onNavigateToJobOrders: () -> Unit = {},
+    onNavigateToInvoices: () -> Unit = {},
     onNavigateToEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     unreadMessageCount: Int = 0,
@@ -108,6 +114,9 @@ fun ProfileScreen(
             onNavigateToOrders = onNavigateToOrders,
             onNavigateToPrescriptions = onNavigateToPrescriptions,
             onNavigateToReservations = onNavigateToReservations,
+            onNavigateToQuotations = onNavigateToQuotations,
+            onNavigateToJobOrders = onNavigateToJobOrders,
+            onNavigateToInvoices = onNavigateToInvoices,
             onLogoutClick = { showLogoutDialog = true },
         )
     }
@@ -140,6 +149,9 @@ fun ProfileContent(
     onNavigateToOrders: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
+    onNavigateToQuotations: () -> Unit = {},
+    onNavigateToJobOrders: () -> Unit = {},
+    onNavigateToInvoices: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
     Column(
@@ -202,6 +214,27 @@ fun ProfileContent(
                         label = "Reservations",
                         supportingText = "Frame try-on reservations",
                         onClick = onNavigateToReservations,
+                    )
+                    ProfileDivider()
+                    ProfileNavRow(
+                        icon = Icons.Outlined.RequestQuote,
+                        label = "Quotations",
+                        supportingText = "View pricing proposals",
+                        onClick = onNavigateToQuotations,
+                    )
+                    ProfileDivider()
+                    ProfileNavRow(
+                        icon = Icons.Outlined.Work,
+                        label = "Job Orders",
+                        supportingText = "Track fulfillment status",
+                        onClick = onNavigateToJobOrders,
+                    )
+                    ProfileDivider()
+                    ProfileNavRow(
+                        icon = Icons.Outlined.Receipt,
+                        label = "Invoices",
+                        supportingText = "View billing and payments",
+                        onClick = onNavigateToInvoices,
                     )
                 }
             }

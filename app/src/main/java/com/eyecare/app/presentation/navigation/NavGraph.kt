@@ -40,6 +40,12 @@ import com.eyecare.app.presentation.billing.BillingDetailScreen
 import com.eyecare.app.presentation.orders.OrderDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
+import com.eyecare.app.presentation.quotations.QuotationListScreen
+import com.eyecare.app.presentation.quotations.QuotationDetailScreen
+import com.eyecare.app.presentation.joborders.JobOrderListScreen
+import com.eyecare.app.presentation.joborders.JobOrderDetailScreen
+import com.eyecare.app.presentation.invoices.InvoiceListScreen
+import com.eyecare.app.presentation.invoices.InvoiceDetailScreen
 import com.eyecare.app.presentation.orders.OrderDetailViewModel
 import com.eyecare.app.presentation.orders.OrderListScreen
 import com.eyecare.app.presentation.orders.OrderRequestScreen
@@ -87,7 +93,8 @@ fun EyecareNavGraph(
             !route.contains("OrderDetail") && !route.contains("OrderList") &&
             !route.contains("Prescription") && !route.contains("Feedback") &&
             !route.contains("BillingDetail") && !route.contains("EditProfile") &&
-            !route.contains("PatientIntake")
+            !route.contains("PatientIntake") && !route.contains("Quotation") &&
+            !route.contains("JobOrder") && !route.contains("Invoice")
     } ?: false
 
     val currentRoute = if (showBottomNav && currentDest != null) when {
@@ -253,6 +260,36 @@ fun EyecareNavGraph(
                         val route = back.toRoute<PrescriptionDetail>()
                         PrescriptionDetailScreen(prescriptionId = route.prescriptionId, onBack = { navController.popBackStack() })
                     }
+                    composable<QuotationList> {
+                        QuotationListScreen(
+                            onBack = { navController.popBackStack() },
+                            onNavigateToDetail = { navController.navigate(QuotationDetail(it)) },
+                        )
+                    }
+                    composable<QuotationDetail> { back ->
+                        val route = back.toRoute<QuotationDetail>()
+                        QuotationDetailScreen(quotationId = route.quotationId, onBack = { navController.popBackStack() })
+                    }
+                    composable<JobOrderList> {
+                        JobOrderListScreen(
+                            onBack = { navController.popBackStack() },
+                            onNavigateToDetail = { navController.navigate(JobOrderDetail(it)) },
+                        )
+                    }
+                    composable<JobOrderDetail> { back ->
+                        val route = back.toRoute<JobOrderDetail>()
+                        JobOrderDetailScreen(jobOrderId = route.jobOrderId, onBack = { navController.popBackStack() })
+                    }
+                    composable<InvoiceList> {
+                        InvoiceListScreen(
+                            onBack = { navController.popBackStack() },
+                            onNavigateToDetail = { navController.navigate(InvoiceDetail(it)) },
+                        )
+                    }
+                    composable<InvoiceDetail> { back ->
+                        val route = back.toRoute<InvoiceDetail>()
+                        InvoiceDetailScreen(invoiceId = route.invoiceId, onBack = { navController.popBackStack() })
+                    }
                     composable<Appointments> {
                         AppointmentListScreen(
                             onNavigateToDetail = { id -> navController.navigate(AppointmentDetail(id)) },
@@ -294,6 +331,9 @@ fun EyecareNavGraph(
                             onNavigateToOrders = { navController.navigate(OrderList) },
                             onNavigateToPrescriptions = { navController.navigate(PrescriptionList) },
                             onNavigateToReservations = { navController.navigate(FrameReservationList) },
+                            onNavigateToQuotations = { navController.navigate(QuotationList) },
+                            onNavigateToJobOrders = { navController.navigate(JobOrderList) },
+                            onNavigateToInvoices = { navController.navigate(InvoiceList) },
                             onNavigateToEditProfile = { navController.navigate(EditProfile) },
                             onNavigateToMessages = { navController.navigate(Chat) },
                             unreadMessageCount = unreadCount,

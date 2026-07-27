@@ -41,6 +41,18 @@ import kotlinx.serialization.Serializable
 @Serializable object PrescriptionList
 @Serializable data class PrescriptionDetail(val prescriptionId: Int)
 
+// Quotations
+@Serializable object QuotationList
+@Serializable data class QuotationDetail(val quotationId: Int)
+
+// Job Orders
+@Serializable object JobOrderList
+@Serializable data class JobOrderDetail(val jobOrderId: Int)
+
+// Invoices
+@Serializable object InvoiceList
+@Serializable data class InvoiceDetail(val invoiceId: Int)
+
 // Profile sub-destinations
 @Serializable object EditProfile
 
