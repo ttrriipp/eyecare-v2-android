@@ -132,6 +132,7 @@ class ChatViewModelTest {
             Result.success(listOf(fakeMessage, newMessage)),
         )
         val vm = vm()
+        vm.setScreenVisible(true)
 
         try {
             vm.uiState.test {

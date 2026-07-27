@@ -63,17 +63,29 @@ class ChatViewModel @Inject constructor(
     var currentUserId: Int = -1
         private set
 
+    private var isScreenVisible = false
+    private var pollingJob: kotlinx.coroutines.Job? = null
+
     init {
         viewModelScope.launch {
             authRepository.getMe().onSuccess { currentUserId = it.id }
         }
         load()
-        startPolling()
+    }
+
+    fun setScreenVisible(visible: Boolean) {
+        isScreenVisible = visible
+        if (visible && pollingJob == null) {
+            startPolling()
+        } else if (!visible) {
+            pollingJob?.cancel()
+            pollingJob = null
+        }
     }
 
     private fun startPolling() {
-        viewModelScope.launch {
-            while (true) {
+        pollingJob = viewModelScope.launch {
+            while (isScreenVisible) {
                 delay(POLL_INTERVAL_MS)
                 val current = _uiState.value as? ChatUiState.Success ?: continue
                 chatRepository.getMessages().onSuccess { messages ->
