@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (52/60 tasks complete)
+Status: Approved — implementation in progress (56/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -1360,9 +1360,9 @@ and supported context destinations.
 next appointment/intake prompt and featured frames.
 
 **Acceptance criteria:**
-- [ ] Home has no Order/ProductRepository dependency.
-- [ ] Network fan-out remains limited to scheduling and a small frame preview.
-- [ ] Partial failures do not hide otherwise available content.
+- [x] Home has no Order/ProductRepository dependency.
+- [x] Network fan-out remains limited to scheduling and a small frame preview.
+- [x] Partial failures do not hide otherwise available content.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*HomeViewModelTest"`
@@ -1382,9 +1382,9 @@ next appointment/intake prompt and featured frames.
 featured-frame content linked to approved destinations.
 
 **Acceptance criteria:**
-- [ ] Home contains no accessory/order/billing copy or callbacks.
-- [ ] Appointment/intake and frame actions navigate correctly.
-- [ ] Four-root bottom navigation remains visually and behaviorally stable.
+- [x] Home contains no accessory/order/billing copy or callbacks.
+- [x] Appointment/intake and frame actions navigate correctly.
+- [x] Four-root bottom navigation remains visually and behaviorally stable.
 
 **Verification:**
 - [ ] `.\gradlew assembleDebug`
