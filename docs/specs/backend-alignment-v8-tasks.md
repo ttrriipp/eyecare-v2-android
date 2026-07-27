@@ -1078,8 +1078,8 @@ without request/cancel assumptions.
 - [ ] No order-create/cancel test remains.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*JobOrder*"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*JobOrder*"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 41
 
@@ -1217,7 +1217,7 @@ orders, ratings, and invoices and replace Order/Billing routes.
 
 ## Checkpoint G — Patient Records
 
-- [ ] `.\gradlew ktlintCheck`
+- [x] `.\gradlew ktlintCheck`
 - [x] `.\gradlew testDebugUnitTest --tests "*Prescription*" --tests "*Quotation*" --tests "*JobOrder*" --tests "*Rating*" --tests "*Invoice*"`
 - [x] `.\gradlew assembleDebug`
 - [x] All read-only records and the allowed rating mutation work.
