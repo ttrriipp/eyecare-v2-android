@@ -43,7 +43,7 @@ class HomeViewModelTest {
     private val activeOrder = Order(1, "ORD-001", null, null, false, OrderStatus.PROCESSING,
         "165.00", "165.00", emptyList(), "${LocalDate.now().minusDays(1)}T10:00:00Z")
     private val expiredPrescription = Prescription(1, 1, null, null, null, null,
-        null, null, null, null, null,
+        null, null, null, null, null, null, null, null, null,
         prescribedAt = "${LocalDate.now().minusYears(1)}",
         expiresAt = "${LocalDate.now().minusDays(5)}", notes = null)
 
@@ -59,7 +59,7 @@ class HomeViewModelTest {
         coEvery { orderRepo.hasMorePages(any()) } returns false
         coEvery { productRepo.getProducts(any()) } returns Result.success(emptyList())
         coEvery { productRepo.hasMorePages(any()) } returns false
-        coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(emptyList())
+        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
     }
 
     @AfterEach
@@ -72,7 +72,7 @@ class HomeViewModelTest {
         coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(listOf(pastAppt, futureAppt), 1, 1, 2))
         coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
                 coEvery { orderRepo.hasMorePages(any()) } returns false
-        coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(emptyList())
+        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         val state = vm().uiState.value as HomeUiState.Success
         assertEquals(futureAppt, state.nextAppointment)
     }
@@ -82,7 +82,7 @@ class HomeViewModelTest {
         coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { orderRepo.getOrders(any()) } returns Result.success(listOf(activeOrder))
                 coEvery { orderRepo.hasMorePages(any()) } returns false
-        coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(emptyList())
+        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         val state = vm().uiState.value as HomeUiState.Success
         assertEquals(activeOrder, state.activeOrder)
     }
@@ -92,7 +92,7 @@ class HomeViewModelTest {
         coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
                 coEvery { orderRepo.hasMorePages(any()) } returns false
-        coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(listOf(expiredPrescription))
+        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(expiredPrescription), 1, 1, 1))
         val state = vm().uiState.value as HomeUiState.Success
         assertNotNull(state.expiringPrescription)
     }
@@ -105,7 +105,7 @@ class HomeViewModelTest {
         coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { orderRepo.getOrders(any()) } returns Result.success(emptyList())
                 coEvery { orderRepo.hasMorePages(any()) } returns false
-        coEvery { prescriptionRepo.getPrescriptions() } returns Result.success(listOf(healthyPrescription))
+        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(healthyPrescription), 1, 1, 1))
         val state = vm().uiState.value as HomeUiState.Success
         assertNull(state.expiringPrescription)
     }

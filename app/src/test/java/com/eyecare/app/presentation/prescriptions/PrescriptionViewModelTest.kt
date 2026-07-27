@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.prescriptions
 
 import com.eyecare.app.domain.model.Prescription
+import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.domain.repository.PrescriptionRepository
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -29,8 +30,10 @@ class PrescriptionViewModelTest {
 
     private fun makePrescription(id: Int, expiresAt: String?) = Prescription(
         id = id, appointmentId = 1,
-        odSphere = "-2.00", odCylinder = "-0.50", odAxis = "180", odAdd = null,
-        osSphere = "-1.75", osCylinder = "-0.25", osAxis = "175", osAdd = null,
+        odSphere = "-2.00", odCylinder = "-0.50", odAxis = 180, odAdd = null,
+        odPrism = null, odBase = null,
+        osSphere = "-1.75", osCylinder = "-0.25", osAxis = 175, osAdd = null,
+        osPrism = null, osBase = null,
         pd = "62.0", prescribedAt = "2026-01-10", expiresAt = expiresAt, notes = null,
     )
 
@@ -46,7 +49,7 @@ class PrescriptionViewModelTest {
     @Test
     fun `list loads prescriptions sorted by prescribedAt descending`() = runTest {
         val list = listOf(makePrescription(1, futureDate), makePrescription(2, futureDate))
-        coEvery { repo.getPrescriptions() } returns Result.success(list)
+        coEvery { repo.getPrescriptions(any()) } returns Result.success(PaginatedResult(list, 1, 1, 2))
         val vm = PrescriptionViewModel(repo)
         val state = vm.listState.value as PrescriptionListUiState.Success
         assertEquals(2, state.prescriptions.size)
@@ -54,7 +57,7 @@ class PrescriptionViewModelTest {
 
     @Test
     fun `list error emits Error`() = runTest {
-        coEvery { repo.getPrescriptions() } returns Result.failure(RuntimeException("fail"))
+        coEvery { repo.getPrescriptions(any()) } returns Result.failure(RuntimeException("fail"))
         val vm = PrescriptionViewModel(repo)
         assertInstanceOf(PrescriptionListUiState.Error::class.java, vm.listState.value)
     }
@@ -62,20 +65,33 @@ class PrescriptionViewModelTest {
     @Test
     fun `loadDetail loads single prescription`() = runTest {
         val p = makePrescription(1, futureDate)
-        coEvery { repo.getPrescriptions() } returns Result.success(listOf(p))
+        coEvery { repo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(p), 1, 1, 1))
         coEvery { repo.getPrescription(1) } returns Result.success(p)
         val vm = PrescriptionViewModel(repo)
         vm.loadDetail(1)
         val state = vm.detailState.value as PrescriptionDetailUiState.Success
         assertEquals("-2.00", state.prescription.odSphere)
+        assertEquals(180, state.prescription.odAxis)
     }
 
     @Test
     fun `isExpired returns true when expiresAt is in the past`() = runTest {
-        coEvery { repo.getPrescriptions() } returns Result.success(emptyList())
+        coEvery { repo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         val vm = PrescriptionViewModel(repo)
         assertEquals(true, vm.isExpired(expiredDate))
+    }
+
+    @Test
+    fun `isExpired returns false when expiresAt is in the future`() = runTest {
+        coEvery { repo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
+        val vm = PrescriptionViewModel(repo)
         assertEquals(false, vm.isExpired(futureDate))
+    }
+
+    @Test
+    fun `isExpired returns false when expiresAt is null`() = runTest {
+        coEvery { repo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
+        val vm = PrescriptionViewModel(repo)
         assertEquals(false, vm.isExpired(null))
     }
 }
