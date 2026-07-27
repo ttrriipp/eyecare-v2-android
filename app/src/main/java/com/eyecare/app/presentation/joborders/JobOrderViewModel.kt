@@ -22,9 +22,17 @@ sealed interface JobOrderListUiState {
     data class Error(val message: String) : JobOrderListUiState
 }
 
+data class RatingDialogState(
+    val jobOrderItemId: Int,
+    val productVariantId: Int,
+)
+
 sealed interface JobOrderDetailUiState {
     data object Loading : JobOrderDetailUiState
-    data class Success(val jobOrder: JobOrder) : JobOrderDetailUiState
+    data class Success(
+        val jobOrder: JobOrder,
+        val ratingDialog: RatingDialogState? = null,
+    ) : JobOrderDetailUiState
     data class Error(val message: String) : JobOrderDetailUiState
 }
 
@@ -60,6 +68,18 @@ class JobOrderViewModel @Inject constructor(
                 onFailure = { JobOrderDetailUiState.Error(it.message ?: "Failed to load") },
             )
         }
+    }
+
+    fun showRatingDialog(jobOrderItemId: Int, productVariantId: Int) {
+        val current = _detailState.value as? JobOrderDetailUiState.Success ?: return
+        _detailState.value = current.copy(
+            ratingDialog = RatingDialogState(jobOrderItemId, productVariantId),
+        )
+    }
+
+    fun dismissRatingDialog() {
+        val current = _detailState.value as? JobOrderDetailUiState.Success ?: return
+        _detailState.value = current.copy(ratingDialog = null)
     }
 
     private fun loadList() {

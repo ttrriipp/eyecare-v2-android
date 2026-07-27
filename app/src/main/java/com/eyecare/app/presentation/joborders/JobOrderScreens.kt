@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -121,13 +122,32 @@ fun JobOrderDetailScreen(
         when (val state = uiState) {
             JobOrderDetailUiState.Loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             is JobOrderDetailUiState.Error -> ErrorContent(message = state.message, onRetry = { viewModel.loadDetail(jobOrderId) }, modifier = Modifier.padding(padding))
-            is JobOrderDetailUiState.Success -> JobOrderDetailContent(order = state.jobOrder, modifier = Modifier.padding(padding))
+            is JobOrderDetailUiState.Success -> {
+                JobOrderDetailContent(
+                    order = state.jobOrder,
+                    onRateItem = { itemId, variantId -> viewModel.showRatingDialog(itemId, variantId) },
+                    modifier = Modifier.padding(padding),
+                )
+
+                state.ratingDialog?.let { dialog ->
+                    FrameRatingDialog(
+                        onSubmit = { rating, comment ->
+                            viewModel.dismissRatingDialog()
+                        },
+                        onDismiss = { viewModel.dismissRatingDialog() },
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun JobOrderDetailContent(order: JobOrder, modifier: Modifier = Modifier) {
+private fun JobOrderDetailContent(
+    order: JobOrder,
+    onRateItem: (itemId: Int, variantId: Int) -> Unit = { _, _ -> },
+    modifier: Modifier = Modifier,
+) {
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(order.jobOrderNumber ?: "Job Order #${order.id}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -147,12 +167,18 @@ private fun JobOrderDetailContent(order: JobOrder, modifier: Modifier = Modifier
                     Text("Items", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     HorizontalDivider()
                     order.items.forEach { item ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(item.description, style = MaterialTheme.typography.bodyMedium)
                                 Text("Qty: ${item.quantity} × ₱${String.format("%.2f", item.unitPrice)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text("₱${String.format("%.2f", item.amount)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            if (order.status == JobOrderStatus.DISPENSED && item.productVariantId != null) {
+                                TextButton(onClick = { onRateItem(item.id, item.productVariantId) }) {
+                                    Text("Rate", style = MaterialTheme.typography.labelMedium)
+                                }
+                            } else {
+                                Text("₱${String.format("%.2f", item.amount)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 }
