@@ -16,9 +16,9 @@ interface AuthApiService {
     @POST("logout")
     suspend fun logout()
 
-    @GET("user")
-    suspend fun getUser(): AuthDtos.UserResponse
+    @GET("me")
+    suspend fun getMe(): AuthDtos.UserResponse
 
-    @PATCH("user")
-    suspend fun updateUser(@Body request: AuthDtos.UpdateUserRequest): AuthDtos.UserResponse
+    @PATCH("me")
+    suspend fun updateMe(@Body request: AuthDtos.UpdateUserRequest): AuthDtos.UserResponse
 }

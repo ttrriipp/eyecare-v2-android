@@ -6,6 +6,7 @@ import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.domain.model.AuthError
 import com.eyecare.app.domain.model.User
 import com.eyecare.app.domain.repository.AuthRepository
+import com.eyecare.app.domain.repository.UpdateProfileRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,7 +104,13 @@ class ProfileViewModel @Inject constructor(
         )
         viewModelScope.launch {
             val phone = current.editPhone.ifBlank { null }
-            authRepository.updateUser(current.editName, current.editEmail, phone).fold(
+            authRepository.updateMe(
+                UpdateProfileRequest(
+                    name = current.editName,
+                    email = current.editEmail,
+                    phone = phone,
+                ),
+            ).fold(
                 onSuccess = { user ->
                     _uiState.value = ProfileUiState.Success(
                         user = user,
@@ -131,7 +138,7 @@ class ProfileViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            _uiState.value = authRepository.getUser().fold(
+            _uiState.value = authRepository.getMe().fold(
                 onSuccess = { ProfileUiState.Success(it) },
                 onFailure = { ProfileUiState.Error(it.message ?: "Failed to load profile") },
             )

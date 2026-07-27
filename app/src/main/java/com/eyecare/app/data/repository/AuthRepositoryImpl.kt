@@ -6,6 +6,7 @@ import com.eyecare.app.data.remote.dto.AuthDtos
 import com.eyecare.app.domain.model.AuthError
 import com.eyecare.app.domain.model.User
 import com.eyecare.app.domain.repository.AuthRepository
+import com.eyecare.app.domain.repository.UpdateProfileRequest
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import javax.inject.Inject
@@ -33,13 +34,25 @@ class AuthRepositoryImpl @Inject constructor(
         tokenManager.clearToken()
     }
 
-    override suspend fun getUser(): Result<User> = runCatching {
-        api.getUser().data.toDomain()
+    override suspend fun getMe(): Result<User> = runCatching {
+        api.getMe().data.toDomain()
     }
 
-    override suspend fun updateUser(name: String, email: String, phone: String?): Result<User> =
+    override suspend fun updateMe(request: UpdateProfileRequest): Result<User> =
         runCatching {
-            api.updateUser(AuthDtos.UpdateUserRequest(name, email, phone)).data.toDomain()
+            api.updateMe(
+                AuthDtos.UpdateUserRequest(
+                    name = request.name,
+                    email = request.email,
+                    phone = request.phone,
+                    address = request.address,
+                    fullName = request.fullName,
+                    dateOfBirth = request.dateOfBirth,
+                    occupation = request.occupation,
+                    gender = request.gender,
+                    contactEmail = request.contactEmail,
+                ),
+            ).data.toDomain()
         }.recoverCatching { throwable ->
             when {
                 throwable is HttpException && throwable.code() == 422 -> {
@@ -69,5 +82,18 @@ class AuthRepositoryImpl @Inject constructor(
             }
         }
 
-    private fun AuthDtos.UserDto.toDomain() = User(id, name, email, phone, role)
+    private fun AuthDtos.UserDto.toDomain() = User(
+        id = id,
+        name = name,
+        email = email,
+        phone = phone,
+        role = role,
+        patientNumber = patientNumber,
+        fullName = fullName,
+        dateOfBirth = dateOfBirth,
+        occupation = occupation,
+        address = address,
+        gender = gender,
+        contactEmail = contactEmail,
+    )
 }

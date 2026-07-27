@@ -36,6 +36,13 @@ object AuthDtos {
         val email: String,
         val phone: String? = null,
         val role: String,
+        @SerialName("patient_number") val patientNumber: String? = null,
+        @SerialName("full_name") val fullName: String? = null,
+        @SerialName("date_of_birth") val dateOfBirth: String? = null,
+        val occupation: String? = null,
+        val address: String? = null,
+        val gender: String? = null,
+        @SerialName("contact_email") val contactEmail: String? = null,
     )
 
     @Serializable
@@ -49,8 +56,14 @@ object AuthDtos {
 
     @Serializable
     data class UpdateUserRequest(
-        val name: String,
-        val email: String,
+        val name: String? = null,
+        val email: String? = null,
         val phone: String? = null,
+        val address: String? = null,
+        @SerialName("full_name") val fullName: String? = null,
+        @SerialName("date_of_birth") val dateOfBirth: String? = null,
+        val occupation: String? = null,
+        val gender: String? = null,
+        @SerialName("contact_email") val contactEmail: String? = null,
     )
 }

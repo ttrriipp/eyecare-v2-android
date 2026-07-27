@@ -68,7 +68,7 @@ class ChatViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            authRepository.getUser().onSuccess { currentUserId = it.id }
+            authRepository.getMe().onSuccess { currentUserId = it.id }
         }
         load()
         startPolling()

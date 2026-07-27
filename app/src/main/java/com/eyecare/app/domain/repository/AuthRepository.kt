@@ -12,6 +12,18 @@ interface AuthRepository {
         passwordConfirmation: String,
     ): Result<User>
     suspend fun logout(): Result<Unit>
-    suspend fun getUser(): Result<User>
-    suspend fun updateUser(name: String, email: String, phone: String?): Result<User>
+    suspend fun getMe(): Result<User>
+    suspend fun updateMe(request: UpdateProfileRequest): Result<User>
 }
+
+data class UpdateProfileRequest(
+    val name: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    val address: String? = null,
+    val fullName: String? = null,
+    val dateOfBirth: String? = null,
+    val occupation: String? = null,
+    val gender: String? = null,
+    val contactEmail: String? = null,
+)

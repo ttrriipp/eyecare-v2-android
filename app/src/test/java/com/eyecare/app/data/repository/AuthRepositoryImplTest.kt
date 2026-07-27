@@ -48,7 +48,7 @@ class AuthRepositoryImplTest {
     fun `login success maps token and user correctly`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
-                """{"data":{"token":"tok123","user":{"id":1,"name":"Jane","email":"jane@example.com","role":"customer"}}}"""
+                """{"data":{"token":"tok123","user":{"id":1,"name":"Jane","email":"jane@example.com","role":"patient","patient_number":"PAT-01JABC","full_name":"Jane Doe","date_of_birth":"1990-05-15","occupation":"Teacher","address":"123 Main St","gender":"female","contact_email":"jane@example.com"}}}"""
             )
         )
         val result = repository.login("jane@example.com", "password123")
@@ -56,7 +56,14 @@ class AuthRepositoryImplTest {
         val user = result.getOrThrow()
         assertEquals("Jane", user.name)
         assertEquals("jane@example.com", user.email)
-        assertEquals("customer", user.role)
+        assertEquals("patient", user.role)
+        assertEquals("PAT-01JABC", user.patientNumber)
+        assertEquals("Jane Doe", user.fullName)
+        assertEquals("1990-05-15", user.dateOfBirth)
+        assertEquals("Teacher", user.occupation)
+        assertEquals("123 Main St", user.address)
+        assertEquals("female", user.gender)
+        assertEquals("jane@example.com", user.contactEmail)
     }
 
     @Test
@@ -86,11 +93,30 @@ class AuthRepositoryImplTest {
     fun `register success maps user correctly`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(201).setBody(
-                """{"data":{"token":"regTok","user":{"id":2,"name":"Bob","email":"bob@example.com","role":"customer"}}}"""
+                """{"data":{"token":"regTok","user":{"id":2,"name":"Bob","email":"bob@example.com","role":"patient"}}}"""
             )
         )
         val result = repository.register("Bob", "bob@example.com", null, "password1", "password1")
         assertTrue(result.isSuccess)
         assertEquals("Bob", result.getOrThrow().name)
+    }
+
+    @Test
+    fun `getMe returns expanded patient profile`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"id":1,"name":"Jane","email":"jane@example.com","role":"patient","patient_number":"PAT-01JABC","full_name":"Jane Doe","date_of_birth":"1990-05-15","occupation":"Teacher","address":"123 Main St","gender":"female","contact_email":"jane@example.com"}}"""
+            )
+        )
+        val result = repository.getMe()
+        assertTrue(result.isSuccess)
+        val user = result.getOrThrow()
+        assertEquals("PAT-01JABC", user.patientNumber)
+        assertEquals("Jane Doe", user.fullName)
+        assertEquals("1990-05-15", user.dateOfBirth)
+        assertEquals("Teacher", user.occupation)
+        assertEquals("123 Main St", user.address)
+        assertEquals("female", user.gender)
+        assertEquals("jane@example.com", user.contactEmail)
     }
 }

@@ -42,7 +42,7 @@ class ChatViewModelTest {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
         coEvery { repo.markMessagesRead(any()) } returns Result.success(Unit)
-        authRepo = mockk { coEvery { getUser() } returns Result.success(User(42, "Test", "t@t.com", null, "customer")) }
+        authRepo = mockk { coEvery { getMe() } returns Result.success(User(42, "Test", "t@t.com", null, "customer", null, null, null, null, null, null, null)) }
         appointmentRepo = mockk { coEvery { getAppointments() } returns Result.success(emptyList()) }
         orderRepo = mockk { coEvery { getOrders() } returns Result.success(emptyList()) }
     }
