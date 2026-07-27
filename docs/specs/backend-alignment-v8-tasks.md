@@ -1406,9 +1406,9 @@ files left after reservation and job-order cutover. This is a mechanical
 deletion set and may exceed the normal five-file task target.
 
 **Acceptance criteria:**
-- [ ] No OrderRequest/OrderStatus/OrderError artifact remains.
-- [ ] No POST `/orders` or cancel-order behavior remains.
-- [ ] Project still compiles with job orders and reservations.
+- [x] No OrderRequest/OrderStatus/OrderError artifact remains.
+- [x] No POST `/orders` or cancel-order behavior remains.
+- [x] Project still compiles with job orders and reservations.
 
 **Verification:**
 - [ ] `rg -n "OrderRequest|OrderError|POST\\(\"orders|orders/\\{id\\}/cancel" app/src`
