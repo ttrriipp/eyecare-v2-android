@@ -1,9 +1,9 @@
 package com.eyecare.app.presentation.appointments
 
 import androidx.lifecycle.SavedStateHandle
-import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.AppointmentStatus
-import com.eyecare.app.domain.repository.AppointmentRepository
+import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.FeedbackRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -25,18 +25,22 @@ import org.junit.jupiter.api.Test
 class AppointmentDetailViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
-    private lateinit var appointments: AppointmentRepository
+    private lateinit var appointments: AppointmentV1Repository
     private lateinit var feedback: FeedbackRepository
     private lateinit var viewModel: AppointmentDetailViewModel
 
-    private val appointment = Appointment(
+    private val appointment = AppointmentV1(
         id = 4,
-        visitReason = "Follow-up",
+        appointmentNumber = "APT-004",
+        appointmentType = "Follow-up",
+        durationMinutes = 15,
+        referringSource = null,
         status = AppointmentStatus.CONFIRMED,
         scheduledAt = "2026-07-14T09:00:00+08:00",
         contactNotes = "Original note",
-        staffNotes = null,
         lastRescheduleReason = "Doctor availability changed",
+        source = "mobile",
+        assignedOptometrist = null,
     )
 
     @BeforeEach
@@ -58,63 +62,6 @@ class AppointmentDetailViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `start editing contact note opens editor`() = runTest {
-        viewModel.startEditingContactNote()
-
-        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
-        assertTrue(state.isEditingContactNote)
-        assertEquals(null, state.contactNoteError)
-    }
-
-    @Test
-    fun `save contact note trims value and uses returned appointment`() = runTest {
-        val updated = appointment.copy(contactNotes = "Updated note")
-        coEvery { appointments.updateAppointmentContactNote(4, "Updated note") } returns
-            Result.success(updated)
-        viewModel.startEditingContactNote()
-
-        viewModel.saveContactNote("  Updated note  ")
-        dispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 1) { appointments.updateAppointmentContactNote(4, "Updated note") }
-        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
-        assertEquals("Updated note", state.appointment.contactNotes)
-        assertFalse(state.isEditingContactNote)
-        assertFalse(state.isSavingContactNote)
-    }
-
-    @Test
-    fun `save blank contact note clears value`() = runTest {
-        val updated = appointment.copy(contactNotes = null)
-        coEvery { appointments.updateAppointmentContactNote(4, null) } returns Result.success(updated)
-        viewModel.startEditingContactNote()
-
-        viewModel.saveContactNote("   ")
-        dispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 1) { appointments.updateAppointmentContactNote(4, null) }
-        assertEquals(
-            null,
-            (viewModel.uiState.value as AppointmentDetailUiState.Success).appointment.contactNotes,
-        )
-    }
-
-    @Test
-    fun `failed contact note save keeps editor open with error`() = runTest {
-        coEvery { appointments.updateAppointmentContactNote(4, any()) } returns
-            Result.failure(RuntimeException("Unable to save note"))
-        viewModel.startEditingContactNote()
-
-        viewModel.saveContactNote("Updated note")
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
-        assertTrue(state.isEditingContactNote)
-        assertFalse(state.isSavingContactNote)
-        assertEquals("Unable to save note", state.contactNoteError)
-    }
-
-    @Test
     fun `customer reschedule uses returned appointment and clears staff reason without refetch`() = runTest {
         val updated = appointment.copy(
             scheduledAt = "2026-07-15T10:00:00+08:00",
@@ -133,5 +80,33 @@ class AppointmentDetailViewModelTest {
         assertEquals("2026-07-15T10:00:00+08:00", state.appointment.scheduledAt)
         assertTrue(state.showRescheduleSuccessDialog)
         coVerify(exactly = 1) { appointments.getAppointment(4) }
+    }
+
+    @Test
+    fun `cancel uses returned appointment without refetch`() = runTest {
+        val cancelled = appointment.copy(status = AppointmentStatus.CANCELLED)
+        coEvery { appointments.cancelAppointment(4) } returns Result.success(cancelled)
+
+        viewModel.cancelAppointment()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
+        assertEquals(AppointmentStatus.CANCELLED, state.appointment.status)
+        assertFalse(state.isCancelling)
+        coVerify(exactly = 1) { appointments.getAppointment(4) }
+    }
+
+    @Test
+    fun `cancel error preserves current state with error message`() = runTest {
+        coEvery { appointments.cancelAppointment(4) } returns
+            Result.failure(RuntimeException("Cannot cancel"))
+
+        viewModel.cancelAppointment()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
+        assertEquals("Cannot cancel", state.cancelError)
+        assertFalse(state.isCancelling)
+        assertEquals(AppointmentStatus.CONFIRMED, state.appointment.status)
     }
 }

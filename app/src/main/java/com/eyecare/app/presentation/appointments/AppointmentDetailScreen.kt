@@ -150,9 +150,6 @@ fun AppointmentDetailScreen(
                     state = state,
                     onReschedule = viewModel::showRescheduleSheet,
                     onCancel = { showCancelDialog = true },
-                    onEditContactNote = viewModel::startEditingContactNote,
-                    onDismissContactNoteEditor = viewModel::dismissContactNoteEditor,
-                    onSaveContactNote = viewModel::saveContactNote,
                     onLeaveFeedback = { onLeaveFeedback(state.appointment.id) },
                 )
             }
@@ -165,9 +162,6 @@ private fun AppointmentDetailContent(
     state: AppointmentDetailUiState.Success,
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
-    onEditContactNote: () -> Unit,
-    onDismissContactNoteEditor: () -> Unit,
-    onSaveContactNote: (String) -> Unit,
     onLeaveFeedback: () -> Unit,
 ) {
     val appointment = state.appointment
@@ -175,7 +169,7 @@ private fun AppointmentDetailContent(
         appointment.status == AppointmentStatus.CONFIRMED
     val canLeaveFeedback = appointment.status == AppointmentStatus.COMPLETED && !state.hasFeedback
     val customerNote = appointment.contactNotes?.takeIf { it.isNotBlank() }
-    val clinicNote = appointment.staffNotes?.takeIf { it.isNotBlank() }
+    val clinicNote: String? = null
     val rescheduleReason = displayableRescheduleReason(appointment.lastRescheduleReason)
     val bottomContentPadding = when {
         canManage -> 164.dp
@@ -218,7 +212,7 @@ private fun AppointmentDetailContent(
                                 )
                             }
                             Text(
-                                formatAppointmentTitle(appointment.visitReason),
+                                formatAppointmentTitle(appointment.appointmentType),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -262,18 +256,18 @@ private fun AppointmentDetailContent(
 
             rescheduleReason?.let { StaffRescheduleNotice(it) }
 
-            if (canManage || customerNote != null || clinicNote != null) {
+            if (customerNote != null || clinicNote != null) {
                 AppointmentNotesSection(
                     modifier = Modifier.padding(top = 4.dp),
                     customerNote = customerNote,
                     clinicNote = clinicNote,
-                    canEditCustomerNote = canManage,
-                    isEditing = state.isEditingContactNote,
-                    isSaving = state.isSavingContactNote,
-                    error = state.contactNoteError,
-                    onEdit = onEditContactNote,
-                    onDismissEditor = onDismissContactNoteEditor,
-                    onSave = onSaveContactNote,
+                    canEditCustomerNote = false,
+                    isEditing = false,
+                    isSaving = false,
+                    error = null,
+                    onEdit = {},
+                    onDismissEditor = {},
+                    onSave = {},
                 )
             }
 

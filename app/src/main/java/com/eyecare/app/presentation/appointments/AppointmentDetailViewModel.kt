@@ -3,9 +3,9 @@ package com.eyecare.app.presentation.appointments
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.AppointmentStatus
-import com.eyecare.app.domain.repository.AppointmentRepository
+import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.FeedbackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +17,7 @@ import javax.inject.Inject
 sealed interface AppointmentDetailUiState {
     data object Loading : AppointmentDetailUiState
     data class Success(
-        val appointment: Appointment,
+        val appointment: AppointmentV1,
         val hasFeedback: Boolean = false,
         val isCancelling: Boolean = false,
         val cancelError: String? = null,
@@ -34,7 +34,7 @@ sealed interface AppointmentDetailUiState {
 
 @HiltViewModel
 class AppointmentDetailViewModel @Inject constructor(
-    private val repository: AppointmentRepository,
+    private val repository: AppointmentV1Repository,
     private val feedbackRepository: FeedbackRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -54,7 +54,12 @@ class AppointmentDetailViewModel @Inject constructor(
         _uiState.value = current.copy(isCancelling = true, cancelError = null)
         viewModelScope.launch {
             repository.cancelAppointment(appointmentId).fold(
-                onSuccess = { load() },
+                onSuccess = { cancelled ->
+                    _uiState.value = current.copy(
+                        appointment = cancelled,
+                        isCancelling = false,
+                    )
+                },
                 onFailure = {
                     _uiState.value = current.copy(
                         isCancelling = false,
@@ -90,8 +95,6 @@ class AppointmentDetailViewModel @Inject constructor(
         viewModelScope.launch {
             repository.rescheduleAppointment(appointmentId, scheduledAt).fold(
                 onSuccess = { updatedAppointment ->
-                    // Use the appointment returned by the reschedule call directly, rather than
-                    // re-fetching, so the screen reflects exactly what the server just confirmed.
                     _uiState.value = current.copy(
                         appointment = updatedAppointment,
                         isRescheduling = false,
@@ -126,33 +129,6 @@ class AppointmentDetailViewModel @Inject constructor(
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success || current.isSavingContactNote) return
         _uiState.value = current.copy(isEditingContactNote = false, contactNoteError = null)
-    }
-
-    fun saveContactNote(note: String) {
-        val current = _uiState.value
-        if (current !is AppointmentDetailUiState.Success) return
-        if (current.appointment.status !in EDITABLE_NOTE_STATUSES || current.isSavingContactNote) return
-        val normalizedNote = note.trim().ifBlank { null }
-        _uiState.value = current.copy(isSavingContactNote = true, contactNoteError = null)
-        viewModelScope.launch {
-            repository.updateAppointmentContactNote(appointmentId, normalizedNote).fold(
-                onSuccess = { updatedAppointment ->
-                    _uiState.value = current.copy(
-                        appointment = updatedAppointment,
-                        isEditingContactNote = false,
-                        isSavingContactNote = false,
-                        contactNoteError = null,
-                    )
-                },
-                onFailure = { error ->
-                    _uiState.value = current.copy(
-                        isEditingContactNote = true,
-                        isSavingContactNote = false,
-                        contactNoteError = error.message ?: "Failed to save note",
-                    )
-                },
-            )
-        }
     }
 
     private fun load() {
