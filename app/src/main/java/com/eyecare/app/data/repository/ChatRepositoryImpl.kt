@@ -23,23 +23,21 @@ class ChatRepositoryImpl @Inject constructor(
 ) : ChatRepository {
 
     override suspend fun getConversation(): Result<Conversation> = runCatching {
-        api.getConversations().data.toDomain()
+        api.getConversation().data.toDomain()
     }
 
-    override suspend fun getMessages(conversationId: Int): Result<List<Message>> = runCatching {
-        api.getMessages(conversationId).data.map { it.toDomain() }
+    override suspend fun getMessages(): Result<List<Message>> = runCatching {
+        api.getMessages().data.map { it.toDomain() }
     }
 
     override suspend fun sendMessage(
-        conversationId: Int,
         body: String,
         contexts: List<MessageDtos.ContextLinkDto>?,
     ): Result<Message> = runCatching {
-        api.sendMessage(conversationId, MessageDtos.SendMessageRequest(body, contexts)).data.toDomain()
+        api.sendMessage(MessageDtos.SendMessageRequest(body, contexts)).data.toDomain()
     }
 
     override suspend fun sendFileMessage(
-        conversationId: Int,
         uri: Uri,
         mimeType: String,
         fileName: String,
@@ -54,20 +52,15 @@ class ChatRepositoryImpl @Inject constructor(
                 "attachment", fileName,
                 tempFile.asRequestBody(mimeType.toMediaType()),
             )
-            api.sendFileMessage(conversationId, bodyPart, filePart).data.toDomain()
+            api.sendFileMessage(bodyPart, filePart).data.toDomain()
         } finally {
             tempFile.delete()
         }
     }
 
-    override suspend fun markMessagesRead(conversationId: Int): Result<Unit> = runCatching {
-        api.markMessagesRead(conversationId)
-    }
-
     private fun MessageDtos.ConversationDto.toDomain() = Conversation(
-        id = id, customerId = customerId, unreadCount = unreadCount, createdAt = createdAt,
+        id = id, patientId = patientId, unreadCount = unreadCount, createdAt = createdAt,
     )
-
 }
 
 internal fun MessageDtos.MessageDto.toDomain() = Message(

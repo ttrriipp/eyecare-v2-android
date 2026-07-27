@@ -2,7 +2,7 @@ package com.eyecare.app.domain.model
 
 data class Conversation(
     val id: Int,
-    val customerId: Int?,
+    val patientId: Int?,
     val unreadCount: Int,
     val createdAt: String,
 )

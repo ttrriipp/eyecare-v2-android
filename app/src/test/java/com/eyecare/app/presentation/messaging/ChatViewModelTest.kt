@@ -9,6 +9,7 @@ import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.OrderRepository
 import com.eyecare.app.domain.repository.ChatRepository
+import com.eyecare.app.domain.repository.PaginatedResult
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.cancel
@@ -21,7 +22,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -41,9 +41,8 @@ class ChatViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
-        coEvery { repo.markMessagesRead(any()) } returns Result.success(Unit)
         authRepo = mockk { coEvery { getMe() } returns Result.success(User(42, "Test", "t@t.com", null, "customer", null, null, null, null, null, null, null)) }
-        appointmentRepo = mockk { coEvery { getAppointments(any()) } returns Result.success(com.eyecare.app.domain.repository.PaginatedResult(emptyList(), 1, 1, 0)) }
+        appointmentRepo = mockk { coEvery { getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0)) }
         orderRepo = mockk { coEvery { getOrders() } returns Result.success(emptyList()) }
     }
 
@@ -55,7 +54,7 @@ class ChatViewModelTest {
     @Test
     fun `initial state is Loading then loads conversation and messages`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
-        coEvery { repo.getMessages(1) } returns Result.success(listOf(fakeMessage))
+        coEvery { repo.getMessages() } returns Result.success(listOf(fakeMessage))
         val vm = vm()
 
         try {
@@ -75,8 +74,8 @@ class ChatViewModelTest {
     @Test
     fun `send message appends it to list`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
-        coEvery { repo.getMessages(1) } returns Result.success(emptyList())
-        coEvery { repo.sendMessage(1, "Hi there") } returns Result.success(
+        coEvery { repo.getMessages() } returns Result.success(emptyList())
+        coEvery { repo.sendMessage("Hi there") } returns Result.success(
             fakeMessage.copy(id = 2, body = "Hi there")
         )
         val vm = vm()
@@ -92,7 +91,6 @@ class ChatViewModelTest {
 
                 val sending = awaitItem() as ChatUiState.Success
                 if (sending.isSending) {
-                    // consume the isSending=true state, then get final
                     dispatcher.scheduler.runCurrent()
                     val state = awaitItem() as ChatUiState.Success
                     assertEquals(1, state.messages.size)
@@ -111,7 +109,7 @@ class ChatViewModelTest {
     @Test
     fun `send empty message does nothing`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
-        coEvery { repo.getMessages(1) } returns Result.success(emptyList())
+        coEvery { repo.getMessages() } returns Result.success(emptyList())
         val vm = vm()
 
         try {
@@ -119,7 +117,7 @@ class ChatViewModelTest {
             val stateBefore = vm.uiState.value
             vm.sendMessage("   ")
             dispatcher.scheduler.runCurrent()
-            assertEquals(stateBefore, vm.uiState.value) // unchanged
+            assertEquals(stateBefore, vm.uiState.value)
         } finally {
             vm.viewModelScope.cancel()
         }
@@ -129,9 +127,9 @@ class ChatViewModelTest {
     fun `polling refreshes messages after interval`() = runTest {
         val newMessage = fakeMessage.copy(id = 2, body = "New reply from clinic")
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
-        coEvery { repo.getMessages(1) } returnsMany listOf(
-            Result.success(listOf(fakeMessage)),       // initial load
-            Result.success(listOf(fakeMessage, newMessage)), // poll refresh
+        coEvery { repo.getMessages() } returnsMany listOf(
+            Result.success(listOf(fakeMessage)),
+            Result.success(listOf(fakeMessage, newMessage)),
         )
         val vm = vm()
 
@@ -142,7 +140,6 @@ class ChatViewModelTest {
                 val initial = awaitItem() as ChatUiState.Success
                 assertEquals(1, initial.messages.size)
 
-                // Advance past the poll interval (5 seconds)
                 dispatcher.scheduler.advanceTimeBy(5_001)
                 dispatcher.scheduler.runCurrent()
 
@@ -173,4 +170,3 @@ class ChatViewModelTest {
         }
     }
 }
-

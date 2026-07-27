@@ -7,12 +7,10 @@ import com.eyecare.app.domain.model.Message
 
 interface ChatRepository {
     suspend fun getConversation(): Result<Conversation>
-    suspend fun getMessages(conversationId: Int): Result<List<Message>>
+    suspend fun getMessages(): Result<List<Message>>
     suspend fun sendMessage(
-        conversationId: Int,
         body: String,
         contexts: List<MessageDtos.ContextLinkDto>? = null,
     ): Result<Message>
-    suspend fun sendFileMessage(conversationId: Int, uri: Uri, mimeType: String, fileName: String): Result<Message>
-    suspend fun markMessagesRead(conversationId: Int): Result<Unit>
+    suspend fun sendFileMessage(uri: Uri, mimeType: String, fileName: String): Result<Message>
 }

@@ -8,25 +8,20 @@ import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
-import retrofit2.http.Path
 
 interface ConversationApiService {
-    @GET("conversations")
-    suspend fun getConversations(): MessageDtos.ConversationResponse
+    @GET("conversation")
+    suspend fun getConversation(): MessageDtos.ConversationResponse
 
-    @GET("conversations/{id}/messages")
-    suspend fun getMessages(@Path("id") id: Int): MessageDtos.MessageListResponse
+    @GET("conversation/messages")
+    suspend fun getMessages(): MessageDtos.MessageListResponse
 
-    @POST("conversations/{id}/messages")
-    suspend fun sendMessage(@Path("id") id: Int, @Body request: MessageDtos.SendMessageRequest): MessageDtos.MessageResponse
-
-    @POST("conversations/{id}/messages/read")
-    suspend fun markMessagesRead(@Path("id") id: Int)
+    @POST("conversation/messages")
+    suspend fun sendMessage(@Body request: MessageDtos.SendMessageRequest): MessageDtos.MessageResponse
 
     @Multipart
-    @POST("conversations/{id}/messages")
+    @POST("conversation/messages")
     suspend fun sendFileMessage(
-        @Path("id") id: Int,
         @Part("body") body: RequestBody,
         @Part file: MultipartBody.Part,
     ): MessageDtos.MessageResponse

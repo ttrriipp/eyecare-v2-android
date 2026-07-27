@@ -8,7 +8,7 @@ object MessageDtos {
     @Serializable
     data class ConversationDto(
         val id: Int,
-        @SerialName("customer_id") val customerId: Int? = null,
+        @SerialName("patient_id") val patientId: Int? = null,
         @SerialName("unread_count") val unreadCount: Int = 0,
         @SerialName("created_at") val createdAt: String,
     )

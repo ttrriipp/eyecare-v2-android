@@ -22,7 +22,6 @@ import javax.inject.Inject
 
 private const val POLL_INTERVAL_MS = 5_000L
 
-/** Pending attachment the user has picked but not yet sent. */
 data class PendingAttachment(
     val uri: Uri,
     val mimeType: String,
@@ -30,7 +29,6 @@ data class PendingAttachment(
     val fileSize: Long,
 )
 
-/** Pending context link the user has chosen but not yet sent. */
 sealed interface PendingContext {
     data class AppointmentContext(val appointment: AppointmentV1) : PendingContext
     data class OrderContext(val order: Order) : PendingContext
@@ -45,7 +43,6 @@ sealed interface ChatUiState {
         val pendingAttachment: PendingAttachment? = null,
         val pendingContext: PendingContext? = null,
         val attachmentError: String? = null,
-        // For pickers in the bottom sheet
         val appointments: List<AppointmentV1> = emptyList(),
         val orders: List<Order> = emptyList(),
     ) : ChatUiState
@@ -79,19 +76,10 @@ class ChatViewModel @Inject constructor(
             while (true) {
                 delay(POLL_INTERVAL_MS)
                 val current = _uiState.value as? ChatUiState.Success ?: continue
-                chatRepository.getMessages(current.conversation.id).onSuccess { messages ->
+                chatRepository.getMessages().onSuccess { messages ->
                     val latest = _uiState.value as? ChatUiState.Success ?: return@onSuccess
                     if (messages.size != latest.messages.size || messages.lastOrNull()?.id != latest.messages.lastOrNull()?.id) {
                         _uiState.value = latest.copy(messages = messages)
-                        // Mark as read if new messages are from the other party
-                        val hasNewFromOther = messages.any { msg ->
-                            msg.senderId != currentUserId &&
-                                msg.readAt == null &&
-                                latest.messages.none { it.id == msg.id }
-                        }
-                        if (hasNewFromOther) {
-                            chatRepository.markMessagesRead(current.conversation.id)
-                        }
                     }
                 }
             }
@@ -106,7 +94,7 @@ class ChatViewModel @Inject constructor(
         val current = _uiState.value as? ChatUiState.Success ?: return
         _uiState.value = current.copy(isSending = true)
         viewModelScope.launch {
-            chatRepository.sendMessage(current.conversation.id, trimmed).fold(
+            chatRepository.sendMessage(trimmed).fold(
                 onSuccess = { msg ->
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
                     _uiState.value = latest.copy(messages = latest.messages + msg, isSending = false)
@@ -138,12 +126,9 @@ class ChatViewModel @Inject constructor(
         if (current.attachmentError != null) return
         _uiState.value = current.copy(isSending = true, pendingAttachment = null)
         viewModelScope.launch {
-            chatRepository.sendFileMessage(
-                current.conversation.id, attachment.uri, attachment.mimeType, attachment.fileName
-            ).fold(
+            chatRepository.sendFileMessage(attachment.uri, attachment.mimeType, attachment.fileName).fold(
                 onSuccess = {
-                    // Reload messages so the attachment relationship is fully populated
-                    chatRepository.getMessages(current.conversation.id).fold(
+                    chatRepository.getMessages().fold(
                         onSuccess = { messages ->
                             _uiState.value = current.copy(messages = messages, isSending = false, pendingAttachment = null)
                         },
@@ -161,18 +146,18 @@ class ChatViewModel @Inject constructor(
         val (body, contextLink) = when (ctx) {
             is PendingContext.AppointmentContext -> {
                 val a = ctx.appointment
-                "📅 Appointment: ${a.appointmentType} — ${a.scheduledAt.take(10)}" to
+                "Appointment: ${a.appointmentType} — ${a.scheduledAt.take(10)}" to
                     MessageDtos.ContextLinkDto("appointment", a.id)
             }
             is PendingContext.OrderContext -> {
                 val o = ctx.order
-                "📦 Order #${o.orderNumber}" to
+                "Order #${o.orderNumber}" to
                     MessageDtos.ContextLinkDto("order", o.id)
             }
         }
         _uiState.value = current.copy(isSending = true, pendingContext = null)
         viewModelScope.launch {
-            chatRepository.sendMessage(current.conversation.id, body, listOf(contextLink)).fold(
+            chatRepository.sendMessage(body, listOf(contextLink)).fold(
                 onSuccess = { msg ->
                     _uiState.value = current.copy(messages = current.messages + msg, isSending = false, pendingContext = null)
                 },
@@ -195,11 +180,9 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.getConversation().fold(
                 onSuccess = { conversation ->
-                    chatRepository.getMessages(conversation.id).fold(
+                    chatRepository.getMessages().fold(
                         onSuccess = { messages ->
                             _uiState.value = ChatUiState.Success(conversation, messages)
-                            // Mark messages as read when chat opens
-                            chatRepository.markMessagesRead(conversation.id)
                         },
                         onFailure = { _uiState.value = ChatUiState.Error(it.message ?: "Failed to load messages") },
                     )
