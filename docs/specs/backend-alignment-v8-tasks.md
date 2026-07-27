@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (11/60 tasks complete)
+Status: Approved — implementation in progress (12/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -311,13 +311,13 @@ the appointment-type contract.
 formatting, and action behavior.
 
 **Acceptance criteria:**
-- [ ] First page, load-more, exhaustion, retry, and duplicate-load prevention work.
-- [ ] Unknown statuses are visible but non-actionable.
-- [ ] List ordering follows the backend.
+- [x] First page, load-more, exhaustion, retry, and duplicate-load prevention work.
+- [x] Unknown statuses are visible but non-actionable.
+- [x] List ordering follows the backend.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*AppointmentListViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*AppointmentListViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 9
 
