@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (20/60 tasks complete)
+Status: Approved — implementation in progress (22/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -534,9 +534,9 @@ repository method.
 contract while leaving the now-unreachable history internals for Task 22.
 
 **Acceptance criteria:**
-- [ ] Request contains `appointment_id`, rating, and optional comment only.
-- [ ] Submission has no order-feedback target or behavior.
-- [ ] 422 field errors map correctly.
+- [x] Request contains `appointment_id`, rating, and optional comment only.
+- [x] Submission has no order-feedback target or behavior.
+- [x] 422 field errors map correctly.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FeedbackRepositoryImplTest"`
@@ -559,9 +559,9 @@ contract while leaving the now-unreachable history internals for Task 22.
 and restrict the ViewModel to completed-appointment submission.
 
 **Acceptance criteria:**
-- [ ] Only completed appointment detail exposes feedback.
-- [ ] Submission success cannot be repeated accidentally.
-- [ ] Rating/comment validation matches the contract.
+- [x] Only completed appointment detail exposes feedback.
+- [x] Submission success cannot be repeated accidentally.
+- [x] Rating/comment validation matches the contract.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FeedbackViewModelTest"`
@@ -580,10 +580,10 @@ and restrict the ViewModel to completed-appointment submission.
 
 ## Checkpoint D — Appointment Journey
 
-- [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest --tests "*Appointment*" --tests "*Intake*" --tests "*Feedback*"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Booking → intake → completed appointment feedback is coherent.
+- [x] `.\gradlew ktlintCheck`
+- [x] `.\gradlew testDebugUnitTest --tests "*Appointment*" --tests "*Intake*" --tests "*Feedback*"`
+- [x] `.\gradlew assembleDebug`
+- [x] Booking → intake → completed appointment feedback is coherent.
 
 ## Phase E — Frames, AR, and Frame Cache
 
