@@ -15,6 +15,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody
 import java.io.File
 import javax.inject.Inject
 
@@ -61,13 +62,13 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun downloadAttachment(attachmentId: Int): Result<AttachmentDownload> = runCatching {
         val response = api.downloadAttachment(attachmentId)
-        val body = response.body() ?: error("Empty attachment response")
+        val responseBody: ResponseBody = response.body() ?: error("Empty attachment response")
         val contentDisposition = response.headers()["Content-Disposition"]
         val fileName = contentDisposition
             ?.let { Regex("filename=\"?([^\"]+)\"?").find(it)?.groupValues?.get(1) }
-            ?: "attachment"
-        val mimeType = body.contentType()?.toString() ?: "application/octet-stream"
-        val bytes = body.bytes()
+            ?: "attachment_$attachmentId"
+        val mimeType: String = responseBody.contentType()?.toString() ?: "application/octet-stream"
+        val bytes: ByteArray = responseBody.source().readByteArray()
         AttachmentDownload(fileName = fileName, mimeType = mimeType, bytes = bytes)
     }
 
