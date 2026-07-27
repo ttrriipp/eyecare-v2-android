@@ -77,7 +77,7 @@ import com.eyecare.app.presentation.appointments.formatAppointmentTime
 import com.eyecare.app.presentation.appointments.isBookableAppointmentTime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentAvailability
-import com.eyecare.app.domain.model.VisitReason as DomainVisitReason
+import com.eyecare.app.domain.model.AppointmentType
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -138,22 +138,22 @@ fun BookAppointmentScreen(
             label = "wizardStep",
         ) { step ->
             when (step) {
-                1 -> Step1ReasonSelection(
-                    visitReasons = state.visitReasons,
-                    isLoading = state.visitReasonsLoading,
-                    error = state.visitReasonsError,
-                    onRetry = viewModel::retryVisitReasons,
-                    onSelectReason = viewModel::selectReason,
+                1 -> Step1TypeSelection(
+                    appointmentTypes = state.appointmentTypes,
+                    isLoading = state.appointmentTypesLoading,
+                    error = state.appointmentTypesError,
+                    onRetry = viewModel::retryAppointmentTypes,
+                    onSelectType = viewModel::selectType,
                 )
                 2 -> Step2DateSelection(
                     selectedDate = state.selectedDate,
-                    durationMinutes = state.visitReasons.firstOrNull { it.id == state.selectedReasonId }
+                    durationMinutes = state.appointmentTypes.firstOrNull { it.id == state.selectedTypeId }
                         ?.durationMinutes ?: 30,
                     onSelectDate = viewModel::selectDate,
                 )
                 3 -> Step3TimeSelection(
                     selectedDate = state.selectedDate,
-                    durationMinutes = state.visitReasons.firstOrNull { it.id == state.selectedReasonId }
+                    durationMinutes = state.appointmentTypes.firstOrNull { it.id == state.selectedTypeId }
                         ?.durationMinutes ?: 30,
                     availability = state.availability,
                     isLoading = state.availabilityLoading,
@@ -172,18 +172,18 @@ fun BookAppointmentScreen(
 }
 
 @Composable
-private fun Step1ReasonSelection(
-    visitReasons: List<DomainVisitReason>,
+private fun Step1TypeSelection(
+    appointmentTypes: List<AppointmentType>,
     isLoading: Boolean,
     error: String?,
     onRetry: () -> Unit,
-    onSelectReason: (Int, String) -> Unit,
+    onSelectType: (AppointmentType) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp).navigationBarsPadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Select Visit Reason", style = MaterialTheme.typography.headlineMedium)
+        Text("Select Appointment Type", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
         if (isLoading) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -202,9 +202,9 @@ private fun Step1ReasonSelection(
                 Text("Retry")
             }
         } else {
-            visitReasons.forEach { reason ->
+            appointmentTypes.forEach { type ->
                 Card(
-                    onClick = { onSelectReason(reason.id, reason.name) },
+                    onClick = { onSelectType(type) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     elevation = CardDefaults.cardElevation(1.dp),
@@ -215,7 +215,7 @@ private fun Step1ReasonSelection(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            reason.name,
+                            type.name,
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium,
@@ -231,7 +231,7 @@ private fun Step1ReasonSelection(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
-                                "${reason.durationMinutes} min",
+                                "${type.durationMinutes} min",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -790,9 +790,9 @@ private fun Step4ConfirmNotes(state: BookingState, onSubmit: (String?) -> Unit) 
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Visit Reason", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Appointment Type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                    state.selectedReason?.replace("_", " ")?.replaceFirstChar { it.uppercase() } ?: "",
+                    state.selectedTypeName ?: "",
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Spacer(Modifier.height(8.dp))

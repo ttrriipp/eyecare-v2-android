@@ -2,11 +2,11 @@ package com.eyecare.app.presentation.appointments.booking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.domain.model.Appointment
 import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentError
-import com.eyecare.app.domain.model.VisitReason
-import com.eyecare.app.domain.repository.AppointmentRepository
+import com.eyecare.app.domain.model.AppointmentType
+import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.repository.AppointmentV1Repository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,56 +16,55 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface BookingResult {
-    data class Success(val appointment: Appointment) : BookingResult
+    data class Success(val appointment: AppointmentV1) : BookingResult
     data class Error(val message: String) : BookingResult
 }
 
 data class BookingState(
     val step: Int = 1,
-    val visitReasons: List<VisitReason> = emptyList(),
-    val visitReasonsLoading: Boolean = true,
-    val visitReasonsError: String? = null,
-    val selectedReasonId: Int? = null,
-    val selectedReasonName: String? = null,
+    val appointmentTypes: List<AppointmentType> = emptyList(),
+    val appointmentTypesLoading: Boolean = true,
+    val appointmentTypesError: String? = null,
+    val selectedTypeId: Int? = null,
+    val selectedTypeName: String? = null,
+    val selectedTypeRequiresReferral: Boolean = false,
     val selectedDate: String? = null,
     val selectedDateTime: String? = null,
+    val referringSource: String? = null,
     val availability: AppointmentAvailability? = null,
     val availabilityLoading: Boolean = false,
     val availabilityError: String? = null,
     val availabilityNotice: String? = null,
     val isLoading: Boolean = false,
     val result: BookingResult? = null,
-) {
-    // For backward compat in Step3
-    val selectedReason: String? get() = selectedReasonName
-}
+)
 
 @HiltViewModel
 class BookAppointmentViewModel @Inject constructor(
-    private val repository: AppointmentRepository,
+    private val repository: AppointmentV1Repository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BookingState())
     val uiState: StateFlow<BookingState> = _uiState.asStateFlow()
 
     init {
-        loadVisitReasons()
+        loadAppointmentTypes()
     }
 
-    fun retryVisitReasons() = loadVisitReasons()
+    fun retryAppointmentTypes() = loadAppointmentTypes()
 
-    private fun loadVisitReasons() {
-        _uiState.update { it.copy(visitReasonsLoading = true, visitReasonsError = null) }
+    private fun loadAppointmentTypes() {
+        _uiState.update { it.copy(appointmentTypesLoading = true, appointmentTypesError = null) }
         viewModelScope.launch {
-            repository.getVisitReasons().fold(
-                onSuccess = { reasons ->
-                    _uiState.update { it.copy(visitReasons = reasons, visitReasonsLoading = false) }
+            repository.getAppointmentTypes().fold(
+                onSuccess = { types ->
+                    _uiState.update { it.copy(appointmentTypes = types, appointmentTypesLoading = false) }
                 },
                 onFailure = { error ->
                     _uiState.update {
                         it.copy(
-                            visitReasonsLoading = false,
-                            visitReasonsError = error.message ?: "Failed to load visit reasons",
+                            appointmentTypesLoading = false,
+                            appointmentTypesError = error.message ?: "Failed to load appointment types",
                         )
                     }
                 },
@@ -73,14 +72,16 @@ class BookAppointmentViewModel @Inject constructor(
         }
     }
 
-    fun selectReason(id: Int, name: String) {
+    fun selectType(type: AppointmentType) {
         _uiState.update {
             it.copy(
                 step = 2,
-                selectedReasonId = id,
-                selectedReasonName = name,
+                selectedTypeId = type.id,
+                selectedTypeName = type.name,
+                selectedTypeRequiresReferral = type.requiresReferral,
                 selectedDate = null,
                 selectedDateTime = null,
+                referringSource = null,
                 availability = null,
                 availabilityError = null,
                 availabilityNotice = null,
@@ -88,8 +89,12 @@ class BookAppointmentViewModel @Inject constructor(
         }
     }
 
+    fun updateReferringSource(value: String) {
+        _uiState.update { it.copy(referringSource = value) }
+    }
+
     fun selectDate(date: String) {
-        val reasonId = _uiState.value.selectedReasonId ?: return
+        val typeId = _uiState.value.selectedTypeId ?: return
         _uiState.update {
             it.copy(
                 step = 3,
@@ -101,13 +106,13 @@ class BookAppointmentViewModel @Inject constructor(
                 availabilityNotice = null,
             )
         }
-        fetchAvailability(date, reasonId)
+        fetchAvailability(date, typeId)
     }
 
     fun retryAvailability() {
         val state = _uiState.value
         val date = state.selectedDate ?: return
-        val reasonId = state.selectedReasonId ?: return
+        val typeId = state.selectedTypeId ?: return
         _uiState.update {
             it.copy(
                 availability = null,
@@ -115,7 +120,7 @@ class BookAppointmentViewModel @Inject constructor(
                 availabilityError = null,
             )
         }
-        fetchAvailability(date, reasonId)
+        fetchAvailability(date, typeId)
     }
 
     fun selectTime(startsAt: String) {
@@ -133,12 +138,17 @@ class BookAppointmentViewModel @Inject constructor(
 
     fun submit(contactNotes: String?) {
         val state = _uiState.value
-        val reasonId = state.selectedReasonId ?: return
+        val typeId = state.selectedTypeId ?: return
         val dateTime = state.selectedDateTime ?: return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val result = repository.createAppointment(reasonId, dateTime, contactNotes?.takeIf { it.isNotBlank() })
+            val result = repository.createAppointment(
+                appointmentTypeId = typeId,
+                scheduledAt = dateTime,
+                contactNotes = contactNotes?.takeIf { it.isNotBlank() },
+                referringSource = state.referringSource?.takeIf { it.isNotBlank() },
+            )
             result.fold(
                 onSuccess = { appointment ->
                     _uiState.update {
@@ -149,21 +159,21 @@ class BookAppointmentViewModel @Inject constructor(
                     if (error is AppointmentError.ValidationError && error.code == SLOT_UNAVAILABLE) {
                         val current = _uiState.value
                         val date = current.selectedDate
-                        val selectedReasonId = current.selectedReasonId
+                        val selectedTypeId = current.selectedTypeId
                         _uiState.update {
                             it.copy(
                                 step = 3,
                                 selectedDateTime = null,
                                 availability = null,
-                                availabilityLoading = date != null && selectedReasonId != null,
+                                availabilityLoading = date != null && selectedTypeId != null,
                                 availabilityError = null,
                                 availabilityNotice = STALE_SLOT_MESSAGE,
                                 isLoading = false,
                                 result = null,
                             )
                         }
-                        if (date != null && selectedReasonId != null) {
-                            fetchAvailability(date, selectedReasonId)
+                        if (date != null && selectedTypeId != null) {
+                            fetchAvailability(date, selectedTypeId)
                         }
                     } else {
                         _uiState.update {
@@ -178,12 +188,12 @@ class BookAppointmentViewModel @Inject constructor(
         }
     }
 
-    private fun fetchAvailability(date: String, reasonId: Int) {
+    private fun fetchAvailability(date: String, typeId: Int) {
         viewModelScope.launch {
-            repository.getAppointmentAvailability(date, reasonId).fold(
+            repository.getAppointmentAvailability(date, typeId).fold(
                 onSuccess = { availability ->
                     _uiState.update { state ->
-                        if (state.selectedDate != date || state.selectedReasonId != reasonId) state
+                        if (state.selectedDate != date || state.selectedTypeId != typeId) state
                         else state.copy(
                             availability = availability,
                             availabilityLoading = false,
@@ -193,7 +203,7 @@ class BookAppointmentViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _uiState.update { state ->
-                        if (state.selectedDate != date || state.selectedReasonId != reasonId) state
+                        if (state.selectedDate != date || state.selectedTypeId != typeId) state
                         else state.copy(
                             availability = null,
                             availabilityLoading = false,
