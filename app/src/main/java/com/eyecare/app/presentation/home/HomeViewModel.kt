@@ -62,7 +62,7 @@ class HomeViewModel @Inject constructor(
             val appointments = appointmentsDeferred.await().getOrNull()?.data ?: emptyList()
             val orders = ordersDeferred.await().getOrElse { emptyList() }
             val products = productsDeferred.await().getOrElse { emptyList() }
-            val prescriptions = prescriptionsDeferred.await().getOrElse { emptyList() }
+            val prescriptions = prescriptionsDeferred.await().getOrNull()?.data ?: emptyList()
 
             val today = LocalDate.now()
 

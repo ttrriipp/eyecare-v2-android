@@ -340,7 +340,7 @@ fun PrescriptionDetailScreen(
 }
 
 @Composable
-private fun EyeCard(label: String, sphere: String?, cylinder: String?, axis: String?, add: String?) {
+private fun EyeCard(label: String, sphere: String?, cylinder: String?, axis: Int?, add: String?) {
     Card(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(2.dp),
@@ -351,7 +351,7 @@ private fun EyeCard(label: String, sphere: String?, cylinder: String?, axis: Str
             Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                listOf("SPH" to sphere, "CYL" to cylinder, "AXIS" to axis, "ADD" to add).forEach { (key, value) ->
+                listOf("SPH" to sphere, "CYL" to cylinder, "AXIS" to axis?.toString(), "ADD" to add).forEach { (key, value) ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Box(
