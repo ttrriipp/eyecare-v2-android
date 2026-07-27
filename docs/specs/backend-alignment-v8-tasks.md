@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (7/60 tasks complete)
+Status: Approved — implementation in progress (8/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -216,13 +216,13 @@ the revised appointment/availability field shapes while temporarily leaving
 old consumers compile-safe.
 
 **Acceptance criteria:**
-- [ ] Appointment types decode `requires_referral`.
-- [ ] Appointments decode pagination and name-only optometrist data.
-- [ ] Availability uses `appointment_type_id`.
+- [x] Appointment types decode `requires_referral`.
+- [x] Appointments decode pagination and name-only optometrist data.
+- [x] Availability uses `appointment_type_id`.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*AppointmentDtosTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*AppointmentV1DtosTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 3–4
 
