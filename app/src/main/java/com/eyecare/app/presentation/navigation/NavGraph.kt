@@ -167,7 +167,7 @@ fun EyecareNavGraph(
                     composable<ArTryOn> { backStackEntry ->
                         val route = backStackEntry.toRoute<ArTryOn>()
                         ArTryOnScreen(
-                            productId = route.productId,
+                            frameId = route.frameId,
                             initialVariantId = route.variantId,
                             onBack = { navController.popBackStack() },
                         )

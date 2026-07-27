@@ -45,12 +45,12 @@ import com.eyecare.app.presentation.ar.model.ArFaceState
 
 @Composable
 fun ArTryOnScreen(
-    productId: Int,
+    frameId: Int,
     initialVariantId: Int,
     onBack: () -> Unit,
 ) {
     val viewModel = hiltViewModel<ArViewModel, ArViewModel.Factory> {
-        it.create(productId, initialVariantId)
+        it.create(frameId, initialVariantId)
     }
 
     val permissionState by viewModel.permissionState.collectAsStateWithLifecycle()

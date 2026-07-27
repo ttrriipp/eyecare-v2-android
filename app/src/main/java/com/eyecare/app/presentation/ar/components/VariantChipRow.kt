@@ -15,13 +15,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.eyecare.app.ui.theme.CharcoalDark
 import androidx.compose.ui.unit.dp
-import com.eyecare.app.domain.model.ProductVariant
+import com.eyecare.app.domain.model.FrameVariant
 
 @Composable
 fun VariantChipRow(
-    variants: List<ProductVariant>,
-    selectedVariant: ProductVariant?,
-    onSelectVariant: (ProductVariant) -> Unit,
+    variants: List<FrameVariant>,
+    selectedVariant: FrameVariant?,
+    onSelectVariant: (FrameVariant) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyRow(

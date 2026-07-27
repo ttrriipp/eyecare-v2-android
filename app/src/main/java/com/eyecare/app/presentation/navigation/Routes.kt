@@ -19,7 +19,7 @@ import kotlinx.serialization.Serializable
 
 // Catalog sub-destinations
 @Serializable data class ProductDetail(val productId: Int)
-@Serializable data class ArTryOn(val productId: Int, val variantId: Int)
+@Serializable data class ArTryOn(val frameId: Int, val variantId: Int)
 
 // Order destinations
 @Serializable data class OrderRequest(val productId: Int, val variantId: Int)

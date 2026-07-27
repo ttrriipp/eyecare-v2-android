@@ -2,8 +2,8 @@ package com.eyecare.app.presentation.ar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.domain.model.ProductVariant
-import com.eyecare.app.domain.repository.ProductRepository
+import com.eyecare.app.domain.model.FrameVariant
+import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.presentation.ar.model.ArFaceState
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -22,15 +22,15 @@ sealed interface ArPermissionState {
 
 @HiltViewModel(assistedFactory = ArViewModel.Factory::class)
 class ArViewModel @AssistedInject constructor(
-    private val productRepository: ProductRepository,
-    @Assisted("productId") val productId: Int,
+    private val frameRepository: FrameRepository,
+    @Assisted("frameId") val frameId: Int,
     @Assisted("variantId") val initialVariantId: Int,
 ) : ViewModel() {
 
     @AssistedFactory
     interface Factory {
         fun create(
-            @Assisted("productId") productId: Int,
+            @Assisted("frameId") frameId: Int,
             @Assisted("variantId") initialVariantId: Int,
         ): ArViewModel
     }
@@ -41,11 +41,11 @@ class ArViewModel @AssistedInject constructor(
     private val _faceState = MutableStateFlow<ArFaceState>(ArFaceState.Initialising)
     val faceState: StateFlow<ArFaceState> = _faceState.asStateFlow()
 
-    private val _variants = MutableStateFlow<List<ProductVariant>>(emptyList())
-    val variants: StateFlow<List<ProductVariant>> = _variants.asStateFlow()
+    private val _variants = MutableStateFlow<List<FrameVariant>>(emptyList())
+    val variants: StateFlow<List<FrameVariant>> = _variants.asStateFlow()
 
-    private val _selectedVariant = MutableStateFlow<ProductVariant?>(null)
-    val selectedVariant: StateFlow<ProductVariant?> = _selectedVariant.asStateFlow()
+    private val _selectedVariant = MutableStateFlow<FrameVariant?>(null)
+    val selectedVariant: StateFlow<FrameVariant?> = _selectedVariant.asStateFlow()
 
     init { loadVariants() }
 
@@ -58,16 +58,16 @@ class ArViewModel @AssistedInject constructor(
         _faceState.value = state
     }
 
-    fun selectVariant(variant: ProductVariant) {
+    fun selectVariant(variant: FrameVariant) {
         _selectedVariant.value = variant
     }
 
     private fun loadVariants() {
         viewModelScope.launch {
-            productRepository.getProduct(productId).onSuccess { product ->
-                _variants.value = product.variants
-                _selectedVariant.value = product.variants.firstOrNull { it.id == initialVariantId }
-                    ?: product.variants.firstOrNull()
+            frameRepository.getFrame(frameId).onSuccess { frame ->
+                _variants.value = frame.variants
+                _selectedVariant.value = frame.variants.firstOrNull { it.id == initialVariantId }
+                    ?: frame.variants.firstOrNull()
             }
         }
     }
