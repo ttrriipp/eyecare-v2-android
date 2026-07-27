@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (15/60 tasks complete)
+Status: Approved — implementation in progress (16/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -415,13 +415,13 @@ contact-note mutation declarations after all consumers use v1.
 for draft, submitted, and verified intake.
 
 **Acceptance criteria:**
-- [ ] Nullable intake data and `data: null` decode correctly.
-- [ ] Save request contains only documented fields.
-- [ ] Status parsing fails closed.
+- [x] Nullable intake data and `data: null` decode correctly.
+- [x] Save request contains only documented fields.
+- [x] Status parsing fails closed.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*PatientIntakeDtosTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*PatientIntakeDtosTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 15
 
