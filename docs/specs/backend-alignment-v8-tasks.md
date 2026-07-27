@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (32/60 tasks complete)
+Status: Approved — implementation in progress (45/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -594,9 +594,9 @@ the two approved frame routes. Keep the legacy product files compiling but do
 not wire this boundary as a fallback.
 
 **Acceptance criteria:**
-- [ ] Only `/frames` and `/frames/{frame}` remain.
-- [ ] Paginated frames decode money, variants, images, and AR fields.
-- [ ] Product-type/accessory orderability policy is absent from Frame domain.
+- [x] Only `/frames` and `/frames/{frame}` remain.
+- [x] Paginated frames decode money, variants, images, and AR fields.
+- [x] Product-type/accessory orderability policy is absent from Frame domain.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FrameDtosTest"`
@@ -619,9 +619,9 @@ schema. The old product table may remain temporarily until Task 56 so existing
 code continues to compile.
 
 **Acceptance criteria:**
-- [ ] Database exposes a frame cache used only for non-clinical catalog data.
-- [ ] Schema version increments and exported schema is updated.
-- [ ] No patient/clinical field is added.
+- [x] Database exposes a frame cache used only for non-clinical catalog data.
+- [x] Schema version increments and exported schema is updated.
+- [x] No patient/clinical field is added.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FrameDaoTest" --tests "*StorageModuleTest"`
@@ -644,9 +644,9 @@ code continues to compile.
 tracking and frame-only cache fallback.
 
 **Acceptance criteria:**
-- [ ] Repository maps network/cache frames at the boundary.
-- [ ] Search, page, sort, and detail work without brand/category metadata calls.
-- [ ] Cache fallback cannot expose legacy accessory rows.
+- [x] Repository maps network/cache frames at the boundary.
+- [x] Search, page, sort, and detail work without brand/category metadata calls.
+- [x] Cache fallback cannot expose legacy accessory rows.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FrameRepositoryImplTest"`
@@ -668,9 +668,9 @@ tracking and frame-only cache fallback.
 tabs or unsupported brand/category picker state.
 
 **Acceptance criteria:**
-- [ ] Frames are the only list content.
-- [ ] Search remains debounced; paging and sort remain backend-driven.
-- [ ] No retired metadata endpoint or local product-type filtering remains.
+- [x] Frames are the only list content.
+- [x] Search remains debounced; paging and sort remain backend-driven.
+- [x] No retired metadata endpoint or local product-type filtering remains.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FrameListViewModelTest"`
@@ -690,9 +690,9 @@ tabs or unsupported brand/category picker state.
 search, sorting, pagination, images, and AR affordance.
 
 **Acceptance criteria:**
-- [ ] Root copy consistently says Frames.
-- [ ] Empty/error/loading/load-more states remain accessible.
-- [ ] No accessory, order, brand-ID, or category-ID control remains.
+- [x] Root copy consistently says Frames.
+- [x] Empty/error/loading/load-more states remain accessible.
+- [x] No accessory, order, brand-ID, or category-ID control remains.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FrameListViewModelTest"`
@@ -714,9 +714,9 @@ search, sorting, pagination, images, and AR affordance.
 reservation the only transactional action.
 
 **Acceptance criteria:**
-- [ ] Detail displays frame and variant information only.
-- [ ] AR appears only for usable AR variants.
-- [ ] No order/accessory action or unavailable-product policy remains.
+- [x] Detail displays frame and variant information only.
+- [x] AR appears only for usable AR variants.
+- [x] No order/accessory action or unavailable-product policy remains.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FrameDetail*"`
@@ -738,9 +738,9 @@ reservation the only transactional action.
 Frame/FrameVariant while preserving rendering behavior.
 
 **Acceptance criteria:**
-- [ ] AR loads frame detail from FrameRepository.
-- [ ] Selected variant and overlay asset remain deterministic.
-- [ ] Camera/MediaPipe behavior is unchanged.
+- [x] AR loads frame detail from FrameRepository.
+- [x] Selected variant and overlay asset remain deterministic.
+- [x] Camera/MediaPipe behavior is unchanged.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*ArViewModelTest" --tests "*FaceRotationTest"`
@@ -763,9 +763,9 @@ Frame/FrameVariant while preserving rendering behavior.
 while preserving tab state and AR navigation.
 
 **Acceptance criteria:**
-- [ ] Frames is the second approved root.
-- [ ] Frame detail and AR use type-safe frame/variant IDs.
-- [ ] No Catalog or ProductDetail route remains.
+- [x] Frames is the second approved root.
+- [x] Frame detail and AR use type-safe frame/variant IDs.
+- [x] No Catalog or ProductDetail route remains.
 
 **Verification:**
 - [ ] `.\gradlew assembleDebug`
@@ -795,9 +795,9 @@ while preserving tab state and AR navigation.
 policy from the common FrameReservationResource.
 
 **Acceptance criteria:**
-- [ ] List is explicitly unpaginated.
-- [ ] List/create/cancel decode the same sanitized field set.
-- [ ] Excluded cost/inventory/internal fields do not exist in Android models.
+- [x] List is explicitly unpaginated.
+- [x] List/create/cancel decode the same sanitized field set.
+- [x] Excluded cost/inventory/internal fields do not exist in Android models.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FrameReservationDtosTest"`
@@ -819,9 +819,9 @@ policy from the common FrameReservationResource.
 Hilt binding.
 
 **Acceptance criteria:**
-- [ ] Create accepts 1–5 selected variant IDs and optional appointment ID.
-- [ ] Cancel returns the updated resource.
-- [ ] Repository exposes no client-side ownership assumptions.
+- [x] Create accepts 1–5 selected variant IDs and optional appointment ID.
+- [x] Cancel returns the updated resource.
+- [x] Repository exposes no client-side ownership assumptions.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FrameReservationRepositoryImplTest"`
@@ -843,9 +843,9 @@ Hilt binding.
 frames, empty/error states, and cancellation entry.
 
 **Acceptance criteria:**
-- [ ] All six reservation statuses render intentionally.
-- [ ] Cancel is visible only for requested/prepared.
-- [ ] Returned cancellation updates the item without refetch.
+- [x] All six reservation statuses render intentionally.
+- [x] Cancel is visible only for requested/prepared.
+- [x] Returned cancellation updates the item without refetch.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*FrameReservationListViewModelTest"`
@@ -866,9 +866,9 @@ frames, empty/error states, and cancellation entry.
 flow with optional appointment link and explicit confirmation.
 
 **Acceptance criteria:**
-- [ ] One to five selected variants can be reviewed and submitted.
-- [ ] The flow never constructs an order or purchase payload.
-- [ ] Success shows the returned reservation and exits cleanly.
+- [x] One to five selected variants can be reviewed and submitted.
+- [x] The flow never constructs an order or purchase payload.
+- [x] Success shows the returned reservation and exits cleanly.
 
 **Verification:**
 - [ ] `.\gradlew testDebugUnitTest --tests "*CreateFrameReservationViewModelTest"`
@@ -891,9 +891,9 @@ flow with optional appointment link and explicit confirmation.
 hub access.
 
 **Acceptance criteria:**
-- [ ] Frame detail opens reservation creation.
-- [ ] Profile opens reservation history.
-- [ ] No OrderRequest route remains.
+- [x] Frame detail opens reservation creation.
+- [x] Profile opens reservation history.
+- [x] No OrderRequest route remains.
 
 **Verification:**
 - [ ] `.\gradlew assembleDebug`
