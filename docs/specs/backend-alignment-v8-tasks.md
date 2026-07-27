@@ -1,6 +1,6 @@
 # Backend Alignment V8 — Phase 3 Task List
 
-Status: Approved — implementation in progress (17/60 tasks complete)
+Status: Approved — implementation in progress (18/60 tasks complete)
 
 Approved specification:
 `docs/specs/backend-alignment-v8-spec.md`
@@ -463,13 +463,13 @@ network-only repository with Hilt.
 states, field errors, and retry.
 
 **Acceptance criteria:**
-- [ ] Draft state tracks unsaved edits and save progress.
-- [ ] Submitted/verified states expose no edit action.
-- [ ] Repeated submit and backend 422 are handled deterministically.
+- [x] Draft state tracks unsaved edits and save progress.
+- [x] Submitted/verified states expose no edit action.
+- [x] Repeated submit and backend 422 are handled deterministically.
 
 **Verification:**
-- [ ] `.\gradlew testDebugUnitTest --tests "*PatientIntakeViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*PatientIntakeViewModelTest"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 17
 
