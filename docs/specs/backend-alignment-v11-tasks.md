@@ -50,13 +50,13 @@ missing Billing Record endpoints.
 
 **Acceptance criteria:**
 
-- [ ] `ApprovedApiRoutes` contains the two Billing Record routes.
-- [ ] Both Invoice routes are absent.
-- [ ] The approved route total remains exactly 33.
-- [ ] Route normalization maps `billing-records/{id}` to
+- [x] `ApprovedApiRoutes` contains the two Billing Record routes.
+- [x] Both Invoice routes are absent.
+- [x] The approved route total remains exactly 33.
+- [x] Route normalization maps `billing-records/{id}` to
   `billing-records/{billingRecord}`.
-- [ ] Invoice normalization is removed.
-- [ ] The focused test fails only because the old Invoice service is still
+- [x] Invoice normalization is removed.
+- [x] The focused test fails only because the old Invoice service is still
   discovered and the Billing Record service does not exist yet.
 
 **Verification:**
@@ -90,18 +90,18 @@ Tasks 3–6 complete the cutover.
 
 **Acceptance criteria:**
 
-- [ ] Required totals decode directly as `BigDecimal` through
+- [x] Required totals decode directly as `BigDecimal` through
   `MoneyValueSerializer`.
-- [ ] No Billing Record money uses `Double` or `Float`.
-- [ ] List decodes the standard `data`, `links`, and `meta` envelope.
-- [ ] List and detail decode the same resource shape.
-- [ ] Payment amount, method, reference, status, and recorded time are
+- [x] No Billing Record money uses `Double` or `Float`.
+- [x] List decodes the standard `data`, `links`, and `meta` envelope.
+- [x] List and detail decode the same resource shape.
+- [x] Payment amount, method, reference, status, and recorded time are
   preserved.
-- [ ] Domain contains only the approved minimal Billing Record and payment
+- [x] Domain contains only the approved minimal Billing Record and payment
   fields.
-- [ ] Billing and payment status enums include `UNKNOWN`.
-- [ ] Raw payment method remains a string.
-- [ ] Invoice item, official number, sold-to, tax, discount, issued, and draft
+- [x] Billing and payment status enums include `UNKNOWN`.
+- [x] Raw payment method remains a string.
+- [x] Invoice item, official number, sold-to, tax, discount, issued, and draft
   concepts do not survive.
 
 **Verification:**
@@ -143,16 +143,16 @@ preserve standard pagination metadata.
 
 **Acceptance criteria:**
 
-- [ ] Service calls `GET billing-records` and
+- [x] Service calls `GET billing-records` and
   `GET billing-records/{id}` only.
-- [ ] List forwards `page` and retains the documented `per_page` behavior.
-- [ ] Repository returns `PaginatedResult<BillingRecord>`.
-- [ ] `currentPage`, `lastPage`, and `total` map correctly.
-- [ ] Detail maps one Billing Record without loading the list.
-- [ ] Exact money and every approved domain field survive mapping.
-- [ ] Unknown status values map to `UNKNOWN`.
-- [ ] Internal patient/encounter/recorder/audit fields do not enter the domain.
-- [ ] Route allowlist and discovery both report exactly 33.
+- [x] List forwards `page` and retains the documented `per_page` behavior.
+- [x] Repository returns `PaginatedResult<BillingRecord>`.
+- [x] `currentPage`, `lastPage`, and `total` map correctly.
+- [x] Detail maps one Billing Record without loading the list.
+- [x] Exact money and every approved domain field survive mapping.
+- [x] Unknown status values map to `UNKNOWN`.
+- [x] Internal patient/encounter/recorder/audit fields do not enter the domain.
+- [x] Route allowlist and discovery both report exactly 33.
 
 **Verification:**
 
@@ -191,16 +191,16 @@ Billing Record DI plus dedicated list and detail ViewModels.
 
 **Acceptance criteria:**
 
-- [ ] Hilt binds `BillingRecordRepositoryImpl` to
+- [x] Hilt binds `BillingRecordRepositoryImpl` to
   `BillingRecordRepository`.
-- [ ] List state owns initial load, refresh, append, and load-more flags.
-- [ ] Pages append in server order without client sorting.
-- [ ] Concurrent or duplicate `loadMore()` calls are ignored.
-- [ ] Load-more failure retains existing records and clears the loading flag.
-- [ ] Detail state owns one ID and never calls the list repository method.
-- [ ] Detail retry requests the same active ID.
-- [ ] User-visible repository failures use safe fallback text.
-- [ ] No combined Invoice/Billing ViewModel remains.
+- [x] List state owns initial load, refresh, append, and load-more flags.
+- [x] Pages append in server order without client sorting.
+- [x] Concurrent or duplicate `loadMore()` calls are ignored.
+- [x] Load-more failure retains existing records and clears the loading flag.
+- [x] Detail state owns one ID and never calls the list repository method.
+- [x] Detail retry requests the same active ID.
+- [x] User-visible repository failures use safe fallback text.
+- [x] No combined Invoice/Billing ViewModel remains.
 
 **Verification:**
 
@@ -240,18 +240,18 @@ read-only Billing Record list/detail presentation and a Job Order action.
 
 **Acceptance criteria:**
 
-- [ ] List shows Billing Record number, safe status, total, paid amount,
+- [x] List shows Billing Record number, safe status, total, paid amount,
   balance, and recorded date when present.
-- [ ] Detail shows the same financial summary and posted payment history.
-- [ ] Empty payments have explicit neutral copy.
-- [ ] Raw payment methods are safely humanized; unknown values do not crash.
-- [ ] Exact peso output is derived from `BigDecimal`, never floating point.
-- [ ] Detail exposes **View job order** with the record's `jobOrderId`.
-- [ ] No copied items, taxes, discounts, sold-to, official/BIR, issued, or
+- [x] Detail shows the same financial summary and posted payment history.
+- [x] Empty payments have explicit neutral copy.
+- [x] Raw payment methods are safely humanized; unknown values do not crash.
+- [x] Exact peso output is derived from `BigDecimal`, never floating point.
+- [x] Detail exposes **View job order** with the record's `jobOrderId`.
+- [x] No copied items, taxes, discounts, sold-to, official/BIR, issued, or
   receipt language appears.
-- [ ] Routes are `BillingRecordList` and
+- [x] Routes are `BillingRecordList` and
   `BillingRecordDetail(billingRecordId)`.
-- [ ] No `InvoiceScreens.kt` or Invoice presentation package remains.
+- [x] No `InvoiceScreens.kt` or Invoice presentation package remains.
 
 **Verification:**
 
@@ -287,14 +287,14 @@ destinations, Job Order navigation, bottom-bar behavior, and the Profile row.
 
 **Acceptance criteria:**
 
-- [ ] Profile displays **Billing Records**, never **Invoices**.
-- [ ] `onNavigateToBillingRecords` opens `BillingRecordList`.
-- [ ] List opens `BillingRecordDetail(id)`.
-- [ ] Detail opens `JobOrderDetail(jobOrderId)`.
-- [ ] Back behavior matches other read-only list/detail features.
-- [ ] Bottom navigation is hidden on Billing Record destinations.
-- [ ] Profile instrumented callback coverage compiles.
-- [ ] No Invoice production/test file, symbol, package, route, callback, or
+- [x] Profile displays **Billing Records**, never **Invoices**.
+- [x] `onNavigateToBillingRecords` opens `BillingRecordList`.
+- [x] List opens `BillingRecordDetail(id)`.
+- [x] Detail opens `JobOrderDetail(jobOrderId)`.
+- [x] Back behavior matches other read-only list/detail features.
+- [x] Bottom navigation is hidden on Billing Record destinations.
+- [x] Profile instrumented callback coverage compiles.
+- [x] No Invoice production/test file, symbol, package, route, callback, or
   patient-facing text remains.
 
 **Verification:**
@@ -317,17 +317,17 @@ destinations, Job Order navigation, bottom-bar behavior, and the Profile row.
 
 ## Checkpoint A — Billing Record Cutover Green
 
-- [ ] `.\gradlew testDebugUnitTest --tests "*BillingRecord*"`
-- [ ] `.\gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
-- [ ] `.\gradlew assembleDebugAndroidTest`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Allowlisted and discovered Retrofit route counts are exactly 33.
-- [ ] Multi-page Billing Record list and detail retry work.
-- [ ] All four documented statuses plus unknown display safely.
-- [ ] Empty and populated payment history display correctly.
-- [ ] Job Order navigation works.
-- [ ] No Billing Record money passes through `Double` or `Float`.
-- [ ] No Invoice compatibility or retired concept remains.
+- [x] `.\gradlew testDebugUnitTest --tests "*BillingRecord*"`
+- [x] `.\gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
+- [x] `.\gradlew assembleDebugAndroidTest`
+- [x] `.\gradlew assembleDebug`
+- [x] Allowlisted and discovered Retrofit route counts are exactly 33.
+- [x] Multi-page Billing Record list and detail retry work.
+- [x] All four documented statuses plus unknown display safely.
+- [x] Empty and populated payment history display correctly.
+- [x] Job Order navigation works.
+- [x] No Billing Record money passes through `Double` or `Float`.
+- [x] No Invoice compatibility or retired concept remains.
 
 Source sweeps:
 
@@ -360,14 +360,14 @@ Appointment returned by list, create, and cancel.
 
 **Acceptance criteria:**
 
-- [ ] `CreateReservationRequest.appointmentId` is non-null with no default.
-- [ ] Every reservation resource requires and decodes embedded `appointment`.
-- [ ] Transport may retain scalar `appointment_id` for contract decoding.
-- [ ] Domain exposes only `ReservationAppointment`, not scalar
+- [x] `CreateReservationRequest.appointmentId` is non-null with no default.
+- [x] Every reservation resource requires and decodes embedded `appointment`.
+- [x] Transport may retain scalar `appointment_id` for contract decoding.
+- [x] Domain exposes only `ReservationAppointment`, not scalar
   `appointmentId`.
-- [ ] Embedded Appointment status uses the safe Appointment status model.
-- [ ] Reservation item and exact-price mapping remain unchanged.
-- [ ] Unknown statuses fail closed.
+- [x] Embedded Appointment status uses the safe Appointment status model.
+- [x] Reservation item and exact-price mapping remain unchanged.
+- [x] Unknown statuses fail closed.
 
 **Verification:**
 
@@ -403,16 +403,16 @@ field errors.
 
 **Acceptance criteria:**
 
-- [ ] Repository create requires `appointmentId: Int` with no null/default.
-- [ ] Repository maps embedded Appointment for all three response paths.
-- [ ] Existing requested/prepared cancellation capability is unchanged.
-- [ ] A successful cancel replaces the resource with the returned state.
-- [ ] `HttpException(422)` is decoded through `ApiErrorBody`.
-- [ ] Field errors are exposed through
+- [x] Repository create requires `appointmentId: Int` with no null/default.
+- [x] Repository maps embedded Appointment for all three response paths.
+- [x] Existing requested/prepared cancellation capability is unchanged.
+- [x] A successful cancel replaces the resource with the returned state.
+- [x] `HttpException(422)` is decoded through `ApiErrorBody`.
+- [x] Field errors are exposed through
   `FrameReservationError.ValidationError`.
-- [ ] Repository does not parse error message prose.
-- [ ] Malformed validation JSON and non-422 failures remain safe.
-- [ ] No response body is logged.
+- [x] Repository does not parse error message prose.
+- [x] Malformed validation JSON and non-422 failures remain safe.
+- [x] No response body is logged.
 
 **Verification:**
 
@@ -445,15 +445,15 @@ side-effect-free policy operating on `AppointmentV1` and a supplied `Instant`.
 
 **Acceptance criteria:**
 
-- [ ] Scheduled future Appointment is eligible.
-- [ ] Scheduled Appointment whose end equals `now` is eligible.
-- [ ] Scheduled Appointment whose end is before `now` is ineligible.
-- [ ] Checked-in, fulfilled, cancelled, no-show, and unknown are ineligible.
-- [ ] Malformed or offset-less schedule values fail closed.
-- [ ] Invalid duration fails closed.
-- [ ] Offset-aware values are compared as instants, independent of display
+- [x] Scheduled future Appointment is eligible.
+- [x] Scheduled Appointment whose end equals `now` is eligible.
+- [x] Scheduled Appointment whose end is before `now` is ineligible.
+- [x] Checked-in, fulfilled, cancelled, no-show, and unknown are ineligible.
+- [x] Malformed or offset-less schedule values fail closed.
+- [x] Invalid duration fails closed.
+- [x] Offset-aware values are compared as instants, independent of display
   timezone.
-- [ ] Policy performs no I/O and is directly unit tested.
+- [x] Policy performs no I/O and is directly unit tested.
 
 **Verification:**
 
@@ -486,21 +486,21 @@ visit, and recover according to validation fields.
 
 **Acceptance criteria:**
 
-- [ ] Pages load sequentially from page 1 through `lastPage`.
-- [ ] Appointments preserve server order and duplicate IDs are removed.
-- [ ] A later-page failure exposes a retryable load error, never a partial
+- [x] Pages load sequentially from page 1 through `lastPage`.
+- [x] Appointments preserve server order and duplicate IDs are removed.
+- [x] A later-page failure exposes a retryable load error, never a partial
   authoritative list.
-- [ ] Retry restarts from page 1.
-- [ ] Concurrent loads and duplicate submit taps are guarded.
-- [ ] Submit is impossible without an explicitly selected eligible
+- [x] Retry restarts from page 1.
+- [x] Concurrent loads and duplicate submit taps are guarded.
+- [x] Submit is impossible without an explicitly selected eligible
   Appointment.
-- [ ] Create sends exactly the assisted `variantId` and selected Appointment
+- [x] Create sends exactly the assisted `variantId` and selected Appointment
   ID.
-- [ ] `appointment_id` field errors clear selection and reload appointments.
-- [ ] `items` and `items.*` errors retain selection.
-- [ ] Unknown validation fields and generic failures display safe text without
+- [x] `appointment_id` field errors clear selection and reload appointments.
+- [x] `items` and `items.*` errors retain selection.
+- [x] Unknown validation fields and generic failures display safe text without
   leaking response content.
-- [ ] Booking return refresh can be requested without auto-selection or
+- [x] Booking return refresh can be requested without auto-selection or
   submission.
 
 **Verification:**
@@ -535,19 +535,19 @@ confirmation states.
 
 **Acceptance criteria:**
 
-- [ ] Copy explains the frame will be prepared for the selected visit.
-- [ ] Loading and page-load failure have clear progress/retry UI.
-- [ ] Empty eligible state offers **Book appointment**.
-- [ ] Populated state shows number, schedule, duration, and safe status.
-- [ ] Exactly one Appointment can be selected.
-- [ ] Confirm is disabled until selection and while submitting.
-- [ ] Appointment field validation is shown near selection and stale selection
+- [x] Copy explains the frame will be prepared for the selected visit.
+- [x] Loading and page-load failure have clear progress/retry UI.
+- [x] Empty eligible state offers **Book appointment**.
+- [x] Populated state shows number, schedule, duration, and safe status.
+- [x] Exactly one Appointment can be selected.
+- [x] Confirm is disabled until selection and while submitting.
+- [x] Appointment field validation is shown near selection and stale selection
   is absent.
-- [ ] Item/generic validation remains actionable without clearing a valid
+- [x] Item/generic validation remains actionable without clearing a valid
   selection.
-- [ ] Booking and success are callbacks; the screen does not implement
+- [x] Booking and success are callbacks; the screen does not implement
   navigation directly.
-- [ ] No optional-link copy or null submission remains.
+- [x] No optional-link copy or null submission remains.
 
 **Verification:**
 
@@ -572,18 +572,18 @@ successful booking, and open history after reservation success.
 
 **Acceptance criteria:**
 
-- [ ] `BookAppointmentForReservation` is a distinct type-safe destination.
-- [ ] It reuses `BookAppointmentScreen`.
-- [ ] Back without booking returns to the unchanged reservation draft.
-- [ ] Successful booking pops only the booking destination and signals the
+- [x] `BookAppointmentForReservation` is a distinct type-safe destination.
+- [x] It reuses `BookAppointmentScreen`.
+- [x] Back without booking returns to the unchanged reservation draft.
+- [x] Successful booking pops only the booking destination and signals the
   previous reservation entry to refresh.
-- [ ] Refresh does not select or submit automatically.
-- [ ] General `BookAppointment` still navigates to Appointments exactly as
+- [x] Refresh does not select or submit automatically.
+- [x] General `BookAppointment` still navigates to Appointments exactly as
   before.
-- [ ] Reservation success navigates to `FrameReservationList`.
-- [ ] The completed creation destination is removed from the back stack.
-- [ ] Bottom navigation remains hidden throughout both booking flows.
-- [ ] Backend route count is unaffected.
+- [x] Reservation success navigates to `FrameReservationList`.
+- [x] The completed creation destination is removed from the back stack.
+- [x] Bottom navigation remains hidden throughout both booking flows.
+- [x] Backend route count is unaffected.
 
 **Verification:**
 
@@ -613,15 +613,15 @@ the authoritative embedded Appointment while preserving cancellation rules.
 
 **Acceptance criteria:**
 
-- [ ] History cards show reservation ID and selected frame details correctly.
-- [ ] Cards show Appointment number, schedule, duration, and safe status.
-- [ ] Unknown or malformed display values fail safely.
-- [ ] Requested and prepared reservations expose cancellation.
-- [ ] Tried-on, converted, released, cancelled, and unknown do not.
-- [ ] Successful cancellation replaces the full returned resource, including
+- [x] History cards show reservation ID and selected frame details correctly.
+- [x] Cards show Appointment number, schedule, duration, and safe status.
+- [x] Unknown or malformed display values fail safely.
+- [x] Requested and prepared reservations expose cancellation.
+- [x] Tried-on, converted, released, cancelled, and unknown do not.
+- [x] Successful cancellation replaces the full returned resource, including
   embedded Appointment.
-- [ ] Cancellation failure does not discard the current list.
-- [ ] Empty, loading, refresh, and load-error behavior remain functional.
+- [x] Cancellation failure does not discard the current list.
+- [x] Empty, loading, refresh, and load-error behavior remain functional.
 
 **Verification:**
 
@@ -643,18 +643,18 @@ the authoritative embedded Appointment while preserving cancellation rules.
 
 ## Checkpoint B — Appointment-Linked Reservations Green
 
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameReservation*"`
-- [ ] `.\gradlew testDebugUnitTest --tests "*CreateFrameReservationViewModelTest"`
-- [ ] `.\gradlew assembleDebugAndroidTest`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Create request cannot omit or null `appointment_id`.
-- [ ] All Appointment pages contribute to selection.
-- [ ] Eligibility boundary and fail-closed cases pass.
-- [ ] Booking returns to the existing draft without submitting.
-- [ ] Appointment and item field errors have distinct recovery behavior.
-- [ ] Success opens Reservation history.
-- [ ] History shows embedded Appointment context.
-- [ ] Cancellation capability and returned-resource replacement remain correct.
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameReservation*"`
+- [x] `.\gradlew testDebugUnitTest --tests "*CreateFrameReservationViewModelTest"`
+- [x] `.\gradlew assembleDebugAndroidTest`
+- [x] `.\gradlew assembleDebug`
+- [x] Create request cannot omit or null `appointment_id`.
+- [x] All Appointment pages contribute to selection.
+- [x] Eligibility boundary and fail-closed cases pass.
+- [x] Booking returns to the existing draft without submitting.
+- [x] Appointment and item field errors have distinct recovery behavior.
+- [x] Success opens Reservation history.
+- [x] History shows embedded Appointment context.
+- [x] Cancellation capability and returned-resource replacement remain correct.
 
 Source sweeps:
 
@@ -679,17 +679,17 @@ phase metadata from the already-completed V10 commit evidence.
 
 **Acceptance criteria:**
 
-- [ ] `CONTEXT.md` documents Billing Records rather than Invoices.
-- [ ] Billing Records are described as read-only internal ledgers with exact
+- [x] `CONTEXT.md` documents Billing Records rather than Invoices.
+- [x] Billing Records are described as read-only internal ledgers with exact
   money and Job Order linkage.
-- [ ] Reservation creation is documented as requiring an eligible Appointment.
-- [ ] Booking return, embedded history context, and the existing one-frame
+- [x] Reservation creation is documented as requiring an eligible Appointment.
+- [x] Booking return, embedded history context, and the existing one-frame
   choice are documented.
-- [ ] Current route total remains 33.
-- [ ] V10 spec, plan, and tasks accurately say V10 implementation completed.
-- [ ] V10 completion metadata cites the existing implementation commits where
+- [x] Current route total remains 33.
+- [x] V10 spec, plan, and tasks accurately say V10 implementation completed.
+- [x] V10 completion metadata cites the existing implementation commits where
   useful.
-- [ ] User-owned backend docs and deleted standalone specs are not changed.
+- [x] User-owned backend docs and deleted standalone specs are not changed.
 
 **Verification:**
 
@@ -714,14 +714,14 @@ documents only after implementation evidence exists.
 
 **Acceptance criteria:**
 
-- [ ] No Invoice source, package, route, callback, test, or current-context
+- [x] No Invoice source, package, route, callback, test, or current-context
   wording remains.
-- [ ] No Billing Record money type uses `Double` or `Float`.
-- [ ] No nullable/default reservation Appointment linkage remains.
-- [ ] No optional-Appointment creation copy remains.
-- [ ] Deleted backend standalone specifications remain deleted.
-- [ ] Route allowlist/discovery still reports 33.
-- [ ] V11 spec, plan, and task statuses match actual completed checkpoints.
+- [x] No Billing Record money type uses `Double` or `Float`.
+- [x] No nullable/default reservation Appointment linkage remains.
+- [x] No optional-Appointment creation copy remains.
+- [x] Deleted backend standalone specifications remain deleted.
+- [x] Route allowlist/discovery still reports 33.
+- [x] V11 spec, plan, and task statuses match actual completed checkpoints.
 
 **Verification:**
 
@@ -757,19 +757,19 @@ genuine environment limitations.
 
 **Acceptance criteria:**
 
-- [ ] Full unit suite passes.
-- [ ] Android test APK compiles.
-- [ ] Ktlint passes.
-- [ ] Android lint passes.
-- [ ] Debug APK assembles.
-- [ ] Route allowlist and discovery both report 33.
+- [x] Full unit suite passes.
+- [x] Android test APK compiles.
+- [x] Ktlint passes.
+- [x] Android lint passes.
+- [x] Debug APK assembles.
+- [x] Route allowlist and discovery both report 33.
 - [ ] Manual Billing Record checks pass.
 - [ ] Manual Appointment-linked reservation checks pass.
 - [ ] General Appointment booking, Profile, bottom navigation, Job Order
   detail, and frame cancellation regressions pass.
-- [ ] Final diff contains no compatibility layer, backend implementation, Room
+- [x] Final diff contains no compatibility layer, backend implementation, Room
   change, or new dependency.
-- [ ] User-owned backend changes are not staged in Android commits.
+- [x] User-owned backend changes are not staged in Android commits.
 
 **Verification:**
 
@@ -828,14 +828,14 @@ fix requires a focused regression test and rerunning the affected checkpoint.
 
 ## Checkpoint C — V11 Complete
 
-- [ ] Checkpoint A passed and its feature commit exists.
-- [ ] Checkpoint B passed and its feature commit exists.
-- [ ] Tasks 14–15 documentation and source proofs passed.
-- [ ] Task 16 automated and available manual verification passed.
-- [ ] `CONTEXT.md` matches implemented V11 behavior.
-- [ ] V10 and V11 metadata reflects actual completion.
-- [ ] Backend source documents were not altered by Android implementation.
-- [ ] Deleted standalone backend specs were not restored.
+- [x] Checkpoint A passed and its feature commit exists.
+- [x] Checkpoint B passed and its feature commit exists.
+- [x] Tasks 14–15 documentation and source proofs passed.
+- [x] Task 16 automated and available manual verification passed.
+- [x] `CONTEXT.md` matches implemented V11 behavior.
+- [x] V10 and V11 metadata reflects actual completion.
+- [x] Backend source documents were not altered by Android implementation.
+- [x] Deleted standalone backend specs were not restored.
 
 After Checkpoint C, create the documentation commit:
 
