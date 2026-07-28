@@ -43,9 +43,9 @@ internal object ApprovedApiRoutes {
         // Job orders
         "GET $BASE/job-orders",
         "GET $BASE/job-orders/{jobOrder}",
-        // Invoices
-        "GET $BASE/invoices",
-        "GET $BASE/invoices/{invoice}",
+        // Billing records
+        "GET $BASE/billing-records",
+        "GET $BASE/billing-records/{billingRecord}",
         // Conversation
         "GET $BASE/conversation",
         "GET $BASE/conversation/messages",

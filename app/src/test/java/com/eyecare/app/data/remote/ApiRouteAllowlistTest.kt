@@ -71,7 +71,7 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""prescriptions/\{id\}"""), "prescriptions/{prescription}")
             .replace(Regex("""quotations/\{id\}"""), "quotations/{quotation}")
             .replace(Regex("""job-orders/\{id\}"""), "job-orders/{jobOrder}")
-            .replace(Regex("""invoices/\{id\}"""), "invoices/{invoice}")
+            .replace(Regex("""billing-records/\{id\}"""), "billing-records/{billingRecord}")
             .replace(Regex("""conversation/attachments/\{id\}"""), "conversation/attachments/{attachment}")
             .replace(Regex("""job-order-items/\{id\}"""), "job-order-items/{item}")
     }
@@ -87,7 +87,7 @@ class ApiRouteAllowlistTest {
             .replace("{prescription}", "{var}")
             .replace("{quotation}", "{var}")
             .replace("{jobOrder}", "{var}")
-            .replace("{invoice}", "{var}")
+            .replace("{billingRecord}", "{var}")
             .replace("{attachment}", "{var}")
             .replace("{item}", "{var}")
     }
