@@ -26,9 +26,7 @@ class ProfileScreenTest {
                     unreadMessageCount = 0,
                     onEditProfile = { destination = "edit" },
                     onNavigateToMessages = { destination = "messages" },
-                    onNavigateToOrders = { destination = "orders" },
                     onNavigateToPrescriptions = { destination = "prescriptions" },
-                    onNavigateToFeedbackHistory = { destination = "feedback" },
                     onLogoutClick = { destination = "logout" },
                 )
             }
@@ -45,9 +43,7 @@ class ProfileScreenTest {
         listOf(
             "Edit profile" to "edit",
             "Messages" to "messages",
-            "Order History" to "orders",
             "Prescriptions" to "prescriptions",
-            "Feedback History" to "feedback",
             "Log out" to "logout",
         ).forEach { (label, expectedDestination) ->
             composeRule.onNodeWithText(label).performClick()
@@ -100,8 +96,6 @@ class ProfileScreenTest {
         composeRule.onNodeWithText("Name").assertIsDisplayed()
         composeRule.onNodeWithText("Email").assertIsDisplayed()
         composeRule.onNodeWithText("Phone").assertIsDisplayed()
-        composeRule.onNodeWithText("Address").assertDoesNotExist()
-        composeRule.onNodeWithText("Profile photo").assertDoesNotExist()
 
         composeRule.onNodeWithText("Save changes").performClick()
         composeRule.runOnIdle { check(saved) }
@@ -132,6 +126,13 @@ class ProfileScreenTest {
         email = "alex@example.com",
         phone = phone,
         role = "customer",
+        patientNumber = "PAT-001",
+        fullName = "Alex Rivera",
+        dateOfBirth = "1990-05-15",
+        occupation = "Engineer",
+        address = "123 Main St",
+        gender = "Male",
+        contactEmail = "alex@example.com",
     )
 
     private fun editState(
@@ -144,6 +145,12 @@ class ProfileScreenTest {
         editName = "Alex Rivera",
         editEmail = "alex@example.com",
         editPhone = "09171234567",
+        editFullName = "Alex Rivera",
+        editDateOfBirth = "1990-05-15",
+        editOccupation = "Engineer",
+        editAddress = "123 Main St",
+        editGender = "Male",
+        editContactEmail = "alex@example.com",
         saveError = saveError,
     )
 }

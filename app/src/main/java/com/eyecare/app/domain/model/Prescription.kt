@@ -1,22 +1,27 @@
 package com.eyecare.app.domain.model
 
+data class EyeMeasurement(
+    val value: String?,
+    val sphere: String?,
+    val cylinder: String?,
+)
+
+data class PrescriptionMeasurementGroup(
+    val od: EyeMeasurement,
+    val os: EyeMeasurement,
+)
+
+data class PrescriptionMeasurements(
+    val main: PrescriptionMeasurementGroup,
+    val add: PrescriptionMeasurementGroup,
+)
+
 data class Prescription(
     val id: Int,
     val appointmentId: Int?,
-    val odSphere: String?,
-    val odCylinder: String?,
-    val odAxis: Int?,
-    val odAdd: String?,
-    val odPrism: String?,
-    val odBase: String?,
-    val osSphere: String?,
-    val osCylinder: String?,
-    val osAxis: Int?,
-    val osAdd: String?,
-    val osPrism: String?,
-    val osBase: String?,
-    val pd: String?,
-    val prescribedAt: String,
-    val expiresAt: String?,
-    val notes: String?,
+    val previousPrescriptionId: Int?,
+    val isCurrent: Boolean,
+    val date: String,
+    val measurements: PrescriptionMeasurements,
+    val remarks: String?,
 )

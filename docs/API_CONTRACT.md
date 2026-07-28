@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend commit:** `579b964` (2026-07-27)
+> **Backend version:** Current repository state (2026-07-28)
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -24,11 +24,10 @@
 11. [Job Orders](#11-job-orders)
 12. [Invoices](#12-invoices)
 13. [Conversation](#13-conversation)
-14. [Feedback](#14-feedback)
-15. [Frame Ratings](#15-frame-ratings)
-16. [Error Responses](#16-error-responses)
-17. [Clarifications](#17-clarifications)
-18. [Retired Features](#18-retired-features)
+14. [Frame Ratings](#14-frame-ratings)
+15. [Error Responses](#15-error-responses)
+16. [Clarifications](#16-clarifications)
+17. [Retired Features](#17-retired-features)
 
 ---
 
@@ -642,7 +641,9 @@ Uses the same `FrameReservationResource` as GET — same field set, same exclusi
 
 ### GET `/prescriptions`
 
-Paginated list. Read-only — patients cannot create prescriptions.
+Paginated list of current prescription versions. Superseded versions are
+excluded from the list but remain available by ID for historical access.
+Read-only — patients cannot create prescriptions.
 
 **Response (200):**
 ```json
@@ -651,22 +652,36 @@ Paginated list. Read-only — patients cannot create prescriptions.
     {
       "id": 1,
       "appointment_id": 1,
-      "od_sphere": "-2.00",
-      "od_cylinder": "-0.50",
-      "od_axis": 180,
-      "od_add": null,
-      "od_prism": null,
-      "od_base": null,
-      "os_sphere": "-1.75",
-      "os_cylinder": "-0.25",
-      "os_axis": 170,
-      "os_add": null,
-      "os_prism": null,
-      "os_base": null,
-      "pd": "62.0",
-      "prescribed_at": "2026-07-27",
-      "expires_at": "2027-07-27",
-      "notes": null
+      "previous_prescription_id": null,
+      "is_current": true,
+      "date": "2026-07-27",
+      "measurements": {
+        "main": {
+          "od": {
+            "value": null,
+            "sphere": "-2.00",
+            "cylinder": "-0.50"
+          },
+          "os": {
+            "value": null,
+            "sphere": "-1.75",
+            "cylinder": "-0.25"
+          }
+        },
+        "add": {
+          "od": {
+            "value": null,
+            "sphere": null,
+            "cylinder": null
+          },
+          "os": {
+            "value": null,
+            "sphere": null,
+            "cylinder": null
+          }
+        }
+      },
+      "remarks": null
     }
   ],
   "links": { ... },
@@ -676,7 +691,9 @@ Paginated list. Read-only — patients cannot create prescriptions.
 
 ### GET `/prescriptions/{id}`
 
-Single prescription. Returns `404` if not patient's.
+Single prescription, including historical superseded versions. The
+`previous_prescription_id` and `is_current` fields identify its chain position.
+Returns `404` if not patient's.
 
 ---
 
@@ -1065,38 +1082,7 @@ Downloads a message attachment.
 
 ---
 
-## 14. Feedback
-
-### POST `/feedback`
-
-Submits feedback for a completed appointment.
-
-**Request:**
-```json
-{
-  "appointment_id": "integer (required, exists:appointments,id — must be patient's, status must be fulfilled)",
-  "rating": "integer (required, min:1, max:5)",
-  "comment": "string (nullable, max:2000)"
-}
-```
-
-**Response (201):**
-```json
-{
-  "data": {
-    "id": 1,
-    "appointment_id": 1,
-    "rating": 5,
-    "comment": "Great service!"
-  }
-}
-```
-
-**Note:** Feedback targets `appointment_id` only. The old `order_id` field does not exist — orders are retired.
-
----
-
-## 15. Frame Ratings
+## 14. Frame Ratings
 
 ### POST `/job-order-items/{id}/rating`
 
@@ -1162,7 +1148,7 @@ Submits or revises a rating for a frame variant linked to a job order item.
 
 ---
 
-## 16. Error Responses
+## 15. Error Responses
 
 ### 401 Unauthorized
 ```json
@@ -1212,7 +1198,7 @@ Not currently used by the API. Appointment scheduling conflicts return `422` wit
 
 ---
 
-## 17. Clarifications
+## 16. Clarifications
 
 ### Booking uses `appointment_type_id` only
 There is no `visit_reason_id` in the mobile API. The `appointment_type_id` determines the visit type and duration. `visit_reason_id` exists in the database schema but is not used by the mobile booking flow.
@@ -1235,15 +1221,12 @@ Creation requires `items[].product_variant_id` (1-5 items). Each must be an acti
 ### Attachment format
 Attachments are uploaded as `multipart/form-data` with field name `attachment`. Accepted types: jpg, jpeg, png, gif, pdf, doc, docx. Max 10MB. Download returns the original filename and mime type in headers.
 
-### Feedback targets
-Feedback targets `appointment_id` only (must be a completed appointment belonging to the patient). The `order_id` field does not exist — orders are retired.
-
 ### Job-order-item rating eligibility
 Ratings are submitted via `POST /job-order-items/{item}/rating`. Server-enforced authorization: the job-order item must belong to the authenticated patient, the job order must be `dispensed`, the `product_variant_id` must match the item, and `dispensing_event_id` (if supplied) must belong to the same job order. One rating per patient per variant — subsequent calls append a revision. Moderated (hidden) ratings are preserved in DB.
 
 ---
 
-## 18. Retired Features
+## 17. Retired Features
 
 The following old mobile features/routes are **intentionally retired** and do not exist in the v1 API:
 
@@ -1251,7 +1234,7 @@ The following old mobile features/routes are **intentionally retired** and do no
 |---|---|
 | Accessories and orders (`/orders`, `/accessories`) | Retired. No order/accessory endpoints. Products are frames only. |
 | Billing PDF | Retired. No PDF generation endpoints. |
-| Feedback history (`GET /feedback`) | Removed from routes. Only `POST /feedback` exists. |
+| Clinic feedback (`/feedback`) | Retired. Complaints remain a separate clinic remediation workflow; verified frame ratings remain available after dispensing. |
 | Appointment contact-note editing (`PATCH /appointments/{id}/contact-note`) | The `updateContactNote` method exists in the controller but has **no registered route**. Retired. |
 | Explicit message mark-read | No mark-read endpoint. Unread count is read-only context. |
 | Message context cards | Contexts are embedded in the message response as `contexts[]` with `type` and `id`. No separate card/detail endpoint. |
@@ -1261,7 +1244,7 @@ The following old mobile features/routes are **intentionally retired** and do no
 
 ---
 
-## Appendix: Complete Route List (34 routes)
+## Appendix: Complete Route List (33 routes)
 
 ```
 POST   /api/v1/register
@@ -1302,8 +1285,7 @@ GET    /api/v1/conversation/messages
 POST   /api/v1/conversation/messages
 GET    /api/v1/conversation/attachments/{attachment}
 
-POST   /api/v1/feedback
 POST   /api/v1/job-order-items/{item}/rating
 ```
 
-**Total: 34 routes** (matches BACKEND_CONTEXT.md). The `appointment-types` endpoint is included in the count.
+**Total: 33 routes** (matches BACKEND_CONTEXT.md). The `appointment-types` endpoint is included in the count.

@@ -22,7 +22,7 @@ sealed interface HomeUiState {
     data object Loading : HomeUiState
     data class Success(
         val nextAppointment: AppointmentV1?,
-        val expiringPrescription: Prescription?,
+        val currentPrescription: Prescription?,
         val featuredFrames: List<Frame>,
     ) : HomeUiState
     data class Error(val message: String) : HomeUiState
@@ -68,23 +68,13 @@ class HomeViewModel @Inject constructor(
                 }
                 .minByOrNull { it.scheduledAt }
 
-            val expiringPrescription = prescriptions
-                .filter { p ->
-                    p.expiresAt != null && runCatching {
-                        val exp = LocalDate.parse(p.expiresAt.take(10))
-                        !exp.isBefore(today) && !exp.isAfter(today.plusDays(30))
-                    }.getOrElse { false }
-                }
-                .minByOrNull { it.expiresAt ?: "" }
-                ?: prescriptions.firstOrNull { p ->
-                    p.expiresAt != null && runCatching {
-                        LocalDate.parse(p.expiresAt.take(10)).isBefore(today)
-                    }.getOrElse { false }
-                }
+            val currentPrescription = prescriptions
+                .filter { it.isCurrent }
+                .maxByOrNull { it.date }
 
             _uiState.value = HomeUiState.Success(
                 nextAppointment = nextAppointment,
-                expiringPrescription = expiringPrescription,
+                currentPrescription = currentPrescription,
                 featuredFrames = frames.take(HOME_SHELF_LIMIT),
             )
         }

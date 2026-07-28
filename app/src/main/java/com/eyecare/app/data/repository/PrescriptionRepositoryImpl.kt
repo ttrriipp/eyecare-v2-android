@@ -2,7 +2,10 @@ package com.eyecare.app.data.repository
 
 import com.eyecare.app.data.remote.api.PrescriptionApiService
 import com.eyecare.app.data.remote.dto.PrescriptionDtos
+import com.eyecare.app.domain.model.EyeMeasurement
 import com.eyecare.app.domain.model.Prescription
+import com.eyecare.app.domain.model.PrescriptionMeasurementGroup
+import com.eyecare.app.domain.model.PrescriptionMeasurements
 import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.domain.repository.PrescriptionRepository
 import javax.inject.Inject
@@ -28,21 +31,26 @@ class PrescriptionRepositoryImpl @Inject constructor(
     private fun PrescriptionDtos.PrescriptionDto.toDomain() = Prescription(
         id = id,
         appointmentId = appointmentId,
-        odSphere = odSphere,
-        odCylinder = odCylinder,
-        odAxis = odAxis,
-        odAdd = odAdd,
-        odPrism = odPrism,
-        odBase = odBase,
-        osSphere = osSphere,
-        osCylinder = osCylinder,
-        osAxis = osAxis,
-        osAdd = osAdd,
-        osPrism = osPrism,
-        osBase = osBase,
-        pd = pd,
-        prescribedAt = prescribedAt,
-        expiresAt = expiresAt,
-        notes = notes,
+        previousPrescriptionId = previousPrescriptionId,
+        isCurrent = isCurrent,
+        date = date,
+        measurements = measurements.toDomain(),
+        remarks = remarks,
+    )
+
+    private fun PrescriptionDtos.MeasurementsDto.toDomain() = PrescriptionMeasurements(
+        main = main.toDomain(),
+        add = add.toDomain(),
+    )
+
+    private fun PrescriptionDtos.MeasurementGroupDto.toDomain() = PrescriptionMeasurementGroup(
+        od = od.toDomain(),
+        os = os.toDomain(),
+    )
+
+    private fun PrescriptionDtos.EyeMeasurementDto.toDomain() = EyeMeasurement(
+        value = value,
+        sphere = sphere,
+        cylinder = cylinder,
     )
 }

@@ -7,25 +7,33 @@ import kotlinx.serialization.json.JsonElement
 object PrescriptionDtos {
 
     @Serializable
+    data class EyeMeasurementDto(
+        val value: String? = null,
+        val sphere: String? = null,
+        val cylinder: String? = null,
+    )
+
+    @Serializable
+    data class MeasurementGroupDto(
+        val od: EyeMeasurementDto,
+        val os: EyeMeasurementDto,
+    )
+
+    @Serializable
+    data class MeasurementsDto(
+        val main: MeasurementGroupDto,
+        val add: MeasurementGroupDto,
+    )
+
+    @Serializable
     data class PrescriptionDto(
         val id: Int,
         @SerialName("appointment_id") val appointmentId: Int? = null,
-        @SerialName("od_sphere") val odSphere: String? = null,
-        @SerialName("od_cylinder") val odCylinder: String? = null,
-        @SerialName("od_axis") val odAxis: Int? = null,
-        @SerialName("od_add") val odAdd: String? = null,
-        @SerialName("od_prism") val odPrism: String? = null,
-        @SerialName("od_base") val odBase: String? = null,
-        @SerialName("os_sphere") val osSphere: String? = null,
-        @SerialName("os_cylinder") val osCylinder: String? = null,
-        @SerialName("os_axis") val osAxis: Int? = null,
-        @SerialName("os_add") val osAdd: String? = null,
-        @SerialName("os_prism") val osPrism: String? = null,
-        @SerialName("os_base") val osBase: String? = null,
-        val pd: String? = null,
-        @SerialName("prescribed_at") val prescribedAt: String,
-        @SerialName("expires_at") val expiresAt: String? = null,
-        val notes: String? = null,
+        @SerialName("previous_prescription_id") val previousPrescriptionId: Int? = null,
+        @SerialName("is_current") val isCurrent: Boolean = true,
+        val date: String,
+        val measurements: MeasurementsDto,
+        val remarks: String? = null,
     )
 
     @Serializable
@@ -35,5 +43,6 @@ object PrescriptionDtos {
         val meta: PaginationMeta? = null,
     )
 
-    @Serializable data class PrescriptionResponse(val data: PrescriptionDto)
+    @Serializable
+    data class PrescriptionResponse(val data: PrescriptionDto)
 }

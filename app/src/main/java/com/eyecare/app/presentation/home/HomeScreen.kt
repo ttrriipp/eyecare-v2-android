@@ -71,6 +71,7 @@ fun HomeScreen(
     onNavigateToBooking: () -> Unit = {},
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
+    onNavigateToPrescriptionDetail: (Int) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -94,6 +95,7 @@ fun HomeScreen(
                 onNavigateToBooking = onNavigateToBooking,
                 onNavigateToFrames = onNavigateToFrames,
                 onNavigateToFrameDetail = onNavigateToFrameDetail,
+                onNavigateToPrescriptionDetail = onNavigateToPrescriptionDetail,
             )
         }
     }
@@ -146,6 +148,7 @@ fun HomeContent(
     onNavigateToBooking: () -> Unit = {},
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
+    onNavigateToPrescriptionDetail: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -174,17 +177,11 @@ fun HomeContent(
             VisitTicket(appointment = appointment, onClick = onNavigateToAppointments)
         } ?: BookingInvitation(onClick = onNavigateToBooking)
 
-        if (state.expiringPrescription != null) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Prescription Notice",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                state.expiringPrescription?.let { prescription ->
-                    PrescriptionWarningCard(prescription, onBookExam = onNavigateToBooking)
-                }
-            }
+        state.currentPrescription?.let { prescription ->
+            CurrentPrescriptionCard(
+                prescription = prescription,
+                onViewDetails = { onNavigateToPrescriptionDetail(prescription.id) },
+            )
         }
 
         if (state.featuredFrames.isNotEmpty()) {
@@ -375,9 +372,9 @@ private fun BookingInvitation(onClick: () -> Unit) {
 }
 
 @Composable
-private fun PrescriptionWarningCard(
+private fun CurrentPrescriptionCard(
     prescription: Prescription,
-    onBookExam: () -> Unit,
+    onViewDetails: () -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -387,21 +384,20 @@ private fun PrescriptionWarningCard(
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = "Prescription Expiring Soon",
+                text = "Current prescription",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            val expiresAt = prescription.expiresAt?.take(10) ?: ""
             Text(
-                text = "Your prescription expires on $expiresAt. Book an exam to renew it.",
+                text = prescription.date,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             TextButton(
-                onClick = onBookExam,
+                onClick = onViewDetails,
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
             ) {
-                Text("Book exam", style = MaterialTheme.typography.labelMedium)
+                Text("View details", style = MaterialTheme.typography.labelMedium)
             }
         }
     }

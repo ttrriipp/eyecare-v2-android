@@ -2,9 +2,11 @@ package com.eyecare.app.presentation.home
 
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.EyeMeasurement
 import com.eyecare.app.domain.model.Frame
-import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.model.Prescription
+import com.eyecare.app.domain.model.PrescriptionMeasurementGroup
+import com.eyecare.app.domain.model.PrescriptionMeasurements
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.PaginatedResult
@@ -37,10 +39,25 @@ class HomeViewModelTest {
         "${LocalDate.now().plusDays(3)}T10:00:00+08:00", null, null, "mobile", null)
     private val pastAppt = AppointmentV1(2, "APT-002", "Follow-up", 15, null, AppointmentStatus.FULFILLED,
         "${LocalDate.now().minusDays(5)}T10:00:00+08:00", null, null, "mobile", null)
-    private val expiredPrescription = Prescription(1, 1, null, null, null, null,
-        null, null, null, null, null, null, null, null, null,
-        prescribedAt = "${LocalDate.now().minusYears(1)}",
-        expiresAt = "${LocalDate.now().minusDays(5)}", notes = null)
+
+    private fun createPrescription(id: Int, isCurrent: Boolean, date: String) = Prescription(
+        id = id,
+        appointmentId = 1,
+        previousPrescriptionId = null,
+        isCurrent = isCurrent,
+        date = date,
+        measurements = PrescriptionMeasurements(
+            main = PrescriptionMeasurementGroup(
+                od = EyeMeasurement(null, "-2.00", "-0.50"),
+                os = EyeMeasurement(null, "-1.75", "-0.25"),
+            ),
+            add = PrescriptionMeasurementGroup(
+                od = EyeMeasurement(null, null, null),
+                os = EyeMeasurement(null, null, null),
+            ),
+        ),
+        remarks = null,
+    )
 
     @BeforeEach
     fun setup() {
@@ -59,27 +76,28 @@ class HomeViewModelTest {
     private fun vm() = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo)
 
     @Test
-    fun `nextAppointment is the soonest future confirmed appointment`() = runTest {
+    fun `nextAppointment is the soonest future scheduled appointment`() = runTest {
         coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(listOf(pastAppt, futureAppt), 1, 1, 2))
         val state = vm().uiState.value as HomeUiState.Success
         assertEquals(futureAppt, state.nextAppointment)
     }
 
     @Test
-    fun `expiringPrescription is set when prescription expires within 30 days`() = runTest {
-        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(expiredPrescription), 1, 1, 1))
+    fun `currentPrescription is the latest current prescription`() = runTest {
+        val current = createPrescription(1, true, "2026-07-27")
+        val previous = createPrescription(2, false, "2026-06-15")
+        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(current, previous), 1, 1, 2))
         val state = vm().uiState.value as HomeUiState.Success
-        assertNotNull(state.expiringPrescription)
+        assertNotNull(state.currentPrescription)
+        assertEquals(1, state.currentPrescription?.id)
     }
 
     @Test
-    fun `expiringPrescription is null when no expiry within 30 days`() = runTest {
-        val healthyPrescription = expiredPrescription.copy(
-            expiresAt = "${LocalDate.now().plusMonths(6)}"
-        )
-        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(healthyPrescription), 1, 1, 1))
+    fun `currentPrescription is null when no current prescription exists`() = runTest {
+        val previous = createPrescription(1, false, "2026-06-15")
+        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(previous), 1, 1, 1))
         val state = vm().uiState.value as HomeUiState.Success
-        assertNull(state.expiringPrescription)
+        assertNull(state.currentPrescription)
     }
 
     @Test
@@ -96,11 +114,12 @@ class HomeViewModelTest {
     fun `partial failures do not hide available content`() = runTest {
         coEvery { appointmentRepo.getAppointments(any()) } returns Result.failure(RuntimeException("offline"))
         coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
-        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(expiredPrescription), 1, 1, 1))
+        val current = createPrescription(1, true, "2026-07-27")
+        coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(current), 1, 1, 1))
         val state = vm().uiState.value as HomeUiState.Success
         assertNull(state.nextAppointment)
         assertEquals(1, state.featuredFrames.size)
-        assertNotNull(state.expiringPrescription)
+        assertNotNull(state.currentPrescription)
     }
 
     private fun frame(id: Int) = Frame(

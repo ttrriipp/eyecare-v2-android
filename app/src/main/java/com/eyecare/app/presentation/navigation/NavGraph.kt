@@ -156,6 +156,7 @@ fun EyecareNavGraph(
                                 }
                             },
                             onNavigateToFrameDetail = { navController.navigate(FrameDetail(it)) },
+                            onNavigateToPrescriptionDetail = { navController.navigate(PrescriptionDetail(it)) },
                         )
                     }
                     composable<Frames> {
@@ -210,7 +211,13 @@ fun EyecareNavGraph(
                     }
                     composable<PrescriptionDetail> { back ->
                         val route = back.toRoute<PrescriptionDetail>()
-                        PrescriptionDetailScreen(prescriptionId = route.prescriptionId, onBack = { navController.popBackStack() })
+                        PrescriptionDetailScreen(
+                            prescriptionId = route.prescriptionId,
+                            onBack = { navController.popBackStack() },
+                            onNavigateToPrevious = { previousId ->
+                                navController.navigate(PrescriptionDetail(previousId))
+                            },
+                        )
                     }
                     composable<QuotationList> {
                         QuotationListScreen(
