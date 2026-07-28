@@ -17,16 +17,46 @@ data class AppointmentV1(
 )
 
 enum class AppointmentStatus {
-    PENDING, CONFIRMED, ARRIVED, COMPLETED, NO_SHOW, CANCELLED;
+    SCHEDULED,
+    CHECKED_IN,
+    FULFILLED,
+    CANCELLED,
+    NO_SHOW,
+    UNKNOWN;
+
+    val canCancel: Boolean
+        get() = this == SCHEDULED || this == CHECKED_IN
+
+    val canReschedule: Boolean
+        get() = this == SCHEDULED
+
+    val canLeaveFeedback: Boolean
+        get() = this == FULFILLED
+
+    val isActive: Boolean
+        get() = this == SCHEDULED || this == CHECKED_IN
+
+    val isTerminal: Boolean
+        get() = this == FULFILLED || this == CANCELLED || this == NO_SHOW || this == UNKNOWN
+
+    val patientLabel: String
+        get() = when (this) {
+            SCHEDULED -> "Scheduled"
+            CHECKED_IN -> "Checked in"
+            FULFILLED -> "Completed"
+            CANCELLED -> "Cancelled"
+            NO_SHOW -> "No show"
+            UNKNOWN -> "Unknown"
+        }
 
     companion object {
-        fun from(value: String): AppointmentStatus = when (value.lowercase()) {
-            "confirmed" -> CONFIRMED
-            "arrived" -> ARRIVED
+        fun from(value: String): AppointmentStatus = when (value.lowercase().trim()) {
+            "scheduled" -> SCHEDULED
+            "checked_in" -> CHECKED_IN
+            "fulfilled" -> FULFILLED
             "cancelled" -> CANCELLED
-            "completed" -> COMPLETED
             "no_show" -> NO_SHOW
-            else -> PENDING
+            else -> UNKNOWN
         }
     }
 }

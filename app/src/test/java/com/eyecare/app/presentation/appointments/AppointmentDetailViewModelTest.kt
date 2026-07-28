@@ -33,7 +33,7 @@ class AppointmentDetailViewModelTest {
         appointmentType = "Follow-up",
         durationMinutes = 15,
         referringSource = null,
-        status = AppointmentStatus.CONFIRMED,
+        status = AppointmentStatus.SCHEDULED,
         scheduledAt = "2026-07-14T09:00:00+08:00",
         contactNotes = "Original note",
         lastRescheduleReason = "Doctor availability changed",
@@ -60,7 +60,7 @@ class AppointmentDetailViewModelTest {
     fun `customer reschedule uses returned appointment and clears staff reason without refetch`() = runTest {
         val updated = appointment.copy(
             scheduledAt = "2026-07-15T10:00:00+08:00",
-            status = AppointmentStatus.PENDING,
+            status = AppointmentStatus.SCHEDULED,
             lastRescheduleReason = null,
         )
         coEvery {
@@ -102,6 +102,6 @@ class AppointmentDetailViewModelTest {
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
         assertEquals("Cannot cancel", state.cancelError)
         assertFalse(state.isCancelling)
-        assertEquals(AppointmentStatus.CONFIRMED, state.appointment.status)
+        assertEquals(AppointmentStatus.SCHEDULED, state.appointment.status)
     }
 }

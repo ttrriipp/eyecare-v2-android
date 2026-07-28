@@ -28,8 +28,8 @@ class AppointmentListViewModelTest {
     private lateinit var repo: AppointmentV1Repository
 
     private val fakeList = listOf(
-        AppointmentV1(1, "APT-001", "New Patient", 30, null, AppointmentStatus.PENDING, "2026-10-24T10:00:00+08:00", null, null, "mobile", null),
-        AppointmentV1(2, "APT-002", "Follow-up", 15, null, AppointmentStatus.CONFIRMED, "2026-10-25T14:00:00+08:00", null, null, "mobile", null),
+        AppointmentV1(1, "APT-001", "New Patient", 30, null, AppointmentStatus.SCHEDULED, "2026-10-24T10:00:00+08:00", null, null, "mobile", null),
+        AppointmentV1(2, "APT-002", "Follow-up", 15, null, AppointmentStatus.SCHEDULED, "2026-10-25T14:00:00+08:00", null, null, "mobile", null),
     )
 
     @BeforeEach

@@ -537,12 +537,12 @@ fun StatusChip(status: AppointmentStatus, textColor: Color = Color.Unspecified) 
 }
 
 private fun appointmentStatusLabelAndColor(status: AppointmentStatus): Pair<String, Color> = when (status) {
-    AppointmentStatus.PENDING -> "Pending" to StatusPending
-    AppointmentStatus.CONFIRMED -> "Confirmed" to StatusConfirmed
-    AppointmentStatus.ARRIVED -> "Arrived" to StatusInfo
-    AppointmentStatus.COMPLETED -> "Completed" to OnSurfaceVariant
-    AppointmentStatus.NO_SHOW -> "No Show" to StatusCancelled
+    AppointmentStatus.SCHEDULED -> "Scheduled" to StatusPending
+    AppointmentStatus.CHECKED_IN -> "Checked in" to StatusInfo
+    AppointmentStatus.FULFILLED -> "Completed" to OnSurfaceVariant
+    AppointmentStatus.NO_SHOW -> "No show" to StatusCancelled
     AppointmentStatus.CANCELLED -> "Cancelled" to StatusCancelled
+    AppointmentStatus.UNKNOWN -> "Unknown" to OnSurfaceVariant
 }
 
 internal fun formatAppointmentTitle(visitReason: String): String = visitReason
@@ -584,9 +584,10 @@ internal fun appointmentsForTab(
     now: LocalDateTime = LocalDateTime.now(),
 ): List<AppointmentV1> {
     val terminalStatuses = setOf(
-        AppointmentStatus.COMPLETED,
+        AppointmentStatus.FULFILLED,
         AppointmentStatus.NO_SHOW,
         AppointmentStatus.CANCELLED,
+        AppointmentStatus.UNKNOWN,
     )
     val (upcoming, history) = appointments.partition { appointment ->
         val dateTime = parseAppointmentDateTime(appointment.scheduledAt)

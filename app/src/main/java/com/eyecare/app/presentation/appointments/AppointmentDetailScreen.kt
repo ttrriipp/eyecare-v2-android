@@ -168,14 +168,14 @@ private fun AppointmentDetailContent(
     onViewIntake: () -> Unit,
 ) {
     val appointment = state.appointment
-    val canManage = appointment.status == AppointmentStatus.PENDING ||
-        appointment.status == AppointmentStatus.CONFIRMED
-    val canLeaveFeedback = appointment.status == AppointmentStatus.COMPLETED && !state.hasFeedback
+    val canCancel = appointment.status.canCancel
+    val canReschedule = appointment.status.canReschedule
+    val canLeaveFeedback = appointment.status.canLeaveFeedback && !state.hasFeedback
     val customerNote = appointment.contactNotes?.takeIf { it.isNotBlank() }
     val clinicNote: String? = null
     val rescheduleReason = displayableRescheduleReason(appointment.lastRescheduleReason)
     val bottomContentPadding = when {
-        canManage -> 164.dp
+        canCancel || canReschedule || canLeaveFeedback -> 164.dp
         canLeaveFeedback -> 92.dp
         else -> 24.dp
     }
@@ -279,7 +279,7 @@ private fun AppointmentDetailContent(
 
         }
 
-        if (canManage || canLeaveFeedback) {
+        if (canCancel || canReschedule || canLeaveFeedback) {
             Surface(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
                 color = MaterialTheme.colorScheme.background,
@@ -291,7 +291,7 @@ private fun AppointmentDetailContent(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    if (canManage) {
+                    if (canReschedule) {
                         Button(
                             onClick = onReschedule,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -306,6 +306,8 @@ private fun AppointmentDetailContent(
                             Spacer(Modifier.size(8.dp))
                             Text("Reschedule", fontWeight = FontWeight.SemiBold)
                         }
+                    }
+                    if (canCancel) {
                         OutlinedButton(
                             onClick = onCancel,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -396,10 +398,10 @@ private fun StaffRescheduleNotice(reason: String) {
 @Composable
 private fun AppointmentStatusGuidance(status: AppointmentStatus) {
     val (title, message) = when (status) {
-        AppointmentStatus.PENDING ->
-            "Waiting for confirmation" to "The clinic will confirm your schedule shortly."
-        AppointmentStatus.CONFIRMED ->
-            "Appointment confirmed" to "Please arrive a few minutes before your scheduled time."
+        AppointmentStatus.SCHEDULED ->
+            "Appointment scheduled" to "Please arrive a few minutes before your scheduled time."
+        AppointmentStatus.CHECKED_IN ->
+            "Checked in" to "You're checked in. The clinic will see you shortly."
         else -> return
     }
 
@@ -409,8 +411,8 @@ private fun AppointmentStatusGuidance(status: AppointmentStatus) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = if (status == AppointmentStatus.PENDING) {
-                Icons.Outlined.AccessTime
+            imageVector = if (status == AppointmentStatus.SCHEDULED) {
+                Icons.Outlined.EventAvailable
             } else {
                 Icons.Outlined.EventAvailable
             },
@@ -607,12 +609,12 @@ private fun AppointmentNoteItem(label: String, note: String) {
 @Composable
 private fun AppointmentDetailStatusBadge(status: AppointmentStatus) {
     val (label, color) = when (status) {
-        AppointmentStatus.PENDING -> "Pending" to StatusPending
-        AppointmentStatus.CONFIRMED -> "Confirmed" to StatusConfirmed
-        AppointmentStatus.ARRIVED -> "Arrived" to StatusInfo
-        AppointmentStatus.COMPLETED -> "Completed" to OnSurfaceVariant
-        AppointmentStatus.NO_SHOW -> "No show" to StatusCancelled
+        AppointmentStatus.SCHEDULED -> "Scheduled" to StatusPending
+        AppointmentStatus.CHECKED_IN -> "Checked in" to StatusInfo
+        AppointmentStatus.FULFILLED -> "Completed" to OnSurfaceVariant
         AppointmentStatus.CANCELLED -> "Cancelled" to StatusCancelled
+        AppointmentStatus.NO_SHOW -> "No show" to StatusCancelled
+        AppointmentStatus.UNKNOWN -> "Unknown" to OnSurfaceVariant
     }
     Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.12f)) {
         Text(

@@ -125,11 +125,4 @@ class AppointmentDetailViewModel @Inject constructor(
             )
         }
     }
-
-    companion object {
-        private val EDITABLE_NOTE_STATUSES = setOf(
-            AppointmentStatus.PENDING,
-            AppointmentStatus.CONFIRMED,
-        )
-    }
 }

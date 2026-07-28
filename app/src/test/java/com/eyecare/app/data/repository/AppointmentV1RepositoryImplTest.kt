@@ -91,7 +91,7 @@ class AppointmentV1RepositoryImplTest {
         assertEquals("APT-001", appt.appointmentNumber)
         assertEquals("New Patient", appt.appointmentType)
         assertEquals(30, appt.durationMinutes)
-        assertEquals(AppointmentStatus.CONFIRMED, appt.status)
+        assertEquals(AppointmentStatus.SCHEDULED, appt.status)
         assertEquals("mobile", appt.source)
         assertEquals("Dr. Santos", appt.assignedOptometrist?.name)
     }

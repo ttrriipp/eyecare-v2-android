@@ -63,7 +63,7 @@ class HomeViewModel @Inject constructor(
 
             val nextAppointment = appointments
                 .filter {
-                    it.status in setOf(AppointmentStatus.CONFIRMED, AppointmentStatus.PENDING) &&
+                    it.status in setOf(AppointmentStatus.SCHEDULED, AppointmentStatus.CHECKED_IN) &&
                         runCatching { !LocalDate.parse(it.scheduledAt.take(10)).isBefore(today) }.getOrElse { false }
                 }
                 .minByOrNull { it.scheduledAt }

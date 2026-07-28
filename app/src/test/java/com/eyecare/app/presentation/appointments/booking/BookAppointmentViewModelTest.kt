@@ -36,7 +36,7 @@ class BookAppointmentViewModelTest {
         appointmentType = "New Patient",
         durationMinutes = 30,
         referringSource = null,
-        status = AppointmentStatus.PENDING,
+        status = AppointmentStatus.SCHEDULED,
         scheduledAt = "2026-10-24T09:00:00+08:00",
         contactNotes = null,
         lastRescheduleReason = null,

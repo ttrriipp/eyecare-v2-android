@@ -102,9 +102,9 @@ class AppointmentFormattingTest {
     @Test
     fun `upcoming tab contains future active appointments ordered soonest first`() {
         val appointments = listOf(
-            appointment(2, AppointmentStatus.CONFIRMED, "2026-10-26T10:00:00Z"),
-            appointment(1, AppointmentStatus.PENDING, "2026-10-25T10:00:00Z"),
-            appointment(3, AppointmentStatus.COMPLETED, "2026-10-27T10:00:00Z"),
+            appointment(2, AppointmentStatus.SCHEDULED, "2026-10-26T10:00:00Z"),
+            appointment(1, AppointmentStatus.SCHEDULED, "2026-10-25T10:00:00Z"),
+            appointment(3, AppointmentStatus.FULFILLED, "2026-10-27T10:00:00Z"),
         )
 
         val result = appointmentsForTab(
@@ -119,7 +119,7 @@ class AppointmentFormattingTest {
     @Test
     fun `history tab contains terminal and past appointments newest first`() {
         val appointments = listOf(
-            appointment(1, AppointmentStatus.CONFIRMED, "2026-10-23T10:00:00Z"),
+            appointment(1, AppointmentStatus.SCHEDULED, "2026-10-23T10:00:00Z"),
             appointment(2, AppointmentStatus.CANCELLED, "2026-10-26T10:00:00Z"),
             appointment(3, AppointmentStatus.NO_SHOW, "2026-10-22T10:00:00Z"),
         )
