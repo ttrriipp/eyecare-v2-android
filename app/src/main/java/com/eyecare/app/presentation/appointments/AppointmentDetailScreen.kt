@@ -71,7 +71,6 @@ import com.eyecare.app.ui.theme.StatusPending
 @Composable
 fun AppointmentDetailScreen(
     onBack: () -> Unit,
-    onLeaveFeedback: (Int) -> Unit,
     onNavigateToIntake: (Int) -> Unit = {},
     viewModel: AppointmentDetailViewModel = hiltViewModel(),
 ) {
@@ -151,7 +150,6 @@ fun AppointmentDetailScreen(
                     state = state,
                     onReschedule = viewModel::showRescheduleSheet,
                     onCancel = { showCancelDialog = true },
-                    onLeaveFeedback = { onLeaveFeedback(state.appointment.id) },
                     onViewIntake = { onNavigateToIntake(state.appointment.id) },
                 )
             }
@@ -164,19 +162,16 @@ private fun AppointmentDetailContent(
     state: AppointmentDetailUiState.Success,
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
-    onLeaveFeedback: () -> Unit,
     onViewIntake: () -> Unit,
 ) {
     val appointment = state.appointment
     val canCancel = appointment.status.canCancel
     val canReschedule = appointment.status.canReschedule
-    val canLeaveFeedback = appointment.status.canLeaveFeedback && !state.hasFeedback
     val customerNote = appointment.contactNotes?.takeIf { it.isNotBlank() }
     val clinicNote: String? = null
     val rescheduleReason = displayableRescheduleReason(appointment.lastRescheduleReason)
     val bottomContentPadding = when {
-        canCancel || canReschedule || canLeaveFeedback -> 164.dp
-        canLeaveFeedback -> 92.dp
+        canCancel || canReschedule -> 164.dp
         else -> 24.dp
     }
 
@@ -279,7 +274,7 @@ private fun AppointmentDetailContent(
 
         }
 
-        if (canCancel || canReschedule || canLeaveFeedback) {
+        if (canCancel || canReschedule) {
             Surface(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
                 color = MaterialTheme.colorScheme.background,
@@ -328,21 +323,6 @@ private fun AppointmentDetailContent(
                                 Spacer(Modifier.size(8.dp))
                                 Text("Cancel appointment", fontWeight = FontWeight.SemiBold)
                             }
-                        }
-                    }
-                    if (canLeaveFeedback) {
-                        Button(
-                            onClick = onLeaveFeedback,
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
-                            shape = RoundedCornerShape(50),
-                        ) {
-                            Icon(
-                                Icons.Outlined.RateReview,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.size(8.dp))
-                            Text("Leave feedback", fontWeight = FontWeight.SemiBold)
                         }
                     }
                     OutlinedButton(
@@ -649,7 +629,7 @@ private fun AppointmentActionError(message: String) {
 @Composable
 private fun AppointmentDetailPreview() {
     EyecareTheme {
-        AppointmentDetailScreen(onBack = {}, onLeaveFeedback = {})
+        AppointmentDetailScreen(onBack = {})
     }
 }
 

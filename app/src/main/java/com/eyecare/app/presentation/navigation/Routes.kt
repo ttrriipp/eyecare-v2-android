@@ -44,9 +44,6 @@ import kotlinx.serialization.Serializable
 // Profile sub-destinations
 @Serializable object EditProfile
 
-// Feedback
-@Serializable data class FeedbackSubmit(val appointmentId: Int)
-
 // Chat (FAB destination, not a tab)
 @Serializable object Chat
 

@@ -34,7 +34,6 @@ import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
-import com.eyecare.app.presentation.feedback.FeedbackScreen
 import com.eyecare.app.presentation.intake.PatientIntakeScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
@@ -82,7 +81,7 @@ fun EyecareNavGraph(
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
             !route.contains("BookAppointment") &&
             !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
-            !route.contains("Prescription") && !route.contains("Feedback") &&
+            !route.contains("Prescription") &&
             !route.contains("EditProfile") &&
             !route.contains("PatientIntake") && !route.contains("Quotation") &&
             !route.contains("JobOrder") && !route.contains("Invoice")
@@ -195,14 +194,6 @@ fun EyecareNavGraph(
                             onBack = { navController.popBackStack() },
                         )
                     }
-                    composable<FeedbackSubmit> { back ->
-                        val route = back.toRoute<FeedbackSubmit>()
-                        FeedbackScreen(
-                            appointmentId = route.appointmentId,
-                            onBack = { navController.popBackStack() },
-                            onSubmitted = { navController.popBackStack() },
-                        )
-                    }
                     composable<PrescriptionList> {
                         PrescriptionListScreen(
                             onBack = { navController.popBackStack() },
@@ -258,7 +249,6 @@ fun EyecareNavGraph(
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onLeaveFeedback = { id -> navController.navigate(FeedbackSubmit(appointmentId = id)) },
                             onNavigateToIntake = { appointmentId -> navController.navigate(PatientIntake(appointmentId)) },
                         )
                     }

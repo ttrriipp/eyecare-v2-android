@@ -80,11 +80,6 @@ class AppointmentStatusTest {
     }
 
     @Test
-    fun `scheduled cannot leave feedback`() {
-        assertFalse(AppointmentStatus.SCHEDULED.canLeaveFeedback)
-    }
-
-    @Test
     fun `checked_in can cancel`() {
         assertTrue(AppointmentStatus.CHECKED_IN.canCancel)
     }
@@ -92,11 +87,6 @@ class AppointmentStatusTest {
     @Test
     fun `checked_in cannot reschedule`() {
         assertFalse(AppointmentStatus.CHECKED_IN.canReschedule)
-    }
-
-    @Test
-    fun `checked_in cannot leave feedback`() {
-        assertFalse(AppointmentStatus.CHECKED_IN.canLeaveFeedback)
     }
 
     @Test
@@ -110,11 +100,6 @@ class AppointmentStatusTest {
     }
 
     @Test
-    fun `fulfilled can leave feedback`() {
-        assertTrue(AppointmentStatus.FULFILLED.canLeaveFeedback)
-    }
-
-    @Test
     fun `cancelled cannot cancel`() {
         assertFalse(AppointmentStatus.CANCELLED.canCancel)
     }
@@ -122,11 +107,6 @@ class AppointmentStatusTest {
     @Test
     fun `cancelled cannot reschedule`() {
         assertFalse(AppointmentStatus.CANCELLED.canReschedule)
-    }
-
-    @Test
-    fun `cancelled cannot leave feedback`() {
-        assertFalse(AppointmentStatus.CANCELLED.canLeaveFeedback)
     }
 
     @Test
@@ -140,11 +120,6 @@ class AppointmentStatusTest {
     }
 
     @Test
-    fun `no_show cannot leave feedback`() {
-        assertFalse(AppointmentStatus.NO_SHOW.canLeaveFeedback)
-    }
-
-    @Test
     fun `unknown cannot cancel`() {
         assertFalse(AppointmentStatus.UNKNOWN.canCancel)
     }
@@ -152,11 +127,6 @@ class AppointmentStatusTest {
     @Test
     fun `unknown cannot reschedule`() {
         assertFalse(AppointmentStatus.UNKNOWN.canReschedule)
-    }
-
-    @Test
-    fun `unknown cannot leave feedback`() {
-        assertFalse(AppointmentStatus.UNKNOWN.canLeaveFeedback)
     }
 
     @Test

@@ -17,7 +17,6 @@ sealed interface AppointmentDetailUiState {
     data object Loading : AppointmentDetailUiState
     data class Success(
         val appointment: AppointmentV1,
-        val hasFeedback: Boolean = false,
         val isCancelling: Boolean = false,
         val cancelError: String? = null,
         val showRescheduleSheet: Boolean = false,

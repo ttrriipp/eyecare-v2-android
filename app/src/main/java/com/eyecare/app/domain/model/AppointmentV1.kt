@@ -30,9 +30,6 @@ enum class AppointmentStatus {
     val canReschedule: Boolean
         get() = this == SCHEDULED
 
-    val canLeaveFeedback: Boolean
-        get() = this == FULFILLED
-
     val isActive: Boolean
         get() = this == SCHEDULED || this == CHECKED_IN
 

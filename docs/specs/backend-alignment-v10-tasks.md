@@ -270,16 +270,16 @@ intentional red proof that route discovery catches the retired service.
 
 **Acceptance criteria:**
 
-- [ ] `ApprovedApiRoutes` contains exactly 33 routes.
-- [ ] `POST /api/v1/feedback` is absent.
-- [ ] `POST /api/v1/job-order-items/{item}/rating` remains.
-- [ ] Both explicit count assertions expect 33.
-- [ ] The focused test fails only because the still-present Feedback service is
+- [x] `ApprovedApiRoutes` contains exactly 33 routes.
+- [x] `POST /api/v1/feedback` is absent.
+- [x] `POST /api/v1/job-order-items/{item}/rating` remains.
+- [x] Both explicit count assertions expect 33.
+- [x] The focused test fails only because the still-present Feedback service is
   discovered as unapproved.
 
 **Verification:**
 
-- [ ] Intended RED:
+- [x] Intended RED:
   `.\gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
 
 **Dependencies:** Checkpoint A
@@ -309,26 +309,26 @@ bottom-action visibility independent of Feedback so fulfilled visits retain
 
 **Acceptance criteria:**
 
-- [ ] All listed Feedback production and unit-test files are deleted.
-- [ ] `FeedbackSubmit` and its composable are deleted.
-- [ ] `AppointmentStatus.canLeaveFeedback` is deleted.
-- [ ] `AppointmentDetailUiState.hasFeedback` is deleted.
-- [ ] `onLeaveFeedback`, its button, icon, copy, and layout branches are gone.
-- [ ] Scheduled shows Reschedule, Cancel, and View Intake.
-- [ ] Checked in shows Cancel and View Intake.
-- [ ] Fulfilled shows View Intake without Feedback.
-- [ ] Cancelled, no-show, and unknown show no bottom action container.
-- [ ] Cancellation and rescheduling capabilities are unchanged.
-- [ ] Retrofit discovery and allowlist both report 33 routes.
-- [ ] Frame-rating tests still pass.
+- [x] All listed Feedback production and unit-test files are deleted.
+- [x] `FeedbackSubmit` and its composable are deleted.
+- [x] `AppointmentStatus.canLeaveFeedback` is deleted.
+- [x] `AppointmentDetailUiState.hasFeedback` is deleted.
+- [x] `onLeaveFeedback`, its button, icon, copy, and layout branches are gone.
+- [x] Scheduled shows Reschedule, Cancel, and View Intake.
+- [x] Checked in shows Cancel and View Intake.
+- [x] Fulfilled shows View Intake without Feedback.
+- [x] Cancelled, no-show, and unknown show no bottom action container.
+- [x] Cancellation and rescheduling capabilities are unchanged.
+- [x] Retrofit discovery and allowlist both report 33 routes.
+- [x] Frame-rating tests still pass.
 
 **Verification:**
 
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
-- [ ] `.\gradlew testDebugUnitTest --tests "*AppointmentStatusTest" --tests "*AppointmentDetailActionsTest"`
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameRating*"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*AppointmentStatusTest" --tests "*AppointmentDetailActionsTest"`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameRating*"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 5
 
@@ -387,11 +387,11 @@ affected fixture/callback surface with the current Profile screen.
 
 ## Checkpoint B — Feedback Fully Retired
 
-- [ ] `.\gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
-- [ ] `.\gradlew testDebugUnitTest --tests "*AppointmentStatusTest" --tests "*AppointmentDetailActionsTest"`
-- [ ] `.\gradlew testDebugUnitTest --tests "*FrameRating*"`
-- [ ] `.\gradlew assembleDebugAndroidTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
+- [x] `.\gradlew testDebugUnitTest --tests "*AppointmentStatusTest" --tests "*AppointmentDetailActionsTest"`
+- [x] `.\gradlew testDebugUnitTest --tests "*FrameRating*"`
+- [x] `.\gradlew assembleDebugAndroidTest`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual Appointment matrix confirms fulfilled retains View Intake.
 - [ ] Frame rating remains reachable and functional.
 
