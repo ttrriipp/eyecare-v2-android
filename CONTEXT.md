@@ -58,7 +58,6 @@ com.eyecare.app/
 │   ├── prescriptions/     # List + detail
 │   ├── billing/           # Billing detail
 │   ├── messaging/         # Chat screen
-│   ├── feedback/          # Submit + history
 │   ├── profile/           # User profile
 │   ├── navigation/        # NavGraph, Routes, BottomNavBar
 │   └── common/            # Shared components + helpers
@@ -237,7 +236,6 @@ GET    /conversation/messages           → unpaginated, oldest-first
 POST   /conversation/messages           → send text + optional attachment/context
 GET    /conversation/attachments/{id}   → authenticated file download
 
-POST   /feedback                        → completed appointment only
 POST   /job-order-items/{id}/rating     → create/revise frame rating
 ```
 
@@ -264,12 +262,11 @@ com.eyecare.app/
 │   ├── reservations/      Frame reservation list/create/cancel
 │   ├── appointments/      List, detail, booking, reschedule
 │   ├── intake/            Patient intake draft/submit
-│   ├── prescriptions/     Read-only list/detail
+│   ├── prescriptions/     Read-only versioned list/detail + history
 │   ├── quotations/        Read-only list/detail
 │   ├── joborders/         Read-only list/detail + rating
 │   ├── invoices/          Read-only list/detail
 │   ├── messaging/         Singleton conversation
-│   ├── feedback/          Completed-appointment submission
 │   ├── profile/           Patient profile + hub
 │   └── navigation/        Type-safe routes, bottom nav
 ├── di/                    Hilt modules
@@ -280,9 +277,9 @@ com.eyecare.app/
 
 Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 
-- Home: next appointment, expiring prescription, featured frames preview
+- Home: next appointment, current prescription summary, featured frames preview
 - Frames: searchable/paged catalog, detail, AR, reservation entry
-- Appointments: list, detail, booking, reschedule, cancel, intake, feedback
+- Appointments: list, detail, booking, reschedule, cancel, intake
 - Profile: hub for Messages, Prescriptions, Reservations, Quotations, Job Orders, Invoices
 
 ## Active Specs

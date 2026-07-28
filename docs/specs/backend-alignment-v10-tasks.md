@@ -412,35 +412,35 @@ remain.
 
 **Acceptance criteria:**
 
-- [ ] `CONTEXT.md` documents nested versioned prescriptions and historical
+- [x] `CONTEXT.md` documents nested versioned prescriptions and historical
   navigation.
-- [ ] Home is described as showing a current prescription, not expiry.
-- [ ] Feedback package, feature, route, and Appointment action references are
+- [x] Home is described as showing a current prescription, not expiry.
+- [x] Feedback package, feature, route, and Appointment action references are
   removed.
-- [ ] The current mobile route total is documented as 33.
-- [ ] Frame ratings remain documented.
-- [ ] Invoice and Frame Reservation behavior remains described as currently
+- [x] The current mobile route total is documented as 33.
+- [x] Frame ratings remain documented.
+- [x] Invoice and Frame Reservation behavior remains described as currently
   implemented, not as the deferred future contract.
-- [ ] Generic Frame Reservation `expiresAt` fields remain untouched.
+- [x] Generic Frame Reservation `expiresAt` fields remain untouched.
 
 **Verification:**
 
-- [ ] Feedback sweep returns no source/current-context matches:
+- [x] Feedback sweep returns no source/current-context matches:
 
   ```powershell
   rg -n -i "FeedbackSubmit|FeedbackApiService|FeedbackRepository|canLeaveFeedback|hasFeedback|@POST\\(\"feedback\"\\)" app/src CONTEXT.md
   ```
 
-- [ ] Legacy prescription sweep returns no matches:
+- [x] Legacy prescription sweep returns no matches:
 
   ```powershell
   rg -n "odSphere|odCylinder|odAxis|odAdd|odPrism|odBase|osSphere|osCylinder|osAxis|osAdd|osPrism|osBase|prescribedAt|expiringPrescription|PrescriptionWarningCard|validityStatus" app/src CONTEXT.md
   ```
 
-- [ ] Manually inspect generic `expiresAt` matches and retain reservation
+- [x] Manually inspect generic `expiresAt` matches and retain reservation
   expiry.
-- [ ] `git diff --check`
-- [ ] `.\gradlew assembleDebug`
+- [x] `git diff --check`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Checkpoints A–B
 
@@ -460,15 +460,15 @@ perform manual smoke checks, and record only genuine environment limitations.
 
 **Acceptance criteria:**
 
-- [ ] Full unit suite passes.
-- [ ] Android test APK compiles.
-- [ ] Ktlint passes.
-- [ ] Android lint passes.
-- [ ] Debug APK assembles.
+- [x] Full unit suite passes.
+- [x] Android test APK compiles.
+- [x] Ktlint passes.
+- [x] Android lint passes.
+- [x] Debug APK assembles.
 - [ ] Manual prescription and Appointment checks pass.
-- [ ] Final diff contains no Billing Record or Frame Reservation adjustment.
-- [ ] User-supplied backend documents are not staged.
-- [ ] V10 spec, plan, and task statuses accurately reflect completed work.
+- [x] Final diff contains no Billing Record or Frame Reservation adjustment.
+- [x] User-supplied backend documents are not staged.
+- [x] V10 spec, plan, and task statuses accurately reflect completed work.
 
 **Verification:**
 
@@ -513,14 +513,14 @@ fix must receive a focused regression test and rerun the affected checkpoint.
 
 ## Checkpoint C — V10 Complete
 
-- [ ] Checkpoint A passed.
-- [ ] Checkpoint B passed.
-- [ ] Task 8 source sweeps passed.
-- [ ] Task 9 complete verification passed.
-- [ ] `CONTEXT.md` matches the final Android behavior.
-- [ ] `docs/API_CONTRACT.md` and the other user-supplied backend documents were
+- [x] Checkpoint A passed.
+- [x] Checkpoint B passed.
+- [x] Task 8 source sweeps passed.
+- [x] Task 9 complete verification passed.
+- [x] `CONTEXT.md` matches the final Android behavior.
+- [x] `docs/API_CONTRACT.md` and the other user-supplied backend documents were
   not modified by Android implementation.
-- [ ] No Billing Record or Appointment-linked Frame Reservation work entered
+- [x] No Billing Record or Appointment-linked Frame Reservation work entered
   V10.
 
 After Checkpoint C, create the final documentation commit:
