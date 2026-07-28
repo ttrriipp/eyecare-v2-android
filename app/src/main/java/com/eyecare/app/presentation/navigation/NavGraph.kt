@@ -41,8 +41,8 @@ import com.eyecare.app.presentation.quotations.QuotationListScreen
 import com.eyecare.app.presentation.quotations.QuotationDetailScreen
 import com.eyecare.app.presentation.joborders.JobOrderListScreen
 import com.eyecare.app.presentation.joborders.JobOrderDetailScreen
-import com.eyecare.app.presentation.invoices.InvoiceListScreen
-import com.eyecare.app.presentation.invoices.InvoiceDetailScreen
+import com.eyecare.app.presentation.billingrecords.BillingRecordListScreen
+import com.eyecare.app.presentation.billingrecords.BillingRecordDetailScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
 import com.eyecare.app.presentation.frames.FrameListScreen
 import com.eyecare.app.presentation.reservations.CreateFrameReservationScreen
@@ -84,7 +84,7 @@ fun EyecareNavGraph(
             !route.contains("Prescription") &&
             !route.contains("EditProfile") &&
             !route.contains("PatientIntake") && !route.contains("Quotation") &&
-            !route.contains("JobOrder") && !route.contains("Invoice")
+            !route.contains("JobOrder") && !route.contains("BillingRecord")
     } ?: false
 
     val currentRoute = if (showBottomNav && currentDest != null) when {
@@ -230,15 +230,19 @@ fun EyecareNavGraph(
                         val route = back.toRoute<JobOrderDetail>()
                         JobOrderDetailScreen(jobOrderId = route.jobOrderId, onBack = { navController.popBackStack() })
                     }
-                    composable<InvoiceList> {
-                        InvoiceListScreen(
+                    composable<BillingRecordList> {
+                        BillingRecordListScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToDetail = { navController.navigate(InvoiceDetail(it)) },
+                            onNavigateToDetail = { navController.navigate(BillingRecordDetail(it)) },
                         )
                     }
-                    composable<InvoiceDetail> { back ->
-                        val route = back.toRoute<InvoiceDetail>()
-                        InvoiceDetailScreen(invoiceId = route.invoiceId, onBack = { navController.popBackStack() })
+                    composable<BillingRecordDetail> { back ->
+                        val route = back.toRoute<BillingRecordDetail>()
+                        BillingRecordDetailScreen(
+                            billingRecordId = route.billingRecordId,
+                            onBack = { navController.popBackStack() },
+                            onNavigateToJobOrder = { navController.navigate(JobOrderDetail(it)) },
+                        )
                     }
                     composable<Appointments> {
                         AppointmentListScreen(
@@ -281,7 +285,7 @@ fun EyecareNavGraph(
                             onNavigateToReservations = { navController.navigate(FrameReservationList) },
                             onNavigateToQuotations = { navController.navigate(QuotationList) },
                             onNavigateToJobOrders = { navController.navigate(JobOrderList) },
-                            onNavigateToInvoices = { navController.navigate(InvoiceList) },
+                            onNavigateToBillingRecords = { navController.navigate(BillingRecordList) },
                             onNavigateToEditProfile = { navController.navigate(EditProfile) },
                             onNavigateToMessages = { navController.navigate(Chat) },
                             unreadMessageCount = unreadCount,

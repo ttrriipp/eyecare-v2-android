@@ -76,7 +76,7 @@ fun ProfileScreen(
     onNavigateToReservations: () -> Unit = {},
     onNavigateToQuotations: () -> Unit = {},
     onNavigateToJobOrders: () -> Unit = {},
-    onNavigateToInvoices: () -> Unit = {},
+    onNavigateToBillingRecords: () -> Unit = {},
     onNavigateToEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     unreadMessageCount: Int = 0,
@@ -114,7 +114,7 @@ fun ProfileScreen(
             onNavigateToReservations = onNavigateToReservations,
             onNavigateToQuotations = onNavigateToQuotations,
             onNavigateToJobOrders = onNavigateToJobOrders,
-            onNavigateToInvoices = onNavigateToInvoices,
+            onNavigateToBillingRecords = onNavigateToBillingRecords,
             onLogoutClick = { showLogoutDialog = true },
         )
     }
@@ -148,7 +148,7 @@ fun ProfileContent(
     onNavigateToReservations: () -> Unit = {},
     onNavigateToQuotations: () -> Unit = {},
     onNavigateToJobOrders: () -> Unit = {},
-    onNavigateToInvoices: () -> Unit = {},
+    onNavigateToBillingRecords: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
     Column(
@@ -222,9 +222,9 @@ fun ProfileContent(
                     ProfileDivider()
                     ProfileNavRow(
                         icon = Icons.Outlined.Receipt,
-                        label = "Invoices",
-                        supportingText = "View billing and payments",
-                        onClick = onNavigateToInvoices,
+                        label = "Billing Records",
+                        supportingText = "View balances and payments",
+                        onClick = onNavigateToBillingRecords,
                     )
                 }
             }

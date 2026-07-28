@@ -37,9 +37,9 @@ import kotlinx.serialization.Serializable
 @Serializable object JobOrderList
 @Serializable data class JobOrderDetail(val jobOrderId: Int)
 
-// Invoices
-@Serializable object InvoiceList
-@Serializable data class InvoiceDetail(val invoiceId: Int)
+// Billing Records
+@Serializable object BillingRecordList
+@Serializable data class BillingRecordDetail(val billingRecordId: Int)
 
 // Profile sub-destinations
 @Serializable object EditProfile
