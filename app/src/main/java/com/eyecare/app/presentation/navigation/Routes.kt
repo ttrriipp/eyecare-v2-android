@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 
 // Reservation destinations
 @Serializable object FrameReservationList
+@Serializable object BookAppointmentForReservation
 
 // Prescriptions
 @Serializable object PrescriptionList

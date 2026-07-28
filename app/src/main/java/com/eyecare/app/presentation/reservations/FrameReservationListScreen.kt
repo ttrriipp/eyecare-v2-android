@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -136,7 +137,7 @@ private fun ReservationCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Reservation #",
+                    "Reservation #${reservation.id}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -145,13 +146,38 @@ private fun ReservationCard(
 
             Spacer(Modifier.height(8.dp))
 
+            // Appointment context
+            val appt = reservation.appointment
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column {
+                    Text(
+                        appt.appointmentNumber ?: "Appointment #${appt.id}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        formatReservationSchedule(appt.scheduledAt, appt.durationMinutes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
             reservation.items.forEach { item ->
                 Text(
-                    " — ",
+                    item.frameName,
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    item.variantName,
+                    "${item.variantName} — ${item.frameBrand}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -169,6 +195,17 @@ private fun ReservationCard(
                 }
             }
         }
+    }
+}
+
+private fun formatReservationSchedule(scheduledAt: String, durationMinutes: Int): String {
+    return try {
+        val odt = java.time.OffsetDateTime.parse(scheduledAt)
+        val dateStr = odt.format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy"))
+        val timeStr = odt.format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))
+        "$dateStr at $timeStr · ${durationMinutes}min"
+    } catch (_: Exception) {
+        scheduledAt.take(16)
     }
 }
 

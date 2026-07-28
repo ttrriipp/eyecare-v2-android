@@ -79,8 +79,8 @@ fun EyecareNavGraph(
     val showBottomNav = currentDest?.route?.let { route ->
         !route.contains("Login") && !route.contains("Register") &&
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
-            !route.contains("BookAppointment") &&
-            !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
+            !route.contains("BookAppointment") && !route.contains("CreateFrameReservation") &&
+            !route.contains("FrameReservation") && !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
             !route.contains("Prescription") &&
             !route.contains("EditProfile") &&
             !route.contains("PatientIntake") && !route.contains("Quotation") &&
@@ -178,7 +178,18 @@ fun EyecareNavGraph(
                             frameId = route.frameId,
                             variantId = route.variantId,
                             onBack = { navController.popBackStack() },
-                            onSuccess = { navController.popBackStack() },
+                            onSuccess = {
+                                navController.navigate(FrameReservationList) {
+                                    popUpTo<CreateFrameReservation> { inclusive = true }
+                                }
+                            },
+                            onBookAppointment = { navController.navigate(BookAppointmentForReservation) },
+                        )
+                    }
+                    composable<BookAppointmentForReservation> {
+                        BookAppointmentScreen(
+                            onBack = { navController.popBackStack() },
+                            onBooked = { navController.popBackStack() },
                         )
                     }
                     composable<FrameReservationList> {
