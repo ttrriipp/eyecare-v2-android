@@ -2,9 +2,17 @@
 
 import java.math.BigDecimal
 
+data class ReservationAppointment(
+    val id: Int,
+    val appointmentNumber: String?,
+    val status: AppointmentStatus,
+    val scheduledAt: String,
+    val durationMinutes: Int,
+)
+
 data class FrameReservation(
     val id: Int,
-    val appointmentId: Int?,
+    val appointment: ReservationAppointment,
     val status: ReservationStatus,
     val expiresAt: String?,
     val createdAt: String,

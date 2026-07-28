@@ -2,8 +2,18 @@
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.math.BigDecimal
 
 object FrameReservationDtos {
+
+    @Serializable
+    data class ReservationAppointmentDto(
+        val id: Int,
+        @SerialName("appointment_number") val appointmentNumber: String? = null,
+        val status: String,
+        @SerialName("scheduled_at") val scheduledAt: String,
+        @SerialName("duration_minutes") val durationMinutes: Int,
+    )
 
     @Serializable
     data class ReservationProductDto(
@@ -21,8 +31,8 @@ object FrameReservationDtos {
         val id: Int,
         val name: String,
         val sku: String,
-        @Serializable(with = MoneyValueSerializer::class) val price: java.math.BigDecimal,
-        @SerialName("compare_at_price") @Serializable(with = MoneyValueSerializer::class) val compareAtPrice: java.math.BigDecimal? = null,
+        @Serializable(with = MoneyValueSerializer::class) val price: BigDecimal,
+        @SerialName("compare_at_price") @Serializable(with = MoneyValueSerializer::class) val compareAtPrice: BigDecimal? = null,
         val attributes: kotlinx.serialization.json.JsonElement? = null,
         val images: List<String> = emptyList(),
         val product: ReservationProductDto,
@@ -39,6 +49,7 @@ object FrameReservationDtos {
     data class ReservationDto(
         val id: Int,
         @SerialName("appointment_id") val appointmentId: Int? = null,
+        val appointment: ReservationAppointmentDto? = null,
         val status: String,
         @SerialName("expires_at") val expiresAt: String? = null,
         @SerialName("created_at") val createdAt: String,
@@ -58,7 +69,7 @@ object FrameReservationDtos {
 
     @Serializable
     data class CreateReservationRequest(
-        @SerialName("appointment_id") val appointmentId: Int? = null,
+        @SerialName("appointment_id") val appointmentId: Int,
         val items: List<CreateReservationItemRequest>,
     )
 }

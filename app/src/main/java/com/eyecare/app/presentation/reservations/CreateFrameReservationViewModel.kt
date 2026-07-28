@@ -38,7 +38,7 @@ class CreateFrameReservationViewModel @AssistedInject constructor(
     private val _uiState = MutableStateFlow<CreateReservationUiState>(CreateReservationUiState.Idle)
     val uiState: StateFlow<CreateReservationUiState> = _uiState.asStateFlow()
 
-    fun submit(appointmentId: Int? = null) {
+    fun submit(appointmentId: Int) {
         val current = _uiState.value
         if (current is CreateReservationUiState.Submitting) return
         _uiState.value = CreateReservationUiState.Submitting

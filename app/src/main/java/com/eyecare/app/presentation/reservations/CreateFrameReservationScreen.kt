@@ -79,7 +79,7 @@ fun CreateFrameReservationScreen(
                         )
                         Spacer(Modifier.height(24.dp))
                         Button(
-                            onClick = { viewModel.submit() },
+                            onClick = { viewModel.submit(0) }, // TODO: Task 11 - wire appointment selection
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text("Confirm reservation")
@@ -90,7 +90,7 @@ fun CreateFrameReservationScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 is CreateReservationUiState.Error -> {
-                    ErrorContent(message = state.message, onRetry = { viewModel.submit() })
+                    ErrorContent(message = state.message, onRetry = { viewModel.submit(0) }) // TODO: Task 11
                 }
                 is CreateReservationUiState.Success -> { /* handled above */ }
             }
