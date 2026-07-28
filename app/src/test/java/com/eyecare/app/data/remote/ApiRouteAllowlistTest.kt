@@ -8,8 +8,8 @@ import java.io.File
 class ApiRouteAllowlistTest {
 
     @Test
-    fun `exactly 34 approved routes exist`() {
-        assertEquals(34, ApprovedApiRoutes.routes.size)
+    fun `exactly 33 approved routes exist`() {
+        assertEquals(33, ApprovedApiRoutes.routes.size)
     }
 
     @Test
@@ -50,7 +50,7 @@ class ApiRouteAllowlistTest {
             "Approved routes not found in services: $missing",
         )
 
-        assertEquals(34, discoveredRoutes.size, "Expected exactly 34 routes, found ${discoveredRoutes.size}")
+        assertEquals(33, discoveredRoutes.size, "Expected exactly 33 routes, found ${discoveredRoutes.size}")
     }
 
     /**

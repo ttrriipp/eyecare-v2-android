@@ -58,20 +58,20 @@ until Tasks 2–4 complete the clean cutover.
 
 **Acceptance criteria:**
 
-- [ ] Paginated and detail fixtures decode `previous_prescription_id`,
+- [x] Paginated and detail fixtures decode `previous_prescription_id`,
   `is_current`, `date`, `measurements`, and `remarks`.
-- [ ] Main and ADD each decode OD and OS `value`, `sphere`, and `cylinder`.
-- [ ] Every clinical measurement can remain null.
-- [ ] `Prescription` exposes nested serialization-free domain types.
-- [ ] Repository mapping preserves all nested values and pagination metadata.
-- [ ] Old flat fields do not remain in the DTO or domain model.
-- [ ] No compatibility alias or calculated clinical value is introduced.
+- [x] Main and ADD each decode OD and OS `value`, `sphere`, and `cylinder`.
+- [x] Every clinical measurement can remain null.
+- [x] `Prescription` exposes nested serialization-free domain types.
+- [x] Repository mapping preserves all nested values and pagination metadata.
+- [x] Old flat fields do not remain in the DTO or domain model.
+- [x] No compatibility alias or calculated clinical value is introduced.
 
 **Verification:**
 
-- [ ] Intended RED:
+- [x] Intended RED:
   `.\gradlew testDebugUnitTest --tests "*PrescriptionDtosTest" --tests "*PrescriptionRepositoryImplTest"`
-- [ ] Re-run after implementation and record that any remaining compile
+- [x] Re-run after implementation and record that any remaining compile
   failures are only the scheduled Tasks 2–4 consumers.
 
 **Dependencies:** None
@@ -111,20 +111,20 @@ detail retry reload the requested record without an automatic list call.
 
 **Acceptance criteria:**
 
-- [ ] List initial load, empty, error, retry, pagination, and load-more failure
+- [x] List initial load, empty, error, retry, pagination, and load-more failure
   states are covered.
-- [ ] Later pages append in server order without client re-sorting.
-- [ ] Concurrent or duplicate `loadMore()` calls are guarded.
-- [ ] Detail loading does not call `getPrescriptions`.
-- [ ] Detail retry calls `getPrescription` with the active ID.
-- [ ] Current and historical prescription models both load.
-- [ ] `isExpired` and all expiry-derived state are removed.
+- [x] Later pages append in server order without client re-sorting.
+- [x] Concurrent or duplicate `loadMore()` calls are guarded.
+- [x] Detail loading does not call `getPrescriptions`.
+- [x] Detail retry calls `getPrescription` with the active ID.
+- [x] Current and historical prescription models both load.
+- [x] `isExpired` and all expiry-derived state are removed.
 
 **Verification:**
 
-- [ ] Intended RED then implementation:
+- [x] Intended RED then implementation:
   `.\gradlew testDebugUnitTest --tests "*PrescriptionListViewModelTest" --tests "*PrescriptionDetailViewModelTest"`
-- [ ] Confirm remaining compiler failures are limited to screens/Home assigned
+- [x] Confirm remaining compiler failures are limited to screens/Home assigned
   to Tasks 3–4.
 
 **Dependencies:** Task 1
@@ -159,24 +159,24 @@ the existing type-safe detail route.
 
 **Acceptance criteria:**
 
-- [ ] List uses `PrescriptionListViewModel`.
-- [ ] Detail uses `PrescriptionDetailViewModel`.
-- [ ] List rows show date and concise Main OD/OS content.
-- [ ] Missing values render as an em dash, not zero.
-- [ ] Validity badges and expiry/renewal messages are gone.
-- [ ] Detail distinguishes Current prescription from Previous prescription.
-- [ ] Main and ADD groups render OD/OS value, sphere, and cylinder.
-- [ ] Blank remarks are omitted; non-blank remarks render.
-- [ ] **View previous version** appears only when an ID exists.
-- [ ] Selecting it pushes `PrescriptionDetail(previousPrescriptionId)`.
-- [ ] Back traverses from older to newer versions naturally.
-- [ ] Detail retry reloads the displayed ID.
+- [x] List uses `PrescriptionListViewModel`.
+- [x] Detail uses `PrescriptionDetailViewModel`.
+- [x] List rows show date and concise Main OD/OS content.
+- [x] Missing values render as an em dash, not zero.
+- [x] Validity badges and expiry/renewal messages are gone.
+- [x] Detail distinguishes Current prescription from Previous prescription.
+- [x] Main and ADD groups render OD/OS value, sphere, and cylinder.
+- [x] Blank remarks are omitted; non-blank remarks render.
+- [x] **View previous version** appears only when an ID exists.
+- [x] Selecting it pushes `PrescriptionDetail(previousPrescriptionId)`.
+- [x] Back traverses from older to newer versions naturally.
+- [x] Detail retry reloads the displayed ID.
 
 **Verification:**
 
-- [ ] Run:
+- [x] Run:
   `.\gradlew testDebugUnitTest --tests "*Prescription*"`
-- [ ] Run `.\gradlew assembleDebug` and confirm any remaining error is confined
+- [x] Run `.\gradlew assembleDebug` and confirm any remaining error is confined
   to the Home prescription consumer handled by Task 4.
 
 **Dependencies:** Tasks 1–2
@@ -210,24 +210,24 @@ prescription model.
 
 **Acceptance criteria:**
 
-- [ ] `expiringPrescription` is replaced by `currentPrescription`.
-- [ ] Home chooses the maximum ISO `date` among page-1 current records.
-- [ ] A non-current record is ignored defensively.
-- [ ] Prescription failure does not hide available Appointment or Frame data.
-- [ ] Home shows **Current prescription**, its date, and **View details**.
-- [ ] View details navigates to `PrescriptionDetail(id)`.
-- [ ] Home contains no expiration or renewal copy.
-- [ ] No additional network request is added.
-- [ ] The stale Home instrumented fixture no longer restores retired Order or
+- [x] `expiringPrescription` is replaced by `currentPrescription`.
+- [x] Home chooses the maximum ISO `date` among page-1 current records.
+- [x] A non-current record is ignored defensively.
+- [x] Prescription failure does not hide available Appointment or Frame data.
+- [x] Home shows **Current prescription**, its date, and **View details**.
+- [x] View details navigates to `PrescriptionDetail(id)`.
+- [x] Home contains no expiration or renewal copy.
+- [x] No additional network request is added.
+- [x] The stale Home instrumented fixture no longer restores retired Order or
   Product Home sections.
 
 **Verification:**
 
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*HomeViewModelTest"`
-- [ ] `.\gradlew testDebugUnitTest --tests "*Prescription*"`
-- [ ] `.\gradlew assembleDebugAndroidTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests "*Prescription*"`
+- [x] `.\gradlew assembleDebugAndroidTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 1–3
 
@@ -243,15 +243,15 @@ prescription model.
 
 ## Checkpoint A — Prescription Cutover Green
 
-- [ ] `.\gradlew testDebugUnitTest --tests "*Prescription*"`
-- [ ] `.\gradlew testDebugUnitTest --tests "*HomeViewModelTest"`
-- [ ] `.\gradlew assembleDebugAndroidTest`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Current, partial/null, and historical prescription fixtures display
+- [x] `.\gradlew testDebugUnitTest --tests "*Prescription*"`
+- [x] `.\gradlew testDebugUnitTest --tests "*HomeViewModelTest"`
+- [x] `.\gradlew assembleDebugAndroidTest`
+- [x] `.\gradlew assembleDebug`
+- [x] Current, partial/null, and historical prescription fixtures display
   correctly.
-- [ ] Opening detail performs no redundant list request.
-- [ ] Current -> previous -> previous -> Back -> Back works.
-- [ ] No legacy prescription compatibility field exists.
+- [x] Opening detail performs no redundant list request.
+- [x] Current -> previous -> previous -> Back -> Back works.
+- [x] No legacy prescription compatibility field exists.
 
 Only after Checkpoint A is green may the first V10 implementation commit be
 created:
