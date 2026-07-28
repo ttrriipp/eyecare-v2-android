@@ -37,17 +37,17 @@ renderers so the additive enum change compiles. Retain the old enum constants
 temporarily, but never map backend strings to them or give them capabilities.
 
 **Acceptance criteria:**
-- [ ] New raw strings map exactly to their canonical enum values.
-- [ ] Unexpected and retired raw strings map to `UNKNOWN`.
-- [ ] Active, cancel, reschedule, and feedback capabilities match the approved
+- [x] New raw strings map exactly to their canonical enum values.
+- [x] Unexpected and retired raw strings map to `UNKNOWN`.
+- [x] Active, cancel, reschedule, and feedback capabilities match the approved
   matrix for every canonical value.
-- [ ] Unmigrated list/detail rendering treats new values as neutral and
+- [x] Unmigrated list/detail rendering treats new values as neutral and
   non-actionable until Tasks 4 and 6.
 
 **Verification:**
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*AppointmentStatusTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** None
 
@@ -66,15 +66,15 @@ and prove list, detail, create, cancel, and reschedule responses map correctly
 without changing DTO or service shapes.
 
 **Acceptance criteria:**
-- [ ] DTO decoding preserves each new raw status string.
-- [ ] Repository responses map scheduled, checked-in, fulfilled, cancelled,
+- [x] DTO decoding preserves each new raw status string.
+- [x] Repository responses map scheduled, checked-in, fulfilled, cancelled,
   and no-show correctly.
-- [ ] Request bodies, pagination behavior, and error parsing are unchanged.
+- [x] Request bodies, pagination behavior, and error parsing are unchanged.
 
 **Verification:**
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*AppointmentV1DtosTest" --tests "*AppointmentV1RepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 1
 
@@ -86,9 +86,9 @@ without changing DTO or service shapes.
 
 ## Checkpoint A — Contract Foundation
 
-- [ ] `.\gradlew testDebugUnitTest --tests "*AppointmentStatusTest" --tests "*AppointmentV1DtosTest" --tests "*AppointmentV1RepositoryImplTest"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] No Retrofit service, request DTO, or route allowlist changed.
+- [x] `.\gradlew testDebugUnitTest --tests "*AppointmentStatusTest" --tests "*AppointmentV1DtosTest" --tests "*AppointmentV1RepositoryImplTest"`
+- [x] `.\gradlew assembleDebug`
+- [x] No Retrofit service, request DTO, or route allowlist changed.
 
 ## Phase B — Appointment Experience
 
@@ -98,14 +98,14 @@ without changing DTO or service shapes.
 listed appointments use only canonical active statuses.
 
 **Acceptance criteria:**
-- [ ] Successful booking returns `SCHEDULED`.
-- [ ] Appointment-list state handles scheduled and checked-in records.
-- [ ] No old enum constant remains in these ViewModel tests.
+- [x] Successful booking returns `SCHEDULED`.
+- [x] Appointment-list state handles scheduled and checked-in records.
+- [x] No old enum constant remains in these ViewModel tests.
 
 **Verification:**
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*BookAppointmentViewModelTest" --tests "*AppointmentListViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 2
 
@@ -122,16 +122,16 @@ appointment-list status UI, and replace Upcoming/History grouping with domain
 active capabilities.
 
 **Acceptance criteria:**
-- [ ] Labels are Scheduled, Checked in, Completed, Cancelled, No show, and
+- [x] Labels are Scheduled, Checked in, Completed, Cancelled, No show, and
   Unknown.
-- [ ] Upcoming contains future scheduled/checked-in records only.
-- [ ] Fulfilled, cancelled, no-show, unknown, and past active records appear in
+- [x] Upcoming contains future scheduled/checked-in records only.
+- [x] Fulfilled, cancelled, no-show, unknown, and past active records appear in
   History.
 
 **Verification:**
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*AppointmentStatusPresentationTest" --tests "*AppointmentFormattingTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 3
 
@@ -145,9 +145,9 @@ active capabilities.
 
 ## Checkpoint B — Booking and List
 
-- [ ] `.\gradlew testDebugUnitTest --tests "*BookAppointmentViewModelTest" --tests "*AppointmentListViewModelTest" --tests "*AppointmentFormattingTest" --tests "*AppointmentStatusPresentationTest"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Manual preview check: every canonical status uses readable list copy.
+- [x] `.\gradlew testDebugUnitTest --tests "*BookAppointmentViewModelTest" --tests "*AppointmentListViewModelTest" --tests "*AppointmentFormattingTest" --tests "*AppointmentStatusPresentationTest"`
+- [x] `.\gradlew assembleDebug`
+- [x] Manual preview check: every canonical status uses readable list copy.
 
 ### Task 5: Guard appointment-detail mutations
 
@@ -156,14 +156,14 @@ appointments can reschedule and only scheduled/checked-in appointments can
 cancel, independent of UI visibility.
 
 **Acceptance criteria:**
-- [ ] Invalid statuses cannot open or submit rescheduling.
-- [ ] Invalid statuses cannot call cancellation.
-- [ ] Valid server results and existing 422 behavior still update UI state.
+- [x] Invalid statuses cannot open or submit rescheduling.
+- [x] Invalid statuses cannot call cancellation.
+- [x] Valid server results and existing 422 behavior still update UI state.
 
 **Verification:**
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*AppointmentDetailViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 1
 
@@ -180,15 +180,15 @@ reschedule/cancel actions, apply canonical badges/guidance, and expose feedback
 only for fulfilled appointments.
 
 **Acceptance criteria:**
-- [ ] Scheduled shows Reschedule and Cancel.
-- [ ] Checked in shows Cancel only; fulfilled shows Leave Feedback only.
-- [ ] Cancelled, no-show, unknown, and transitional constants show no mutation
+- [x] Scheduled shows Reschedule and Cancel.
+- [x] Checked in shows Cancel only; fulfilled shows Leave Feedback only.
+- [x] Cancelled, no-show, unknown, and transitional constants show no mutation
   action.
 
 **Verification:**
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*AppointmentDetailActionsTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual preview/runtime check of scheduled, checked-in, and fulfilled
   bottom actions.
 
@@ -202,9 +202,9 @@ only for fulfilled appointments.
 
 ## Checkpoint C — Appointment Detail
 
-- [ ] `.\gradlew testDebugUnitTest --tests "*AppointmentDetail*"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Scheduled, checked-in, fulfilled, and terminal action behavior matches the
+- [x] `.\gradlew testDebugUnitTest --tests "*AppointmentDetail*"`
+- [x] `.\gradlew assembleDebug`
+- [x] Scheduled, checked-in, fulfilled, and terminal action behavior matches the
   backend contract.
 
 ## Phase C — Downstream Consumers
@@ -215,14 +215,14 @@ only for fulfilled appointments.
 only and migrate all Home fixtures to canonical values.
 
 **Acceptance criteria:**
-- [ ] Home selects the soonest non-past scheduled or checked-in appointment.
-- [ ] Fulfilled, terminal, unknown, and past appointments are excluded.
-- [ ] Existing frame and prescription Home behavior is unchanged.
+- [x] Home selects the soonest non-past scheduled or checked-in appointment.
+- [x] Fulfilled, terminal, unknown, and past appointments are excluded.
+- [x] Existing frame and prescription Home behavior is unchanged.
 
 **Verification:**
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*HomeViewModelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 1
 
@@ -238,14 +238,14 @@ only and migrate all Home fixtures to canonical values.
 picker with the shared patient-facing appointment label.
 
 **Acceptance criteria:**
-- [ ] Picker copy never displays `checked_in` or `fulfilled`.
-- [ ] Every canonical and unknown status has readable secondary text.
-- [ ] Attachment selection and message navigation behavior are unchanged.
+- [x] Picker copy never displays `checked_in` or `fulfilled`.
+- [x] Every canonical and unknown status has readable secondary text.
+- [x] Attachment selection and message navigation behavior are unchanged.
 
 **Verification:**
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*AppointmentAttachmentLabelTest"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual check: link scheduled, checked-in, and fulfilled appointments.
 
 **Dependencies:** Task 4
@@ -258,9 +258,9 @@ picker with the shared patient-facing appointment label.
 
 ## Checkpoint D — Downstream Consumers
 
-- [ ] `.\gradlew testDebugUnitTest --tests "*HomeViewModelTest" --tests "*AppointmentAttachmentLabelTest"`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Home and messaging expose no technical or retired status label.
+- [x] `.\gradlew testDebugUnitTest --tests "*HomeViewModelTest" --tests "*AppointmentAttachmentLabelTest"`
+- [x] `.\gradlew assembleDebug`
+- [x] Home and messaging expose no technical or retired status label.
 
 ## Phase D — Hard Cutover and Release
 
@@ -270,18 +270,18 @@ picker with the shared patient-facing appointment label.
 all consumers use the canonical lifecycle, then prove the enum set is exact.
 
 **Acceptance criteria:**
-- [ ] Enum contains exactly the five backend statuses plus `UNKNOWN`.
-- [ ] Production contains no retired enum reference or raw status literal.
-- [ ] Retired strings remain only in the focused negative mapping test, proving
+- [x] Enum contains exactly the five backend statuses plus `UNKNOWN`.
+- [x] Production contains no retired enum reference or raw status literal.
+- [x] Retired strings remain only in the focused negative mapping test, proving
   they resolve to `UNKNOWN`.
 
 **Verification:**
-- [ ] RED then GREEN:
+- [x] RED then GREEN:
   `.\gradlew testDebugUnitTest --tests "*AppointmentStatusTest"`
-- [ ] `rg -n "AppointmentStatus\\.(PENDING|CONFIRMED|ARRIVED|COMPLETED)|\"(pending|confirmed|arrived|completed)\"" app/src/main`
-- [ ] `rg -n "AppointmentStatus\\.(PENDING|CONFIRMED|ARRIVED|COMPLETED)" app/src/test`
-- [ ] `.\gradlew testDebugUnitTest --tests "*Appointment*"`
-- [ ] `.\gradlew assembleDebug`
+- [x] `rg -n "AppointmentStatus\\.(PENDING|CONFIRMED|ARRIVED|COMPLETED)|\"(pending|confirmed|arrived|completed)\"" app/src/main`
+- [x] `rg -n "AppointmentStatus\\.(PENDING|CONFIRMED|ARRIVED|COMPLETED)" app/src/test`
+- [x] `.\gradlew testDebugUnitTest --tests "*Appointment*"`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 2–8
 
@@ -297,15 +297,15 @@ all consumers use the canonical lifecycle, then prove the enum set is exact.
 and run every automated and manual verification gate.
 
 **Acceptance criteria:**
-- [ ] `CONTEXT.md` describes the canonical lifecycle and action matrix.
-- [ ] V9 spec, plan, and tasks accurately record final behavior/results.
-- [ ] V8 documents remain unchanged as historical evidence for `ebd1e2e`.
+- [x] `CONTEXT.md` describes the canonical lifecycle and action matrix.
+- [x] V9 spec, plan, and tasks accurately record final behavior/results.
+- [x] V8 documents remain unchanged as historical evidence for `ebd1e2e`.
 
 **Verification:**
-- [ ] `.\gradlew ktlintCheck`
-- [ ] `.\gradlew testDebugUnitTest`
-- [ ] `.\gradlew lintDebug`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew ktlintCheck`
+- [x] `.\gradlew testDebugUnitTest`
+- [x] `.\gradlew lintDebug`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual backend smoke test against `579b964` or a recorded
   contract-equivalent commit.
 
@@ -321,14 +321,14 @@ and run every automated and manual verification gate.
 
 ## Checkpoint E — Complete
 
-- [ ] All 10 tasks are complete.
-- [ ] Exactly the canonical statuses plus `UNKNOWN` remain.
-- [ ] Route allowlist remains at 34 method/path pairs.
-- [ ] Scheduled, checked-in, fulfilled, cancelled, no-show, and unknown behavior
+- [x] All 10 tasks are complete.
+- [x] Exactly the canonical statuses plus `UNKNOWN` remain.
+- [x] Route allowlist remains at 34 method/path pairs.
+- [x] Scheduled, checked-in, fulfilled, cancelled, no-show, and unknown behavior
   matches the approved matrix.
-- [ ] No appointment or clinical data is stored in Room or logged.
-- [ ] Full automated gates and backend smoke test pass.
-- [ ] `CONTEXT.md`, V9 specification, plan, and tasks agree.
+- [x] No appointment or clinical data is stored in Room or logged.
+- [x] Full automated gates and backend smoke test pass.
+- [x] `CONTEXT.md`, V9 specification, plan, and tasks agree.
 
 ## Parallelization Guidance
 
