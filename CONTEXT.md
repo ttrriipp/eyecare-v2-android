@@ -228,8 +228,8 @@ GET    /quotations                      → paginated, read-only
 GET    /quotations/{id}
 GET    /job-orders                      → paginated, read-only
 GET    /job-orders/{id}
-GET    /invoices                        → paginated, read-only
-GET    /invoices/{id}
+GET    /billing-records                 → paginated, read-only internal ledger
+GET    /billing-records/{id}
 
 GET    /conversation                    → singleton patient conversation
 GET    /conversation/messages           → unpaginated, oldest-first
@@ -265,7 +265,7 @@ com.eyecare.app/
 │   ├── prescriptions/     Read-only versioned list/detail + history
 │   ├── quotations/        Read-only list/detail
 │   ├── joborders/         Read-only list/detail + rating
-│   ├── invoices/          Read-only list/detail
+│   ├── billingrecords/    Read-only billing records
 │   ├── messaging/         Singleton conversation
 │   ├── profile/           Patient profile + hub
 │   └── navigation/        Type-safe routes, bottom nav
@@ -280,7 +280,7 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 - Home: next appointment, current prescription summary, featured frames preview
 - Frames: searchable/paged catalog, detail, AR, reservation entry
 - Appointments: list, detail, booking, reschedule, cancel, intake
-- Profile: hub for Messages, Prescriptions, Reservations, Quotations, Job Orders, Invoices
+- Profile: hub for Messages, Prescriptions, Reservations, Quotations, Job Orders, Billing Records
 
 ## Active Specs
 
