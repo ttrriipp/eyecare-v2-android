@@ -68,7 +68,7 @@ class AppointmentV1RepositoryImplTest {
                 {
                   "data":[
                     {"id":1,"appointment_number":"APT-001","appointment_type":"New Patient",
-                     "duration_minutes":30,"referring_source":null,"status":"confirmed",
+                     "duration_minutes":30,"referring_source":null,"status":"scheduled",
                      "scheduled_at":"2026-07-28T10:00:00+08:00","contact_notes":null,
                      "last_reschedule_reason":null,"source":"mobile",
                      "assigned_optometrist":{"name":"Dr. Santos"}}
