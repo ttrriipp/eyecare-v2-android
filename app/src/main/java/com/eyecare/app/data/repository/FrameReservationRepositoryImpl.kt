@@ -77,7 +77,7 @@ class FrameReservationRepositoryImpl @Inject constructor(
         variantSku = variant.sku,
         price = variant.price,
         frameName = variant.product.name,
-        frameBrand = variant.product.brand,
+        frameBrand = variant.product.brand ?: "",
         images = variant.images,
     )
 }

@@ -22,7 +22,7 @@ object FrameReservationDtos {
         val slug: String,
         val description: String? = null,
         @SerialName("product_type") val productType: String = "frame",
-        val brand: String,
+        val brand: String? = null,
         val category: String? = null,
     )
 
