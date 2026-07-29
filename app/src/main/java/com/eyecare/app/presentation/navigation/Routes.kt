@@ -42,6 +42,10 @@ import kotlinx.serialization.Serializable
 @Serializable object BillingRecordList
 @Serializable data class BillingRecordDetail(val billingRecordId: Int)
 
+// Eyewear aggregate
+@Serializable object EyewearList
+@Serializable data class EyewearDetail(val key: String)
+
 // Profile sub-destinations
 @Serializable object EditProfile
 

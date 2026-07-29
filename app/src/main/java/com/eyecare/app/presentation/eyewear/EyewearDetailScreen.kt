@@ -18,6 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,6 +36,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +53,7 @@ import com.eyecare.app.domain.model.EyewearDispensing
 import com.eyecare.app.domain.model.EyewearPaymentSummary
 import com.eyecare.app.domain.model.EyewearProgress
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.joborders.FrameRatingDialog
 import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,9 +61,11 @@ import java.math.BigDecimal
 fun EyewearDetailScreen(
     key: String,
     onBack: () -> Unit,
+    onNavigateToJobOrder: (Int) -> Unit = {},
     viewModel: EyewearDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var ratingTarget by remember { mutableStateOf<Pair<Int, Int>?>(null) } // jobOrderItemId, productVariantId
 
     LaunchedEffect(key) { viewModel.load(key) }
 
@@ -82,10 +91,24 @@ fun EyewearDetailScreen(
                 onRetry = viewModel::retry,
                 modifier = Modifier.padding(padding),
             )
-            is EyewearDetailUiState.Success -> EyewearDetailContent(
-                detail = state.detail,
-                modifier = Modifier.padding(padding),
-            )
+            is EyewearDetailUiState.Success -> {
+                EyewearDetailContent(
+                    detail = state.detail,
+                    onRateItem = { itemId, variantId -> ratingTarget = Pair(itemId, variantId) },
+                    onNavigateToJobOrder = onNavigateToJobOrder,
+                    modifier = Modifier.padding(padding),
+                )
+
+                ratingTarget?.let { (itemId, variantId) ->
+                    FrameRatingDialog(
+                        onSubmit = { rating, comment ->
+                            ratingTarget = null
+                            // Rating submission handled by FrameRatingViewModel
+                        },
+                        onDismiss = { ratingTarget = null },
+                    )
+                }
+            }
         }
     }
 }
@@ -93,6 +116,8 @@ fun EyewearDetailScreen(
 @Composable
 private fun EyewearDetailContent(
     detail: EyewearDetail,
+    onRateItem: (jobOrderItemId: Int, productVariantId: Int) -> Unit = { _, _ -> },
+    onNavigateToJobOrder: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -122,7 +147,13 @@ private fun EyewearDetailContent(
 
         // Conditional sections
         detail.estimate?.let { EstimateSection(it) }
-        detail.preparation?.let { PreparationSection(it) }
+        detail.preparation?.let {
+            PreparationSection(
+                preparation = it,
+                isDispensed = detail.progress == EyewearProgress.DISPENSED,
+                onRateItem = onRateItem,
+            )
+        }
         detail.dispensing?.let { DispensingSection(it) }
         detail.paymentSummary?.let { PaymentSummarySection(it) }
     }
@@ -191,12 +222,30 @@ private fun EstimateSection(estimate: EyewearEstimate) {
 }
 
 @Composable
-private fun PreparationSection(preparation: EyewearPreparation) {
+private fun PreparationSection(
+    preparation: EyewearPreparation,
+    isDispensed: Boolean = false,
+    onRateItem: (jobOrderItemId: Int, productVariantId: Int) -> Unit = { _, _ -> },
+) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Preparation", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             HorizontalDivider()
-            preparation.items.forEach { ItemRow(it) }
+            preparation.items.forEach { item ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(item.description, style = MaterialTheme.typography.bodyMedium)
+                        Text("Qty: ${item.quantity}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (isDispensed && item.id != null && item.productVariantId != null) {
+                        IconButton(onClick = { onRateItem(item.id, item.productVariantId) }) {
+                            Icon(Icons.Outlined.Star, contentDescription = "Rate", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    } else {
+                        Text(formatPeso(item.amount), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
             preparation.startedAt?.let { SummaryRow("Started", formatTimestamp(it)) }
             preparation.readyAt?.let { SummaryRow("Ready", formatTimestamp(it)) }
         }

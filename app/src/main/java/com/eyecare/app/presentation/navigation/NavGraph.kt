@@ -43,6 +43,8 @@ import com.eyecare.app.presentation.joborders.JobOrderListScreen
 import com.eyecare.app.presentation.joborders.JobOrderDetailScreen
 import com.eyecare.app.presentation.billingrecords.BillingRecordListScreen
 import com.eyecare.app.presentation.billingrecords.BillingRecordDetailScreen
+import com.eyecare.app.presentation.eyewear.EyewearListScreen
+import com.eyecare.app.presentation.eyewear.EyewearDetailScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
 import com.eyecare.app.presentation.frames.FrameListScreen
 import com.eyecare.app.presentation.reservations.CreateFrameReservationScreen
@@ -84,7 +86,7 @@ fun EyecareNavGraph(
             !route.contains("Prescription") &&
             !route.contains("EditProfile") &&
             !route.contains("PatientIntake") && !route.contains("Quotation") &&
-            !route.contains("JobOrder") && !route.contains("BillingRecord")
+            !route.contains("JobOrder") && !route.contains("BillingRecord") && !route.contains("Eyewear")
     } ?: false
 
     val currentRoute = if (showBottomNav && currentDest != null) when {
@@ -255,6 +257,19 @@ fun EyecareNavGraph(
                             onNavigateToJobOrder = { navController.navigate(JobOrderDetail(it)) },
                         )
                     }
+                    composable<EyewearList> {
+                        EyewearListScreen(
+                            onBack = { navController.popBackStack() },
+                            onNavigateToDetail = { navController.navigate(EyewearDetail(it)) },
+                        )
+                    }
+                    composable<EyewearDetail> { back ->
+                        val route = back.toRoute<EyewearDetail>()
+                        EyewearDetailScreen(
+                            key = route.key,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
                     composable<Appointments> {
                         AppointmentListScreen(
                             onNavigateToDetail = { id -> navController.navigate(AppointmentDetail(id)) },
@@ -294,9 +309,7 @@ fun EyecareNavGraph(
                             },
                             onNavigateToPrescriptions = { navController.navigate(PrescriptionList) },
                             onNavigateToReservations = { navController.navigate(FrameReservationList) },
-                            onNavigateToQuotations = { navController.navigate(QuotationList) },
-                            onNavigateToJobOrders = { navController.navigate(JobOrderList) },
-                            onNavigateToBillingRecords = { navController.navigate(BillingRecordList) },
+                            onNavigateToEyewear = { navController.navigate(EyewearList) },
                             onNavigateToEditProfile = { navController.navigate(EditProfile) },
                             onNavigateToMessages = { navController.navigate(Chat) },
                             unreadMessageCount = unreadCount,

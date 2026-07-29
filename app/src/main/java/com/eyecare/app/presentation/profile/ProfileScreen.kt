@@ -74,9 +74,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
-    onNavigateToQuotations: () -> Unit = {},
-    onNavigateToJobOrders: () -> Unit = {},
-    onNavigateToBillingRecords: () -> Unit = {},
+    onNavigateToEyewear: () -> Unit = {},
     onNavigateToEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     unreadMessageCount: Int = 0,
@@ -112,9 +110,7 @@ fun ProfileScreen(
             onNavigateToMessages = onNavigateToMessages,
             onNavigateToPrescriptions = onNavigateToPrescriptions,
             onNavigateToReservations = onNavigateToReservations,
-            onNavigateToQuotations = onNavigateToQuotations,
-            onNavigateToJobOrders = onNavigateToJobOrders,
-            onNavigateToBillingRecords = onNavigateToBillingRecords,
+            onNavigateToEyewear = onNavigateToEyewear,
             onLogoutClick = { showLogoutDialog = true },
         )
     }
@@ -146,9 +142,7 @@ fun ProfileContent(
     onNavigateToMessages: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
-    onNavigateToQuotations: () -> Unit = {},
-    onNavigateToJobOrders: () -> Unit = {},
-    onNavigateToBillingRecords: () -> Unit = {},
+    onNavigateToEyewear: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
     Column(
@@ -207,24 +201,10 @@ fun ProfileContent(
                     )
                     ProfileDivider()
                     ProfileNavRow(
-                        icon = Icons.Outlined.RequestQuote,
-                        label = "Quotations",
-                        supportingText = "View pricing proposals",
-                        onClick = onNavigateToQuotations,
-                    )
-                    ProfileDivider()
-                    ProfileNavRow(
-                        icon = Icons.Outlined.Work,
-                        label = "Job Orders",
-                        supportingText = "Track fulfillment status",
-                        onClick = onNavigateToJobOrders,
-                    )
-                    ProfileDivider()
-                    ProfileNavRow(
                         icon = Icons.Outlined.Receipt,
-                        label = "Billing Records",
-                        supportingText = "View balances and payments",
-                        onClick = onNavigateToBillingRecords,
+                        label = "Eyewear",
+                        supportingText = "Track estimates, preparation, pickup, and payments",
+                        onClick = onNavigateToEyewear,
                     )
                 }
             }
