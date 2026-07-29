@@ -324,7 +324,6 @@ fun EyecareNavGraph(
                         ChatScreen(
                             onBack = { navController.popBackStack() },
                             onAppointmentClick = { navController.navigate(AppointmentDetail(it)) },
-                            onOrderClick = { navController.navigate(JobOrderDetail(it)) },
                         )
                     }
                 }

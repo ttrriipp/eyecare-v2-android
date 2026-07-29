@@ -45,12 +45,6 @@ internal fun MessageContextCard(
             Icons.Default.CalendarMonth
         }
 
-        is MessageContext.Order -> {
-            title = "Order"
-            accessibilityLabel = "Open order ${context.id}"
-            Icons.Default.ShoppingBag
-        }
-
         is MessageContext.Unsupported -> return
     }
 

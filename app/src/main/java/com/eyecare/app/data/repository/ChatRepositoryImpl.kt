@@ -93,7 +93,7 @@ internal fun MessageDtos.MessageDto.toDomain() = Message(
     contexts = contexts.map { context ->
         when (context.type.substringAfterLast('\\').lowercase()) {
             "appointment" -> MessageContext.Appointment(context.id)
-            "order" -> MessageContext.Order(context.id)
+            "order" -> MessageContext.Unsupported(context.type, context.id)
             else -> MessageContext.Unsupported(context.type, context.id)
         }
     },

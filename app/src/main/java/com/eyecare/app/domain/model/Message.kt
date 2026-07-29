@@ -22,7 +22,6 @@ sealed interface MessageContext {
     val id: Int
 
     data class Appointment(override val id: Int) : MessageContext
-    data class Order(override val id: Int) : MessageContext
     data class Unsupported(val type: String, override val id: Int) : MessageContext
 }
 

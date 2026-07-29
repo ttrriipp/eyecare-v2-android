@@ -25,7 +25,7 @@ class ChatRepositoryMappingsTest {
 
         assertInstanceOf(MessageContext.Appointment::class.java, message.contexts[0])
         assertEquals(7, message.contexts[0].id)
-        assertInstanceOf(MessageContext.Order::class.java, message.contexts[1])
+        assertInstanceOf(MessageContext.Unsupported::class.java, message.contexts[1])
         assertEquals(12, message.contexts[1].id)
         assertEquals(MessageContext.Unsupported("product", 20), message.contexts[2])
     }

@@ -65,7 +65,6 @@ import kotlinx.coroutines.launch
 fun ChatScreen(
     onBack: () -> Unit,
     onAppointmentClick: (Int) -> Unit = {},
-    onOrderClick: (Int) -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -173,7 +172,6 @@ fun ChatScreen(
                                     message = msg,
                                     isOwn = msg.senderId == viewModel.currentUserId,
                                     onAppointmentClick = onAppointmentClick,
-                                    onOrderClick = onOrderClick,
                                 )
                             }
                         }

@@ -38,7 +38,6 @@ fun MessageBubble(
     message: Message,
     isOwn: Boolean,
     onAppointmentClick: (Int) -> Unit = {},
-    onOrderClick: (Int) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
@@ -79,15 +78,6 @@ fun MessageBubble(
                                 context = context,
                                 isOwn = isOwn,
                                 onClick = { onAppointmentClick(context.id) },
-                            )
-                        }
-
-                        is MessageContext.Order -> {
-                            Spacer(Modifier.height(6.dp))
-                            MessageContextCard(
-                                context = context,
-                                isOwn = isOwn,
-                                onClick = { onOrderClick(context.id) },
                             )
                         }
 
