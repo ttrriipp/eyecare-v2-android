@@ -533,11 +533,11 @@ presentation may fail compilation until Task 14 deletes it.
 
 **Acceptance criteria:**
 
-- [ ] Rating dialog and ViewModel live under `presentation/eyewear`.
-- [ ] Eyewear detail imports the new package.
-- [ ] Rating tests target the final package.
-- [ ] Repository/endpoint remain unchanged.
-- [ ] Any compiler failure is limited to the old Job Order screen assigned to
+- [x] Rating dialog and ViewModel live under `presentation/eyewear`.
+- [x] Eyewear detail imports the new package.
+- [x] Rating tests target the final package.
+- [x] Repository/endpoint remain unchanged.
+- [x] Any compiler failure is limited to the old Job Order screen assigned to
   Task 14.
 
 **Verification:**
@@ -566,10 +566,10 @@ retaining their complete data/network/domain/repository/DI layers.
 
 **Acceptance criteria:**
 
-- [ ] Quotation screens and ViewModel are deleted.
-- [ ] Billing Record screens and both ViewModels are deleted.
-- [ ] No operational data-layer file is changed or removed.
-- [ ] Compiler failures, if any, are limited to old NavGraph/routes assigned to
+- [x] Quotation screens and ViewModel are deleted.
+- [x] Billing Record screens and both ViewModels are deleted.
+- [x] No operational data-layer file is changed or removed.
+- [x] Compiler failures, if any, are limited to old NavGraph/routes assigned to
   Task 15.
 
 **Verification:**
@@ -596,11 +596,11 @@ has moved successfully.
 
 **Acceptance criteria:**
 
-- [ ] Job Order screens and combined ViewModel are deleted.
-- [ ] Obsolete Job Order ViewModel test is deleted.
-- [ ] Frame Rating presentation remains under Eyewear.
-- [ ] `JobOrderRepository` and its rating behavior remain.
-- [ ] Compiler failures, if any, are limited to old NavGraph/routes assigned to
+- [x] Job Order screens and combined ViewModel are deleted.
+- [x] Obsolete Job Order ViewModel test is deleted.
+- [x] Frame Rating presentation remains under Eyewear.
+- [x] `JobOrderRepository` and its rating behavior remain.
+- [x] Compiler failures, if any, are limited to old NavGraph/routes assigned to
   Task 15.
 
 **Verification:**
@@ -625,15 +625,15 @@ imports/composables, then run the shared green checkpoint and source sweeps.
 
 **Acceptance criteria:**
 
-- [ ] `QuotationList` and `QuotationDetail` routes are absent.
-- [ ] `JobOrderList` and `JobOrderDetail` routes are absent.
-- [ ] `BillingRecordList` and `BillingRecordDetail` routes are absent.
-- [ ] NavGraph contains no old screen import/composable.
-- [ ] Profile contains no old callback.
-- [ ] Chat contains no Job Order misroute.
-- [ ] Eyewear and Frame Rating remain green.
-- [ ] Legacy operational service/DTO/domain/repository/DI layers remain.
-- [ ] All 35 Retrofit routes remain approved/discovered.
+- [x] `QuotationList` and `QuotationDetail` routes are absent.
+- [x] `JobOrderList` and `JobOrderDetail` routes are absent.
+- [x] `BillingRecordList` and `BillingRecordDetail` routes are absent.
+- [x] NavGraph contains no old screen import/composable.
+- [x] Profile contains no old callback.
+- [x] Chat contains no Job Order misroute.
+- [x] Eyewear and Frame Rating remain green.
+- [x] Legacy operational service/DTO/domain/repository/DI layers remain.
+- [x] All 35 Retrofit routes remain approved/discovered.
 
 **Verification:**
 
@@ -660,14 +660,14 @@ Expected source-sweep result: no old presentation/navigation matches.
 
 ## Checkpoint C — Separate Operational Screens Retired
 
-- [ ] Checkpoint B remains green.
-- [ ] Task 15 source sweeps are clean.
-- [ ] Eyewear list/detail and rating tests pass.
-- [ ] Profile and message instrumented tests compile.
-- [ ] No old presentation route/screen/ViewModel remains.
-- [ ] All operational data/API layers remain.
-- [ ] Route allowlist/discovery remains exactly 35.
-- [ ] Android test APK and debug APK assemble.
+- [x] Checkpoint B remains green.
+- [x] Task 15 source sweeps are clean.
+- [x] Eyewear list/detail and rating tests pass.
+- [x] Profile and message instrumented tests compile.
+- [x] No old presentation route/screen/ViewModel remains.
+- [x] All operational data/API layers remain.
+- [x] Route allowlist/discovery remains exactly 35.
+- [x] Android test APK and debug APK assemble.
 
 Only after Checkpoint C is green may the second V12 commit be created:
 
