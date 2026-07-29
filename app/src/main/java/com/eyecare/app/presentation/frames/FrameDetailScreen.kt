@@ -198,7 +198,7 @@ fun FrameDetailScreen(
 
                             Spacer(Modifier.height(16.dp))
                             Text(
-                                "\u20B1",
+                                "₱${String.format("%.2f", selected.price)}",
                                 style = MaterialTheme.typography.headlineSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,
@@ -206,7 +206,7 @@ fun FrameDetailScreen(
 
                             selected.compareAtPrice?.let { original ->
                                 Text(
-                                    "\u20B1",
+                                    "₱${String.format("%.2f", original)}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
