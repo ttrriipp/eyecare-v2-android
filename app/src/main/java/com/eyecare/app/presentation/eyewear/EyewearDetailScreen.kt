@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.eyewear
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,8 +19,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Star
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.animateContentSize
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.EyewearDetail
@@ -101,8 +105,8 @@ fun EyewearDetailScreen(
                 ratingTarget?.let { (itemId, variantId) ->
                     FrameRatingDialog(
                         onSubmit = { rating, comment ->
+                            // TODO: Wire to FrameRatingViewModel.submit(itemId, variantId, rating, comment)
                             ratingTarget = null
-                            // Rating submission handled by FrameRatingViewModel
                         },
                         onDismiss = { ratingTarget = null },
                     )
@@ -137,8 +141,8 @@ private fun EyewearDetailContent(
 
         // Financial summary
         Text("Total: ${formatPeso(detail.totalAmount)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        if (shouldShowBalance(detail.paymentStatus, detail.balanceDue)) {
-            Text("Balance: ${formatPeso(detail.balanceDue!!)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        detail.balanceDue?.takeIf { shouldShowBalance(detail.paymentStatus, it) }?.let { balance ->
+            Text("Balance: ${formatPeso(balance)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
 
         // Progress tracker
@@ -162,7 +166,12 @@ private fun EyewearDetailContent(
 private fun ProgressTracker(progress: EyewearProgress) {
     val tracker = computeTracker(progress)
 
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Progress", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             HorizontalDivider()
@@ -181,7 +190,7 @@ private fun ProgressTracker(progress: EyewearProgress) {
                         ) {
                             if (completed) {
                                 Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    Icons.Outlined.Check,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.size(16.dp),
@@ -206,17 +215,56 @@ private fun ProgressTracker(progress: EyewearProgress) {
 }
 
 @Composable
-private fun EstimateSection(estimate: EyewearEstimate) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Estimate", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            HorizontalDivider()
-            estimate.items.forEach { ItemRow(it) }
-            estimate.subtotal?.let { SummaryRow("Subtotal", formatPeso(it)) }
-            estimate.discountAmount?.let { if (it > BigDecimal.ZERO) SummaryRow("Discount", "-${formatPeso(it)}") }
-            estimate.total?.let { SummaryRow("Total", formatPeso(it), bold = true) }
-            estimate.validUntil?.let { Text("Valid until: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+private fun CollapsibleSection(
+    title: String,
+    initialExpanded: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(initialExpanded) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().animateContentSize(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column {
+            Surface(
+                onClick = { expanded = !expanded },
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Icon(
+                        imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                        contentDescription = if (expanded) "Collapse" else "Expand",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (expanded) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    content()
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun EstimateSection(estimate: EyewearEstimate) {
+    CollapsibleSection(title = "Estimate") {
+        estimate.items.forEach { ItemRow(it) }
+        estimate.subtotal?.let { SummaryRow("Subtotal", formatPeso(it)) }
+        estimate.discountAmount?.let { if (it > BigDecimal.ZERO) SummaryRow("Discount", "-${formatPeso(it)}") }
+        estimate.total?.let { SummaryRow("Total", formatPeso(it), bold = true) }
+        estimate.validUntil?.let { Text("Valid until: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 
@@ -226,64 +274,52 @@ private fun PreparationSection(
     isDispensed: Boolean = false,
     onRateItem: (jobOrderItemId: Int, productVariantId: Int) -> Unit = { _, _ -> },
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Preparation", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            HorizontalDivider()
-            preparation.items.forEach { item ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(item.description, style = MaterialTheme.typography.bodyMedium)
-                        Text("Qty: ${item.quantity}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    CollapsibleSection(title = "Preparation") {
+        preparation.items.forEach { item ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(item.description, style = MaterialTheme.typography.bodyMedium)
+                    Text("Qty: ${item.quantity}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (isDispensed && item.id != null && item.productVariantId != null) {
+                    IconButton(onClick = { onRateItem(item.id, item.productVariantId) }) {
+                        Icon(Icons.Outlined.Star, contentDescription = "Rate", tint = MaterialTheme.colorScheme.primary)
                     }
-                    if (isDispensed && item.id != null && item.productVariantId != null) {
-                        IconButton(onClick = { onRateItem(item.id, item.productVariantId) }) {
-                            Icon(Icons.Outlined.Star, contentDescription = "Rate", tint = MaterialTheme.colorScheme.primary)
-                        }
-                    } else {
-                        Text(formatPeso(item.amount), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    }
+                } else {
+                    Text(formatPeso(item.amount), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
-            preparation.startedAt?.let { SummaryRow("Started", formatTimestamp(it)) }
-            preparation.readyAt?.let { SummaryRow("Ready", formatTimestamp(it)) }
         }
+        preparation.startedAt?.let { SummaryRow("Started", formatTimestamp(it)) }
+        preparation.readyAt?.let { SummaryRow("Ready", formatTimestamp(it)) }
     }
 }
 
 @Composable
 private fun DispensingSection(dispensing: EyewearDispensing) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Pickup & Release", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            HorizontalDivider()
-            dispensing.readyAt?.let { SummaryRow("Ready for pickup", formatTimestamp(it)) }
-            dispensing.dispensedAt?.let { SummaryRow("Released to You", formatTimestamp(it)) }
-        }
+    CollapsibleSection(title = "Pickup & Release") {
+        dispensing.readyAt?.let { SummaryRow("Ready for pickup", formatTimestamp(it)) }
+        dispensing.dispensedAt?.let { SummaryRow("Released to You", formatTimestamp(it)) }
     }
 }
 
 @Composable
 private fun PaymentSummarySection(summary: EyewearPaymentSummary) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Payment Summary", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    CollapsibleSection(title = "Payment Summary") {
+        summary.totalAmount?.let { SummaryRow("Total", formatPeso(it)) }
+        summary.amountPaid?.let { SummaryRow("Paid", formatPeso(it)) }
+        summary.balanceDue?.let { SummaryRow("Balance", formatPeso(it), bold = it > BigDecimal.ZERO) }
+        if (summary.payments.isNotEmpty()) {
             HorizontalDivider()
-            summary.totalAmount?.let { SummaryRow("Total", formatPeso(it)) }
-            summary.amountPaid?.let { SummaryRow("Paid", formatPeso(it)) }
-            summary.balanceDue?.let { SummaryRow("Balance", formatPeso(it), bold = it > BigDecimal.ZERO) }
-            if (summary.payments.isNotEmpty()) {
-                HorizontalDivider()
-                Text("Payments", style = MaterialTheme.typography.labelMedium)
-                summary.payments.forEach { payment ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column(Modifier.weight(1f)) {
-                            Text(humanizePaymentMethod(payment.paymentMethod), style = MaterialTheme.typography.bodySmall)
-                            payment.referenceNumber?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                            payment.recordedAt?.let { Text(formatTimestamp(it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        }
-                        Text(formatPeso(payment.amount), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text("Payments", style = MaterialTheme.typography.labelMedium)
+            summary.payments.forEach { payment ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(Modifier.weight(1f)) {
+                        Text(humanizePaymentMethod(payment.paymentMethod), style = MaterialTheme.typography.bodySmall)
+                        payment.referenceNumber?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        payment.recordedAt?.let { Text(formatTimestamp(it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
+                    Text(formatPeso(payment.amount), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

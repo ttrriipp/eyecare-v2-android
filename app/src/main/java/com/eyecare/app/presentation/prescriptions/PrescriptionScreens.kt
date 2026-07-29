@@ -338,8 +338,14 @@ private fun MeasurementRow(label: String, measurement: EyeMeasurement) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(40.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        }
         listOf(measurement.value, measurement.sphere, measurement.cylinder).forEach { value ->
             Box(
                 modifier = Modifier
@@ -350,7 +356,7 @@ private fun MeasurementRow(label: String, measurement: EyeMeasurement) {
             ) {
                 Text(
                     value ?: "—",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (value != null) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,

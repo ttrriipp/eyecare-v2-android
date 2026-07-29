@@ -41,7 +41,7 @@ class PatientIntakeRepositoryImpl @Inject constructor(
                 allergies = request.allergies,
                 medications = request.medications,
             ),
-        ).data!!.toDomain()
+        ).data?.toDomain() ?: throw IllegalStateException("Intake data was null")
     }.recoverCatching { throwable ->
         if (throwable is HttpException && throwable.code() == 422) {
             val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
@@ -52,7 +52,7 @@ class PatientIntakeRepositoryImpl @Inject constructor(
     }
 
     override suspend fun submitIntake(appointmentId: Int): Result<PatientIntake> = runCatching {
-        api.submitIntake(appointmentId).data!!.toDomain()
+        api.submitIntake(appointmentId).data?.toDomain() ?: throw IllegalStateException("Intake data was null")
     }.recoverCatching { throwable ->
         if (throwable is HttpException && throwable.code() == 422) {
             val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""

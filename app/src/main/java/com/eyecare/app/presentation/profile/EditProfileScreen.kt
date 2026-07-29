@@ -2,6 +2,8 @@ package com.eyecare.app.presentation.profile
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,11 +29,20 @@ import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.outlined.Work
 import androidx.compose.material.icons.outlined.Cake
 import androidx.compose.material.icons.outlined.Wc
+import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +50,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +71,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,6 +221,8 @@ fun EditProfileContent(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
+                    SectionHeader(label = "Account")
+
                     OutlinedTextField(
                         value = state.editName,
                         onValueChange = onNameChange,
@@ -241,24 +261,8 @@ fun EditProfileContent(
                         ),
                     )
 
-                    OutlinedTextField(
-                        value = state.editPhone,
-                        onValueChange = onPhoneChange,
-                        label = { Text("Phone") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Phone, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = state.fieldErrors.containsKey("phone"),
-                        supportingText = fieldSupportingText(state, "phone"),
-                        singleLine = true,
-                        enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Phone,
-                            imeAction = ImeAction.Next,
-                        ),
-                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SectionHeader(label = "Personal Information")
 
                     OutlinedTextField(
                         value = state.editFullName,
@@ -279,23 +283,20 @@ fun EditProfileContent(
                         ),
                     )
 
-                    OutlinedTextField(
+                    DateOfBirthPicker(
                         value = state.editDateOfBirth,
                         onValueChange = onDateOfBirthChange,
-                        label = { Text("Date of birth") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Cake, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isSaving,
                         isError = state.fieldErrors.containsKey("date_of_birth"),
                         supportingText = fieldSupportingText(state, "date_of_birth"),
-                        singleLine = true,
+                    )
+
+                    GenderDropdown(
+                        value = state.editGender,
+                        onValueChange = onGenderChange,
                         enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Next,
-                        ),
+                        isError = state.fieldErrors.containsKey("gender"),
+                        supportingText = fieldSupportingText(state, "gender"),
                     )
 
                     OutlinedTextField(
@@ -317,6 +318,28 @@ fun EditProfileContent(
                         ),
                     )
 
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SectionHeader(label = "Contact Information")
+
+                    OutlinedTextField(
+                        value = state.editPhone,
+                        onValueChange = onPhoneChange,
+                        label = { Text("Phone") },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Phone, contentDescription = null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = state.fieldErrors.containsKey("phone"),
+                        supportingText = fieldSupportingText(state, "phone"),
+                        singleLine = true,
+                        enabled = !state.isSaving,
+                        shape = MaterialTheme.shapes.small,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Next,
+                        ),
+                    )
+
                     OutlinedTextField(
                         value = state.editAddress,
                         onValueChange = onAddressChange,
@@ -332,24 +355,6 @@ fun EditProfileContent(
                         shape = MaterialTheme.shapes.small,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Words,
-                            imeAction = ImeAction.Next,
-                        ),
-                    )
-
-                    OutlinedTextField(
-                        value = state.editGender,
-                        onValueChange = onGenderChange,
-                        label = { Text("Gender") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Wc, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = state.fieldErrors.containsKey("gender"),
-                        supportingText = fieldSupportingText(state, "gender"),
-                        singleLine = true,
-                        enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
                             imeAction = ImeAction.Next,
                         ),
                     )
@@ -421,6 +426,148 @@ fun EditProfileContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(label: String) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GenderDropdown(
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    isError: Boolean,
+    supportingText: (@Composable () -> Unit)?,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val options = listOf("male", "female")
+    val displayValue = when (value.lowercase()) {
+        "male" -> "Male"
+        "female" -> "Female"
+        else -> value
+    }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = it },
+    ) {
+        OutlinedTextField(
+            value = displayValue,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Gender") },
+            leadingIcon = { Icon(Icons.Outlined.Wc, contentDescription = null) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            isError = isError,
+            supportingText = supportingText,
+            singleLine = true,
+            enabled = enabled,
+            shape = MaterialTheme.shapes.small,
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.replaceFirstChar { it.titlecase() }) },
+                    onClick = {
+                        onValueChange(option)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateOfBirthPicker(
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    isError: Boolean,
+    supportingText: (@Composable () -> Unit)?,
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val displayDate = remember(value) {
+        if (value.isBlank()) return@remember ""
+        try {
+            val date = LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE)
+            date.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH))
+        } catch (_: Exception) {
+            value
+        }
+    }
+
+    OutlinedTextField(
+        value = displayDate,
+        onValueChange = {},
+        readOnly = true,
+        label = { Text("Date of birth") },
+        leadingIcon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (enabled) Modifier else Modifier),
+        isError = isError,
+        supportingText = supportingText,
+        singleLine = true,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.small,
+        interactionSource = remember { MutableInteractionSource() }
+            .also { interactionSource ->
+                LaunchedEffect(interactionSource) {
+                    interactionSource.interactions.collect { interaction ->
+                        if (interaction is PressInteraction.Release && enabled) {
+                            showDatePicker = true
+                        }
+                    }
+                }
+            },
+    )
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = try {
+                val date = LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE)
+                date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+            } catch (_: Exception) {
+                null
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val date = Instant.ofEpochMilli(millis)
+                                .atZone(ZoneId.of("UTC"))
+                                .toLocalDate()
+                            onValueChange(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                        }
+                        showDatePicker = false
+                    },
+                ) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            },
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

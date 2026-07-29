@@ -52,12 +52,15 @@ class PatientIntakeViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val appointmentId: Int = checkNotNull(savedStateHandle["appointmentId"])
+    private val appointmentId: Int = savedStateHandle["appointmentId"] ?: -1
 
-    private val _uiState = MutableStateFlow<PatientIntakeUiState>(PatientIntakeUiState.Loading)
+    private val _uiState = MutableStateFlow<PatientIntakeUiState>(
+        if (savedStateHandle.get<Int>("appointmentId") != null) PatientIntakeUiState.Loading
+        else PatientIntakeUiState.Error("Missing appointment ID")
+    )
     val uiState: StateFlow<PatientIntakeUiState> = _uiState.asStateFlow()
 
-    init { load() }
+    init { if (appointmentId != -1) load() }
 
     fun retry() = load()
 

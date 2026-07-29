@@ -1,5 +1,6 @@
 ﻿package com.eyecare.app.presentation.reservations
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Cancel
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -48,7 +49,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.domain.model.isCancellable
+import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.ui.theme.StatusCancelled
+import com.eyecare.app.ui.theme.StatusConfirmed
+import com.eyecare.app.ui.theme.StatusInfo
+import com.eyecare.app.ui.theme.StatusPending
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,19 +66,19 @@ fun FrameReservationListScreen(
     var cancelTarget by remember { mutableStateOf<FrameReservation?>(null) }
 
     if (cancelTarget != null) {
-        AlertDialog(
+        AppConfirmationDialog(
+            icon = Icons.Outlined.Cancel,
+            iconTint = MaterialTheme.colorScheme.error,
+            isDestructive = true,
+            title = "Cancel reservation?",
+            message = "This will cancel your frame reservation.",
+            confirmLabel = "Cancel reservation",
+            dismissLabel = "Keep",
+            onConfirm = {
+                cancelTarget?.let { viewModel.cancelReservation(it.id) }
+                cancelTarget = null
+            },
             onDismissRequest = { cancelTarget = null },
-            title = { Text("Cancel reservation?") },
-            text = { Text("This will cancel your frame reservation.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    cancelTarget?.let { viewModel.cancelReservation(it.id) }
-                    cancelTarget = null
-                }) { Text("Cancel reservation") }
-            },
-            dismissButton = {
-                TextButton(onClick = { cancelTarget = null }) { Text("Keep") }
-            },
         )
     }
 
@@ -129,6 +135,7 @@ private fun ReservationCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -188,6 +195,10 @@ private fun ReservationCard(
                 OutlinedButton(
                     onClick = onCancel,
                     modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                 ) {
                     Icon(Icons.Outlined.Cancel, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
@@ -212,12 +223,12 @@ private fun formatReservationSchedule(scheduledAt: String, durationMinutes: Int)
 @Composable
 private fun StatusChip(status: ReservationStatus) {
     val (label, color) = when (status) {
-        ReservationStatus.REQUESTED -> "Requested" to MaterialTheme.colorScheme.primary
-        ReservationStatus.PREPARED -> "Prepared" to MaterialTheme.colorScheme.tertiary
-        ReservationStatus.TRIED_ON -> "Tried on" to MaterialTheme.colorScheme.secondary
-        ReservationStatus.CONVERTED -> "Converted" to MaterialTheme.colorScheme.primary
+        ReservationStatus.REQUESTED -> "Requested" to StatusPending
+        ReservationStatus.PREPARED -> "Prepared" to StatusConfirmed
+        ReservationStatus.TRIED_ON -> "Tried on" to StatusInfo
+        ReservationStatus.CONVERTED -> "Converted" to StatusConfirmed
         ReservationStatus.RELEASED -> "Released" to MaterialTheme.colorScheme.onSurfaceVariant
-        ReservationStatus.CANCELLED -> "Cancelled" to MaterialTheme.colorScheme.error
+        ReservationStatus.CANCELLED -> "Cancelled" to StatusCancelled
         ReservationStatus.UNKNOWN -> "Unknown" to MaterialTheme.colorScheme.onSurfaceVariant
     }
     SuggestionChip(

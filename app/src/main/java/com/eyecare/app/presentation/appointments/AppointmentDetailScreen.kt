@@ -1,21 +1,27 @@
 package com.eyecare.app.presentation.appointments
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.AccessTime
@@ -25,6 +31,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.RateReview
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -39,6 +46,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -61,6 +69,10 @@ import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.FrameReservation
+import com.eyecare.app.domain.model.ReservationStatus
+import com.eyecare.app.presentation.common.buildImageUrl
+import coil3.compose.AsyncImage
 import com.eyecare.app.ui.theme.OnSurfaceVariant
 import com.eyecare.app.ui.theme.StatusCancelled
 import com.eyecare.app.ui.theme.StatusConfirmed
@@ -72,6 +84,7 @@ import com.eyecare.app.ui.theme.StatusPending
 fun AppointmentDetailScreen(
     onBack: () -> Unit,
     onNavigateToIntake: (Int) -> Unit = {},
+    onNavigateToReservations: () -> Unit = {},
     viewModel: AppointmentDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -132,10 +145,17 @@ fun AppointmentDetailScreen(
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
             windowInsets = WindowInsets(0),
-            title = { Text("Appointment details") },
+            title = { Text("Appointment Details") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            },
+            actions = {
+                if (uiState is AppointmentDetailUiState.Success) {
+                    TextButton(onClick = { onNavigateToIntake((uiState as AppointmentDetailUiState.Success).appointment.id) }) {
+                        Text("View Intake", fontWeight = FontWeight.SemiBold)
+                    }
                 }
             },
         )
@@ -150,7 +170,7 @@ fun AppointmentDetailScreen(
                     state = state,
                     onReschedule = viewModel::showRescheduleSheet,
                     onCancel = { showCancelDialog = true },
-                    onViewIntake = { onNavigateToIntake(state.appointment.id) },
+                    onNavigateToReservations = onNavigateToReservations,
                 )
             }
         }
@@ -162,7 +182,7 @@ private fun AppointmentDetailContent(
     state: AppointmentDetailUiState.Success,
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
-    onViewIntake: () -> Unit,
+    onNavigateToReservations: () -> Unit,
 ) {
     val appointment = state.appointment
     val canCancel = appointment.status.canCancel
@@ -171,7 +191,7 @@ private fun AppointmentDetailContent(
     val clinicNote: String? = null
     val rescheduleReason = displayableRescheduleReason(appointment.lastRescheduleReason)
     val bottomContentPadding = when {
-        canCancel || canReschedule -> 164.dp
+        canCancel || canReschedule -> 120.dp
         else -> 24.dp
     }
 
@@ -183,6 +203,8 @@ private fun AppointmentDetailContent(
                 .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = bottomContentPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            AppointmentStatusGuidance(appointment.status)
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -250,9 +272,14 @@ private fun AppointmentDetailContent(
                 }
             }
 
-            AppointmentStatusGuidance(appointment.status)
-
             rescheduleReason?.let { StaffRescheduleNotice(it) }
+
+            if (state.frameReservations.isNotEmpty()) {
+                ReservedFramesSection(
+                    reservations = state.frameReservations,
+                    onViewDetails = onNavigateToReservations,
+                )
+            }
 
             if (customerNote != null || clinicNote != null) {
                 AppointmentNotesSection(
@@ -325,13 +352,6 @@ private fun AppointmentDetailContent(
                             }
                         }
                     }
-                    OutlinedButton(
-                        onClick = onViewIntake,
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        shape = RoundedCornerShape(50),
-                    ) {
-                        Text("View Intake", fontWeight = FontWeight.SemiBold)
-                    }
                 }
             }
         }
@@ -379,34 +399,177 @@ private fun StaffRescheduleNotice(reason: String) {
 private fun AppointmentStatusGuidance(status: AppointmentStatus) {
     val (title, message) = when (status) {
         AppointmentStatus.SCHEDULED ->
-            "Appointment scheduled" to "Please arrive a few minutes before your scheduled time."
+            "Appointment Scheduled" to "Please arrive a few minutes before your scheduled time."
         AppointmentStatus.CHECKED_IN ->
             "Checked in" to "You're checked in. The clinic will see you shortly."
         else -> return
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
     ) {
-        Icon(
-            imageVector = if (status == AppointmentStatus.SCHEDULED) {
-                Icons.Outlined.EventAvailable
-            } else {
-                Icons.Outlined.EventAvailable
-            },
-            contentDescription = null,
-            modifier = Modifier.size(22.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(
-                message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.EventAvailable,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.primary,
             )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReservedFramesSection(
+    reservations: List<FrameReservation>,
+    onViewDetails: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.Visibility,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = "Reserved Frames",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "${reservations.size} reservation${if (reservations.size > 1) "s" else ""}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            reservations.forEachIndexed { index, reservation ->
+                if (index > 0) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Reservation #${reservation.id}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        val statusLabel = reservation.status.name
+                            .replace("_", " ")
+                            .lowercase()
+                            .replaceFirstChar { it.titlecase() }
+                        val statusColor = when (reservation.status) {
+                            ReservationStatus.PREPARED, ReservationStatus.TRIED_ON -> StatusConfirmed
+                            ReservationStatus.REQUESTED -> StatusPending
+                            ReservationStatus.CONVERTED -> StatusInfo
+                            ReservationStatus.RELEASED, ReservationStatus.CANCELLED -> StatusCancelled
+                            ReservationStatus.UNKNOWN -> OnSurfaceVariant
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = statusColor.copy(alpha = 0.12f),
+                        ) {
+                            Text(
+                                text = statusLabel,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = statusColor,
+                            )
+                        }
+                    }
+                    reservation.items.forEach { item ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            val imageUrl = item.images.firstOrNull()?.let(::buildImageUrl)
+                            if (imageUrl != null) {
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = item.frameName,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = item.frameName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    text = "${item.frameBrand} · ${item.variantName}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            TextButton(
+                onClick = onViewDetails,
+                modifier = Modifier.defaultMinSize(minHeight = 40.dp),
+            ) {
+                Text("View all reservations", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
         }
     }
 }

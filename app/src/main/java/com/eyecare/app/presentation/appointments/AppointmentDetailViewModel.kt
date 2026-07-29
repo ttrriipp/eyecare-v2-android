@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.repository.AppointmentV1Repository
+import com.eyecare.app.domain.repository.FrameReservationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +19,7 @@ sealed interface AppointmentDetailUiState {
     data object Loading : AppointmentDetailUiState
     data class Success(
         val appointment: AppointmentV1,
+        val frameReservations: List<FrameReservation> = emptyList(),
         val isCancelling: Boolean = false,
         val cancelError: String? = null,
         val showRescheduleSheet: Boolean = false,
@@ -30,15 +33,19 @@ sealed interface AppointmentDetailUiState {
 @HiltViewModel
 class AppointmentDetailViewModel @Inject constructor(
     private val repository: AppointmentV1Repository,
+    private val reservationRepository: FrameReservationRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val appointmentId: Int = checkNotNull(savedStateHandle["appointmentId"])
+    private val appointmentId: Int = savedStateHandle["appointmentId"] ?: -1
 
-    private val _uiState = MutableStateFlow<AppointmentDetailUiState>(AppointmentDetailUiState.Loading)
+    private val _uiState = MutableStateFlow<AppointmentDetailUiState>(
+        if (savedStateHandle.get<Int>("appointmentId") != null) AppointmentDetailUiState.Loading
+        else AppointmentDetailUiState.Error("Missing appointment ID")
+    )
     val uiState: StateFlow<AppointmentDetailUiState> = _uiState.asStateFlow()
 
-    init { load() }
+    init { if (appointmentId != -1) load() }
 
     fun refresh() = load()
 
@@ -114,9 +121,16 @@ class AppointmentDetailViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            repository.getAppointment(appointmentId).fold(
+            val appointmentResult = repository.getAppointment(appointmentId)
+            appointmentResult.fold(
                 onSuccess = { appointment ->
-                    _uiState.value = AppointmentDetailUiState.Success(appointment)
+                    val reservations = reservationRepository.getReservations()
+                        .getOrElse { emptyList() }
+                        .filter { it.appointment.id == appointmentId }
+                    _uiState.value = AppointmentDetailUiState.Success(
+                        appointment = appointment,
+                        frameReservations = reservations,
+                    )
                 },
                 onFailure = {
                     _uiState.value = AppointmentDetailUiState.Error(it.message ?: "Failed to load")

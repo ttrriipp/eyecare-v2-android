@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.eyewear
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -155,7 +156,8 @@ private fun EyewearSummaryCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -182,9 +184,9 @@ private fun EyewearSummaryCard(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                if (shouldShowBalance(item.paymentStatus, item.balanceDue)) {
+                item.balanceDue?.takeIf { shouldShowBalance(item.paymentStatus, it) }?.let { balance ->
                     Text(
-                        "Balance: ${formatPeso(item.balanceDue!!)}",
+                        "Balance: ${formatPeso(balance)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )

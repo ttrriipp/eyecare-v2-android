@@ -137,7 +137,7 @@ fun PatientIntakeScreen(
                             Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                         }
                     } else {
-                        IntakeReadOnlyFields(intake = state.intake!!)
+                        state.intake?.let { IntakeReadOnlyFields(intake = it) }
                     }
                 }
             }
