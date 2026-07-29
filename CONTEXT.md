@@ -282,7 +282,7 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 - Home: next appointment, current prescription summary, featured frames preview
 - Frames: searchable/paged catalog, detail, AR, reservation entry
 - Appointments: list, detail, booking, reschedule, cancel, intake
-- Profile: hub for Messages, Prescriptions, Reservations, Quotations, Job Orders, Billing Records
+- Profile: hub for Messages, Prescriptions, Reservations, Eyewear
 
 ## Active Specs
 
