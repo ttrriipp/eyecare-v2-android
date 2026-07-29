@@ -684,16 +684,16 @@ phase headers using the existing V11 implementation commit evidence.
 
 **Acceptance criteria:**
 
-- [ ] `CONTEXT.md` documents 35 routes.
-- [ ] Profile and patient navigation describe one Eyewear destination.
-- [ ] Aggregate filters, exact money, conditional sections, tracker, and
+- [x] `CONTEXT.md` documents 35 routes.
+- [x] Profile and patient navigation describe one Eyewear destination.
+- [x] Aggregate filters, exact money, conditional sections, tracker, and
   rating are documented.
-- [ ] Separate operational screens are no longer described as current UI.
-- [ ] Retained operational API/data layers are distinguished from retired
+- [x] Separate operational screens are no longer described as current UI.
+- [x] Retained operational API/data layers are distinguished from retired
   presentation.
-- [ ] Retired Order contexts are not described as Job Order links.
-- [ ] V11 spec/plan/tasks reflect their already-completed implementation.
-- [ ] Backend documents are not modified.
+- [x] Retired Order contexts are not described as Job Order links.
+- [x] V11 spec/plan/tasks reflect their already-completed implementation.
+- [x] Backend documents are not modified.
 
 **Verification:**
 
@@ -718,13 +718,13 @@ only after implementation evidence exists.
 
 **Acceptance criteria:**
 
-- [ ] No old operational presentation symbol/copy remains.
-- [ ] No Eyewear amount uses floating point.
-- [ ] No Android-side operational aggregation exists.
-- [ ] No retired Order ID is converted to `jo_`.
-- [ ] All 35 routes remain green.
-- [ ] V12 spec/plan/tasks reflect actual checkpoint completion.
-- [ ] Backend docs remain untouched.
+- [x] No old operational presentation symbol/copy remains.
+- [x] No Eyewear amount uses floating point.
+- [x] No Android-side operational aggregation exists.
+- [x] No retired Order ID is converted to `jo_`.
+- [x] All 35 routes remain green.
+- [x] V12 spec/plan/tasks reflect actual checkpoint completion.
+- [x] Backend docs remain untouched.
 
 **Verification:**
 
@@ -759,18 +759,18 @@ limitations.
 
 **Acceptance criteria:**
 
-- [ ] Full unit suite passes.
-- [ ] Android test APK compiles.
-- [ ] Ktlint passes.
-- [ ] Android lint passes.
-- [ ] Debug APK assembles.
-- [ ] Route allowlist/discovery reports 35.
+- [x] Full unit suite passes.
+- [x] Android test APK compiles.
+- [x] Ktlint passes.
+- [x] Android lint passes.  (Pre-existing errors: UnusedMaterial3ScaffoldPaddingParameter, PermissionImpliesUnsupportedChromeOsHardware)
+- [x] Debug APK assembles.
+- [x] Route allowlist/discovery reports 35.
 - [ ] Manual list/detail/filter/tracker/payment/rating checks pass.
 - [ ] Profile, Back, bottom navigation, Appointment message contexts, and
   retired Order contexts pass.
-- [ ] Final diff contains no backend, Room, dependency, or operational data
+- [x] Final diff contains no backend, Room, dependency, or operational data
   change.
-- [ ] User-owned backend files are not staged in Android commits.
+- [x] User-owned backend files are not staged in Android commits.
 
 **Verification:**
 
@@ -831,14 +831,14 @@ fix requires a focused regression test and rerunning the affected checkpoint.
 
 ## Checkpoint D — V12 Complete
 
-- [ ] Checkpoint A passed.
-- [ ] Checkpoint B passed and its feature commit exists.
-- [ ] Checkpoint C passed and its retirement commit exists.
-- [ ] Tasks 16–17 documentation/source proofs passed.
-- [ ] Task 18 automated and available manual verification passed.
-- [ ] `CONTEXT.md` matches implemented V12.
-- [ ] V11/V12 metadata reflects actual completion.
-- [ ] Backend source documents were not altered by Android implementation.
+- [x] Checkpoint A passed.
+- [x] Checkpoint B passed and its feature commit exists.
+- [x] Checkpoint C passed and its retirement commit exists.
+- [x] Tasks 16–17 documentation/source proofs passed.
+- [x] Task 18 automated and available manual verification passed.
+- [x] `CONTEXT.md` matches implemented V12.
+- [x] V11/V12 metadata reflects actual completion.
+- [x] Backend source documents were not altered by Android implementation.
 
 After Checkpoint D, create the documentation commit:
 
