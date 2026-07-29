@@ -37,23 +37,23 @@ class MessageBubbleTest {
     }
 
     @Test
-    fun orderContext_rendersAsCardAndOpensOrder() {
-        var openedOrderId: Int? = null
+    fun appointmentContext_secondCard_rendersAndOpens() {
+        var openedAppointmentId: Int? = null
 
         composeRule.setContent {
             EyecareTheme {
                 MessageBubble(
-                    message = message(MessageContext.Order(12)),
+                    message = message(MessageContext.Appointment(12)),
                     isOwn = false,
-                    onOrderClick = { openedOrderId = it },
+                    onAppointmentClick = { openedAppointmentId = it },
                 )
             }
         }
 
-        composeRule.onNodeWithText("Order").assertIsDisplayed()
+        composeRule.onNodeWithText("Appointment").assertIsDisplayed()
         composeRule.onNodeWithText("Reference #12").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Open order 12").performClick()
-        composeRule.runOnIdle { check(openedOrderId == 12) }
+        composeRule.onNodeWithContentDescription("Open appointment 12").performClick()
+        composeRule.runOnIdle { check(openedAppointmentId == 12) }
     }
 
     private fun message(context: MessageContext) = Message(

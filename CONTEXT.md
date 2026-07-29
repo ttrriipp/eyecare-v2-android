@@ -230,6 +230,8 @@ GET    /job-orders                      → paginated, read-only
 GET    /job-orders/{id}
 GET    /billing-records                 → paginated, read-only internal ledger
 GET    /billing-records/{id}
+GET    /eyewear                         → paginated aggregate (current/history filter)
+GET    /eyewear/{key}                   → detail by canonical key or jo_ alias
 
 GET    /conversation                    → singleton patient conversation
 GET    /conversation/messages           → unpaginated, oldest-first
