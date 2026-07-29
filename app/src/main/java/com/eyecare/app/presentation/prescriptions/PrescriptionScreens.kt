@@ -311,12 +311,14 @@ private fun MeasurementGroupCard(
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // Header row
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            // Header row — empty label column + 3 data columns
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.weight(1f))
                 listOf("Value", "Sphere", "Cylinder").forEach { label ->
                     Text(label, style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f))
+                        modifier = Modifier.weight(1f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }
 
@@ -342,7 +344,7 @@ private fun MeasurementRow(label: String, measurement: EyeMeasurement) {
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .size(40.dp)
+                    .height(40.dp)
                     .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center,
             ) {
