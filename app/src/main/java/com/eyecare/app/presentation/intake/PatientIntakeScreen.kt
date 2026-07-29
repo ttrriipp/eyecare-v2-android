@@ -99,13 +99,6 @@ fun PatientIntakeScreen(
                             draft = state.draft,
                             fieldErrors = state.fieldErrors,
                             enabled = !state.isSaving,
-                            onFullNameChange = { viewModel.updateDraft { d -> d.copy(fullName = it) } },
-                            onDateOfBirthChange = { viewModel.updateDraft { d -> d.copy(dateOfBirth = it) } },
-                            onGenderChange = { viewModel.updateDraft { d -> d.copy(gender = it) } },
-                            onOccupationChange = { viewModel.updateDraft { d -> d.copy(occupation = it) } },
-                            onAddressChange = { viewModel.updateDraft { d -> d.copy(address = it) } },
-                            onPhoneChange = { viewModel.updateDraft { d -> d.copy(phone = it) } },
-                            onEmailChange = { viewModel.updateDraft { d -> d.copy(email = it) } },
                             onChiefComplaintChange = { viewModel.updateDraft { d -> d.copy(chiefComplaint = it) } },
                             onPastOcularHistoryChange = { viewModel.updateDraft { d -> d.copy(pastOcularHistory = it) } },
                             onPastSurgicalHistoryChange = { viewModel.updateDraft { d -> d.copy(pastSurgicalHistory = it) } },
@@ -172,13 +165,6 @@ private fun IntakeFormFields(
     draft: IntakeDraft,
     fieldErrors: Map<String, List<String>>,
     enabled: Boolean,
-    onFullNameChange: (String) -> Unit,
-    onDateOfBirthChange: (String) -> Unit,
-    onGenderChange: (String) -> Unit,
-    onOccupationChange: (String) -> Unit,
-    onAddressChange: (String) -> Unit,
-    onPhoneChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
     onChiefComplaintChange: (String) -> Unit,
     onPastOcularHistoryChange: (String) -> Unit,
     onPastSurgicalHistoryChange: (String) -> Unit,
@@ -186,18 +172,14 @@ private fun IntakeFormFields(
     onAllergiesChange: (String) -> Unit,
     onMedicationsChange: (String) -> Unit,
 ) {
-    Text("Demographics", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-
-    IntakeTextField("Full name", draft.fullName, onFullNameChange, enabled, fieldErrors["full_name"])
-    IntakeTextField("Date of birth", draft.dateOfBirth, onDateOfBirthChange, enabled, fieldErrors["date_of_birth"], KeyboardType.Number)
-    IntakeTextField("Gender", draft.gender, onGenderChange, enabled, fieldErrors["gender"])
-    IntakeTextField("Occupation", draft.occupation, onOccupationChange, enabled, fieldErrors["occupation"])
-    IntakeTextField("Address", draft.address, onAddressChange, enabled, fieldErrors["address"])
-    IntakeTextField("Phone", draft.phone, onPhoneChange, enabled, fieldErrors["phone"], KeyboardType.Phone)
-    IntakeTextField("Email", draft.email, onEmailChange, enabled, fieldErrors["email"], KeyboardType.Email)
+    Text("Clinical History", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    Text(
+        "Your demographic information from your profile will be included automatically.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 
     Spacer(Modifier.height(8.dp))
-    Text("Clinical History", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
 
     IntakeTextField("Chief complaint", draft.chiefComplaint, onChiefComplaintChange, enabled, fieldErrors["chief_complaint"], singleLine = false)
     IntakeTextField("Past ocular history", draft.pastOcularHistory, onPastOcularHistoryChange, enabled, fieldErrors["past_ocular_history"], singleLine = false)
