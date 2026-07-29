@@ -30,18 +30,6 @@ import kotlinx.serialization.Serializable
 @Serializable object PrescriptionList
 @Serializable data class PrescriptionDetail(val prescriptionId: Int)
 
-// Quotations
-@Serializable object QuotationList
-@Serializable data class QuotationDetail(val quotationId: Int)
-
-// Job Orders
-@Serializable object JobOrderList
-@Serializable data class JobOrderDetail(val jobOrderId: Int)
-
-// Billing Records
-@Serializable object BillingRecordList
-@Serializable data class BillingRecordDetail(val billingRecordId: Int)
-
 // Eyewear aggregate
 @Serializable object EyewearList
 @Serializable data class EyewearDetail(val key: String)

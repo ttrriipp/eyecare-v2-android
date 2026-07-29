@@ -53,7 +53,6 @@ import com.eyecare.app.domain.model.EyewearDispensing
 import com.eyecare.app.domain.model.EyewearPaymentSummary
 import com.eyecare.app.domain.model.EyewearProgress
 import com.eyecare.app.presentation.common.components.ErrorContent
-import com.eyecare.app.presentation.joborders.FrameRatingDialog
 import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)

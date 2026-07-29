@@ -37,12 +37,6 @@ import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.intake.PatientIntakeScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
-import com.eyecare.app.presentation.quotations.QuotationListScreen
-import com.eyecare.app.presentation.quotations.QuotationDetailScreen
-import com.eyecare.app.presentation.joborders.JobOrderListScreen
-import com.eyecare.app.presentation.joborders.JobOrderDetailScreen
-import com.eyecare.app.presentation.billingrecords.BillingRecordListScreen
-import com.eyecare.app.presentation.billingrecords.BillingRecordDetailScreen
 import com.eyecare.app.presentation.eyewear.EyewearListScreen
 import com.eyecare.app.presentation.eyewear.EyewearDetailScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
@@ -86,7 +80,7 @@ fun EyecareNavGraph(
             !route.contains("Prescription") &&
             !route.contains("EditProfile") &&
             !route.contains("PatientIntake") && !route.contains("Quotation") &&
-            !route.contains("JobOrder") && !route.contains("BillingRecord") && !route.contains("Eyewear")
+            !route.contains("JobOrder") && !route.contains("Eyewear")
     } ?: false
 
     val currentRoute = if (showBottomNav && currentDest != null) when {
@@ -221,40 +215,6 @@ fun EyecareNavGraph(
                             onNavigateToPrevious = { previousId ->
                                 navController.navigate(PrescriptionDetail(previousId))
                             },
-                        )
-                    }
-                    composable<QuotationList> {
-                        QuotationListScreen(
-                            onBack = { navController.popBackStack() },
-                            onNavigateToDetail = { navController.navigate(QuotationDetail(it)) },
-                        )
-                    }
-                    composable<QuotationDetail> { back ->
-                        val route = back.toRoute<QuotationDetail>()
-                        QuotationDetailScreen(quotationId = route.quotationId, onBack = { navController.popBackStack() })
-                    }
-                    composable<JobOrderList> {
-                        JobOrderListScreen(
-                            onBack = { navController.popBackStack() },
-                            onNavigateToDetail = { navController.navigate(JobOrderDetail(it)) },
-                        )
-                    }
-                    composable<JobOrderDetail> { back ->
-                        val route = back.toRoute<JobOrderDetail>()
-                        JobOrderDetailScreen(jobOrderId = route.jobOrderId, onBack = { navController.popBackStack() })
-                    }
-                    composable<BillingRecordList> {
-                        BillingRecordListScreen(
-                            onBack = { navController.popBackStack() },
-                            onNavigateToDetail = { navController.navigate(BillingRecordDetail(it)) },
-                        )
-                    }
-                    composable<BillingRecordDetail> { back ->
-                        val route = back.toRoute<BillingRecordDetail>()
-                        BillingRecordDetailScreen(
-                            billingRecordId = route.billingRecordId,
-                            onBack = { navController.popBackStack() },
-                            onNavigateToJobOrder = { navController.navigate(JobOrderDetail(it)) },
                         )
                     }
                     composable<EyewearList> {

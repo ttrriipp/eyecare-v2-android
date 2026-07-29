@@ -1,4 +1,4 @@
-package com.eyecare.app.presentation.joborders
+package com.eyecare.app.presentation.eyewear
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

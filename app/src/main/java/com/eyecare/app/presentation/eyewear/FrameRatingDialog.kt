@@ -1,4 +1,4 @@
-package com.eyecare.app.presentation.joborders
+package com.eyecare.app.presentation.eyewear
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
