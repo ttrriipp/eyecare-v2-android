@@ -1,7 +1,7 @@
 package com.eyecare.app.data.remote
 
 /**
- * The 33 approved patient-mobile routes at /api/v1/.
+ * The 35 approved patient-mobile routes at /api/v1/.
  * Source: docs/API_CONTRACT.md Appendix.
  */
 internal object ApprovedApiRoutes {
@@ -46,6 +46,9 @@ internal object ApprovedApiRoutes {
         // Billing records
         "GET $BASE/billing-records",
         "GET $BASE/billing-records/{billingRecord}",
+        // Eyewear aggregate
+        "GET $BASE/eyewear",
+        "GET $BASE/eyewear/{key}",
         // Conversation
         "GET $BASE/conversation",
         "GET $BASE/conversation/messages",

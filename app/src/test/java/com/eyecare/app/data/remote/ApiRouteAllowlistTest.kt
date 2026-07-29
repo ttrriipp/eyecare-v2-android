@@ -8,8 +8,8 @@ import java.io.File
 class ApiRouteAllowlistTest {
 
     @Test
-    fun `exactly 33 approved routes exist`() {
-        assertEquals(33, ApprovedApiRoutes.routes.size)
+    fun `exactly 35 approved routes exist`() {
+        assertEquals(35, ApprovedApiRoutes.routes.size)
     }
 
     @Test
@@ -50,7 +50,7 @@ class ApiRouteAllowlistTest {
             "Approved routes not found in services: $missing",
         )
 
-        assertEquals(33, discoveredRoutes.size, "Expected exactly 33 routes, found ${discoveredRoutes.size}")
+        assertEquals(35, discoveredRoutes.size, "Expected exactly 35 routes, found ${discoveredRoutes.size}")
     }
 
     /**
@@ -72,6 +72,7 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""quotations/\{id\}"""), "quotations/{quotation}")
             .replace(Regex("""job-orders/\{id\}"""), "job-orders/{jobOrder}")
             .replace(Regex("""billing-records/\{id\}"""), "billing-records/{billingRecord}")
+            .replace(Regex("""eyewear/\{id\}"""), "eyewear/{key}")
             .replace(Regex("""conversation/attachments/\{id\}"""), "conversation/attachments/{attachment}")
             .replace(Regex("""job-order-items/\{id\}"""), "job-order-items/{item}")
     }
@@ -88,6 +89,7 @@ class ApiRouteAllowlistTest {
             .replace("{quotation}", "{var}")
             .replace("{jobOrder}", "{var}")
             .replace("{billingRecord}", "{var}")
+            .replace("{key}", "{var}")
             .replace("{attachment}", "{var}")
             .replace("{item}", "{var}")
     }
