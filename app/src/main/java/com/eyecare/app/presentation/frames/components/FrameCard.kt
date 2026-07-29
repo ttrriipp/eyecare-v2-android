@@ -96,7 +96,7 @@ fun FrameCard(
                     )
                 }
                 Text(
-                    if (displayPrice != null) "\u20B1" else "",
+                    if (displayPrice != null) "₱${String.format("%.2f", displayPrice)}" else "",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
