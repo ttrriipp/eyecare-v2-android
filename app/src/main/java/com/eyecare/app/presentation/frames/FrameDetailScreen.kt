@@ -1,7 +1,7 @@
 ﻿package com.eyecare.app.presentation.frames
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,10 +28,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,17 +45,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.text.HtmlCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.model.isArReady
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
@@ -65,7 +74,7 @@ fun FrameDetailScreen(
     val viewModel = hiltViewModel<FrameDetailViewModel, FrameDetailViewModel.Factory> { it.create(frameId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             windowInsets = WindowInsets(0),
             title = { },
@@ -91,6 +100,7 @@ fun FrameDetailScreen(
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                             .padding(bottom = 140.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
                         val images = selected.images.ifEmpty { frame.images }
                         val pagerState = rememberPagerState { images.size.coerceAtLeast(1) }
@@ -98,7 +108,9 @@ fun FrameDetailScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(if (images.isEmpty()) 1.65f else 1f)
+                                .padding(horizontal = 24.dp)
+                                .aspectRatio(if (images.isEmpty()) 1.65f else 1.2f)
+                                .clip(RoundedCornerShape(16.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -126,9 +138,9 @@ fun FrameDetailScreen(
                                 HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                                     AsyncImage(
                                         model = buildImageUrl(images[page]),
-                                        contentDescription = frame.name,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize(),
+                                        contentDescription = "${frame.name} image ${page + 1}",
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize().padding(8.dp),
                                     )
                                 }
                                 if (images.size > 1) {
@@ -152,103 +164,222 @@ fun FrameDetailScreen(
                             }
                         }
 
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                frame.brand.uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                frame.name,
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.size(36.dp),
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Inventory2,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp),
+                                            )
+                                        }
+                                    }
+                                    Column {
+                                        Text(
+                                            text = frame.brand.uppercase(),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            letterSpacing = 0.8.sp,
+                                        )
+                                        Text(
+                                            text = frame.name,
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    }
+                                }
 
-                            if (frame.variants.size > 1) {
-                                Spacer(Modifier.height(16.dp))
-                                Text("Options", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.height(8.dp))
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    frame.variants.forEach { variant ->
-                                        val isSelected = variant.id == selected.id
-                                        Surface(
-                                            onClick = { viewModel.selectVariant(variant) },
-                                            shape = RoundedCornerShape(12.dp),
-                                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                                else MaterialTheme.colorScheme.surface,
-                                            modifier = Modifier
-                                                .border(
-                                                    width = if (isSelected) 2.dp else 1.dp,
-                                                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                                                        else MaterialTheme.colorScheme.outlineVariant,
-                                                    shape = RoundedCornerShape(12.dp),
-                                                )
-                                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                                        ) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Bottom,
+                                ) {
+                                    Text(
+                                        text = "Price",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = "₱${String.format("%.2f", selected.price)}",
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        selected.compareAtPrice?.let { original ->
                                             Text(
-                                                variant.name,
+                                                text = "₱${String.format("%.2f", original)}",
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textDecoration = TextDecoration.LineThrough,
                                             )
                                         }
                                     }
                                 }
                             }
+                        }
 
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                "₱${String.format("%.2f", selected.price)}",
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold,
-                            )
+                        if (frame.variants.size > 1) {
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                            ) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.size(36.dp),
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Palette,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                            }
+                                        }
+                                        Column {
+                                            Text(
+                                                text = "Options",
+                                                style = MaterialTheme.typography.headlineMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                            )
+                                            Text(
+                                                text = selected.name,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
 
-                            selected.compareAtPrice?.let { original ->
-                                Text(
-                                    "₱${String.format("%.2f", original)}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-
-                            Spacer(Modifier.height(16.dp))
-                            DetailFactRow("Option", selected.name)
-                            selected.sku.takeIf(String::isNotBlank)?.let { DetailFactRow("SKU", it) }
-                            frame.category.takeIf(String::isNotBlank)?.let { DetailFactRow("Category", it) }
-
-                            frame.description?.takeIf(String::isNotBlank)?.let { desc ->
-                                Spacer(Modifier.height(16.dp))
-                                Text("About", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.height(4.dp))
-                                Text(desc, style = MaterialTheme.typography.bodyMedium)
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        frame.variants.forEach { variant ->
+                                            val isSelected = variant.id == selected.id
+                                            Surface(
+                                                onClick = { viewModel.selectVariant(variant) },
+                                                shape = RoundedCornerShape(12.dp),
+                                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                                    else MaterialTheme.colorScheme.surface,
+                                                border = BorderStroke(
+                                                    width = if (isSelected) 2.dp else 1.dp,
+                                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                                        else MaterialTheme.colorScheme.outlineVariant,
+                                                ),
+                                                modifier = Modifier.defaultMinSize(minHeight = 40.dp),
+                                            ) {
+                                                Text(
+                                                    text = variant.name,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
+
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    text = "Details",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                                selected.sku.takeIf(String::isNotBlank)?.let { DetailFactRow("SKU", it) }
+                                frame.category.takeIf(String::isNotBlank)?.let { DetailFactRow("Category", it) }
+                                DetailFactRow("Option", selected.name)
+
+                                frame.description?.takeIf(String::isNotBlank)?.let { desc ->
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    Text(
+                                        text = "About",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    val cleanDesc = remember(desc) {
+                                        HtmlCompat.fromHtml(desc, HtmlCompat.FROM_HTML_MODE_COMPACT)
+                                            .toString()
+                                            .trim()
+                                    }
+                                    Text(
+                                        text = cleanDesc,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(8.dp))
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    Surface(
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 8.dp,
                     ) {
-                        if (selected.isArReady) {
-                            OutlinedButton(
-                                onClick = { onNavigateToAr(frame.id, selected.id) },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Icon(Icons.Outlined.FaceRetouchingNatural, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Try AR")
-                            }
-                        }
-                        Button(
-                            onClick = { onNavigateToReserve(frame.id, selected.id) },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        Row(
+                            modifier = Modifier
+                                .padding(horizontal = 24.dp, vertical = 16.dp)
+                                .navigationBarsPadding(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Text("Reserve")
+                            if (selected.isArReady) {
+                                OutlinedButton(
+                                    onClick = { onNavigateToAr(frame.id, selected.id) },
+                                    modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                                    shape = RoundedCornerShape(24.dp),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                                ) {
+                                    Icon(Icons.Outlined.FaceRetouchingNatural, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Try AR")
+                                }
+                            }
+                            Button(
+                                onClick = { onNavigateToReserve(frame.id, selected.id) },
+                                modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                                shape = RoundedCornerShape(24.dp),
+                            ) {
+                                Text("Reserve")
+                            }
                         }
                     }
                 }
@@ -260,14 +391,19 @@ fun FrameDetailScreen(
 @Composable
 private fun DetailFactRow(label: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            label,
+            text = label,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(100.dp),
         )
-        Text(value, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
