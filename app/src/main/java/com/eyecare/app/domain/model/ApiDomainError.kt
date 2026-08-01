@@ -1,11 +1,11 @@
 package com.eyecare.app.domain.model
 
-data class ApiDomainError(
+class ApiDomainError(
     val httpStatus: Int,
     val code: String,
-    val message: String,
+    override val message: String,
     val fieldErrors: Map<String, List<String>> = emptyMap(),
-) {
+) : Exception(message) {
     companion object {
         fun unknown(httpStatus: Int, fallbackMessage: String = "Something went wrong. Please try again.") =
             ApiDomainError(

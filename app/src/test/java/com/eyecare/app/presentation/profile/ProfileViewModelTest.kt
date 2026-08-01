@@ -40,14 +40,14 @@ class ProfileViewModelTest {
 
     @Test
     fun `loads user info on init`() = runTest {
-        coEvery { authRepo.getMe() } returns Result.success(testUser())
+        coEvery { authRepo.getMeLegacy() } returns Result.success(testUser())
         val vm = ProfileViewModel(authRepo, tokenManager)
         assertEquals("Alex", (vm.uiState.value as? ProfileUiState.Success)?.user?.name)
     }
 
     @Test
     fun `logout clears token and signals event`() = runTest {
-        coEvery { authRepo.getMe() } returns Result.success(testUser())
+        coEvery { authRepo.getMeLegacy() } returns Result.success(testUser())
         coEvery { authRepo.logout() } returns Result.success(Unit)
         val vm = ProfileViewModel(authRepo, tokenManager)
         vm.logout()
@@ -72,7 +72,7 @@ class ProfileViewModelTest {
     @Test
     fun `save failure preserves draft and exposes a useful error`() = runTest {
         val user = testUser()
-        coEvery { authRepo.getMe() } returns Result.success(user)
+        coEvery { authRepo.getMeLegacy() } returns Result.success(user)
         coEvery { authRepo.updateMe(any()) } returns
             Result.failure(IllegalStateException("Network unavailable"))
         val vm = ProfileViewModel(authRepo, tokenManager)

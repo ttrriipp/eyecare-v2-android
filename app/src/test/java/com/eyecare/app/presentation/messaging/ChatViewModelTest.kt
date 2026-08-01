@@ -41,7 +41,7 @@ class ChatViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
-        authRepo = mockk { coEvery { getMe() } returns Result.success(User(42, "Test", "t@t.com", null, "customer", null, null, null, null, null, null, null)) }
+        authRepo = mockk { coEvery { getMe() } returns Result.success(com.eyecare.app.domain.model.PatientAccount(42, "Test", "Test", null, "User", "t@t.com", null, "patient", null, com.eyecare.app.domain.model.PatientLinkStatus.LINKED, null, null, null)) }
         appointmentRepo = mockk { coEvery { getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0)) }
         orderRepo = mockk { coEvery { getJobOrders(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0)) }
     }

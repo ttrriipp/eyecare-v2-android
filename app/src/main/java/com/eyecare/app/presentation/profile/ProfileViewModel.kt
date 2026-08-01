@@ -198,7 +198,7 @@ class ProfileViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            _uiState.value = authRepository.getMe().fold(
+            _uiState.value = authRepository.getMeLegacy().fold(
                 onSuccess = { ProfileUiState.Success(it) },
                 onFailure = { ProfileUiState.Error(it.message ?: "Failed to load profile") },
             )

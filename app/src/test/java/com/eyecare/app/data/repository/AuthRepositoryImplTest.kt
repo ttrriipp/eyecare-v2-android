@@ -1,8 +1,10 @@
 package com.eyecare.app.data.repository
 
+import com.eyecare.app.data.local.DeviceIdentityProvider
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.data.remote.api.AuthApiService
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -22,6 +24,7 @@ class AuthRepositoryImplTest {
     private lateinit var server: MockWebServer
     private lateinit var repository: AuthRepositoryImpl
     private lateinit var tokenManager: TokenManager
+    private lateinit var deviceIdentityProvider: DeviceIdentityProvider
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -30,13 +33,17 @@ class AuthRepositoryImplTest {
         server = MockWebServer()
         server.start()
         tokenManager = mockk(relaxed = true)
+        deviceIdentityProvider = mockk {
+            every { getOrCreateInstallationId() } returns "test-install-id"
+            every { deviceName() } returns "Test Device"
+        }
         val retrofit = Retrofit.Builder()
             .baseUrl(server.url("/"))
             .client(OkHttpClient())
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
         val api = retrofit.create(AuthApiService::class.java)
-        repository = AuthRepositoryImpl(api, tokenManager)
+        repository = AuthRepositoryImpl(api, tokenManager, deviceIdentityProvider)
     }
 
     @AfterEach
@@ -78,8 +85,8 @@ class AuthRepositoryImplTest {
         val result = repository.getMe()
         assertTrue(result.isSuccess)
         val user = result.getOrThrow()
-        assertEquals("PAT-2026-000001", user.patientNumber)
-        assertEquals("Jane Doe", user.fullName)
+        assertEquals("PAT-2026-000001", user.linkedPatient?.patientNumber)
+        assertEquals("Jane Doe", user.linkedPatient?.fullName)
     }
 
     @Test
