@@ -37,6 +37,7 @@ import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.auth.SessionGateScreen
 import com.eyecare.app.presentation.auth.WelcomeScreen
 import com.eyecare.app.presentation.account.LimitedAccountScreen
+import com.eyecare.app.presentation.account.AccountSecurityScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.intake.PatientIntakeScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
@@ -172,6 +173,18 @@ fun EyecareNavGraph(
                                 popUpTo<LimitedAccount> { inclusive = true }
                             }
                         },
+                    )
+                }
+
+                // Account & Security (shared from limited and linked)
+                composable<AccountSecurity> {
+                    AccountSecurityScreen(
+                        onSignedOut = {
+                            navController.navigate(SessionGate) {
+                                popUpTo<AccountSecurity> { inclusive = true }
+                            }
+                        },
+                        onBack = { navController.popBackStack() },
                     )
                 }
 
