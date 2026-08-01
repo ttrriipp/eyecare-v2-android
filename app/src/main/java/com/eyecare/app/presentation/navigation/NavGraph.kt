@@ -142,7 +142,11 @@ fun EyecareNavGraph(
                                 popUpTo<LimitedAccount> { inclusive = true }
                             }
                         },
-                        onInvitationCode = {},
+                        onNavigateToMain = {
+                            navController.navigate(MainGraph) {
+                                popUpTo<LimitedAccount> { inclusive = true }
+                            }
+                        },
                     )
                 }
 
