@@ -2,23 +2,30 @@ package com.eyecare.app.data.repository
 
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.data.remote.api.AuthApiService
-import com.eyecare.app.data.remote.dto.AuthDtos
-import com.eyecare.app.domain.model.AuthError
+import com.eyecare.app.data.remote.dto.LoginRequest
+import com.eyecare.app.data.remote.dto.MeResponse
+import com.eyecare.app.data.remote.dto.PatientAccountDto
+import com.eyecare.app.data.remote.dto.UpdateMeRequest
 import com.eyecare.app.domain.model.User
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.UpdateProfileRequest
-import kotlinx.serialization.json.Json
-import retrofit2.HttpException
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val api: AuthApiService,
     private val tokenManager: TokenManager,
-    private val json: Json,
 ) : AuthRepository {
 
-    override suspend fun login(email: String, password: String): Result<User> =
-        safeCall { api.login(AuthDtos.LoginRequest(email, password)) }
+    override suspend fun login(email: String, password: String): Result<User> = runCatching {
+        val response = api.login(LoginRequest(contactValue = email, password = password))
+        val data = response.data
+        if (data.token != null && data.user != null) {
+            tokenManager.saveToken(data.token)
+            data.user.toLegacyUser()
+        } else {
+            throw IllegalStateException("OTP required — use new auth flow")
+        }
+    }
 
     override suspend fun register(
         name: String,
@@ -26,8 +33,9 @@ class AuthRepositoryImpl @Inject constructor(
         phone: String?,
         password: String,
         passwordConfirmation: String,
-    ): Result<User> =
-        safeCall { api.register(AuthDtos.RegisterRequest(name, email, phone, password, passwordConfirmation)) }
+    ): Result<User> = runCatching {
+        throw IllegalStateException("Use new two-stage registration flow")
+    }
 
     override suspend fun logout(): Result<Unit> = runCatching {
         api.logout()
@@ -35,65 +43,30 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getMe(): Result<User> = runCatching {
-        api.getMe().data.toDomain()
+        api.getMe().data.toLegacyUser()
     }
 
-    override suspend fun updateMe(request: UpdateProfileRequest): Result<User> =
-        runCatching {
-            api.updateMe(
-                AuthDtos.UpdateUserRequest(
-                    name = request.name,
-                    email = request.email,
-                    phone = request.phone,
-                    address = request.address,
-                    fullName = request.fullName,
-                    dateOfBirth = request.dateOfBirth,
-                    occupation = request.occupation,
-                    gender = request.gender,
-                    contactEmail = request.contactEmail,
-                ),
-            ).data.toDomain()
-        }.recoverCatching { throwable ->
-            when {
-                throwable is HttpException && throwable.code() == 422 -> {
-                    val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
-                    val parsed = json.decodeFromString<AuthDtos.ValidationErrorBody>(body)
-                    throw AuthError.ValidationError(parsed.errors)
-                }
-                else -> throw throwable
-            }
-        }
+    override suspend fun updateMe(request: UpdateProfileRequest): Result<User> = runCatching {
+        api.updateMe(
+            UpdateMeRequest(
+                firstName = request.name,
+                lastName = null,
+            ),
+        ).data.toLegacyUser()
+    }
 
-    private suspend fun safeCall(block: suspend () -> AuthDtos.AuthResponse): Result<User> =
-        runCatching {
-            val response = block()
-            tokenManager.saveToken(response.data.token)
-            response.data.user.toDomain()
-        }.recoverCatching { throwable ->
-            when {
-                throwable is HttpException && throwable.code() == 422 -> {
-                    val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
-                    val parsed = json.decodeFromString<AuthDtos.ValidationErrorBody>(body)
-                    throw AuthError.ValidationError(parsed.errors)
-                }
-                throwable is HttpException && throwable.code() == 429 ->
-                    throw AuthError.RateLimitError
-                else -> throw throwable
-            }
-        }
-
-    private fun AuthDtos.UserDto.toDomain() = User(
+    private fun PatientAccountDto.toLegacyUser() = User(
         id = id,
         name = name,
-        email = email,
+        email = email ?: "",
         phone = phone,
         role = role,
-        patientNumber = patientNumber,
-        fullName = fullName,
+        patientNumber = linkedPatient?.patientNumber,
+        fullName = linkedPatient?.fullName,
         dateOfBirth = dateOfBirth,
-        occupation = occupation,
-        address = address,
-        gender = gender,
-        contactEmail = contactEmail,
+        occupation = linkedPatient?.occupation,
+        address = linkedPatient?.address,
+        gender = linkedPatient?.gender,
+        contactEmail = linkedPatient?.contactEmail,
     )
 }

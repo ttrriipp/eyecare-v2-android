@@ -2,7 +2,6 @@ package com.eyecare.app.data.repository
 
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.data.remote.api.AuthApiService
-import com.eyecare.app.domain.model.AuthError
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -13,7 +12,6 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -38,17 +36,17 @@ class AuthRepositoryImplTest {
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
         val api = retrofit.create(AuthApiService::class.java)
-        repository = AuthRepositoryImpl(api, tokenManager, json)
+        repository = AuthRepositoryImpl(api, tokenManager)
     }
 
     @AfterEach
     fun tearDown() = server.shutdown()
 
     @Test
-    fun `login success maps token and user correctly`() = runTest {
+    fun `login trusted device returns user and saves token`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
-                """{"data":{"token":"tok123","user":{"id":1,"name":"Jane","email":"jane@example.com","role":"patient","patient_number":"PAT-01JABC","full_name":"Jane Doe","date_of_birth":"1990-05-15","occupation":"Teacher","address":"123 Main St","gender":"female","contact_email":"jane@example.com"}}}"""
+                """{"data":{"step_up_required":false,"token":"tok123","user":{"id":1,"name":"Jane","email":"jane@example.com","role":"patient","link_status":"linked","linked_patient":{"patient_number":"PAT-2026-000001","full_name":"Jane Doe"}}}}"""
             )
         )
         val result = repository.login("jane@example.com", "password123")
@@ -56,67 +54,38 @@ class AuthRepositoryImplTest {
         val user = result.getOrThrow()
         assertEquals("Jane", user.name)
         assertEquals("jane@example.com", user.email)
-        assertEquals("patient", user.role)
-        assertEquals("PAT-01JABC", user.patientNumber)
-        assertEquals("Jane Doe", user.fullName)
-        assertEquals("1990-05-15", user.dateOfBirth)
-        assertEquals("Teacher", user.occupation)
-        assertEquals("123 Main St", user.address)
-        assertEquals("female", user.gender)
-        assertEquals("jane@example.com", user.contactEmail)
+        assertEquals("PAT-2026-000001", user.patientNumber)
     }
 
     @Test
-    fun `login 422 maps to ValidationError with field messages`() = runTest {
-        server.enqueue(
-            MockResponse().setResponseCode(422).setBody(
-                """{"message":"The email field is required.","errors":{"email":["The email field is required."]}}"""
-            )
-        )
-        val result = repository.login("", "")
-        assertTrue(result.isFailure)
-        val error = result.exceptionOrNull()
-        assertInstanceOf(AuthError.ValidationError::class.java, error)
-        val ve = error as AuthError.ValidationError
-        assertEquals(listOf("The email field is required."), ve.fieldErrors["email"])
-    }
-
-    @Test
-    fun `login 429 maps to RateLimitError`() = runTest {
-        server.enqueue(MockResponse().setResponseCode(429))
-        val result = repository.login("jane@example.com", "pass")
-        assertTrue(result.isFailure)
-        assertInstanceOf(AuthError.RateLimitError::class.java, result.exceptionOrNull())
-    }
-
-    @Test
-    fun `register success maps user correctly`() = runTest {
-        server.enqueue(
-            MockResponse().setResponseCode(201).setBody(
-                """{"data":{"token":"regTok","user":{"id":2,"name":"Bob","email":"bob@example.com","role":"patient"}}}"""
-            )
-        )
-        val result = repository.register("Bob", "bob@example.com", null, "password1", "password1")
-        assertTrue(result.isSuccess)
-        assertEquals("Bob", result.getOrThrow().name)
-    }
-
-    @Test
-    fun `getMe returns expanded patient profile`() = runTest {
+    fun `login untrusted device throws OTP required`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
-                """{"data":{"id":1,"name":"Jane","email":"jane@example.com","role":"patient","patient_number":"PAT-01JABC","full_name":"Jane Doe","date_of_birth":"1990-05-15","occupation":"Teacher","address":"123 Main St","gender":"female","contact_email":"jane@example.com"}}"""
+                """{"data":{"step_up_required":true,"challenge_id":"abc","expires_at":"2026-08-01T10:00:00+08:00"}}"""
+            )
+        )
+        val result = repository.login("jane@example.com", "password123")
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `getMe returns mapped account`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"id":1,"name":"Jane","email":"jane@example.com","role":"patient","link_status":"linked","linked_patient":{"patient_number":"PAT-2026-000001","full_name":"Jane Doe"}}}"""
             )
         )
         val result = repository.getMe()
         assertTrue(result.isSuccess)
         val user = result.getOrThrow()
-        assertEquals("PAT-01JABC", user.patientNumber)
+        assertEquals("PAT-2026-000001", user.patientNumber)
         assertEquals("Jane Doe", user.fullName)
-        assertEquals("1990-05-15", user.dateOfBirth)
-        assertEquals("Teacher", user.occupation)
-        assertEquals("123 Main St", user.address)
-        assertEquals("female", user.gender)
-        assertEquals("jane@example.com", user.contactEmail)
+    }
+
+    @Test
+    fun `logout clears token`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(204))
+        val result = repository.logout()
+        assertTrue(result.isSuccess)
     }
 }

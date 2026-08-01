@@ -2,7 +2,6 @@ package com.eyecare.app.presentation.auth
 
 import app.cash.turbine.test
 import com.eyecare.app.data.local.TokenManager
-import com.eyecare.app.data.remote.dto.AuthDtos
 import com.eyecare.app.domain.model.AuthError
 import com.eyecare.app.domain.model.User
 import com.eyecare.app.domain.repository.AuthRepository
