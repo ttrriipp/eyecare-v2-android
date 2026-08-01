@@ -218,8 +218,9 @@ class RegistrationViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     val apiError = error as? ApiDomainError
+                    val message = apiError?.message ?: error.message ?: "Registration failed"
                     _state.value = current.copy(
-                        errors = mapOf("_" to (apiError?.message ?: "Registration failed")),
+                        errors = mapOf("_" to message),
                     )
                 }
         }
