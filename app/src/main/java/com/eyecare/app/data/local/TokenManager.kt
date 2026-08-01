@@ -14,7 +14,12 @@ class TokenManager @Inject constructor(
 
     fun clearToken() = prefs.edit().remove(KEY_TOKEN).apply()
 
+    fun getInstallationId(): String? = prefs.getString(KEY_INSTALLATION_ID, null)
+
+    fun saveInstallationId(id: String) = prefs.edit().putString(KEY_INSTALLATION_ID, id).apply()
+
     companion object {
         const val KEY_TOKEN = "auth_token"
+        const val KEY_INSTALLATION_ID = "installation_id"
     }
 }

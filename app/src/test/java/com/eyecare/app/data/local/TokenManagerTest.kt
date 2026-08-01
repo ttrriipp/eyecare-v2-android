@@ -51,4 +51,23 @@ class TokenManagerTest {
         verify { editor.remove(TokenManager.KEY_TOKEN) }
         verify { editor.apply() }
     }
+
+    @Test
+    fun `getInstallationId returns null when not stored`() {
+        every { prefs.getString(TokenManager.KEY_INSTALLATION_ID, null) } returns null
+        assertNull(tokenManager.getInstallationId())
+    }
+
+    @Test
+    fun `getInstallationId returns stored value`() {
+        every { prefs.getString(TokenManager.KEY_INSTALLATION_ID, null) } returns "uuid-123"
+        assertEquals("uuid-123", tokenManager.getInstallationId())
+    }
+
+    @Test
+    fun `saveInstallationId writes to prefs`() {
+        tokenManager.saveInstallationId("uuid-456")
+        verify { editor.putString(TokenManager.KEY_INSTALLATION_ID, "uuid-456") }
+        verify { editor.apply() }
+    }
 }
