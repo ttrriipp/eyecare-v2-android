@@ -49,7 +49,8 @@ com.eyecare.app/
 │   ├── model/             # Domain data classes + enums
 │   └── repository/        # Repository interfaces
 ├── presentation/
-│   ├── auth/              # Login, Register
+│   ├── auth/              # V13: SessionGate, Welcome, SignIn, Registration, Recovery, SessionViewModel
+│   ├── account/           # V13: LimitedAccount, AccountSecurity, contacts, step-up, invitations
 │   ├── home/              # Dashboard
 │   ├── catalog/           # Product list + detail
 │   ├── ar/                # AR try-on (CameraX + MediaPipe)
@@ -195,13 +196,25 @@ and `presentation/navigation/NavGraph.kt`:
 
 34 approved patient-mobile routes. Source of truth: `docs/API_CONTRACT.md`.
 
-**Auth:** Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). 401 → auto-logout via `AuthEventBus`.
+**Auth:** V13 two-stage OTP registration, hybrid login (trusted skips OTP), password recovery, Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). Installation identity via `DeviceIdentityProvider`. 401 → bearer-aware logout via `AuthEventBus`. Session resolution via `GET /me` before routing.
 
 **Key endpoints the app consumes:**
 ```
-POST   /register, /login, /logout
-GET    /me                              → patient profile with demographics
-PATCH  /me                              → update profile fields
+POST   /auth/registration/otp, /auth/registration/verify, /auth/register  (two-stage registration)
+POST   /auth/login, /auth/login/verify  (hybrid login with OTP step-up)
+POST   /auth/password-recovery/otp, /auth/password-recovery/verify
+GET    /auth/policies
+POST   /logout, /logout-all
+GET    /me                              → PatientAccount with link status
+PATCH  /me                              → first/last name only
+GET    /account/contacts                → masked contacts
+POST   /account/contacts/otp, /account/contacts/verify  (step-up protected)
+PATCH  /account/contacts/{id}/primary   (step-up protected)
+DELETE /account/contacts/{id}           (step-up protected)
+POST   /auth/step-up/otp, /auth/step-up/verify
+POST   /auth/password                   (step-up protected)
+GET    /account/link
+POST   /patient-invitations/acceptance/otp, /patient-invitations/accept
 
 GET    /appointment-types               → [{id, name, duration_minutes, requires_referral}]
 GET    /appointment-availability         → slot grid for date + appointment_type_id
@@ -286,11 +299,14 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 
 ## Active Specs
 
+- `docs/specs/backend-alignment-v13-auth-spec.md` — Approved: patient account access and security
+- `docs/specs/backend-alignment-v13-auth-plan.md` — Approved: implementation plan (7 stages)
+- `docs/specs/backend-alignment-v13-auth-tasks.md` — Approved: 30 tasks + 7 checkpoints
 - `docs/specs/backend-alignment-v8-spec.md` — Complete: patient workflow migration (60 tasks)
 - `docs/specs/backend-alignment-v8-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v8-tasks.md` — Complete: all acceptance criteria met
 - `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
-- `docs/API_CONTRACT.md` — Authoritative mobile API contract at commit `ebd1e2e`
+- `docs/API_CONTRACT.md` — Authoritative mobile API contract
 
 ## Boundaries
 
