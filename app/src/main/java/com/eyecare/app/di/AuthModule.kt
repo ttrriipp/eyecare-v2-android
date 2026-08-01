@@ -1,7 +1,10 @@
 package com.eyecare.app.di
 
+import com.eyecare.app.data.remote.api.AccountApiService
 import com.eyecare.app.data.remote.api.AuthApiService
+import com.eyecare.app.data.repository.AccountRepositoryImpl
 import com.eyecare.app.data.repository.AuthRepositoryImpl
+import com.eyecare.app.domain.repository.AccountRepository
 import com.eyecare.app.domain.repository.AuthRepository
 import dagger.Binds
 import dagger.Module
@@ -19,10 +22,19 @@ abstract class AuthModule {
     @Singleton
     abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindAccountRepository(impl: AccountRepositoryImpl): AccountRepository
+
     companion object {
         @Provides
         @Singleton
         fun provideAuthApiService(retrofit: Retrofit): AuthApiService =
             retrofit.create(AuthApiService::class.java)
+
+        @Provides
+        @Singleton
+        fun provideAccountApiService(retrofit: Retrofit): AccountApiService =
+            retrofit.create(AccountApiService::class.java)
     }
 }

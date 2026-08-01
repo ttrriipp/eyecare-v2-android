@@ -11,15 +11,16 @@ class AuthInterceptor @Inject constructor(
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val request = tokenManager.getToken()?.let { token ->
+        val token = tokenManager.getToken()
+        val request = token?.let {
             chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer $token")
+                .addHeader("Authorization", "Bearer $it")
                 .build()
         } ?: chain.request()
 
         val response = chain.proceed(request)
 
-        if (response.code == 401) {
+        if (response.code == 401 && token != null) {
             authEventBus.send(AuthEvent.Logout)
         }
 
