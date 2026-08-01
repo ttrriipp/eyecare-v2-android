@@ -32,6 +32,7 @@ import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
 import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
+import com.eyecare.app.presentation.auth.PasswordRecoveryScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.auth.SessionGateScreen
 import com.eyecare.app.presentation.auth.WelcomeScreen
@@ -127,6 +128,30 @@ fun EyecareNavGraph(
                     )
                 }
 
+                // Create account (V13 registration)
+                composable<CreateAccount> {
+                    RegisterScreen(
+                        onNavigateToLogin = { navController.popBackStack() },
+                        onRegisterSuccess = {
+                            navController.navigate(SessionGate) {
+                                popUpTo<Welcome> { inclusive = true }
+                            }
+                        },
+                    )
+                }
+
+                // Password recovery
+                composable<RecoverPassword> {
+                    PasswordRecoveryScreen(
+                        onRecoverySuccess = {
+                            navController.navigate(SessionGate) {
+                                popUpTo<Welcome> { inclusive = true }
+                            }
+                        },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
                 // Account access graph (unlinked/pending)
                 composable<LimitedAccount> {
                     LimitedAccountScreen(
@@ -154,22 +179,13 @@ fun EyecareNavGraph(
                 navigation<AuthGraph>(startDestination = Login) {
                     composable<Login> {
                         LoginScreen(
-                            onNavigateToRegister = { navController.navigate(Register) },
+                            onNavigateToRegister = { navController.navigate(CreateAccount) },
                             onLoginSuccess = {
-                                navController.navigate(MainGraph) {
-                                    popUpTo(AuthGraph) { inclusive = true }
+                                navController.navigate(SessionGate) {
+                                    popUpTo<Welcome> { inclusive = true }
                                 }
                             },
-                        )
-                    }
-                    composable<Register> {
-                        RegisterScreen(
-                            onNavigateToLogin = { navController.popBackStack() },
-                            onRegisterSuccess = {
-                                navController.navigate(MainGraph) {
-                                    popUpTo(AuthGraph) { inclusive = true }
-                                }
-                            },
+                            onForgotPassword = { navController.navigate(RecoverPassword) },
                         )
                     }
                 }
