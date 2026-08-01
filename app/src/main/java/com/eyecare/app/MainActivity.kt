@@ -19,9 +19,9 @@ import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.data.remote.interceptor.AuthEvent
 import com.eyecare.app.data.remote.interceptor.AuthEventBus
 import com.eyecare.app.domain.repository.ChatRepository
-import com.eyecare.app.presentation.navigation.AuthGraph
 import com.eyecare.app.presentation.navigation.EyecareNavGraph
 import com.eyecare.app.presentation.navigation.MainGraph
+import com.eyecare.app.presentation.navigation.SessionGate
 import com.eyecare.app.ui.theme.EyecareTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
@@ -52,8 +52,8 @@ class MainActivity : ComponentActivity() {
                             snackbarHostState.showSnackbar("Session expired. Please sign in again.")
                             delay(500)
                             tokenManager.clearToken()
-                            navController.navigate(AuthGraph) {
-                                popUpTo(MainGraph) { inclusive = true }
+                            navController.navigate(SessionGate) {
+                                popUpTo<SessionGate> { inclusive = true }
                             }
                             logoutTrigger++
                         }

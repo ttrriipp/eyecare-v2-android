@@ -33,6 +33,9 @@ import com.eyecare.app.presentation.appointments.AppointmentListScreen
 import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
+import com.eyecare.app.presentation.auth.SessionGateScreen
+import com.eyecare.app.presentation.auth.WelcomeScreen
+import com.eyecare.app.presentation.account.LimitedAccountScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.intake.PatientIntakeScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
@@ -55,25 +58,19 @@ fun EyecareNavGraph(
     onLogout: () -> Unit,
     navController: NavHostController = rememberNavController(),
 ) {
-    val startDestination = if (tokenManager.getToken() != null) MainGraph else AuthGraph
+    val startDestination = SessionGate
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDest: NavDestination? = backStackEntry?.destination
 
-    // Unread message count
+    // Unread message count — only loaded inside MainGraph
     var unreadCount by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        chatRepository.getConversation().onSuccess { unreadCount = it.unreadCount }
-    }
-    // Refresh when navigating back from Chat
-    LaunchedEffect(currentDest?.route) {
-        if (currentDest?.route?.contains("Chat") == false) {
-            chatRepository.getConversation().onSuccess { unreadCount = it.unreadCount }
-        }
-    }
 
-    // Hide bottom nav on auth screens and chat
+    // Hide bottom nav on auth/limited screens and chat
     val showBottomNav = currentDest?.route?.let { route ->
         !route.contains("Login") && !route.contains("Register") &&
+            !route.contains("SessionGate") && !route.contains("Welcome") &&
+            !route.contains("CreateAccount") && !route.contains("RecoverPassword") &&
+            !route.contains("LimitedAccount") && !route.contains("AccountSecurity") &&
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
             !route.contains("BookAppointment") && !route.contains("CreateFrameReservation") &&
             !route.contains("FrameReservation") && !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
@@ -101,6 +98,54 @@ fun EyecareNavGraph(
             popEnterTransition = { fadeIn() + slideInHorizontally { -it / 6 } },
             popExitTransition = { fadeOut() + slideOutHorizontally { it / 6 } },
         ) {
+                // SessionGate — root start destination
+                composable<SessionGate> {
+                    SessionGateScreen(
+                        onNavigateToWelcome = {
+                            navController.navigate(Welcome) {
+                                popUpTo<SessionGate> { inclusive = true }
+                            }
+                        },
+                        onNavigateToMain = {
+                            navController.navigate(MainGraph) {
+                                popUpTo<SessionGate> { inclusive = true }
+                            }
+                        },
+                        onNavigateToLimited = {
+                            navController.navigate(LimitedAccount) {
+                                popUpTo<SessionGate> { inclusive = true }
+                            }
+                        },
+                    )
+                }
+
+                // Welcome
+                composable<Welcome> {
+                    WelcomeScreen(
+                        onSignIn = { navController.navigate(Login) },
+                        onCreateAccount = { navController.navigate(CreateAccount) },
+                    )
+                }
+
+                // Account access graph (unlinked/pending)
+                composable<LimitedAccount> {
+                    LimitedAccountScreen(
+                        account = com.eyecare.app.domain.model.PatientAccount(
+                            id = 0, name = "", firstName = null, middleName = null, lastName = null,
+                            email = null, phone = null, role = "patient", dateOfBirth = null,
+                            linkStatus = com.eyecare.app.domain.model.PatientLinkStatus.UNLINKED,
+                            privacyPolicyVersion = null, privacyAcceptedAt = null, linkedPatient = null,
+                        ),
+                        onAccountSecurity = { navController.navigate(AccountSecurity) },
+                        onSignOut = {
+                            navController.navigate(Welcome) {
+                                popUpTo<LimitedAccount> { inclusive = true }
+                            }
+                        },
+                        onInvitationCode = {},
+                    )
+                }
+
                 // Auth graph
                 navigation<AuthGraph>(startDestination = Login) {
                     composable<Login> {
