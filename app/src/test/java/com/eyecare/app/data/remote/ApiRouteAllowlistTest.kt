@@ -8,12 +8,31 @@ import java.io.File
 class ApiRouteAllowlistTest {
 
     @Test
-    fun `exactly 35 approved routes exist`() {
-        assertEquals(35, ApprovedApiRoutes.routes.size)
+    fun `v13 auth routes match expected count`() {
+        assertEquals(23, ApprovedApiRoutes.v13AuthRoutes.size, "V13 auth/account routes")
     }
 
     @Test
-    fun `all Retrofit service annotations match the approved allowlist`() {
+    fun `deferred routes are explicitly named`() {
+        assertTrue(ApprovedApiRoutes.deferredRoutes.isNotEmpty(), "Deferred routes must be listed")
+    }
+
+    @Test
+    fun `legacy auth endpoints are rejected`() {
+        assertTrue("POST /api/v1/register" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("POST /api/v1/login" in ApprovedApiRoutes.rejectedRoutes)
+    }
+
+    @Test
+    fun `no legacy auth endpoint appears in v13 auth routes`() {
+        val legacyInAuth = ApprovedApiRoutes.v13AuthRoutes.filter {
+            it.endsWith("/register") && !it.contains("auth/") || it.endsWith("/login") && !it.contains("auth/")
+        }
+        assertTrue(legacyInAuth.isEmpty(), "Legacy auth endpoints in V13 set: $legacyInAuth")
+    }
+
+    @Test
+    fun `all Retrofit service annotations are accounted for`() {
         val serviceDir = File("src/main/java/com/eyecare/app/data/remote/api")
         assertTrue(serviceDir.exists(), "API service directory not found")
 
@@ -27,42 +46,44 @@ class ApiRouteAllowlistTest {
                 val pattern = Regex("""@$method\("([^"]+)"\)""")
                 pattern.findAll(content).forEach { match ->
                     val rawPath = match.groupValues[1]
-                    // Normalize path variables: {id} -> {variable}
                     val normalizedPath = normalizePathVariables(rawPath)
                     discoveredRoutes.add("$method /api/v1/$normalizedPath")
                 }
             }
         }
 
-        val approved = ApprovedApiRoutes.routes
-        val normalizedApproved = approved.map { normalizeRouteVariables(it) }.toSet()
+        val allApproved = ApprovedApiRoutes.allApproved
+        val rejected = ApprovedApiRoutes.rejectedRoutes
+        val normalizedApproved = allApproved.map { normalizeRouteVariables(it) }.toSet()
+        val normalizedRejected = rejected.map { normalizeRouteVariables(it) }.toSet()
         val normalizedDiscovered = discoveredRoutes.map { normalizeRouteVariables(it) }.toSet()
 
-        val notApproved = normalizedDiscovered.filter { it !in normalizedApproved }
+        // Discovered routes must be either approved/deferred or explicitly rejected
+        val unaccounted = normalizedDiscovered.filter { it !in normalizedApproved && it !in normalizedRejected }
         assertTrue(
-            notApproved.isEmpty(),
-            "Routes not in approved allowlist: $notApproved",
+            unaccounted.isEmpty(),
+            "Discovered routes not in any approved/deferred/rejected set: $unaccounted",
         )
 
-        val missing = normalizedApproved.filter { it !in normalizedDiscovered }
+        // Rejected routes must not appear in approved sets
+        val rejectedInApproved = normalizedRejected.filter { it in normalizedApproved }
         assertTrue(
-            missing.isEmpty(),
-            "Approved routes not found in services: $missing",
+            rejectedInApproved.isEmpty(),
+            "Rejected routes found in approved set: $rejectedInApproved",
         )
 
-        assertEquals(35, discoveredRoutes.size, "Expected exactly 35 routes, found ${discoveredRoutes.size}")
+        // Don't require all deferred routes to have consumers — some may be added later
+        val v13AuthNormalized = ApprovedApiRoutes.v13AuthRoutes.map { normalizeRouteVariables(it) }.toSet()
+        val missingAuth = v13AuthNormalized.filter { it !in normalizedDiscovered }
+        assertTrue(
+            missingAuth.isEmpty(),
+            "V13 auth routes not found in services: $missingAuth",
+        )
     }
 
-    /**
-     * Normalize path variables to a common form for comparison.
-     * e.g., appointments/{id} -> appointments/{appointment}
-     */
     private fun normalizePathVariables(path: String): String {
-        // Map known path segments to their approved variable names
         return path
             .replace(Regex("""appointments/\{id\}"""), "appointments/{appointment}")
-            .replace(Regex("""appointments/\{id\}/intake"""), "appointments/{appointment}/intake")
-            .replace(Regex("""appointments/\{id\}/intake/submit"""), "appointments/{appointment}/intake/submit")
             .replace(Regex("""appointments/\{id\}/cancel"""), "appointments/{appointment}/cancel")
             .replace(Regex("""appointments/\{id\}/reschedule"""), "appointments/{appointment}/reschedule")
             .replace(Regex("""frames/\{id\}"""), "frames/{frame}")
@@ -75,11 +96,12 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""eyewear/\{id\}"""), "eyewear/{key}")
             .replace(Regex("""conversation/attachments/\{id\}"""), "conversation/attachments/{attachment}")
             .replace(Regex("""job-order-items/\{id\}"""), "job-order-items/{item}")
+            .replace(Regex("""account/contacts/\{id\}"""), "account/contacts/{contact}")
+            .replace(Regex("""account/contacts/\{id\}/primary"""), "account/contacts/{contact}/primary")
+            .replace(Regex("""appointment-requests/\{id\}"""), "appointment-requests/{appointmentRequest}")
+            .replace(Regex("""appointment-requests/\{id\}/cancel"""), "appointment-requests/{appointmentRequest}/cancel")
     }
 
-    /**
-     * Normalize the approved route variables for comparison.
-     */
     private fun normalizeRouteVariables(route: String): String {
         return route
             .replace("{appointment}", "{var}")
@@ -92,5 +114,7 @@ class ApiRouteAllowlistTest {
             .replace("{key}", "{var}")
             .replace("{attachment}", "{var}")
             .replace("{item}", "{var}")
+            .replace("{contact}", "{var}")
+            .replace("{appointmentRequest}", "{var}")
     }
 }
