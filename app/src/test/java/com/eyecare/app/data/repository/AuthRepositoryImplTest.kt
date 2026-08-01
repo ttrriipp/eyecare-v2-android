@@ -3,6 +3,7 @@ package com.eyecare.app.data.repository
 import com.eyecare.app.data.local.DeviceIdentityProvider
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.data.remote.api.AuthApiService
+import com.eyecare.app.domain.model.LoginOutcome
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import io.mockk.every
 import io.mockk.mockk
@@ -50,29 +51,30 @@ class AuthRepositoryImplTest {
     fun tearDown() = server.shutdown()
 
     @Test
-    fun `login trusted device returns user and saves token`() = runTest {
+    fun `beginLogin trusted device returns Authenticated`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
-                """{"data":{"step_up_required":false,"token":"tok123","user":{"id":1,"name":"Jane","email":"jane@example.com","role":"patient","link_status":"linked","linked_patient":{"patient_number":"PAT-2026-000001","full_name":"Jane Doe"}}}}"""
+                """{"data":{"step_up_required":false,"token":"tok123","user":{"id":1,"name":"Jane","email":"jane@example.com","role":"patient","link_status":"linked"}}}"""
             )
         )
-        val result = repository.login("jane@example.com", "password123")
+        val result = repository.beginLogin("jane@example.com", "password123", null, null)
         assertTrue(result.isSuccess)
-        val user = result.getOrThrow()
-        assertEquals("Jane", user.name)
-        assertEquals("jane@example.com", user.email)
-        assertEquals("PAT-2026-000001", user.patientNumber)
+        val outcome = result.getOrThrow()
+        assertTrue(outcome is LoginOutcome.Authenticated)
+        assertEquals("tok123", (outcome as LoginOutcome.Authenticated).token)
     }
 
     @Test
-    fun `login untrusted device throws OTP required`() = runTest {
+    fun `beginLogin untrusted device returns OtpRequired`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
                 """{"data":{"step_up_required":true,"challenge_id":"abc","expires_at":"2026-08-01T10:00:00+08:00"}}"""
             )
         )
-        val result = repository.login("jane@example.com", "password123")
-        assertTrue(result.isFailure)
+        val result = repository.beginLogin("jane@example.com", "password123", null, null)
+        assertTrue(result.isSuccess)
+        val outcome = result.getOrThrow()
+        assertTrue(outcome is LoginOutcome.OtpRequired)
     }
 
     @Test
@@ -84,15 +86,15 @@ class AuthRepositoryImplTest {
         )
         val result = repository.getMe()
         assertTrue(result.isSuccess)
-        val user = result.getOrThrow()
-        assertEquals("PAT-2026-000001", user.linkedPatient?.patientNumber)
-        assertEquals("Jane Doe", user.linkedPatient?.fullName)
+        val account = result.getOrThrow()
+        assertEquals("PAT-2026-000001", account.linkedPatient?.patientNumber)
+        assertEquals("Jane Doe", account.linkedPatient?.fullName)
     }
 
     @Test
-    fun `logout clears token`() = runTest {
+    fun `logoutCurrent clears token`() = runTest {
         server.enqueue(MockResponse().setResponseCode(204))
-        val result = repository.logout()
+        val result = repository.logoutCurrent()
         assertTrue(result.isSuccess)
     }
 }
