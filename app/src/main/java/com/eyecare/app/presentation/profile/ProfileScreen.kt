@@ -65,7 +65,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.eyecare.app.domain.model.User
+import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 
@@ -104,7 +104,7 @@ fun ProfileScreen(
             onRetry = viewModel::retry,
         )
         is ProfileUiState.Success -> ProfileContent(
-            user = state.user,
+            account = state.account,
             unreadMessageCount = unreadMessageCount,
             onEditProfile = onNavigateToEditProfile,
             onNavigateToMessages = onNavigateToMessages,
@@ -135,7 +135,7 @@ fun ProfileScreen(
 
 @Composable
 fun ProfileContent(
-    user: User,
+    account: PatientAccount,
     unreadMessageCount: Int,
     modifier: Modifier = Modifier,
     onEditProfile: () -> Unit = {},
@@ -155,7 +155,7 @@ fun ProfileContent(
     ) {
         Spacer(Modifier.height(8.dp))
         ProfileHeader()
-        PatientIdentityCard(user = user, onEditProfile = onEditProfile)
+        PatientIdentityCard(account = account, onEditProfile = onEditProfile)
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -248,8 +248,8 @@ private fun ProfileHeader() {
 }
 
 @Composable
-private fun PatientIdentityCard(user: User, onEditProfile: () -> Unit) {
-    val initials = profileInitials(user.name)
+private fun PatientIdentityCard(account: PatientAccount, onEditProfile: () -> Unit) {
+    val initials = profileInitials(account.name)
 
     Card(
         shape = MaterialTheme.shapes.medium,
@@ -294,7 +294,7 @@ private fun PatientIdentityCard(user: User, onEditProfile: () -> Unit) {
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = user.name.ifBlank { "Eyecare patient" },
+                        text = account.name.ifBlank { "Eyecare patient" },
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
@@ -304,11 +304,13 @@ private fun PatientIdentityCard(user: User, onEditProfile: () -> Unit) {
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                user.patientNumber?.takeIf { it.isNotBlank() }?.let { patientNumber ->
+                account.linkedPatient?.patientNumber?.takeIf { it.isNotBlank() }?.let { patientNumber ->
                     IdentityDetail(icon = Icons.Outlined.Person, text = patientNumber)
                 }
-                IdentityDetail(icon = Icons.Outlined.Email, text = user.email)
-                user.phone?.takeIf { it.isNotBlank() }?.let { phone ->
+                account.email?.takeIf { it.isNotBlank() }?.let { email ->
+                    IdentityDetail(icon = Icons.Outlined.Email, text = email)
+                }
+                account.phone?.takeIf { it.isNotBlank() }?.let { phone ->
                     IdentityDetail(icon = Icons.Outlined.Phone, text = phone)
                 }
             }

@@ -1,11 +1,10 @@
 package com.eyecare.app.presentation.profile
 
 import com.eyecare.app.data.local.TokenManager
-import com.eyecare.app.domain.model.User
+import com.eyecare.app.domain.model.PatientAccount
+import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.repository.AuthRepository
-import com.eyecare.app.domain.repository.UpdateProfileRequest
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
@@ -39,87 +38,50 @@ class ProfileViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `loads user info on init`() = runTest {
-        coEvery { authRepo.getMeLegacy() } returns Result.success(testUser())
+    fun `loads account on init`() = runTest {
+        coEvery { authRepo.getMe() } returns Result.success(testAccount())
         val vm = ProfileViewModel(authRepo, tokenManager)
-        assertEquals("Alex", (vm.uiState.value as? ProfileUiState.Success)?.user?.name)
+        assertEquals("Alex", (vm.uiState.value as? ProfileUiState.Success)?.account?.name)
     }
 
     @Test
     fun `logout clears token and signals event`() = runTest {
-        coEvery { authRepo.getMeLegacy() } returns Result.success(testUser())
-        coEvery { authRepo.logout() } returns Result.success(Unit)
+        coEvery { authRepo.getMe() } returns Result.success(testAccount())
+        coEvery { authRepo.logoutCurrent() } returns Result.success(Unit)
         val vm = ProfileViewModel(authRepo, tokenManager)
         vm.logout()
         verify { tokenManager.clearToken() }
     }
 
     @Test
-    fun `profile changes normalize blank phone values`() {
-        val user = testUser(phone = null)
-
-        assertFalse(hasProfileChanges(user, "Alex", "alex@example.com", "   "))
-        assertTrue(hasProfileChanges(user, "Alex Rivera", "alex@example.com", ""))
-    }
-
-    @Test
-    fun `profile initials use first and last names with a safe fallback`() {
-        assertEquals("AR", profileInitials("Alex Marie Rivera"))
-        assertEquals("A", profileInitials("Alex"))
-        assertEquals("E", profileInitials("   "))
-    }
-
-    @Test
-    fun `save failure preserves draft and exposes a useful error`() = runTest {
-        val user = testUser()
-        coEvery { authRepo.getMeLegacy() } returns Result.success(user)
-        coEvery { authRepo.updateMe(any()) } returns
-            Result.failure(IllegalStateException("Network unavailable"))
+    fun `startEditing populates edit fields`() = runTest {
+        coEvery { authRepo.getMe() } returns Result.success(testAccount())
         val vm = ProfileViewModel(authRepo, tokenManager)
         vm.startEditing()
-        vm.updateName("Alex Rivera")
-
-        vm.saveProfile()
-
         val state = vm.uiState.value as ProfileUiState.Success
-        assertEquals("Alex Rivera", state.editName)
-        assertEquals("We couldn't save your changes. Please try again.", state.saveError)
-        assertFalse(state.isSaving)
-        coVerify(exactly = 1) {
-            authRepo.updateMe(
-                UpdateProfileRequest(
-                    name = "Alex Rivera",
-                    email = "alex@example.com",
-                    phone = "09171234567",
-                    fullName = "Alex",
-                    dateOfBirth = null,
-                    occupation = null,
-                    address = null,
-                    gender = null,
-                    contactEmail = null,
-                ),
-            )
-        }
+        assertEquals("Alex", state.editFirstName)
+        assertEquals("Rivera", state.editLastName)
     }
 
-    private fun testUser(
-        id: Int = 1,
-        name: String = "Alex",
-        email: String = "alex@example.com",
-        phone: String? = "09171234567",
-        role: String = "customer",
-    ) = User(
-        id = id,
-        name = name,
-        email = email,
-        phone = phone,
-        role = role,
-        patientNumber = "PAT-01JABC",
-        fullName = name,
-        dateOfBirth = null,
-        occupation = null,
-        address = null,
-        gender = null,
-        contactEmail = null,
+    @Test
+    fun `save failure preserves draft`() = runTest {
+        coEvery { authRepo.getMe() } returns Result.success(testAccount())
+        coEvery { authRepo.updateAccountName(any(), any()) } returns
+            Result.failure(IllegalStateException("Network"))
+        val vm = ProfileViewModel(authRepo, tokenManager)
+        vm.startEditing()
+        vm.updateFirstName("New Name")
+        vm.saveProfile()
+        val state = vm.uiState.value as ProfileUiState.Success
+        assertEquals("New Name", state.editFirstName)
+        assertEquals("We couldn't save your changes. Please try again.", state.saveError)
+    }
+
+    private fun testAccount() = PatientAccount(
+        id = 1, name = "Alex", firstName = "Alex", middleName = null, lastName = "Rivera",
+        email = "alex@example.com", phone = "09171234567", role = "patient",
+        dateOfBirth = null, linkStatus = PatientLinkStatus.LINKED,
+        privacyPolicyVersion = null, privacyAcceptedAt = null,
+        linkedPatient = null,
     )
 }

@@ -3,10 +3,8 @@ package com.eyecare.app.presentation.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.data.local.TokenManager
-import com.eyecare.app.domain.model.AuthError
-import com.eyecare.app.domain.model.User
+import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.repository.AuthRepository
-import com.eyecare.app.domain.repository.UpdateProfileRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,19 +15,11 @@ import javax.inject.Inject
 sealed interface ProfileUiState {
     data object Loading : ProfileUiState
     data class Success(
-        val user: User,
+        val account: PatientAccount,
         val isEditing: Boolean = false,
         val isSaving: Boolean = false,
-        val editName: String = "",
-        val editEmail: String = "",
-        val editPhone: String = "",
-        val editFullName: String = "",
-        val editDateOfBirth: String = "",
-        val editOccupation: String = "",
-        val editAddress: String = "",
-        val editGender: String = "",
-        val editContactEmail: String = "",
-        val fieldErrors: Map<String, List<String>> = emptyMap(),
+        val editFirstName: String = "",
+        val editLastName: String = "",
         val saveError: String? = null,
         val saveSuccess: Boolean = false,
     ) : ProfileUiState
@@ -55,19 +45,11 @@ class ProfileViewModel @Inject constructor(
     fun startEditing() {
         val current = _uiState.value
         if (current is ProfileUiState.Success) {
-            val u = current.user
+            val a = current.account
             _uiState.value = current.copy(
                 isEditing = true,
-                editName = u.name,
-                editEmail = u.email,
-                editPhone = u.phone ?: "",
-                editFullName = u.fullName ?: "",
-                editDateOfBirth = u.dateOfBirth ?: "",
-                editOccupation = u.occupation ?: "",
-                editAddress = u.address ?: "",
-                editGender = u.gender ?: "",
-                editContactEmail = u.contactEmail ?: "",
-                fieldErrors = emptyMap(),
+                editFirstName = a.firstName ?: "",
+                editLastName = a.lastName ?: "",
                 saveError = null,
                 saveSuccess = false,
             )
@@ -77,164 +59,68 @@ class ProfileViewModel @Inject constructor(
     fun cancelEditing() {
         val current = _uiState.value
         if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(
-                isEditing = false,
-                fieldErrors = emptyMap(),
-                saveError = null,
-            )
+            _uiState.value = current.copy(isEditing = false, saveError = null)
         }
     }
 
-    fun updateName(value: String) {
+    fun updateFirstName(value: String) {
         val current = _uiState.value
         if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editName = value, saveError = null)
+            _uiState.value = current.copy(editFirstName = value, saveError = null)
         }
     }
 
-    fun updateEmail(value: String) {
+    fun updateLastName(value: String) {
         val current = _uiState.value
         if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editEmail = value, saveError = null)
-        }
-    }
-
-    fun updatePhone(value: String) {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editPhone = value, saveError = null)
-        }
-    }
-
-    fun updateFullName(value: String) {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editFullName = value, saveError = null)
-        }
-    }
-
-    fun updateDateOfBirth(value: String) {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editDateOfBirth = value, saveError = null)
-        }
-    }
-
-    fun updateOccupation(value: String) {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editOccupation = value, saveError = null)
-        }
-    }
-
-    fun updateAddress(value: String) {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editAddress = value, saveError = null)
-        }
-    }
-
-    fun updateGender(value: String) {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editGender = value, saveError = null)
-        }
-    }
-
-    fun updateContactEmail(value: String) {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editContactEmail = value, saveError = null)
+            _uiState.value = current.copy(editLastName = value, saveError = null)
         }
     }
 
     fun saveProfile() {
         val current = _uiState.value
         if (current !is ProfileUiState.Success) return
-        _uiState.value = current.copy(
-            isSaving = true,
-            fieldErrors = emptyMap(),
-            saveError = null,
-            saveSuccess = false,
-        )
-        viewModelScope.launch {
-            authRepository.updateMe(
-                UpdateProfileRequest(
-                    name = current.editName,
-                    email = current.editEmail,
-                    phone = current.editPhone.ifBlank { null },
-                    fullName = current.editFullName.ifBlank { null },
-                    dateOfBirth = current.editDateOfBirth.ifBlank { null },
-                    occupation = current.editOccupation.ifBlank { null },
-                    address = current.editAddress.ifBlank { null },
-                    gender = current.editGender.ifBlank { null },
-                    contactEmail = current.editContactEmail.ifBlank { null },
-                ),
-            ).fold(
-                onSuccess = { user ->
-                    _uiState.value = ProfileUiState.Success(
-                        user = user,
-                        isEditing = false,
-                        saveSuccess = true,
-                    )
-                },
-                onFailure = { error ->
-                    if (error is AuthError.ValidationError) {
-                        _uiState.value = current.copy(
-                            isSaving = false,
-                            fieldErrors = error.fieldErrors,
-                            saveError = null,
-                        )
-                    } else {
-                        _uiState.value = current.copy(
-                            isSaving = false,
-                            saveError = "We couldn't save your changes. Please try again.",
-                        )
-                    }
-                },
-            )
-        }
-    }
 
-    private fun load() {
+        val firstName = current.editFirstName.trim()
+        val lastName = current.editLastName.trim()
+        if (firstName.isBlank() || lastName.isBlank()) {
+            _uiState.value = current.copy(saveError = "First and last name are required")
+            return
+        }
+
         viewModelScope.launch {
-            _uiState.value = authRepository.getMeLegacy().fold(
-                onSuccess = { ProfileUiState.Success(it) },
-                onFailure = { ProfileUiState.Error(it.message ?: "Failed to load profile") },
-            )
+            _uiState.value = current.copy(isSaving = true, saveError = null)
+            authRepository.updateAccountName(firstName, lastName)
+                .onSuccess { account ->
+                    _uiState.value = ProfileUiState.Success(account = account, saveSuccess = true)
+                }
+                .onFailure { error ->
+                    _uiState.value = current.copy(
+                        isSaving = false,
+                        saveError = "We couldn't save your changes. Please try again.",
+                    )
+                }
         }
     }
 
     fun logout() {
         viewModelScope.launch {
-            authRepository.logout()
+            authRepository.logoutCurrent()
             tokenManager.clearToken()
             _loggedOut.value = true
         }
     }
-}
 
-internal fun hasProfileChanges(
-    user: User,
-    name: String,
-    email: String,
-    phone: String,
-    fullName: String = user.fullName ?: "",
-    dateOfBirth: String = user.dateOfBirth ?: "",
-    occupation: String = user.occupation ?: "",
-    address: String = user.address ?: "",
-    gender: String = user.gender ?: "",
-    contactEmail: String = user.contactEmail ?: "",
-): Boolean {
-    val originalPhone = user.phone?.takeIf { it.isNotBlank() }
-    val editedPhone = phone.takeIf { it.isNotBlank() }
-    return name != user.name ||
-        email != user.email ||
-        editedPhone != originalPhone ||
-        fullName != (user.fullName ?: "") ||
-        dateOfBirth != (user.dateOfBirth ?: "") ||
-        occupation != (user.occupation ?: "") ||
-        address != (user.address ?: "") ||
-        gender != (user.gender ?: "") ||
-        contactEmail != (user.contactEmail ?: "")
+    private fun load() {
+        viewModelScope.launch {
+            _uiState.value = ProfileUiState.Loading
+            authRepository.getMe()
+                .onSuccess { account ->
+                    _uiState.value = ProfileUiState.Success(account = account)
+                }
+                .onFailure { error ->
+                    _uiState.value = ProfileUiState.Error(error.message ?: "Failed to load profile")
+                }
+        }
+    }
 }

@@ -1,9 +1,6 @@
 package com.eyecare.app.presentation.profile
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,38 +18,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material.icons.outlined.Work
-import androidx.compose.material.icons.outlined.Cake
-import androidx.compose.material.icons.outlined.Wc
-import androidx.compose.material.icons.outlined.ArrowDropDown
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,17 +42,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,21 +71,7 @@ fun EditProfileScreen(
 
     val requestExit = {
         val state = uiState as? ProfileUiState.Success
-        if (
-            state != null &&
-            hasProfileChanges(
-                user = state.user,
-                name = state.editName,
-                email = state.editEmail,
-                phone = state.editPhone,
-                fullName = state.editFullName,
-                dateOfBirth = state.editDateOfBirth,
-                occupation = state.editOccupation,
-                address = state.editAddress,
-                gender = state.editGender,
-                contactEmail = state.editContactEmail,
-            )
-        ) {
+        if (state != null && hasProfileChanges(state)) {
             showDiscardDialog = true
         } else {
             viewModel.cancelEditing()
@@ -137,15 +94,8 @@ fun EditProfileScreen(
             state = state,
             onBackRequest = requestExit,
             onCancel = requestExit,
-            onNameChange = viewModel::updateName,
-            onEmailChange = viewModel::updateEmail,
-            onPhoneChange = viewModel::updatePhone,
-            onFullNameChange = viewModel::updateFullName,
-            onDateOfBirthChange = viewModel::updateDateOfBirth,
-            onOccupationChange = viewModel::updateOccupation,
-            onAddressChange = viewModel::updateAddress,
-            onGenderChange = viewModel::updateGender,
-            onContactEmailChange = viewModel::updateContactEmail,
+            onFirstNameChange = viewModel::updateFirstName,
+            onLastNameChange = viewModel::updateLastName,
             onSave = viewModel::saveProfile,
         )
     }
@@ -176,15 +126,8 @@ fun EditProfileContent(
     modifier: Modifier = Modifier,
     onBackRequest: () -> Unit = {},
     onCancel: () -> Unit = {},
-    onNameChange: (String) -> Unit = {},
-    onEmailChange: (String) -> Unit = {},
-    onPhoneChange: (String) -> Unit = {},
-    onFullNameChange: (String) -> Unit = {},
-    onDateOfBirthChange: (String) -> Unit = {},
-    onOccupationChange: (String) -> Unit = {},
-    onAddressChange: (String) -> Unit = {},
-    onGenderChange: (String) -> Unit = {},
-    onContactEmailChange: (String) -> Unit = {},
+    onFirstNameChange: (String) -> Unit = {},
+    onLastNameChange: (String) -> Unit = {},
     onSave: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize().imePadding()) {
@@ -200,199 +143,51 @@ fun EditProfileContent(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    text = "Personal details",
+                    text = "Edit profile",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Keep your contact information up to date for clinic communication.",
+                    text = "Only first and last name can be edited.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            Card(
-                shape = MaterialTheme.shapes.medium,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            OutlinedTextField(
+                value = state.editFirstName,
+                onValueChange = onFirstNameChange,
+                label = { Text("First name") },
+                leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    SectionHeader(label = "Account")
+                singleLine = true,
+                enabled = !state.isSaving,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next,
+                ),
+            )
 
-                    OutlinedTextField(
-                        value = state.editName,
-                        onValueChange = onNameChange,
-                        label = { Text("Name") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Person, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = state.fieldErrors.containsKey("name"),
-                        supportingText = fieldSupportingText(state, "name"),
-                        singleLine = true,
-                        enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Words,
-                            imeAction = ImeAction.Next,
-                        ),
-                    )
-
-                    OutlinedTextField(
-                        value = state.editEmail,
-                        onValueChange = onEmailChange,
-                        label = { Text("Email") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Email, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = state.fieldErrors.containsKey("email"),
-                        supportingText = fieldSupportingText(state, "email"),
-                        singleLine = true,
-                        enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Next,
-                        ),
-                    )
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    SectionHeader(label = "Personal Information")
-
-                    OutlinedTextField(
-                        value = state.editFullName,
-                        onValueChange = onFullNameChange,
-                        label = { Text("Full name") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Person, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = state.fieldErrors.containsKey("full_name"),
-                        supportingText = fieldSupportingText(state, "full_name"),
-                        singleLine = true,
-                        enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Words,
-                            imeAction = ImeAction.Next,
-                        ),
-                    )
-
-                    DateOfBirthPicker(
-                        value = state.editDateOfBirth,
-                        onValueChange = onDateOfBirthChange,
-                        enabled = !state.isSaving,
-                        isError = state.fieldErrors.containsKey("date_of_birth"),
-                        supportingText = fieldSupportingText(state, "date_of_birth"),
-                    )
-
-                    GenderDropdown(
-                        value = state.editGender,
-                        onValueChange = onGenderChange,
-                        enabled = !state.isSaving,
-                        isError = state.fieldErrors.containsKey("gender"),
-                        supportingText = fieldSupportingText(state, "gender"),
-                    )
-
-                    OutlinedTextField(
-                        value = state.editOccupation,
-                        onValueChange = onOccupationChange,
-                        label = { Text("Occupation") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Work, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = state.fieldErrors.containsKey("occupation"),
-                        supportingText = fieldSupportingText(state, "occupation"),
-                        singleLine = true,
-                        enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Words,
-                            imeAction = ImeAction.Next,
-                        ),
-                    )
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    SectionHeader(label = "Contact Information")
-
-                    OutlinedTextField(
-                        value = state.editPhone,
-                        onValueChange = onPhoneChange,
-                        label = { Text("Phone") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Phone, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = state.fieldErrors.containsKey("phone"),
-                        supportingText = fieldSupportingText(state, "phone"),
-                        singleLine = true,
-                        enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Phone,
-                            imeAction = ImeAction.Next,
-                        ),
-                    )
-
-                    OutlinedTextField(
-                        value = state.editAddress,
-                        onValueChange = onAddressChange,
-                        label = { Text("Address") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.LocationOn, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = state.fieldErrors.containsKey("address"),
-                        supportingText = fieldSupportingText(state, "address"),
-                        singleLine = true,
-                        enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Words,
-                            imeAction = ImeAction.Next,
-                        ),
-                    )
-
-                    OutlinedTextField(
-                        value = state.editContactEmail,
-                        onValueChange = onContactEmailChange,
-                        label = { Text("Contact email") },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Email, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = state.fieldErrors.containsKey("contact_email"),
-                        supportingText = fieldSupportingText(state, "contact_email"),
-                        singleLine = true,
-                        enabled = !state.isSaving,
-                        shape = MaterialTheme.shapes.small,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Done,
-                        ),
-                    )
-                }
-            }
+            OutlinedTextField(
+                value = state.editLastName,
+                onValueChange = onLastNameChange,
+                label = { Text("Last name") },
+                leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !state.isSaving,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Done,
+                ),
+            )
 
             state.saveError?.let { message ->
-                Surface(
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = message,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(14.dp),
-                    )
-                }
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
 
             Row(
@@ -404,9 +199,7 @@ fun EditProfileContent(
                     modifier = Modifier.weight(1f).height(48.dp),
                     enabled = !state.isSaving,
                     shape = RoundedCornerShape(50),
-                ) {
-                    Text("Cancel")
-                }
+                ) { Text("Cancel") }
                 Button(
                     onClick = onSave,
                     modifier = Modifier.weight(1f).height(48.dp),
@@ -415,169 +208,17 @@ fun EditProfileContent(
                 ) {
                     if (state.isSaving) {
                         CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .semantics { contentDescription = "Saving profile" },
+                            modifier = Modifier.size(18.dp).semantics { contentDescription = "Saving" },
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
                     } else {
-                        Text("Save changes", fontWeight = FontWeight.SemiBold)
+                        Text("Save", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun SectionHeader(label: String) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun GenderDropdown(
-    value: String,
-    onValueChange: (String) -> Unit,
-    enabled: Boolean,
-    isError: Boolean,
-    supportingText: (@Composable () -> Unit)?,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val options = listOf("male", "female")
-    val displayValue = when (value.lowercase()) {
-        "male" -> "Male"
-        "female" -> "Female"
-        else -> value
-    }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (enabled) expanded = it },
-    ) {
-        OutlinedTextField(
-            value = displayValue,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Gender") },
-            leadingIcon = { Icon(Icons.Outlined.Wc, contentDescription = null) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-            isError = isError,
-            supportingText = supportingText,
-            singleLine = true,
-            enabled = enabled,
-            shape = MaterialTheme.shapes.small,
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.replaceFirstChar { it.titlecase() }) },
-                    onClick = {
-                        onValueChange(option)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DateOfBirthPicker(
-    value: String,
-    onValueChange: (String) -> Unit,
-    enabled: Boolean,
-    isError: Boolean,
-    supportingText: (@Composable () -> Unit)?,
-) {
-    var showDatePicker by remember { mutableStateOf(false) }
-    val displayDate = remember(value) {
-        if (value.isBlank()) return@remember ""
-        try {
-            val date = LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE)
-            date.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH))
-        } catch (_: Exception) {
-            value
-        }
-    }
-
-    OutlinedTextField(
-        value = displayDate,
-        onValueChange = {},
-        readOnly = true,
-        label = { Text("Date of birth") },
-        leadingIcon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (enabled) Modifier else Modifier),
-        isError = isError,
-        supportingText = supportingText,
-        singleLine = true,
-        enabled = enabled,
-        shape = MaterialTheme.shapes.small,
-        interactionSource = remember { MutableInteractionSource() }
-            .also { interactionSource ->
-                LaunchedEffect(interactionSource) {
-                    interactionSource.interactions.collect { interaction ->
-                        if (interaction is PressInteraction.Release && enabled) {
-                            showDatePicker = true
-                        }
-                    }
-                }
-            },
-    )
-
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = try {
-                val date = LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE)
-                date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
-            } catch (_: Exception) {
-                null
-            },
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val date = Instant.ofEpochMilli(millis)
-                                .atZone(ZoneId.of("UTC"))
-                                .toLocalDate()
-                            onValueChange(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                        }
-                        showDatePicker = false
-                    },
-                ) { Text("OK") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
-            },
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-}
-
-@Composable
-private fun fieldSupportingText(
-    state: ProfileUiState.Success,
-    field: String,
-): (@Composable () -> Unit)? = state.fieldErrors[field]?.firstOrNull()?.let { message ->
-    { Text(message) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -600,10 +241,7 @@ private fun EditProfileLoadingContent(onBackRequest: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         EditProfileTopBar(onBackRequest = onBackRequest, enabled = true)
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .semantics { contentDescription = "Loading profile editor" }
-                .padding(horizontal = 24.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Spacer(Modifier.height(4.dp))
@@ -621,10 +259,11 @@ private fun EditProfileErrorContent(
 ) {
     Column(Modifier.fillMaxSize()) {
         EditProfileTopBar(onBackRequest = onBackRequest, enabled = true)
-        ErrorContent(
-            message = message,
-            onRetry = onRetry,
-            modifier = Modifier.weight(1f),
-        )
+        ErrorContent(message = message, onRetry = onRetry, modifier = Modifier.weight(1f))
     }
+}
+
+private fun hasProfileChanges(state: ProfileUiState.Success): Boolean {
+    val a = state.account
+    return state.editFirstName != (a.firstName ?: "") || state.editLastName != (a.lastName ?: "")
 }
