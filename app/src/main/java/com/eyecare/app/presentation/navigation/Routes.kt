@@ -6,6 +6,16 @@ import kotlinx.serialization.Serializable
 @Serializable object Login
 @Serializable object Register
 
+// V13 Auth graph
+@Serializable object SessionGate
+@Serializable object Welcome
+@Serializable object CreateAccount
+@Serializable object RecoverPassword
+
+// V13 Account access graph (unlinked/pending)
+@Serializable object LimitedAccount
+@Serializable object AccountSecurity
+
 // Main graph — tab roots
 @Serializable object Home
 @Serializable object Frames
@@ -42,4 +52,5 @@ import kotlinx.serialization.Serializable
 
 // Graph tags
 @Serializable object AuthGraph
+@Serializable object AccountAccessGraph
 @Serializable object MainGraph
