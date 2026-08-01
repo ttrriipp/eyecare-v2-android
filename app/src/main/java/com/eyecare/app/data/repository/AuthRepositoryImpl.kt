@@ -26,9 +26,7 @@ import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.PolicyMetadata
 import com.eyecare.app.domain.model.RegistrationProof
-import com.eyecare.app.domain.model.User
 import com.eyecare.app.domain.repository.AuthRepository
-import com.eyecare.app.domain.repository.UpdateProfileRequest
 import retrofit2.HttpException
 import javax.inject.Inject
 
@@ -183,32 +181,6 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun login(email: String, password: String): Result<User> = runCatching {
-        val outcome = beginLogin(email, password, null, null).getOrThrow()
-        when (outcome) {
-            is LoginOutcome.Authenticated -> outcome.account.toLegacyUser()
-            is LoginOutcome.OtpRequired -> throw IllegalStateException("OTP required")
-        }
-    }
-
-    override suspend fun register(
-        name: String,
-        email: String,
-        phone: String?,
-        password: String,
-        passwordConfirmation: String,
-    ): Result<User> = runCatching { throw IllegalStateException("Use new two-stage registration") }
-
-    override suspend fun logout(): Result<Unit> = logoutCurrent()
-
-    override suspend fun getMeLegacy(): Result<User> = runCatching {
-        getMe().getOrThrow().toLegacyUser()
-    }
-
-    override suspend fun updateMe(request: UpdateProfileRequest): Result<User> = runCatching {
-        updateAccountName(request.name ?: "", "").getOrThrow().toLegacyUser()
-    }
-
     private fun mapLoginResponse(response: LoginResponse): LoginOutcome {
         val data = response.data
         return if (data.stepUpRequired) {
@@ -277,20 +249,5 @@ class AuthRepositoryImpl @Inject constructor(
         address = address,
         phone = phone,
         contactEmail = contactEmail,
-    )
-
-    private fun PatientAccount.toLegacyUser() = User(
-        id = id,
-        name = name,
-        email = email ?: "",
-        phone = phone,
-        role = role,
-        patientNumber = linkedPatient?.patientNumber,
-        fullName = linkedPatient?.fullName,
-        dateOfBirth = dateOfBirth,
-        occupation = linkedPatient?.occupation,
-        address = linkedPatient?.address,
-        gender = linkedPatient?.gender,
-        contactEmail = linkedPatient?.contactEmail,
     )
 }

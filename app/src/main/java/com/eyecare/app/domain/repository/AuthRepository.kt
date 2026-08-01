@@ -6,7 +6,6 @@ import com.eyecare.app.domain.model.OtpChallenge
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PolicyMetadata
 import com.eyecare.app.domain.model.RegistrationProof
-import com.eyecare.app.domain.model.User
 
 interface AuthRepository {
     suspend fun getPolicies(): Result<PolicyMetadata>
@@ -41,28 +40,4 @@ interface AuthRepository {
     suspend fun updateAccountName(firstName: String, lastName: String): Result<PatientAccount>
     suspend fun logoutCurrent(): Result<Unit>
     suspend fun logoutAll(): Result<Unit>
-
-    suspend fun login(email: String, password: String): Result<User>
-    suspend fun register(
-        name: String,
-        email: String,
-        phone: String?,
-        password: String,
-        passwordConfirmation: String,
-    ): Result<User>
-    suspend fun logout(): Result<Unit>
-    suspend fun getMeLegacy(): Result<User>
-    suspend fun updateMe(request: UpdateProfileRequest): Result<User>
 }
-
-data class UpdateProfileRequest(
-    val name: String? = null,
-    val email: String? = null,
-    val phone: String? = null,
-    val address: String? = null,
-    val fullName: String? = null,
-    val dateOfBirth: String? = null,
-    val occupation: String? = null,
-    val gender: String? = null,
-    val contactEmail: String? = null,
-)
