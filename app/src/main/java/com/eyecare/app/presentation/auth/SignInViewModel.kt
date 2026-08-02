@@ -3,7 +3,6 @@ package com.eyecare.app.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.data.local.DeviceIdentityProvider
-import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AuthenticatedSession
 import com.eyecare.app.domain.model.LoginOutcome
 import com.eyecare.app.domain.repository.AuthRepository
@@ -94,8 +93,9 @@ class SignInViewModel @Inject constructor(
                     }
                 }
             }.onFailure { error ->
-                val apiError = error as? ApiDomainError
-                _state.value = current.copy(error = apiError?.message ?: "Sign in failed")
+                _state.value = current.copy(
+                    error = authErrorMessage(error, "Sign in failed. Please try again."),
+                )
             }
         }
     }
@@ -121,8 +121,9 @@ class SignInViewModel @Inject constructor(
             ).onSuccess { session ->
                 _state.value = SignInState.Success(session)
             }.onFailure { error ->
-                val apiError = error as? ApiDomainError
-                _state.value = current.copy(error = apiError?.message ?: "Invalid code")
+                _state.value = current.copy(
+                    error = authErrorMessage(error, "Could not verify the code."),
+                )
             }
         }
     }
@@ -157,10 +158,9 @@ class SignInViewModel @Inject constructor(
                     }
                 }
             }.onFailure { error ->
-                val apiError = error as? ApiDomainError
                 _state.value = current.copy(
                     isResending = false,
-                    error = apiError?.message ?: "Failed to resend code",
+                    error = authErrorMessage(error, "Could not resend the code."),
                 )
             }
         }

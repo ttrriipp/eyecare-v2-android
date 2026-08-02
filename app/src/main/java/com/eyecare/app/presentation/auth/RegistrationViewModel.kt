@@ -83,7 +83,12 @@ class RegistrationViewModel @Inject constructor(
                     )
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(error = error.message ?: "Failed to send code")
+                    _state.value = current.copy(
+                        error = authErrorMessage(
+                            error,
+                            "Could not send a verification code. Please try again.",
+                        ),
+                    )
                 }
         }
     }
@@ -106,8 +111,9 @@ class RegistrationViewModel @Inject constructor(
                     loadPoliciesAndShowDetails(proof.token)
                 }
                 .onFailure { error ->
-                    val apiError = error as? ApiDomainError
-                    _state.value = current.copy(error = apiError?.message ?: "Invalid code")
+                    _state.value = current.copy(
+                        error = authErrorMessage(error, "Could not verify the code."),
+                    )
                 }
         }
     }
@@ -131,7 +137,7 @@ class RegistrationViewModel @Inject constructor(
                 .onFailure { error ->
                     _state.value = current.copy(
                         isResending = false,
-                        error = error.message ?: "Failed to resend code",
+                        error = authErrorMessage(error, "Could not resend the code."),
                     )
                 }
         }
@@ -270,11 +276,10 @@ class RegistrationViewModel @Inject constructor(
 
         if (fieldErrors.isNotEmpty()) return fieldErrors
 
-        val message = when {
-            apiError?.message != null && apiError.message != "Something went wrong. Please try again." -> apiError.message
-            apiError?.httpStatus == 429 -> "Too many attempts. Please wait and try again."
-            apiError?.httpStatus in 400..499 -> "Please check your account details."
-            else -> "We couldn't create your account. Please try again."
+        val message = if (apiError?.httpStatus == 429 || apiError?.code == "CONTACT_ALREADY_OWNED") {
+            authErrorMessage(error, "Too many attempts. Please wait and try again.")
+        } else {
+            authErrorMessage(error, "We couldn't create your account. Please try again.")
         }
         return mapOf("_" to message)
     }

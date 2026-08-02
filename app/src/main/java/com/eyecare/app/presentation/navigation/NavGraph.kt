@@ -13,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,6 +74,7 @@ fun EyecareNavGraph(
 
     // Unread message count — only loaded inside MainGraph
     var unreadCount by remember { mutableIntStateOf(0) }
+    var pendingPatientFeature by remember { mutableStateOf<PatientFeatureIntent?>(null) }
 
     // Hide bottom nav on auth/limited screens and chat
     val showBottomNav = currentDest?.route?.let { route ->
@@ -101,6 +103,7 @@ fun EyecareNavGraph(
         if (canAccessPatientFeatures(sessionState)) {
             navController.navigate(route)
         } else {
+            pendingPatientFeature = patientFeatureIntentFrom(route)
             navController.navigate(LimitedAccount)
         }
     }
@@ -116,8 +119,14 @@ fun EyecareNavGraph(
                 restoreState = true
             }
         } else {
+            pendingPatientFeature = patientFeatureIntentFrom(route)
             navController.navigate(LimitedAccount)
         }
+    }
+
+    fun openAccountLink() {
+        pendingPatientFeature = null
+        navController.navigate(LimitedAccount)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -191,17 +200,25 @@ fun EyecareNavGraph(
                     if (account != null) {
                         LimitedAccountScreen(
                             account = account,
-                            onBack = { navController.popBackStack() },
+                            requestedFeatureLabel = pendingPatientFeature?.label,
+                            onBack = {
+                                pendingPatientFeature = null
+                                navController.popBackStack()
+                            },
                             onAccountSecurity = { navController.navigate(AccountSecurity) },
                             onSignOut = {
+                                pendingPatientFeature = null
                                 sessionViewModel.signOut()
                                 navController.navigate(Welcome) {
                                     popUpTo<LimitedAccount> { inclusive = true }
                                 }
                             },
-                            onNavigateToMain = {
+                            onLinkComplete = {
+                                val destination = pendingPatientFeature
+                                pendingPatientFeature = null
                                 sessionViewModel.resolveSession()
                                 navController.popBackStack()
+                                destination?.let { navController.navigate(it.toRoute()) }
                             }
                         )
                     } else {
@@ -256,7 +273,7 @@ fun EyecareNavGraph(
                             onNavigateToFrameDetail = { navigatePatientFeature(FrameDetail(it)) },
                             onNavigateToPrescriptionDetail = { navigatePatientFeature(PrescriptionDetail(it)) },
                             hasActivePatientLink = canAccessPatientFeatures(sessionState),
-                            onNavigateToAccountLink = { navController.navigate(LimitedAccount) },
+                            onNavigateToAccountLink = ::openAccountLink,
                         )
                     }
                     composable<Frames> {
@@ -377,9 +394,9 @@ fun EyecareNavGraph(
                             onNavigateToEyewear = { navigatePatientFeature(EyewearList) },
                             onNavigateToEditProfile = { navController.navigate(EditProfile) },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
-                            onNavigateToAccountLink = { navController.navigate(LimitedAccount) },
+                            onNavigateToAccountLink = ::openAccountLink,
                             onNavigateToAccountSecurity = { navController.navigate(AccountSecurity) },
-                            onNavigateToInviteCode = { navController.navigate(LimitedAccount) },
+                            onNavigateToInviteCode = ::openAccountLink,
                             unreadMessageCount = unreadCount,
                         )
                     }

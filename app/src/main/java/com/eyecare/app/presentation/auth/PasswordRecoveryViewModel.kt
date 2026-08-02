@@ -6,6 +6,8 @@ import com.eyecare.app.data.local.DeviceIdentityProvider
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.AuthenticatedSession
+import com.eyecare.app.domain.model.toPhilippineE164
+import com.eyecare.app.domain.model.toPhilippineLocalDigits
 import com.eyecare.app.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,11 +28,14 @@ sealed interface RecoveryState {
         val phoneNumber: String,
         val code: String = "",
         val error: String? = null,
+        val isResending: Boolean = false,
     ) : RecoveryState
 
     data class EnterNewPassword(
         val challengeId: String,
         val code: String,
+        val phoneNumber: String = "",
+        val expiresAt: String = "",
         val password: String = "",
         val passwordConfirmation: String = "",
         val errors: Map<String, String> = emptyMap(),
@@ -56,9 +61,12 @@ class PasswordRecoveryViewModel @Inject constructor(
 
     fun requestOtp() {
         val current = _state.value
-        if (current !is RecoveryState.EnterPhone || current.phoneNumber.length < 10) return
+        if (
+            current !is RecoveryState.EnterPhone ||
+            toPhilippineLocalDigits(current.phoneNumber).length < 10
+        ) return
 
-        val fullPhone = "+63${current.phoneNumber}"
+        val fullPhone = toPhilippineE164(current.phoneNumber)
 
         viewModelScope.launch {
             _state.value = current.copy(error = null)
@@ -71,7 +79,12 @@ class PasswordRecoveryViewModel @Inject constructor(
                     )
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(error = error.message ?: "Failed to send code")
+                    _state.value = current.copy(
+                        error = authErrorMessage(
+                            error,
+                            "Could not send a verification code. Please try again.",
+                        ),
+                    )
                 }
         }
     }
@@ -85,12 +98,43 @@ class PasswordRecoveryViewModel @Inject constructor(
 
     fun verifyOtp() {
         val current = _state.value
-        if (current !is RecoveryState.EnterOtp || current.code.length != 6) return
+        if (
+            current !is RecoveryState.EnterOtp ||
+            current.isResending ||
+            current.code.length != 6
+        ) return
 
         _state.value = RecoveryState.EnterNewPassword(
             challengeId = current.challengeId,
             code = current.code,
+            phoneNumber = current.phoneNumber,
+            expiresAt = current.expiresAt,
         )
+    }
+
+    fun resendOtp() {
+        val current = _state.value
+        if (current !is RecoveryState.EnterOtp || current.isResending) return
+
+        viewModelScope.launch {
+            _state.value = current.copy(isResending = true, error = null, code = "")
+            authRepository.requestPasswordRecoveryOtp(toPhilippineE164(current.phoneNumber))
+                .onSuccess { challenge ->
+                    _state.value = current.copy(
+                        challengeId = challenge.challengeId,
+                        expiresAt = challenge.expiresAt,
+                        code = "",
+                        error = null,
+                        isResending = false,
+                    )
+                }
+                .onFailure { error ->
+                    _state.value = current.copy(
+                        isResending = false,
+                        error = authErrorMessage(error, "Could not resend the code."),
+                    )
+                }
+        }
     }
 
     fun updatePassword(value: String) {
@@ -138,14 +182,16 @@ class PasswordRecoveryViewModel @Inject constructor(
                 if (apiError?.code == AuthApiCodes.INVALID_OTP) {
                     _state.value = RecoveryState.EnterOtp(
                         challengeId = current.challengeId,
-                        expiresAt = "",
-                        phoneNumber = "",
+                        expiresAt = current.expiresAt,
+                        phoneNumber = current.phoneNumber,
                         code = "",
                         error = "Invalid or expired code. Please try again.",
                     )
                 } else {
                     _state.value = current.copy(
-                        errors = mapOf("_" to (apiError?.message ?: "Password reset failed")),
+                        errors = mapOf(
+                            "_" to authErrorMessage(error, "Password reset failed."),
+                        ),
                     )
                 }
             }
@@ -157,8 +203,8 @@ class PasswordRecoveryViewModel @Inject constructor(
             is RecoveryState.EnterOtp -> RecoveryState.EnterPhone(current.phoneNumber)
             is RecoveryState.EnterNewPassword -> RecoveryState.EnterOtp(
                 challengeId = current.challengeId,
-                expiresAt = "",
-                phoneNumber = "",
+                expiresAt = current.expiresAt,
+                phoneNumber = current.phoneNumber,
                 code = current.code,
             )
             else -> RecoveryState.EnterPhone()

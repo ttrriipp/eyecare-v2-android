@@ -37,6 +37,7 @@ sealed interface LimitedAccountState {
         val expiresAt: String,
         val code: String = "",
         val error: String? = null,
+        val isResending: Boolean = false,
     ) : LimitedAccountState
     data class Linked(val account: PatientAccount) : LimitedAccountState
     data class Error(val message: String) : LimitedAccountState
@@ -100,7 +101,10 @@ class LimitedAccountViewModel @Inject constructor(
                     if (latest is LimitedAccountState.Overview) {
                         _state.value = latest.copy(
                             isSubmittingLinkRequest = false,
-                            requestError = error.message ?: "Could not send the clinic link request",
+                            requestError = linkingErrorMessage(
+                                error,
+                                fallback = "Could not send the clinic link request.",
+                            ),
                         )
                     }
                 }
@@ -120,18 +124,57 @@ class LimitedAccountViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.value = current.copy(error = null)
-            accountRepository.requestInvitationOtp(current.code)
+            val invitationCode = current.code.trim()
+            accountRepository.requestInvitationOtp(invitationCode)
                 .onSuccess { challenge ->
                     _state.value = LimitedAccountState.VerifyInvitationOtp(
                         account = current.account,
-                        invitationCode = current.code,
+                        invitationCode = invitationCode,
                         challengeId = challenge.challengeId,
                         expiresAt = challenge.expiresAt,
                     )
                 }
                 .onFailure { error ->
-                    val apiError = error as? ApiDomainError
-                    _state.value = current.copy(error = apiError?.message ?: "Invalid invitation code")
+                    _state.value = current.copy(
+                        error = linkingErrorMessage(
+                            error,
+                            fallback = "Could not check that invitation code.",
+                        ),
+                    )
+                }
+        }
+    }
+
+    fun resendInvitationOtp() {
+        val current = _state.value
+        if (current !is LimitedAccountState.VerifyInvitationOtp || current.isResending) return
+
+        viewModelScope.launch {
+            _state.value = current.copy(isResending = true, error = null, code = "")
+            accountRepository.requestInvitationOtp(current.invitationCode)
+                .onSuccess { challenge ->
+                    val latest = _state.value
+                    if (latest is LimitedAccountState.VerifyInvitationOtp) {
+                        _state.value = latest.copy(
+                            challengeId = challenge.challengeId,
+                            expiresAt = challenge.expiresAt,
+                            code = "",
+                            error = null,
+                            isResending = false,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    val latest = _state.value
+                    if (latest is LimitedAccountState.VerifyInvitationOtp) {
+                        _state.value = latest.copy(
+                            isResending = false,
+                            error = linkingErrorMessage(
+                                error,
+                                fallback = "Could not send a new verification code.",
+                            ),
+                        )
+                    }
                 }
         }
     }
@@ -145,7 +188,11 @@ class LimitedAccountViewModel @Inject constructor(
 
     fun verifyInvitationOtp() {
         val current = _state.value
-        if (current !is LimitedAccountState.VerifyInvitationOtp || current.code.length != 6) return
+        if (
+            current !is LimitedAccountState.VerifyInvitationOtp ||
+            current.isResending ||
+            current.code.length != 6
+        ) return
 
         viewModelScope.launch {
             _state.value = current.copy(error = null)
@@ -163,8 +210,12 @@ class LimitedAccountViewModel @Inject constructor(
                     )
                 }
             }.onFailure { error ->
-                val apiError = error as? ApiDomainError
-                _state.value = current.copy(error = apiError?.message ?: "Verification failed")
+                _state.value = current.copy(
+                    error = linkingErrorMessage(
+                        error,
+                        fallback = "Could not verify the invitation code.",
+                    ),
+                )
             }
         }
     }
@@ -231,6 +282,33 @@ class LimitedAccountViewModel @Inject constructor(
                         )
                     }
                 }
+        }
+    }
+
+    private fun linkingErrorMessage(error: Throwable, fallback: String): String {
+        val apiError = error as? ApiDomainError
+        return when (apiError?.code) {
+            AuthApiCodes.INVITATION_INVALID ->
+                "That invitation code is invalid or expired. Check it and try again."
+            AuthApiCodes.ACCOUNT_ALREADY_LINKED ->
+                "This account is already linked to a clinic record."
+            AuthApiCodes.PATIENT_ALREADY_LINKED ->
+                "That invitation is already linked to another account."
+            AuthApiCodes.INVALID_OTP ->
+                "That verification code is incorrect. Check the 6 digits and try again."
+            AuthApiCodes.OTP_ATTEMPT_LIMIT_REACHED ->
+                "Too many incorrect codes. Request a new code and try again."
+            AuthApiCodes.OTP_RATE_LIMIT_REACHED ->
+                "Too many code requests. Please wait before requesting another code."
+            AuthApiCodes.LINK_REQUEST_PENDING ->
+                "A clinic link request is already pending."
+            AuthApiCodes.LINK_REQUEST_ALREADY_PENDING ->
+                "A clinic link request is already pending."
+            AuthApiCodes.ACTIVE_REQUEST_LIMIT_REACHED ->
+                "You already have the maximum number of clinic link requests."
+            else -> apiError?.message?.takeIf(String::isNotBlank)
+                ?: error.message?.takeIf(String::isNotBlank)
+                ?: fallback
         }
     }
 }

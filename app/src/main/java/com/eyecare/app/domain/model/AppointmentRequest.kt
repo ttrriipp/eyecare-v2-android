@@ -1,0 +1,57 @@
+package com.eyecare.app.domain.model
+
+enum class AppointmentRequestStatus {
+    PENDING,
+    ACCEPTED,
+    REJECTED,
+    CANCELLED,
+    EXPIRED,
+    UNKNOWN;
+
+    companion object {
+        fun fromRaw(value: String): AppointmentRequestStatus = when (value.lowercase()) {
+            "pending" -> PENDING
+            "accepted" -> ACCEPTED
+            "rejected" -> REJECTED
+            "cancelled" -> CANCELLED
+            "expired" -> EXPIRED
+            else -> UNKNOWN
+        }
+    }
+
+    val isTerminal: Boolean
+        get() = this in setOf(ACCEPTED, REJECTED, CANCELLED, EXPIRED)
+
+    val isCancellable: Boolean
+        get() = this == PENDING
+}
+
+data class AppointmentRequest(
+    val id: Int,
+    val requestNumber: String,
+    val status: AppointmentRequestStatus,
+    val patientId: Int?,
+    val scheduledAt: String,
+    val reasonForVisit: String,
+    val expiresAt: String?,
+    val cancelledAt: String?,
+    val createdAt: String,
+    val appointmentId: Int?,
+)
+
+data class AppointmentRequestAvailability(
+    val date: String,
+    val timezone: String,
+    val intervalMinutes: Int,
+    val slotDurationMinutes: Int,
+    val dayStatus: String,
+    val generatedAt: String,
+    val slots: List<AvailabilitySlot>,
+)
+
+data class AvailabilitySlot(
+    val startsAt: String,
+    val endsAt: String,
+    val available: Boolean,
+    val reason: String?,
+)

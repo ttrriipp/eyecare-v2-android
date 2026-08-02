@@ -81,10 +81,71 @@ com.eyecare.app/
 - **Limited account access:** A validated account with `UNLINKED`, `PENDING_REVIEW`, or `UNKNOWN`
   link status enters `MainGraph` with the normal shell. Home and account/security remain available;
   active-link clinical destinations are gated at navigation and open `LimitedAccount` for invitation
-  entry or a clinic-review link request. Profile keeps a persistent link entry point.
+  entry or a clinic-review link request. The link hub remembers the protected destination that opened
+  it and returns there after a successful invitation link. Profile keeps a persistent link entry point.
 - **Bottom-nav tab switches:** use `popUpTo<MainGraph> { saveState = true; inclusive = false }` + `launchSingleTop = true` + `restoreState = true` so switching tabs doesn't grow the back-stack or lose scroll position.
 - **Wizard flows (e.g. booking):** on terminal success, pop the wizard's own route off the stack with `popUpTo(WizardRoute) { inclusive = true }` before navigating to the result screen.
 - **Backend alias fields:** when the backend returns two field names for the same value (e.g. `lens_category_id` canonical + `lens_type_id` backward-compat alias), the DTO parses both but the domain model exposes only the canonical name. Repository mapping prefers canonical, falls back to alias: `lensCategoryId = lensCategoryId ?: lensTypeId`. Request bodies (e.g. `OrderItemRequest`) may keep using the alias name if the backend documents it as accepted — no need to migrate outbound fields the backend still supports.
+
+## Current Auth and Account-Linking Behavior (Android)
+
+This is the implemented Android behavior for the current auth cutover. The backend remains
+authoritative for account ownership, OTP challenges, link status, invitation validity, and clinical
+access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRACT.md` and
+`docs/BACKEND_CONTEXT.md`; this section records the client decisions and navigation boundary.
+
+### Entry flows
+
+- **Sign in:** phone number + password first. Trusted installations may receive a session directly;
+  otherwise the app shows a six-digit login OTP before entering the session gate.
+- **Create account:** phone number -> phone OTP -> profile/password/policy form -> account session.
+  An optional invitation code may link the account during registration; without one, the new account
+  is unlinked and still enters the normal app shell.
+- **Reset password:** phone number -> OTP -> new password. It uses the same fixed Philippine phone
+  prefix as the other auth forms.
+- **Sign out:** clears the local token and returns to `Welcome`, not directly to `Login`.
+
+### Session and linking boundary
+
+- `GET /me` is resolved before routing. `LINKED` enters `MainGraph`; `UNLINKED`, `PENDING_REVIEW`,
+  and unknown link states enter `MainGraph` with limited access; a missing/invalid session enters
+  `Welcome`.
+- Limited users can use account-safe areas, Home's limited-access card, Profile, Account & Security,
+  and the normal shell. Clinical data is not loaded or shown until the backend reports an active link.
+- Any patient-only destination requested by a limited user opens `LimitedAccount` as a link hub. The
+  hub offers **Enter invitation code** and **Ask clinic to link me**. After successful invitation
+  acceptance, the app returns to the original feature; backing out clears that pending destination.
+- Profile and Home provide persistent entry points to the link hub, so an unlinked user does not need
+  to trigger a blocked patient feature to enter an invitation code.
+
+### OTP, phone, and error presentation
+
+- Phone fields display a non-editable `+63` prefix while users enter local digits. Values are
+  normalized to canonical E.164 at the ViewModel/repository boundary; the UI never prepends `63`
+  repeatedly while editing or deleting.
+- OTP fields accept exactly six digits. The shared OTP row shows a readable local expiry time,
+  countdown, expired state, and a 30-second resend cooldown. Resending replaces the active challenge
+  and clears the previous code.
+- Known auth/linking codes are converted to recovery-specific messages, including duplicate phone,
+  invalid/expired invitation, invalid OTP, too many attempts, OTP rate limits, already-linked
+  conflicts, and pending clinic-link requests. Unknown failures retain a safe server message or use
+  a generic fallback.
+
+### Implementation rationale and scope
+
+- The flow follows a progressive-trust boundary: verify phone ownership, collect credentials/profile,
+  then verify clinic-link authorization before exposing clinical data.
+- This is an Android-side implementation aligned to the existing API contract. No backend endpoint,
+  payload, rate-limit rule, or legacy compatibility layer was added for this flow.
+- Auth/linking UI uses the existing Material 3 theme and primary blue. Home, bottom navigation, and
+  appointment surfaces remain the visual authority while the broader app design is still being
+  completed. See `PRODUCT.md` and `DESIGN.md` for the current product/design direction.
+
+### Verification
+
+- Focused auth/linking unit tests cover route intent restoration, linking errors, OTP expiry
+  presentation, and password-recovery normalization.
+- `./gradlew testDebugUnitTest` and `./gradlew assembleDebug` pass for the current implementation.
 
 ## Booking Wizard — Date & Time Selection
 

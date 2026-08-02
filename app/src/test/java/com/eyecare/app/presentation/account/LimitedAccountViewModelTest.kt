@@ -2,6 +2,8 @@ package com.eyecare.app.presentation.account
 
 import com.eyecare.app.domain.model.LinkState
 import com.eyecare.app.domain.model.OtpChallenge
+import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkRequest
 import com.eyecare.app.domain.model.PatientLinkRequestStatus
@@ -95,6 +97,51 @@ class LimitedAccountViewModelTest {
 
         val state = vm.state.value as LimitedAccountState.EnterInvitationCode
         assertTrue(state.error != null)
+    }
+
+    @Test
+    fun `invalid invitation code uses a specific recovery message`() {
+        coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
+        coEvery { accountRepo.requestInvitationOtp("BAD") } returns Result.failure(
+            ApiDomainError(
+                httpStatus = 422,
+                code = AuthApiCodes.INVITATION_INVALID,
+                message = "Invitation is invalid.",
+            ),
+        )
+
+        vm.load(unlinkedAccount)
+        vm.startInvitationEntry()
+        vm.updateInvitationCode("BAD")
+        vm.requestInvitationOtp()
+
+        val state = vm.state.value as LimitedAccountState.EnterInvitationCode
+        assertEquals(
+            "That invitation code is invalid or expired. Check it and try again.",
+            state.error,
+        )
+    }
+
+    @Test
+    fun `resending invitation otp replaces the challenge`() {
+        coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
+        coEvery { accountRepo.requestInvitationOtp("INV-123") } returnsMany listOf(
+            Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00")),
+            Result.success(OtpChallenge("ch-2", "2026-08-01T10:15:00")),
+        )
+
+        vm.load(unlinkedAccount)
+        vm.startInvitationEntry()
+        vm.updateInvitationCode("INV-123")
+        vm.requestInvitationOtp()
+        vm.resendInvitationOtp()
+
+        val state = vm.state.value as LimitedAccountState.VerifyInvitationOtp
+        assertEquals("ch-2", state.challengeId)
+        assertEquals("2026-08-01T10:15:00", state.expiresAt)
+        assertEquals(false, state.isResending)
     }
 
     @Test

@@ -62,6 +62,33 @@ class PasswordRecoveryViewModelTest {
     }
 
     @Test
+    fun `requestOtp normalizes a local phone with the fixed country prefix`() {
+        coEvery { authRepo.requestPasswordRecoveryOtp("+639514646068") } returns
+            Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
+
+        vm.updatePhone("9514646068")
+        vm.requestOtp()
+
+        assertTrue(vm.state.value is RecoveryState.EnterOtp)
+    }
+
+    @Test
+    fun `resend replaces the recovery challenge`() {
+        coEvery { authRepo.requestPasswordRecoveryOtp("+639171234567") } returnsMany listOf(
+            Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00")),
+            Result.success(OtpChallenge("ch-2", "2026-08-01T10:15:00")),
+        )
+
+        vm.updatePhone("+639171234567")
+        vm.requestOtp()
+        vm.resendOtp()
+
+        val state = vm.state.value as RecoveryState.EnterOtp
+        assertEquals("ch-2", state.challengeId)
+        assertEquals(false, state.isResending)
+    }
+
+    @Test
     fun `verifyOtp transitions to EnterNewPassword`() {
         coEvery { authRepo.requestPasswordRecoveryOtp(any()) } returns
             Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
