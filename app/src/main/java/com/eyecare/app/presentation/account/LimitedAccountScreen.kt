@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +35,9 @@ import com.eyecare.app.domain.model.LinkState
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkRequest
 import com.eyecare.app.domain.model.PatientLinkStatus
+import com.eyecare.app.presentation.auth.components.AuthIntro
+import com.eyecare.app.presentation.auth.components.AuthOutlinedButton
+import com.eyecare.app.presentation.auth.components.AuthPrimaryButton
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.FieldError
 import com.eyecare.app.presentation.auth.components.OtpExpiryRow
@@ -171,36 +175,30 @@ private fun LimitedOverviewContent(
                     }
                 }
             }
-            Button(
+            AuthPrimaryButton(
+                text = "Enter invitation code",
                 onClick = onEnterInvite,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Enter invitation code")
-            }
+            )
             if (currentLinkRequest == null && linkState !is LinkState.PendingReview) {
-                OutlinedButton(
+                AuthOutlinedButton(
+                    text = "Ask clinic to link me",
                     onClick = onRequestClinicLink,
                     enabled = !isSubmittingLinkRequest,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (isSubmittingLinkRequest) {
-                        CircularProgressIndicator(modifier = Modifier.height(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text("Ask clinic to link me")
-                    }
-                }
+                    loading = isSubmittingLinkRequest,
+                )
                 FieldError(requestError)
             }
-            OutlinedButton(
+            AuthOutlinedButton(
+                text = "Account & Security",
                 onClick = onAccountSecurity,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Account & Security")
-            }
+            )
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = onSignOut,
-                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
@@ -219,7 +217,7 @@ private fun LimitedInviteCodeStep(
 ) {
     AuthStepScaffold(title = "Invitation code", onBack = { viewModel.back() }) {
         Text(
-            text = "Enter the invitation code from your clinic. We’ll verify it before linking your account.",
+            text = "Enter the invitation code from your clinic. We'll verify it before linking your account.",
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -228,18 +226,16 @@ private fun LimitedInviteCodeStep(
             onValueChange = { viewModel.updateInvitationCode(it) },
             label = { Text("Invitation code") },
             singleLine = true,
-            isError = state.error != null,
+            isError = !state.error.isNullOrBlank(),
             modifier = Modifier.fillMaxWidth(),
         )
         FieldError(state.error)
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = { viewModel.requestInvitationOtp() },
+        AuthPrimaryButton(
+            text = "Continue",
+            onClick = viewModel::requestInvitationOtp,
             enabled = state.code.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Continue")
-        }
+        )
     }
 }
 
@@ -249,11 +245,8 @@ private fun LimitedInviteOtpStep(
     viewModel: LimitedAccountViewModel,
 ) {
     AuthStepScaffold(title = "Verify code", onBack = { viewModel.back() }) {
-        Text(
-            text = "Enter the 6-digit verification code sent to your phone.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        AuthIntro("Enter the 6-digit verification code sent to your phone.")
+        Spacer(modifier = Modifier.height(20.dp))
         OtpField(
             value = state.code,
             onValueChange = { viewModel.updateOtpCode(it) },
@@ -280,13 +273,12 @@ private fun LimitedInviteOtpStep(
             }
         }
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = { viewModel.verifyInvitationOtp() },
+        AuthPrimaryButton(
+            text = "Verify code",
+            onClick = viewModel::verifyInvitationOtp,
             enabled = state.code.length == 6 && !state.isResending,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Verify")
-        }
+            loading = state.isResending,
+        )
     }
 }
 

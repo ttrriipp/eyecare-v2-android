@@ -122,18 +122,31 @@ fun AuthOutlinedButton(
     text: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    loading: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     OutlinedButton(
         onClick = onClick,
-        enabled = enabled,
+        enabled = enabled && !loading,
         shape = MaterialTheme.shapes.large,
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp),
     ) {
-        Text(text)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 2.dp,
+                )
+            }
+            Text(text)
+        }
     }
 }
 

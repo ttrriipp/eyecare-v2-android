@@ -1,0 +1,94 @@
+package com.eyecare.app.presentation.appointments.requests
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.repository.AppointmentRequestRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+sealed interface RequestListState {
+    data object Loading : RequestListState
+    data class Data(
+        val requests: List<AppointmentRequest> = emptyList(),
+        val isLoadingMore: Boolean = false,
+        val hasMore: Boolean = false,
+        val currentPage: Int = 1,
+        val error: String? = null,
+        val appendError: String? = null,
+    ) : RequestListState
+    data class Error(val message: String) : RequestListState
+}
+
+@HiltViewModel
+class AppointmentRequestListViewModel @Inject constructor(
+    private val repository: AppointmentRequestRepository,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<RequestListState>(RequestListState.Loading)
+    val state: StateFlow<RequestListState> = _state.asStateFlow()
+
+    private val seenIds = mutableSetOf<Int>()
+
+    init {
+        loadInitial()
+    }
+
+    fun loadInitial() {
+        viewModelScope.launch {
+            _state.value = RequestListState.Loading
+            repository.getRequests(page = 1)
+                .onSuccess { paginated ->
+                    seenIds.clear()
+                    seenIds.addAll(paginated.data.map { it.id })
+                    _state.value = RequestListState.Data(
+                        requests = paginated.data,
+                        hasMore = paginated.hasMorePages,
+                        currentPage = 1,
+                    )
+                }
+                .onFailure { error ->
+                    _state.value = RequestListState.Error(error.message ?: "Failed to load requests")
+                }
+        }
+    }
+
+    fun loadMore() {
+        val current = _state.value
+        if (current !is RequestListState.Data || current.isLoadingMore || !current.hasMore) return
+
+        _state.value = current.copy(isLoadingMore = true, appendError = null)
+        viewModelScope.launch {
+            repository.getRequests(page = current.currentPage + 1)
+                .onSuccess { paginated ->
+                    val filtered = paginated.data.filter { it.id !in seenIds }
+                    seenIds.addAll(filtered.map { it.id })
+                    _state.value = RequestListState.Data(
+                        requests = current.requests + filtered,
+                        hasMore = paginated.hasMorePages,
+                        currentPage = current.currentPage + 1,
+                    )
+                }
+                .onFailure { error ->
+                    _state.value = current.copy(
+                        isLoadingMore = false,
+                        appendError = error.message ?: "Failed to load more",
+                    )
+                }
+        }
+    }
+
+    fun refresh() {
+        seenIds.clear()
+        loadInitial()
+    }
+
+    fun retryAppend() {
+        loadMore()
+    }
+}

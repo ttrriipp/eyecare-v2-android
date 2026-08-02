@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.eyecare.app.presentation.auth.components.AuthOutlinedButton
 import com.eyecare.app.presentation.auth.components.AuthPrimaryButton
 
 @Composable
@@ -82,15 +82,10 @@ fun WelcomeScreen(
                     onClick = onSignIn,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
+                AuthOutlinedButton(
+                    text = "Create account",
                     onClick = onCreateAccount,
-                    shape = MaterialTheme.shapes.large,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                ) {
-                    Text("Create account")
-                }
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
