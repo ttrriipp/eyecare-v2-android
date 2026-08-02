@@ -84,7 +84,7 @@ internal enum class AppointmentListTab { UPCOMING, HISTORY }
 @Composable
 fun AppointmentListScreen(
     onNavigateToDetail: (Int) -> Unit,
-    onNavigateToBook: () -> Unit,
+    onNavigateToRequest: () -> Unit,
     viewModel: AppointmentListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -180,7 +180,7 @@ fun AppointmentListScreen(
         }
 
         ExtendedFloatingActionButton(
-            onClick = onNavigateToBook,
+            onClick = onNavigateToRequest,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = 116.dp),
@@ -615,6 +615,6 @@ private fun parseAppointmentDateTime(value: String): LocalDateTime? =
 @Composable
 private fun AppointmentListPreview() {
     EyecareTheme {
-        AppointmentListScreen(onNavigateToDetail = {}, onNavigateToBook = {})
+        AppointmentListScreen(onNavigateToDetail = {}, onNavigateToRequest = {})
     }
 }

@@ -35,7 +35,7 @@ import com.eyecare.app.domain.model.canAccessPatientFeatures
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
-import com.eyecare.app.presentation.appointments.booking.BookAppointmentScreen
+import com.eyecare.app.presentation.appointments.requests.RequestAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.PasswordRecoveryScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
@@ -45,7 +45,6 @@ import com.eyecare.app.presentation.auth.WelcomeScreen
 import com.eyecare.app.presentation.account.LimitedAccountScreen
 import com.eyecare.app.presentation.account.AccountSecurityScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
-import com.eyecare.app.presentation.intake.PatientIntakeScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
 import com.eyecare.app.presentation.eyewear.EyewearListScreen
@@ -266,7 +265,7 @@ fun EyecareNavGraph(
                             onNavigateToAppointments = {
                                 navigateMainTab(Appointments)
                             },
-                            onNavigateToBooking = { navigatePatientFeature(BookAppointment) },
+                            onNavigateToBooking = { navigatePatientFeature(RequestAppointment()) },
                             onNavigateToFrames = {
                                 navigateMainTab(Frames)
                             },
@@ -301,13 +300,14 @@ fun EyecareNavGraph(
                                     popUpTo<CreateFrameReservation> { inclusive = true }
                                 }
                             },
-                            onBookAppointment = { navigatePatientFeature(BookAppointmentForReservation) },
+                            onBookAppointment = { navigatePatientFeature(RequestAppointment(isFrameReservationOrigin = true)) },
                         )
                     }
-                    composable<BookAppointmentForReservation> {
-                        BookAppointmentScreen(
+                    composable<RequestAppointment> { backStackEntry ->
+                        val route = backStackEntry.toRoute<RequestAppointment>()
+                        RequestAppointmentScreen(
                             onBack = { navController.popBackStack() },
-                            onBooked = { navController.popBackStack() },
+                            onRequestCreated = { navController.popBackStack() },
                         )
                     }
                     composable<FrameReservationList> {
@@ -355,28 +355,13 @@ fun EyecareNavGraph(
                     composable<Appointments> {
                         AppointmentListScreen(
                             onNavigateToDetail = { id -> navigatePatientFeature(AppointmentDetail(id)) },
-                            onNavigateToBook = { navigatePatientFeature(BookAppointment) },
+                            onNavigateToRequest = { navigatePatientFeature(RequestAppointment()) },
                         )
                     }
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToIntake = { appointmentId -> navigatePatientFeature(PatientIntake(appointmentId)) },
                             onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
-                        )
-                    }
-                    composable<PatientIntake> { backStackEntry ->
-                        val route = backStackEntry.toRoute<PatientIntake>()
-                        PatientIntakeScreen(
-                            onBack = { navController.popBackStack() },
-                        )
-                    }
-                    composable<BookAppointment> {
-                        BookAppointmentScreen(
-                            onBack = { navController.popBackStack() },
-                            onBooked = {
-                                navigateMainTab(Appointments)
-                            },
                         )
                     }
                     composable<Profile> {

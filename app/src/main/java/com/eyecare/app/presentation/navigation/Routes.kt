@@ -24,8 +24,8 @@ import kotlinx.serialization.Serializable
 
 // Appointment sub-destinations
 @Serializable data class AppointmentDetail(val appointmentId: Int)
-@Serializable object BookAppointment
-@Serializable data class PatientIntake(val appointmentId: Int)
+@Serializable data class RequestAppointment(val isFrameReservationOrigin: Boolean = false)
+@Serializable data class AppointmentRequestDetail(val requestId: Int)
 
 // Frame sub-destinations
 @Serializable data class ArTryOn(val frameId: Int, val variantId: Int)
@@ -34,7 +34,6 @@ import kotlinx.serialization.Serializable
 
 // Reservation destinations
 @Serializable object FrameReservationList
-@Serializable object BookAppointmentForReservation
 
 // Prescriptions
 @Serializable object PrescriptionList

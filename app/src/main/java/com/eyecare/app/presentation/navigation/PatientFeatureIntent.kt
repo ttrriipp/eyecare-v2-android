@@ -9,14 +9,12 @@ package com.eyecare.app.presentation.navigation
 sealed interface PatientFeatureIntent {
     data object FramesTab : PatientFeatureIntent
     data object AppointmentsTab : PatientFeatureIntent
-    data object BookAppointment : PatientFeatureIntent
-    data object BookAppointmentForReservation : PatientFeatureIntent
+    data object RequestAppointment : PatientFeatureIntent
     data object FrameReservationList : PatientFeatureIntent
     data object PrescriptionList : PatientFeatureIntent
     data object EyewearList : PatientFeatureIntent
     data object Chat : PatientFeatureIntent
     data class AppointmentDetail(val appointmentId: Int) : PatientFeatureIntent
-    data class PatientIntake(val appointmentId: Int) : PatientFeatureIntent
     data class FrameDetail(val frameId: Int) : PatientFeatureIntent
     data class CreateFrameReservation(val frameId: Int, val variantId: Int) : PatientFeatureIntent
     data class ArTryOn(val frameId: Int, val variantId: Int) : PatientFeatureIntent
@@ -27,14 +25,12 @@ sealed interface PatientFeatureIntent {
 fun PatientFeatureIntent.toRoute(): Any = when (this) {
     PatientFeatureIntent.FramesTab -> Frames
     PatientFeatureIntent.AppointmentsTab -> Appointments
-    PatientFeatureIntent.BookAppointment -> BookAppointment
-    PatientFeatureIntent.BookAppointmentForReservation -> BookAppointmentForReservation
+    PatientFeatureIntent.RequestAppointment -> RequestAppointment()
     PatientFeatureIntent.FrameReservationList -> FrameReservationList
     PatientFeatureIntent.PrescriptionList -> PrescriptionList
     PatientFeatureIntent.EyewearList -> EyewearList
     PatientFeatureIntent.Chat -> Chat
     is PatientFeatureIntent.AppointmentDetail -> AppointmentDetail(appointmentId)
-    is PatientFeatureIntent.PatientIntake -> PatientIntake(appointmentId)
     is PatientFeatureIntent.FrameDetail -> FrameDetail(frameId)
     is PatientFeatureIntent.CreateFrameReservation -> CreateFrameReservation(frameId, variantId)
     is PatientFeatureIntent.ArTryOn -> ArTryOn(frameId, variantId)
@@ -45,14 +41,12 @@ fun PatientFeatureIntent.toRoute(): Any = when (this) {
 fun patientFeatureIntentFrom(route: Any): PatientFeatureIntent? = when (route) {
     Frames -> PatientFeatureIntent.FramesTab
     Appointments -> PatientFeatureIntent.AppointmentsTab
-    BookAppointment -> PatientFeatureIntent.BookAppointment
-    BookAppointmentForReservation -> PatientFeatureIntent.BookAppointmentForReservation
+    is RequestAppointment -> PatientFeatureIntent.RequestAppointment
     FrameReservationList -> PatientFeatureIntent.FrameReservationList
     PrescriptionList -> PatientFeatureIntent.PrescriptionList
     EyewearList -> PatientFeatureIntent.EyewearList
     Chat -> PatientFeatureIntent.Chat
     is AppointmentDetail -> PatientFeatureIntent.AppointmentDetail(route.appointmentId)
-    is PatientIntake -> PatientFeatureIntent.PatientIntake(route.appointmentId)
     is FrameDetail -> PatientFeatureIntent.FrameDetail(route.frameId)
     is CreateFrameReservation -> PatientFeatureIntent.CreateFrameReservation(route.frameId, route.variantId)
     is ArTryOn -> PatientFeatureIntent.ArTryOn(route.frameId, route.variantId)
@@ -68,10 +62,8 @@ val PatientFeatureIntent.label: String
         is PatientFeatureIntent.CreateFrameReservation,
         is PatientFeatureIntent.ArTryOn -> "frames"
         PatientFeatureIntent.AppointmentsTab,
-        PatientFeatureIntent.BookAppointment,
-        PatientFeatureIntent.BookAppointmentForReservation,
-        is PatientFeatureIntent.AppointmentDetail,
-        is PatientFeatureIntent.PatientIntake -> "appointments"
+        PatientFeatureIntent.RequestAppointment,
+        is PatientFeatureIntent.AppointmentDetail -> "appointments"
         PatientFeatureIntent.FrameReservationList -> "reservations"
         PatientFeatureIntent.PrescriptionList,
         is PatientFeatureIntent.PrescriptionDetail -> "prescriptions"
