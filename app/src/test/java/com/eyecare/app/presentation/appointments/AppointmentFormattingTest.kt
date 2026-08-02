@@ -142,6 +142,7 @@ class AppointmentFormattingTest {
         status = status,
         scheduledAt = scheduledAt,
         contactNotes = null,
+        reasonForVisit = null,
         lastRescheduleReason = null,
         source = null,
         assignedOptometrist = null,

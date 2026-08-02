@@ -37,9 +37,9 @@ class HomeViewModelTest {
     private lateinit var prescriptionRepo: PrescriptionRepository
 
     private val futureAppt = AppointmentV1(1, "APT-001", "New Patient", 30, null, AppointmentStatus.SCHEDULED,
-        "${LocalDate.now().plusDays(3)}T10:00:00+08:00", null, null, "mobile", null)
+        "${LocalDate.now().plusDays(3)}T10:00:00+08:00", null, null, null, "mobile", null)
     private val pastAppt = AppointmentV1(2, "APT-002", "Follow-up", 15, null, AppointmentStatus.FULFILLED,
-        "${LocalDate.now().minusDays(5)}T10:00:00+08:00", null, null, "mobile", null)
+        "${LocalDate.now().minusDays(5)}T10:00:00+08:00", null, null, null, "mobile", null)
 
     private fun createPrescription(id: Int, isCurrent: Boolean, date: String) = Prescription(
         id = id,

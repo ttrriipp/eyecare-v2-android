@@ -36,6 +36,7 @@ class CreateFrameReservationViewModelTest {
         id = 1, appointmentNumber = "APT-001", appointmentType = "New Patient",
         durationMinutes = 30, referringSource = null, status = AppointmentStatus.SCHEDULED,
         scheduledAt = "2030-08-01T10:00:00+08:00", contactNotes = null,
+        reasonForVisit = null,
         lastRescheduleReason = null, source = "mobile", assignedOptometrist = null,
     )
 

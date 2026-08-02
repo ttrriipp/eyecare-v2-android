@@ -24,6 +24,7 @@ class FrameReservationEligibilityTest {
         status = status,
         scheduledAt = scheduledAt,
         contactNotes = null,
+        reasonForVisit = null,
         lastRescheduleReason = null,
         source = "mobile",
         assignedOptometrist = null,

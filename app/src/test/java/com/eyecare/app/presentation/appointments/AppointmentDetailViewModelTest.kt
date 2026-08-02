@@ -39,6 +39,7 @@ class AppointmentDetailViewModelTest {
         status = AppointmentStatus.SCHEDULED,
         scheduledAt = "2026-07-14T09:00:00+08:00",
         contactNotes = "Original note",
+        reasonForVisit = null,
         lastRescheduleReason = "Doctor availability changed",
         source = "mobile",
         assignedOptometrist = null,
