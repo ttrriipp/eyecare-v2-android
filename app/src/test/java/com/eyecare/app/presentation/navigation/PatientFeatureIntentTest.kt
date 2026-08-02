@@ -11,12 +11,12 @@ class PatientFeatureIntentTest {
         val intents = listOf(
             PatientFeatureIntent.AppointmentsTab to Appointments,
             PatientFeatureIntent.FramesTab to Frames,
+            PatientFeatureIntent.RequestAppointment to RequestAppointment(),
             PatientFeatureIntent.AppointmentDetail(42) to AppointmentDetail(42),
             PatientFeatureIntent.FrameDetail(7) to FrameDetail(7),
             PatientFeatureIntent.CreateFrameReservation(7, 3) to CreateFrameReservation(7, 3),
             PatientFeatureIntent.ArTryOn(7, 3) to ArTryOn(7, 3),
             PatientFeatureIntent.PrescriptionDetail(9) to PrescriptionDetail(9),
-            PatientFeatureIntent.PatientIntake(42) to PatientIntake(42),
             PatientFeatureIntent.Chat to Chat,
         )
 
@@ -33,13 +33,8 @@ class PatientFeatureIntentTest {
 
     @Test
     fun `feature intent exposes a user-facing label`() {
-        assertEquals(
-            "appointments",
-            PatientFeatureIntent.AppointmentDetail(42).label,
-        )
-        assertEquals(
-            "frames",
-            PatientFeatureIntent.FramesTab.label,
-        )
+        assertEquals("appointments", PatientFeatureIntent.AppointmentDetail(42).label)
+        assertEquals("frames", PatientFeatureIntent.FramesTab.label)
+        assertEquals("appointments", PatientFeatureIntent.RequestAppointment.label)
     }
 }

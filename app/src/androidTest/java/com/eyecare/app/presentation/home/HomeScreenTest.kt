@@ -33,6 +33,7 @@ class HomeScreenTest {
                 status = AppointmentStatus.SCHEDULED,
                 scheduledAt = "2030-07-16T10:00:00+08:00",
                 contactNotes = null,
+                reasonForVisit = null,
                 lastRescheduleReason = null,
                 source = "mobile",
                 assignedOptometrist = AssignedOptometrist("Dr. Santos"),

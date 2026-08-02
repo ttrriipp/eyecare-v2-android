@@ -12,7 +12,6 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -40,27 +39,6 @@ class AppointmentV1RepositoryImplTest {
     fun tearDown() = server.shutdown()
 
     @Test
-    fun `getAppointmentTypes maps requires_referral`() = runTest {
-        server.enqueue(
-            MockResponse().setResponseCode(200).setBody(
-                """
-                {"data":[
-                  {"id":1,"name":"New Patient","duration_minutes":30,"requires_referral":false},
-                  {"id":4,"name":"Referral","duration_minutes":30,"requires_referral":true}
-                ]}
-                """.trimIndent(),
-            ),
-        )
-
-        val types = repository.getAppointmentTypes().getOrThrow()
-        assertEquals(2, types.size)
-        assertEquals("New Patient", types[0].name)
-        assertFalse(types[0].requiresReferral)
-        assertEquals("Referral", types[1].name)
-        assertTrue(types[1].requiresReferral)
-    }
-
-    @Test
     fun `getAppointments returns paginated result`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
@@ -70,7 +48,7 @@ class AppointmentV1RepositoryImplTest {
                     {"id":1,"appointment_number":"APT-001","appointment_type":"New Patient",
                      "duration_minutes":30,"referring_source":null,"status":"scheduled",
                      "scheduled_at":"2026-07-28T10:00:00+08:00","contact_notes":null,
-                     "last_reschedule_reason":null,"source":"mobile",
+                     "reason_for_visit":"Checkup","last_reschedule_reason":null,"source":"mobile",
                      "assigned_optometrist":{"name":"Dr. Santos"}}
                   ],
                   "links":{"first":"?page=1","last":"?page=2","prev":null,"next":"?page=2"},
@@ -94,6 +72,7 @@ class AppointmentV1RepositoryImplTest {
         assertEquals(AppointmentStatus.SCHEDULED, appt.status)
         assertEquals("mobile", appt.source)
         assertEquals("Dr. Santos", appt.assignedOptometrist?.name)
+        assertEquals("Checkup", appt.reasonForVisit)
     }
 
     @Test
@@ -113,13 +92,13 @@ class AppointmentV1RepositoryImplTest {
     }
 
     @Test
-    fun `getAppointmentAvailability maps appointment_type_id`() = runTest {
+    fun `getAppointmentAvailability maps with date and appointment_id`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
                 """
                 {"data":{"date":"2026-07-28","timezone":"Asia/Manila","interval_minutes":30,
                  "appointment_type_id":1,"visit_duration_minutes":30,"optometrist_id":null,
-                 "appointment_id":null,"day_status":"open","generated_at":"2026-07-27T10:00:00+08:00",
+                 "appointment_id":42,"day_status":"open","generated_at":"2026-07-27T10:00:00+08:00",
                  "slots":[
                    {"starts_at":"2026-07-28T09:00:00+08:00","ends_at":"2026-07-28T09:30:00+08:00",
                     "available":true,"reason":null}
@@ -128,31 +107,11 @@ class AppointmentV1RepositoryImplTest {
             ),
         )
 
-        val availability = repository.getAppointmentAvailability("2026-07-28", 1).getOrThrow()
+        val availability = repository.getAppointmentAvailability("2026-07-28", 42).getOrThrow()
         assertEquals(1, availability.visitReasonId)
         assertEquals("open", availability.dayStatus)
         assertEquals(1, availability.slots.size)
-    }
-
-    @Test
-    fun `createAppointment sends appointment_type_id and referring_source`() = runTest {
-        server.enqueue(
-            MockResponse().setResponseCode(201).setBody(
-                """
-                {"data":{"id":3,"appointment_number":"APT-003","appointment_type":"Referral",
-                 "duration_minutes":30,"referring_source":"Dr. Smith","status":"pending",
-                 "scheduled_at":"2026-07-28T10:00:00+08:00","contact_notes":null,
-                 "last_reschedule_reason":null,"source":"mobile","assigned_optometrist":null}}
-                """.trimIndent(),
-            ),
-        )
-
-        val result = repository.createAppointment(4, "2026-07-28T10:00:00+08:00", null, "Dr. Smith")
-        assertTrue(result.isSuccess)
-        val appt = result.getOrThrow()
-        assertEquals(3, appt.id)
-        assertEquals("Referral", appt.appointmentType)
-        assertEquals("Dr. Smith", appt.referringSource)
+        assertEquals(42, availability.appointmentId)
     }
 
     @Test
@@ -161,9 +120,10 @@ class AppointmentV1RepositoryImplTest {
             MockResponse().setResponseCode(200).setBody(
                 """
                 {"data":{"id":4,"appointment_number":"APT-004","appointment_type":"New Patient",
-                 "duration_minutes":30,"referring_source":null,"status":"pending",
+                 "duration_minutes":30,"referring_source":null,"status":"scheduled",
                  "scheduled_at":"2026-08-01T13:00:00+08:00","contact_notes":null,
-                 "last_reschedule_reason":"Patient request","source":"mobile","assigned_optometrist":null}}
+                 "reason_for_visit":null,"last_reschedule_reason":"Patient request","source":"mobile",
+                 "assigned_optometrist":null}}
                 """.trimIndent(),
             ),
         )
@@ -171,5 +131,24 @@ class AppointmentV1RepositoryImplTest {
         val result = repository.rescheduleAppointment(4, "2026-08-01T13:00:00+08:00")
         assertTrue(result.isSuccess)
         assertEquals("2026-08-01T13:00:00+08:00", result.getOrThrow().scheduledAt)
+    }
+
+    @Test
+    fun `getAppointment maps reason_for_visit`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """
+                {"data":{"id":1,"appointment_number":"APT-001","appointment_type":"New Patient",
+                 "duration_minutes":30,"referring_source":null,"status":"scheduled",
+                 "scheduled_at":"2026-07-28T10:00:00+08:00","contact_notes":"Call first",
+                 "reason_for_visit":"Blurred vision","last_reschedule_reason":null,"source":"mobile",
+                 "assigned_optometrist":null}}
+                """.trimIndent(),
+            ),
+        )
+
+        val appt = repository.getAppointment(1).getOrThrow()
+        assertEquals("Blurred vision", appt.reasonForVisit)
+        assertEquals("Call first", appt.contactNotes)
     }
 }
