@@ -15,52 +15,53 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface SignInState {
-    data class EnterContact(
-        val contactValue: String = "",
+    data class EnterCredentials(
+        val phoneNumber: String = "",
         val password: String = "",
         val error: String? = null,
     ) : SignInState
+
     data class VerifyOtp(
         val challengeId: String,
         val expiresAt: String,
-        val contactValue: String,
+        val phoneNumber: String,
         val password: String,
         val code: String = "",
         val error: String? = null,
         val isResending: Boolean = false,
     ) : SignInState
+
     data class Success(val session: AuthenticatedSession) : SignInState
 }
-
 @HiltViewModel
 class SignInViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val deviceIdentityProvider: DeviceIdentityProvider,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow<SignInState>(SignInState.EnterContact())
+    private val _state = MutableStateFlow<SignInState>(SignInState.EnterCredentials())
     val state: StateFlow<SignInState> = _state.asStateFlow()
 
-    fun updateContact(value: String) {
+    fun updatePhone(value: String) {
         val current = _state.value
-        if (current is SignInState.EnterContact) {
-            _state.value = current.copy(contactValue = value, error = null)
+        if (current is SignInState.EnterCredentials) {
+            _state.value = current.copy(phoneNumber = value, error = null)
         }
     }
 
     fun updatePassword(value: String) {
         val current = _state.value
-        if (current is SignInState.EnterContact) {
+        if (current is SignInState.EnterCredentials) {
             _state.value = current.copy(password = value, error = null)
         }
     }
 
     fun signIn() {
         val current = _state.value
-        if (current !is SignInState.EnterContact) return
+        if (current !is SignInState.EnterCredentials) return
 
-        if (current.contactValue.isBlank()) {
-            _state.value = current.copy(error = "Contact is required")
+        if (current.phoneNumber.isBlank()) {
+            _state.value = current.copy(error = "Phone number is required")
             return
         }
         if (current.password.isBlank()) {
@@ -71,7 +72,7 @@ class SignInViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = current.copy(error = null)
             authRepository.beginLogin(
-                contactValue = current.contactValue,
+                phone = current.phoneNumber,
                 password = current.password,
                 deviceName = deviceIdentityProvider.deviceName(),
                 installationId = deviceIdentityProvider.getOrCreateInstallationId(),
@@ -79,14 +80,15 @@ class SignInViewModel @Inject constructor(
                 when (outcome) {
                     is LoginOutcome.Authenticated -> {
                         _state.value = SignInState.Success(
-                            AuthenticatedSession(token = outcome.token, account = outcome.account)
+                            AuthenticatedSession(token = outcome.token, account = outcome.account),
                         )
                     }
+
                     is LoginOutcome.OtpRequired -> {
                         _state.value = SignInState.VerifyOtp(
                             challengeId = outcome.challengeId,
                             expiresAt = outcome.expiresAt,
-                            contactValue = current.contactValue,
+                            phoneNumber = current.phoneNumber,
                             password = current.password,
                         )
                     }
@@ -114,6 +116,7 @@ class SignInViewModel @Inject constructor(
             authRepository.verifyLogin(
                 challengeId = current.challengeId,
                 code = current.code,
+                deviceName = deviceIdentityProvider.deviceName(),
                 installationId = deviceIdentityProvider.getOrCreateInstallationId(),
             ).onSuccess { session ->
                 _state.value = SignInState.Success(session)
@@ -131,7 +134,7 @@ class SignInViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = current.copy(isResending = true)
             authRepository.beginLogin(
-                contactValue = current.contactValue,
+                phone = current.phoneNumber,
                 password = current.password,
                 deviceName = deviceIdentityProvider.deviceName(),
                 installationId = deviceIdentityProvider.getOrCreateInstallationId(),
@@ -146,32 +149,30 @@ class SignInViewModel @Inject constructor(
                             isResending = false,
                         )
                     }
+
                     is LoginOutcome.Authenticated -> {
                         _state.value = SignInState.Success(
-                            AuthenticatedSession(token = outcome.token, account = outcome.account)
+                            AuthenticatedSession(token = outcome.token, account = outcome.account),
                         )
                     }
                 }
-            }.onFailure {
-                _state.value = current.copy(isResending = false)
+            }.onFailure { error ->
+                val apiError = error as? ApiDomainError
+                _state.value = current.copy(
+                    isResending = false,
+                    error = apiError?.message ?: "Failed to resend code",
+                )
             }
         }
     }
 
     fun back() {
         _state.value = when (val current = _state.value) {
-            is SignInState.VerifyOtp -> SignInState.EnterContact(
-                contactValue = current.contactValue,
+            is SignInState.VerifyOtp -> SignInState.EnterCredentials(
+                phoneNumber = current.phoneNumber,
                 password = "",
             )
-            else -> SignInState.EnterContact()
-        }
-    }
-
-    fun clearPassword() {
-        val current = _state.value
-        if (current is SignInState.EnterContact) {
-            _state.value = current.copy(password = "")
+            else -> SignInState.EnterCredentials()
         }
     }
 }

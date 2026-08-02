@@ -1,9 +1,11 @@
 package com.eyecare.app.data.remote.dto
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AuthDtosTest {
@@ -82,10 +84,40 @@ class AuthDtosTest {
     }
 
     @Test
+    fun `RegistrationOtpRequest always uses phone contact type`() {
+        val encoded = json.encodeToString(
+            RegistrationOtpRequest(contactType = "phone", contactValue = "+639171234567"),
+        )
+
+        assertTrue(encoded.contains("\"contact_type\":\"phone\""))
+        assertTrue(encoded.contains("\"contact_value\":\"+639171234567\""))
+    }
+
+    @Test
+    fun `RegisterRequest includes optional email`() {
+        val encoded = json.encodeToString(
+            RegisterRequest(
+                registrationToken = "registration-token",
+                firstName = "Ana",
+                middleName = null,
+                lastName = "Reyes",
+                dateOfBirth = "1990-05-15",
+                email = "ana@example.com",
+                password = "password123456",
+                passwordConfirmation = "password123456",
+                privacyPolicyVersion = "2026-08",
+                termsVersion = "2026-08",
+            ),
+        )
+
+        assertTrue(encoded.contains("\"email\":\"ana@example.com\""))
+    }
+
+    @Test
     fun `RegistrationVerifyResponse decodes proof token`() {
-        val body = """{"data":{"registration_token":"hex-abc","expires_at":"2026-08-01T10:30:00+08:00","contact_type":"email"}}"""
+        val body = """{"data":{"registration_token":"hex-abc","expires_at":"2026-08-01T10:30:00+08:00","contact_type":"phone"}}"""
         val response = json.decodeFromString<RegistrationVerifyResponse>(body)
         assertEquals("hex-abc", response.data.registrationToken)
-        assertEquals("email", response.data.contactType)
+        assertEquals("phone", response.data.contactType)
     }
 }

@@ -76,6 +76,9 @@ fun AccountSecurityScreen(
                 viewModel, onSignedOut, onBack,
             )
         }
+        is AccountSecurityState.SignedOut -> {
+            LaunchedEffect(Unit) { onSignedOut() }
+        }
     }
 }
 

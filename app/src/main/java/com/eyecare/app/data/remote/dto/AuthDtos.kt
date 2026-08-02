@@ -43,6 +43,7 @@ data class RegisterRequest(
     @SerialName("middle_name") val middleName: String? = null,
     @SerialName("last_name") val lastName: String,
     @SerialName("date_of_birth") val dateOfBirth: String,
+    val email: String? = null,
     val password: String,
     @SerialName("password_confirmation") val passwordConfirmation: String,
     @SerialName("privacy_policy_version") val privacyPolicyVersion: String,
@@ -78,6 +79,7 @@ data class LoginData(
 data class LoginVerifyRequest(
     @SerialName("challenge_id") val challengeId: String,
     val code: String,
+    @SerialName("device_name") val deviceName: String? = null,
     @SerialName("installation_id") val installationId: String? = null,
 )
 

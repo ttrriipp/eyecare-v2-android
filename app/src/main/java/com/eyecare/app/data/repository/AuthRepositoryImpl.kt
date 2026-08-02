@@ -26,6 +26,7 @@ import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.PolicyMetadata
 import com.eyecare.app.domain.model.RegistrationProof
+import com.eyecare.app.domain.model.toPhilippineE164
 import com.eyecare.app.domain.repository.AuthRepository
 import retrofit2.HttpException
 import javax.inject.Inject
@@ -48,10 +49,10 @@ class AuthRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun requestRegistrationOtp(contactType: String, contactValue: String): Result<OtpChallenge> =
+    override suspend fun requestRegistrationOtp(phone: String): Result<OtpChallenge> =
         safeApiCall {
             val response = api.requestRegistrationOtp(
-                RegistrationOtpRequest(contactType = contactType, contactValue = contactValue),
+                RegistrationOtpRequest(contactType = "phone", contactValue = toPhilippineE164(phone)),
             )
             OtpChallenge(challengeId = response.data.challengeId, expiresAt = response.data.expiresAt)
         }
@@ -74,6 +75,7 @@ class AuthRepositoryImpl @Inject constructor(
         middleName: String?,
         lastName: String,
         dateOfBirth: String,
+        email: String?,
         password: String,
         passwordConfirmation: String,
         privacyPolicyVersion: String,
@@ -89,6 +91,7 @@ class AuthRepositoryImpl @Inject constructor(
                 middleName = middleName,
                 lastName = lastName,
                 dateOfBirth = dateOfBirth,
+                email = email?.trim()?.ifBlank { null },
                 password = password,
                 passwordConfirmation = passwordConfirmation,
                 privacyPolicyVersion = privacyPolicyVersion,
@@ -101,14 +104,14 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun beginLogin(
-        contactValue: String,
+        phone: String,
         password: String,
         deviceName: String?,
         installationId: String?,
     ): Result<LoginOutcome> = safeApiCall {
         val response = api.login(
             LoginRequest(
-                contactValue = contactValue,
+                contactValue = toPhilippineE164(phone),
                 password = password,
                 deviceName = deviceName ?: deviceIdentityProvider.deviceName(),
                 installationId = installationId ?: deviceIdentityProvider.getOrCreateInstallationId(),
@@ -117,21 +120,27 @@ class AuthRepositoryImpl @Inject constructor(
         mapLoginResponse(response)
     }
 
-    override suspend fun verifyLogin(challengeId: String, code: String, installationId: String?): Result<AuthenticatedSession> =
+    override suspend fun verifyLogin(
+        challengeId: String,
+        code: String,
+        deviceName: String?,
+        installationId: String?,
+    ): Result<AuthenticatedSession> =
         safeApiCallWithToken {
             api.verifyLogin(
                 LoginVerifyRequest(
                     challengeId = challengeId,
                     code = code,
+                    deviceName = deviceName ?: deviceIdentityProvider.deviceName(),
                     installationId = installationId ?: deviceIdentityProvider.getOrCreateInstallationId(),
                 ),
             )
         }
 
-    override suspend fun requestPasswordRecoveryOtp(contactValue: String): Result<OtpChallenge> =
+    override suspend fun requestPasswordRecoveryOtp(phone: String): Result<OtpChallenge> =
         safeApiCall {
             val response = api.requestPasswordRecoveryOtp(
-                PasswordRecoveryOtpRequest(contactValue = contactValue),
+                PasswordRecoveryOtpRequest(contactValue = toPhilippineE164(phone)),
             )
             OtpChallenge(challengeId = response.data.challengeId, expiresAt = response.data.expiresAt)
         }

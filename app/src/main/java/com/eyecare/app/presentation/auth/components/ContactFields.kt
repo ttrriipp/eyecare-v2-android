@@ -1,50 +1,17 @@
 package com.eyecare.app.presentation.auth.components
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
+import com.eyecare.app.domain.model.toPhilippineE164
+import com.eyecare.app.domain.model.toPhilippineLocalDigits
 
 enum class ContactMethod { EMAIL, PHONE }
-
-@Composable
-fun ContactMethodSelector(
-    selected: ContactMethod,
-    onSelect: (ContactMethod) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = "How would you like to register?",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            FilterChip(
-                selected = selected == ContactMethod.EMAIL,
-                onClick = { onSelect(ContactMethod.EMAIL) },
-                label = { Text("Email") },
-            )
-            FilterChip(
-                selected = selected == ContactMethod.PHONE,
-                onClick = { onSelect(ContactMethod.PHONE) },
-                label = { Text("Phone") },
-            )
-        }
-    }
-}
 
 @Composable
 fun ContactField(
@@ -55,15 +22,25 @@ fun ContactField(
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
+    val isPhone = method == ContactMethod.PHONE
+
     Column(modifier = modifier) {
         OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = if (isPhone) toPhilippineLocalDigits(value) else value,
+            onValueChange = { enteredValue ->
+                onValueChange(if (isPhone) toPhilippineE164(enteredValue) else enteredValue)
+            },
             label = { Text(if (method == ContactMethod.EMAIL) "Email address" else "Phone number") },
-            placeholder = { Text(if (method == ContactMethod.EMAIL) "you@example.com" else "09171234567") },
+            placeholder = { Text(if (method == ContactMethod.EMAIL) "you@example.com" else "9XXXXXXXXX") },
+            prefix = if (isPhone) {
+                { Text("+63") }
+            } else null,
             singleLine = true,
             enabled = enabled,
             isError = error != null,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (method == ContactMethod.EMAIL) KeyboardType.Email else KeyboardType.Phone,
+            ),
             modifier = Modifier.fillMaxWidth(),
         )
         FieldError(error)

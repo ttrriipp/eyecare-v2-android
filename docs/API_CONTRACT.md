@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-01) — introduces two-stage OTP-based patient registration, hybrid login, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary.
+> **Backend version:** Current repository state (2026-08-02) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -12,26 +12,28 @@
 ## Table of Contents
 
 1. [Authentication](#1-authentication)
-2. [Profile (me)](#2-profile-me)
-3. [Contact Management](#3-contact-management)
-4. [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
-5. [Patient Linking](#5-patient-linking)
-6. [Patient Invitations](#6-patient-invitations)
-7. [Appointment Requests](#7-appointment-requests)
-8. [Appointment Availability](#8-appointment-availability)
-9. [Confirmed Appointments](#9-confirmed-appointments)
-10. [Frames](#10-frames)
-11. [Frame Reservations](#11-frame-reservations)
-12. [Prescriptions](#12-prescriptions)
-13. [Quotations](#13-quotations)
-14. [Job Orders](#14-job-orders)
-15. [Eyewear](#15-eyewear)
-16. [Billing Records](#16-billing-records)
-17. [Conversation](#17-conversation)
-18. [Frame Ratings](#18-frame-ratings)
-19. [Error Responses](#19-error-responses)
-20. [Retired Features](#20-retired-features)
-21. [Clarifications](#21-clarifications)
+   - [Registration Flow](#registration-flow-two-stage)
+2. [Profile (me)](#3-profile-me)
+3. [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
+4. [Contact Management](#5-contact-management)
+5. [Patient Linking](#6-patient-linking)
+6. [Patient Invitations](#7-patient-invitations)
+7. [Appointment Requests](#8-appointment-requests)
+8. [Appointment Availability](#9-appointment-availability)
+9. [Confirmed Appointments](#10-confirmed-appointments)
+10. [Frames](#11-frames)
+11. [Frame Reservations](#12-frame-reservations)
+12. [Prescriptions](#13-prescriptions)
+13. [Quotations](#14-quotations)
+14. [Job Orders](#15-job-orders)
+15. [Eyewear](#16-eyewear)
+16. [Billing Records](#17-billing-records)
+17. [Conversation](#18-conversation)
+18. [Frame Ratings](#19-frame-ratings)
+19. [Error Responses](#20-error-responses)
+20. [Coordinated Breaking Changes](#21-coordinated-breaking-changes)
+21. [Retired Features](#22-retired-features)
+22. [Clarifications](#23-clarifications)
 
 ---
 
@@ -51,12 +53,14 @@
 
 ### POST `/auth/registration/otp`
 
-Requests a registration OTP for the given contact. Returns a generic response regardless of whether the contact is already owned.
+Requests a registration OTP for an available phone number. An already-owned
+phone is rejected before an OTP is sent, so the client does not proceed to the
+registration form.
 
 **Request:**
 ```json
 {
-  "contact_type": "email | phone (required)",
+  "contact_type": "phone (required)",
   "contact_value": "string (required)"
 }
 ```
@@ -70,6 +74,20 @@ Requests a registration OTP for the given contact. Returns a generic response re
   }
 }
 ```
+
+**Response (422) — phone already registered:**
+```json
+{
+  "error": {
+    "code": "CONTACT_ALREADY_OWNED",
+    "message": "This phone number is already registered."
+  }
+}
+```
+
+**Behavior:**
+- An owned phone returns `422 CONTACT_ALREADY_OWNED` and no OTP challenge is created.
+- Phone OTP delivery is queued; the current backend logs phone delivery until an SMS provider is configured.
 
 ---
 
@@ -91,7 +109,7 @@ Verifies the OTP and returns a short-lived `registration_token` (30-minute expir
   "data": {
     "registration_token": "opaque-hex-string",
     "expires_at": "2026-07-27T10:30:00+08:00",
-    "contact_type": "email | phone"
+    "contact_type": "phone"
   }
 }
 ```
@@ -99,13 +117,12 @@ Verifies the OTP and returns a short-lived `registration_token` (30-minute expir
 **Behavior:**
 - 5 maximum verification attempts per challenge.
 - The `registration_token` proves contact ownership and is consumed on use.
-- If the contact is already owned, returns the same response (enumeration-safe).
 
 ---
 
 ### POST `/auth/register`
 
-Completes registration using the proof token. Creates the account and returns a Sanctum token. The verified contact from the challenge becomes the primary contact. Does **not** create a Patient record.
+Completes registration using the proof token. Creates the account and returns a Sanctum token. The verified phone from the challenge becomes the primary login contact. An email address may be supplied as an optional, initially unverified contact. Does **not** create a Patient record.
 
 **Request:**
 ```json
@@ -115,6 +132,7 @@ Completes registration using the proof token. Creates the account and returns a 
   "middle_name": "string (nullable, max:255)",
   "last_name": "string (required, max:255)",
   "date_of_birth": "date (required, before:today, Y-m-d)",
+  "email": "string (nullable, valid email, max:255)",
   "password": "string (required, confirmed, min:12)",
   "password_confirmation": "string (required)",
   "privacy_policy_version": "string (required)",
@@ -130,29 +148,34 @@ Completes registration using the proof token. Creates the account and returns a 
 {
   "data": {
     "token": "1|abc123...",
-    "user": { /* PatientAccountResource */ }
+    "user": { /* PatientAccountResource */ },
+    "email_verification_required": false
   }
 }
 ```
 
 **Behavior:**
 - If `invitation_code` is provided and valid, the account is linked to the patient immediately.
-- If the contact is already owned, returns the existing account (idempotent).
-- Phone is **not** required — the verified contact (email or phone) becomes primary.
+- If the contact is already owned, returns `422 CONTACT_ALREADY_OWNED` without
+  creating an account, consuming the registration token, or issuing a token.
+- The registration proof must be for a verified phone number; there is no phone field in the registration form.
+- `email` is optional. When supplied, it is stored as a pending, non-primary contact and `email_verification_required` is `true`.
+- The optional email is verified after authentication through `/account/contacts/otp` and `/account/contacts/verify`; it is never a login identifier.
+- If the optional email is already owned, returns `422 CONTACT_ALREADY_OWNED` without creating an account, consuming the registration token, or issuing a token.
 - `privacy_policy_version` and `terms_version` are validated against server configuration (`config('app.privacy_policy_version')` and `config('app.terms_version')`). The authoritative URLs are recorded from server config, not client submission.
 - Android discovers current versions/URLs via `GET /auth/policies` before presenting checkboxes.
-- Creates only the `User` with `patient` role and its verified primary contact method.
+- Creates only the `User` with `patient` role, its verified primary phone contact, and any optional pending email contact.
 
 ---
 
 ### POST `/auth/login`
 
-Authenticates a patient with password. May return a step-up challenge or a token directly.
+Authenticates a patient with phone number and password. May return a step-up challenge or a token directly. Email addresses are not accepted as login identifiers.
 
 **Request:**
 ```json
 {
-  "contact_value": "string (required)",
+  "contact_value": "phone number (required)",
   "password": "string (required)",
   "device_name": "string (nullable, max:255)",
   "installation_id": "string (nullable, max:255)"
@@ -183,7 +206,8 @@ Authenticates a patient with password. May return a step-up challenge or a token
 
 **Behavior:**
 - Response is identical for wrong password and unknown contact (enumeration-safe).
-- A trusted device (same `installation_id`, not expired) may skip step-up.
+- Only a verified phone contact can authenticate. An email value is rejected.
+- A trusted device (same non-empty `installation_id`, not expired) may skip step-up; otherwise a login OTP is required.
 - Rate limited: `throttle:login` (5 per minute).
 
 ---
@@ -197,6 +221,7 @@ Verifies the login OTP step-up and issues a device-labelled Sanctum token.
 {
   "challenge_id": "string (required)",
   "code": "string (required, 6 digits)",
+  "device_name": "string (nullable, max:255)",
   "installation_id": "string (nullable, max:255)"
 }
 ```
@@ -220,12 +245,12 @@ Verifies the login OTP step-up and issues a device-labelled Sanctum token.
 
 ### POST `/auth/password-recovery/otp`
 
-Requests a recovery OTP for the given contact.
+Requests a recovery OTP for a phone number.
 
 **Request:**
 ```json
 {
-  "contact_value": "string (required)"
+  "contact_value": "phone number (required)"
 }
 ```
 
@@ -241,7 +266,7 @@ Requests a recovery OTP for the given contact.
 
 **Behavior:**
 - Enumeration-safe: returns identical response for known and unknown contacts.
-- Only verified contacts on patient accounts are eligible.
+- Only verified phone contacts on patient accounts are eligible. Email addresses are not accepted for password recovery.
 
 ---
 
@@ -327,7 +352,7 @@ Returns the current Terms of Service and Privacy Policy metadata. Android uses t
 
 ---
 
-## 5. Profile (me)
+## 3. Profile (me)
 
 ### GET `/me`
 
@@ -397,8 +422,8 @@ Returns the authenticated account's profile, link state, and (when linked) read-
 | `first_name` | string | yes | yes | Account first name |
 | `middle_name` | string | yes | no | Account middle name |
 | `last_name` | string | yes | yes | Account last name |
-| `email` | string | yes | no | Primary verified email; null for phone-only accounts |
-| `phone` | string | yes | no | Primary verified phone; null for email-only accounts |
+| `email` | string | yes | no | Primary verified email contact, if one is configured; not a login identifier |
+| `phone` | string | yes | no | Primary verified phone contact and patient login identifier |
 | `role` | string | no | no | Always `patient` |
 | `date_of_birth` | string | yes | no | Account DOB, `Y-m-d` format |
 | `link_status` | string | no | no | `linked`, `pending_review`, or `unlinked` |
@@ -549,7 +574,7 @@ Changes the authenticated user's password. Requires a valid `X-Step-Up-Token` he
 
 ---
 
-## 5. Patient Linking
+## 5. Contact Management
 
 ### GET `/account/contacts`
 
@@ -582,6 +607,7 @@ Lists verified and pending contacts for the authenticated account.
 **Notes:**
 - `masked_value` is always returned; raw contact values are never exposed.
 - Unverified contacts (`verified_at: null`) cannot be used for login.
+- A registration email remains pending until it is verified through the contact endpoints; even after verification, email is not a login identifier.
 
 ---
 
@@ -613,6 +639,9 @@ Requests an OTP to verify a new contact method.
 - `422 CONTACT_ALREADY_OWNED`: The contact is already verified by another account.
 - `422 CONTACT_ALREADY_VERIFIED`: This account already owns this contact.
 
+For the optional email collected during phone registration, this endpoint is the
+authenticated verification step. It does not change the phone-only login rule.
+
 ---
 
 ### POST `/account/contacts/verify`
@@ -640,7 +669,8 @@ Verifies a pending contact OTP.
 
 ### PATCH `/account/contacts/{contact}/primary`
 
-Sets a verified contact as the primary login/notification contact.
+Sets a verified contact as the primary notification contact. This does not
+change phone-only login: email can never be used to authenticate.
 
 **Auth:** Required (Sanctum token).
 
@@ -671,7 +701,7 @@ Removes a contact method.
 
 ---
 
-## 4. Patient Linking
+## 6. Patient Linking
 
 ### GET `/account/link`
 
@@ -760,7 +790,7 @@ Returns the current active link request for the authenticated account.
 
 ---
 
-## 5. Patient Invitations
+## 7. Patient Invitations
 
 ### POST `/patient-invitations/acceptance/otp`
 
@@ -824,7 +854,7 @@ Verifies the OTP and activates the patient link.
 
 ---
 
-## 6. Appointment Requests
+## 8. Appointment Requests
 
 ### GET `/appointment-request-availability`
 
@@ -997,7 +1027,7 @@ Cancels a pending appointment request.
 
 ---
 
-## 7. Appointment Availability
+## 9. Appointment Availability
 
 ### GET `/appointment-availability`
 
@@ -1045,7 +1075,7 @@ Returns time slots for a given date. Used for confirmed appointment rescheduling
 
 ---
 
-## 8. Confirmed Appointments
+## 10. Confirmed Appointments
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1154,7 +1184,7 @@ Reschedules an appointment to a new time.
 
 ---
 
-## 9. Frames
+## 11. Frames
 
 ### GET `/frames`
 
@@ -1216,7 +1246,7 @@ Single frame detail. Returns `404` for non-frame products or non-AR-eligible fra
 
 ---
 
-## 10. Frame Reservations
+## 12. Frame Reservations
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1338,7 +1368,7 @@ Cancels a reservation. Only `requested` or `prepared` reservations can be cancel
 
 ---
 
-## 11. Prescriptions
+## 13. Prescriptions
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1382,7 +1412,7 @@ Single prescription, including historical superseded versions. Returns `404` if 
 
 ---
 
-## 12. Quotations
+## 14. Quotations
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1443,7 +1473,7 @@ Paginated list with latest revision.
 
 ---
 
-## 13. Job Orders
+## 15. Job Orders
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1481,7 +1511,7 @@ Returns a single job order with items.
 
 ---
 
-## 14. Eyewear
+## 16. Eyewear
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1558,7 +1588,7 @@ Returns a single eyewear aggregate by canonical key (`eyw_...`) or migration ali
 
 ---
 
-## 15. Billing Records
+## 17. Billing Records
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1580,7 +1610,7 @@ Returns a single billing record with posted payments.
 
 ---
 
-## 16. Conversation
+## 18. Conversation
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1620,7 +1650,7 @@ Downloads a message attachment. Patient can only download from their own convers
 
 ---
 
-## 17. Frame Ratings
+## 19. Frame Ratings
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1634,7 +1664,7 @@ Submits or revises a rating for a frame variant linked to a job order item.
 
 ---
 
-## 18. Error Responses
+## 20. Error Responses
 
 All API errors use one consistent JSON shape:
 
@@ -1682,7 +1712,7 @@ All API errors use one consistent JSON shape:
 
 ---
 
-## 19. Coordinated Breaking Changes
+## 21. Coordinated Breaking Changes
 
 The following routes are **removed** in the coordinated Android cutover:
 
@@ -1700,7 +1730,7 @@ The following routes are **removed** in the coordinated Android cutover:
 
 | New Route | Purpose |
 |---|---|
-| `POST /auth/registration/otp` | Request registration OTP |
+| `POST /auth/registration/otp` | Request phone registration OTP |
 | `POST /auth/registration/verify` | Verify OTP, return `registration_token` (does not create account) |
 | `POST /auth/register` | Complete registration with `registration_token` and profile data |
 | `POST /auth/login` | Password login (returns step-up challenge or token) |
@@ -1742,7 +1772,7 @@ The following routes are **removed** in the coordinated Android cutover:
 
 ---
 
-## 20. Retired Features
+## 22. Retired Features
 
 The following old mobile features/routes are **intentionally retired**:
 
@@ -1763,10 +1793,19 @@ The following old mobile features/routes are **intentionally retired**:
 
 ---
 
-## 21. Clarifications
+## 23. Clarifications
 
 ### Registration is two-stage
-`POST /auth/registration/verify` verifies the OTP and returns a `registration_token` (30-minute expiry). It does **not** create any account. `POST /auth/register` takes the `registration_token` plus profile data and creates the User with the `patient` role and its verified primary contact method. No clinical `Patient` record is created.
+`POST /auth/registration/verify` verifies the phone OTP and returns a
+`registration_token` (30-minute expiry). It does **not** create any account.
+`POST /auth/register` takes the `registration_token` plus profile data and
+creates the User with the `patient` role, a verified primary phone, and an
+optional pending email contact. No clinical `Patient` record is created.
+
+Once the phone proof is submitted to `/auth/register`, an already-owned phone
+or optional email is rejected with `CONTACT_ALREADY_OWNED`; the final phone
+check protects against a race after OTP issuance. The existing account is
+never signed in by the registration endpoint.
 
 ### Active patient link boundary
 Routes in sections 7-17 require an active patient link (`patients.user_id`). Unlinked accounts can only access account management (sections 1-6). The `link_status` field on `/me` reflects the current state.
@@ -1787,7 +1826,7 @@ The `/me` endpoint returns `link_status` and, when linked, clinical demographics
 Challenges expire after 10 minutes, allow 5 verification attempts, and are consumed on successful verification. Resend invalidates earlier pending challenges for the same purpose/destination. Rate limits: 3 per 15 minutes per destination, 10 per 15 minutes per IP, 10 per destination per day.
 
 ### Sanctum token lifecycle
-Tokens are device-labelled, expire after 30 days, and are limited to 5 per patient account. Same-installation replacement is supported. Password recovery and primary-contact replacement revoke other patient tokens.
+Tokens are device-labelled, expire after 30 days, and are limited to 5 per patient account. Same-installation replacement is supported. A non-expired token for an installation allows password login without another OTP. Password recovery and primary-contact replacement revoke other patient tokens.
 
 ### Contact normalization
 Email addresses are trimmed and lowercased. Phone numbers are normalized to canonical E.164 (`+63...`) before uniqueness checks and blind-index computation.
@@ -1799,12 +1838,12 @@ Email addresses are trimmed and lowercased. Phone numbers are normalized to cano
 ### Public Authentication (no token required)
 
 ```
-POST   /api/v1/auth/registration/otp          Request registration OTP
+POST   /api/v1/auth/registration/otp          Request phone registration OTP
 POST   /api/v1/auth/registration/verify       Verify OTP, get registration_token
 POST   /api/v1/auth/register                  Complete registration with profile
-POST   /api/v1/auth/login                     Password login (step-up or token)
+POST   /api/v1/auth/login                     Phone/password login (step-up or token)
 POST   /api/v1/auth/login/verify              Verify login OTP, issue token
-POST   /api/v1/auth/password-recovery/otp     Request recovery OTP
+POST   /api/v1/auth/password-recovery/otp     Request phone recovery OTP
 POST   /api/v1/auth/password-recovery/verify  Reset password, issue token
 GET    /api/v1/auth/policies                  Get Terms/Privacy versions and URLs
 ```
@@ -1829,7 +1868,6 @@ POST   /api/v1/patient-link-requests          Submit link request
 GET    /api/v1/patient-link-requests/current   Get current link request
 POST   /api/v1/patient-invitations/acceptance/otp  Request invitation OTP
 POST   /api/v1/patient-invitations/accept     Accept invitation and link
-GET    /api/v1/appointment-request-availability  Get available slots
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request
 GET    /api/v1/appointment-requests/{id}       Get request detail

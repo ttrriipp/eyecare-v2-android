@@ -19,6 +19,7 @@ import com.eyecare.app.domain.model.PatientLinkRequestStatus
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.StepUpChallenge
 import com.eyecare.app.domain.model.StepUpProof
+import com.eyecare.app.domain.model.toPhilippineE164
 import com.eyecare.app.domain.repository.AccountRepository
 import retrofit2.HttpException
 import javax.inject.Inject
@@ -57,7 +58,10 @@ class AccountRepositoryImpl @Inject constructor(
     override suspend fun requestContactOtp(stepUpToken: String, contactType: String, contactValue: String): Result<OtpChallenge> =
         safeApiCall {
             val response = api.requestContactOtp(
-                ContactOtpRequest(contactType = contactType, contactValue = contactValue),
+                ContactOtpRequest(
+                    contactType = contactType,
+                    contactValue = if (contactType == "phone") toPhilippineE164(contactValue) else contactValue,
+                ),
                 stepUpToken,
             )
             OtpChallenge(challengeId = response.data.challengeId, expiresAt = response.data.expiresAt)

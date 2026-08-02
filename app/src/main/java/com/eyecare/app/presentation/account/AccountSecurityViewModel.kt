@@ -46,6 +46,7 @@ sealed interface AccountSecurityState {
         val successMessage: String? = null,
     ) : AccountSecurityState
     data class Result(val message: String, val contacts: List<AccountContact> = emptyList()) : AccountSecurityState
+    data object SignedOut : AccountSecurityState
 }
 
 sealed interface StepUpAction {
@@ -197,14 +198,14 @@ class AccountSecurityViewModel @Inject constructor(
     fun logout() {
         viewModelScope.launch {
             authRepository.logoutCurrent()
-            _state.value = AccountSecurityState.Result("Signed out")
+            _state.value = AccountSecurityState.SignedOut
         }
     }
 
     fun logoutAll() {
         viewModelScope.launch {
             authRepository.logoutAll()
-            _state.value = AccountSecurityState.Result("Signed out from all devices")
+            _state.value = AccountSecurityState.SignedOut
         }
     }
 

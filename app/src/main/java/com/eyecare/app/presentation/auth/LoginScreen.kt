@@ -1,22 +1,16 @@
 package com.eyecare.app.presentation.auth
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,7 +32,7 @@ fun LoginScreen(
     val state by viewModel.state.collectAsState()
 
     when (val s = state) {
-        is SignInState.EnterContact -> LoginContactStep(
+        is SignInState.EnterCredentials -> LoginContactStep(
             state = s,
             viewModel = viewModel,
             onNavigateToRegister = onNavigateToRegister,
@@ -53,16 +47,16 @@ fun LoginScreen(
 
 @Composable
 private fun LoginContactStep(
-    state: SignInState.EnterContact,
+    state: SignInState.EnterCredentials,
     viewModel: SignInViewModel,
     onNavigateToRegister: () -> Unit,
     onForgotPassword: () -> Unit,
 ) {
     AuthStepScaffold(title = "Sign in") {
         ContactField(
-            value = state.contactValue,
-            onValueChange = { viewModel.updateContact(it) },
-            method = ContactMethod.EMAIL,
+            value = state.phoneNumber,
+            onValueChange = { viewModel.updatePhone(it) },
+            method = ContactMethod.PHONE,
         )
         Spacer(modifier = Modifier.height(12.dp))
         PasswordField(
@@ -78,7 +72,7 @@ private fun LoginContactStep(
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = { viewModel.signIn() },
-            enabled = state.contactValue.isNotBlank() && state.password.isNotBlank(),
+            enabled = state.phoneNumber.isNotBlank() && state.password.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Sign in")

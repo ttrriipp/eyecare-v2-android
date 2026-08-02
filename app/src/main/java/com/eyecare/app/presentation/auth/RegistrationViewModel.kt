@@ -4,12 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.data.local.DeviceIdentityProvider
 import com.eyecare.app.domain.model.ApiDomainError
-import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.AuthenticatedSession
-import com.eyecare.app.domain.model.ContactType
-import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.PolicyMetadata
-import com.eyecare.app.domain.repository.AccountRepository
 import com.eyecare.app.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,24 +19,27 @@ import javax.inject.Inject
 private val registrationZone = ZoneId.of("Asia/Manila")
 
 sealed interface RegistrationState {
-    data object ChooseMethod : RegistrationState
-    data class EnterContact(val method: ContactType, val contactValue: String = "", val error: String? = null) : RegistrationState
-    data class VerifyContactOtp(
-        val method: ContactType,
-        val contactValue: String,
+    data class EnterPhone(
+        val phoneNumber: String = "",
+        val error: String? = null,
+    ) : RegistrationState
+
+    data class VerifyPhoneOtp(
+        val phoneNumber: String,
         val challengeId: String,
         val expiresAt: String,
         val code: String = "",
         val error: String? = null,
         val isResending: Boolean = false,
     ) : RegistrationState
+
     data class EnterDetails(
         val registrationToken: String,
-        val contactType: ContactType,
         val firstName: String = "",
         val middleName: String = "",
         val lastName: String = "",
         val dateOfBirth: String = "",
+        val email: String = "",
         val password: String = "",
         val passwordConfirmation: String = "",
         val invitationCode: String = "",
@@ -50,55 +49,35 @@ sealed interface RegistrationState {
         val isLoadingPolicies: Boolean = true,
         val errors: Map<String, String> = emptyMap(),
     ) : RegistrationState
-    data class OptionalSecondary(
-        val session: AuthenticatedSession,
-        val secondaryType: ContactType,
-        val secondaryValue: String = "",
-    ) : RegistrationState
-    data class VerifySecondaryOtp(
-        val session: AuthenticatedSession,
-        val challengeId: String,
-        val expiresAt: String,
-        val code: String = "",
-        val error: String? = null,
-    ) : RegistrationState
-    data class Success(val session: AuthenticatedSession) : RegistrationState
-    data class Error(val message: String) : RegistrationState
-}
 
+    data class Success(val session: AuthenticatedSession) : RegistrationState
+}
 @HiltViewModel
 class RegistrationViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val accountRepository: AccountRepository,
     private val deviceIdentityProvider: DeviceIdentityProvider,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow<RegistrationState>(RegistrationState.ChooseMethod)
+    private val _state = MutableStateFlow<RegistrationState>(RegistrationState.EnterPhone())
     val state: StateFlow<RegistrationState> = _state.asStateFlow()
 
-    fun chooseMethod(method: ContactType) {
-        _state.value = RegistrationState.EnterContact(method = method)
-    }
-
-    fun updateContactValue(value: String) {
+    fun updatePhone(value: String) {
         val current = _state.value
-        if (current is RegistrationState.EnterContact) {
-            _state.value = current.copy(contactValue = value, error = null)
+        if (current is RegistrationState.EnterPhone) {
+            _state.value = current.copy(phoneNumber = value, error = null)
         }
     }
 
-    fun requestContactOtp() {
+    fun requestPhoneOtp() {
         val current = _state.value
-        if (current !is RegistrationState.EnterContact) return
-        val contactType = if (current.method == ContactType.EMAIL) "email" else "phone"
+        if (current !is RegistrationState.EnterPhone || current.phoneNumber.isBlank()) return
 
         viewModelScope.launch {
             _state.value = current.copy(error = null)
-            authRepository.requestRegistrationOtp(contactType, current.contactValue)
+            authRepository.requestRegistrationOtp(current.phoneNumber)
                 .onSuccess { challenge ->
-                    _state.value = RegistrationState.VerifyContactOtp(
-                        method = current.method,
-                        contactValue = current.contactValue,
+                    _state.value = RegistrationState.VerifyPhoneOtp(
+                        phoneNumber = current.phoneNumber,
                         challengeId = challenge.challengeId,
                         expiresAt = challenge.expiresAt,
                     )
@@ -111,38 +90,35 @@ class RegistrationViewModel @Inject constructor(
 
     fun updateOtpCode(code: String) {
         val current = _state.value
-        if (current is RegistrationState.VerifyContactOtp) {
+        if (current is RegistrationState.VerifyPhoneOtp) {
             _state.value = current.copy(code = code, error = null)
         }
     }
 
-    fun verifyContactOtp() {
+    fun verifyPhoneOtp() {
         val current = _state.value
-        if (current !is RegistrationState.VerifyContactOtp || current.code.length != 6) return
+        if (current !is RegistrationState.VerifyPhoneOtp || current.code.length != 6) return
 
         viewModelScope.launch {
             _state.value = current.copy(error = null)
             authRepository.verifyRegistrationOtp(current.challengeId, current.code)
                 .onSuccess { proof ->
-                    loadPoliciesAndShowDetails(proof.token, current.method, current.contactValue)
+                    loadPoliciesAndShowDetails(proof.token)
                 }
                 .onFailure { error ->
                     val apiError = error as? ApiDomainError
-                    _state.value = current.copy(
-                        error = apiError?.message ?: "Invalid code",
-                    )
+                    _state.value = current.copy(error = apiError?.message ?: "Invalid code")
                 }
         }
     }
 
     fun resendOtp() {
         val current = _state.value
-        if (current !is RegistrationState.VerifyContactOtp) return
-        val contactType = if (current.method == ContactType.EMAIL) "email" else "phone"
+        if (current !is RegistrationState.VerifyPhoneOtp) return
 
         viewModelScope.launch {
             _state.value = current.copy(isResending = true)
-            authRepository.requestRegistrationOtp(contactType, current.contactValue)
+            authRepository.requestRegistrationOtp(current.phoneNumber)
                 .onSuccess { challenge ->
                     _state.value = current.copy(
                         challengeId = challenge.challengeId,
@@ -152,8 +128,11 @@ class RegistrationViewModel @Inject constructor(
                         isResending = false,
                     )
                 }
-                .onFailure {
-                    _state.value = current.copy(isResending = false)
+                .onFailure { error ->
+                    _state.value = current.copy(
+                        isResending = false,
+                        error = error.message ?: "Failed to resend code",
+                    )
                 }
         }
     }
@@ -163,6 +142,7 @@ class RegistrationViewModel @Inject constructor(
         middleName: String? = null,
         lastName: String? = null,
         dateOfBirth: String? = null,
+        email: String? = null,
         password: String? = null,
         passwordConfirmation: String? = null,
         invitationCode: String? = null,
@@ -176,6 +156,7 @@ class RegistrationViewModel @Inject constructor(
             middleName = middleName ?: current.middleName,
             lastName = lastName ?: current.lastName,
             dateOfBirth = dateOfBirth ?: current.dateOfBirth,
+            email = email ?: current.email,
             password = password ?: current.password,
             passwordConfirmation = passwordConfirmation ?: current.passwordConfirmation,
             invitationCode = invitationCode ?: current.invitationCode,
@@ -209,6 +190,7 @@ class RegistrationViewModel @Inject constructor(
                 middleName = current.middleName.trim().ifBlank { null },
                 lastName = current.lastName.trim(),
                 dateOfBirth = current.dateOfBirth,
+                email = current.email.trim().ifBlank { null },
                 password = current.password,
                 passwordConfirmation = current.passwordConfirmation,
                 privacyPolicyVersion = policies.privacyPolicyVersion,
@@ -218,94 +200,28 @@ class RegistrationViewModel @Inject constructor(
                 installationId = deviceIdentityProvider.getOrCreateInstallationId(),
             )
                 .onSuccess { session ->
-                    handlePostRegistration(session, current.contactType)
+                    _state.value = RegistrationState.Success(session)
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(
-                        errors = registrationErrors(error),
-                    )
-                }
-        }
-    }
-
-    fun skipSecondary() {
-        val current = _state.value
-        if (current is RegistrationState.OptionalSecondary) {
-            _state.value = RegistrationState.Success(current.session)
-        }
-    }
-
-    fun updateSecondaryValue(value: String) {
-        val current = _state.value
-        if (current is RegistrationState.OptionalSecondary) {
-            _state.value = current.copy(secondaryValue = value)
-        }
-    }
-
-    fun startSecondaryVerification() {
-        val current = _state.value
-        if (current !is RegistrationState.OptionalSecondary || current.secondaryValue.isBlank()) return
-
-        viewModelScope.launch {
-            val contactType = if (current.secondaryType == ContactType.EMAIL) "email" else "phone"
-            accountRepository.requestContactOtp(
-                stepUpToken = "", // Will need step-up first in real flow
-                contactType = contactType,
-                contactValue = current.secondaryValue.trim(),
-            ).onSuccess { challenge ->
-                _state.value = RegistrationState.VerifySecondaryOtp(
-                    session = current.session,
-                    challengeId = challenge.challengeId,
-                    expiresAt = challenge.expiresAt,
-                )
-            }.onFailure { error ->
-                // Secondary verification failure doesn't block account
-                _state.value = RegistrationState.Success(current.session)
-            }
-        }
-    }
-
-    fun updateSecondaryOtp(code: String) {
-        val current = _state.value
-        if (current is RegistrationState.VerifySecondaryOtp) {
-            _state.value = current.copy(code = code, error = null)
-        }
-    }
-
-    fun verifySecondaryOtp() {
-        val current = _state.value
-        if (current !is RegistrationState.VerifySecondaryOtp || current.code.length != 6) return
-
-        viewModelScope.launch {
-            accountRepository.verifyContactOtp(current.challengeId, current.code)
-                .onSuccess {
-                    _state.value = RegistrationState.Success(current.session)
-                }
-                .onFailure { error ->
-                    // Secondary failure doesn't block account
-                    _state.value = RegistrationState.Success(current.session)
+                    _state.value = current.copy(errors = registrationErrors(error))
                 }
         }
     }
 
     fun back() {
         _state.value = when (val current = _state.value) {
-            is RegistrationState.EnterContact -> RegistrationState.ChooseMethod
-            is RegistrationState.VerifyContactOtp -> RegistrationState.EnterContact(current.method, current.contactValue)
-            is RegistrationState.EnterDetails -> RegistrationState.EnterContact(current.contactType, "")
-            is RegistrationState.OptionalSecondary -> RegistrationState.Success(current.session)
-            is RegistrationState.VerifySecondaryOtp -> RegistrationState.Success(current.session)
+            is RegistrationState.VerifyPhoneOtp -> RegistrationState.EnterPhone(current.phoneNumber)
+            is RegistrationState.EnterDetails -> RegistrationState.EnterPhone()
             else -> current
         }
     }
 
-    private fun loadPoliciesAndShowDetails(registrationToken: String, contactType: ContactType, contactValue: String) {
+    private fun loadPoliciesAndShowDetails(registrationToken: String) {
         viewModelScope.launch {
             authRepository.getPolicies()
                 .onSuccess { policies ->
                     _state.value = RegistrationState.EnterDetails(
                         registrationToken = registrationToken,
-                        contactType = contactType,
                         policies = policies,
                         isLoadingPolicies = false,
                     )
@@ -313,31 +229,10 @@ class RegistrationViewModel @Inject constructor(
                 .onFailure {
                     _state.value = RegistrationState.EnterDetails(
                         registrationToken = registrationToken,
-                        contactType = contactType,
                         policies = null,
                         isLoadingPolicies = false,
                     )
                 }
-        }
-    }
-
-    private fun handlePostRegistration(session: AuthenticatedSession, contactType: ContactType) {
-        val account = session.account
-        val hasEmail = !account.email.isNullOrBlank()
-        val hasPhone = !account.phone.isNullOrBlank()
-        val secondaryType = when {
-            contactType == ContactType.EMAIL && !hasPhone -> ContactType.PHONE
-            contactType == ContactType.PHONE && !hasEmail -> ContactType.EMAIL
-            else -> null
-        }
-
-        if (secondaryType != null) {
-            _state.value = RegistrationState.OptionalSecondary(
-                session = session,
-                secondaryType = secondaryType,
-            )
-        } else {
-            _state.value = RegistrationState.Success(session)
         }
     }
 
@@ -389,6 +284,7 @@ class RegistrationViewModel @Inject constructor(
         "middle_name", "middleName" -> "middleName"
         "last_name", "lastName" -> "lastName"
         "date_of_birth", "dateOfBirth" -> "dateOfBirth"
+        "email" -> "email"
         "password" -> "password"
         "password_confirmation", "passwordConfirmation" -> "passwordConfirmation"
         "invitation_code", "invitationCode" -> "invitationCode"

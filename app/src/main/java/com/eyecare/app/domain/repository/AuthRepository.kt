@@ -9,7 +9,7 @@ import com.eyecare.app.domain.model.RegistrationProof
 
 interface AuthRepository {
     suspend fun getPolicies(): Result<PolicyMetadata>
-    suspend fun requestRegistrationOtp(contactType: String, contactValue: String): Result<OtpChallenge>
+    suspend fun requestRegistrationOtp(phone: String): Result<OtpChallenge>
     suspend fun verifyRegistrationOtp(challengeId: String, code: String): Result<RegistrationProof>
     suspend fun register(
         registrationToken: String,
@@ -17,6 +17,7 @@ interface AuthRepository {
         middleName: String?,
         lastName: String,
         dateOfBirth: String,
+        email: String?,
         password: String,
         passwordConfirmation: String,
         privacyPolicyVersion: String,
@@ -25,9 +26,14 @@ interface AuthRepository {
         deviceName: String?,
         installationId: String?,
     ): Result<AuthenticatedSession>
-    suspend fun beginLogin(contactValue: String, password: String, deviceName: String?, installationId: String?): Result<LoginOutcome>
-    suspend fun verifyLogin(challengeId: String, code: String, installationId: String?): Result<AuthenticatedSession>
-    suspend fun requestPasswordRecoveryOtp(contactValue: String): Result<OtpChallenge>
+    suspend fun beginLogin(phone: String, password: String, deviceName: String?, installationId: String?): Result<LoginOutcome>
+    suspend fun verifyLogin(
+        challengeId: String,
+        code: String,
+        deviceName: String?,
+        installationId: String?,
+    ): Result<AuthenticatedSession>
+    suspend fun requestPasswordRecoveryOtp(phone: String): Result<OtpChallenge>
     suspend fun recoverPassword(
         challengeId: String,
         code: String,

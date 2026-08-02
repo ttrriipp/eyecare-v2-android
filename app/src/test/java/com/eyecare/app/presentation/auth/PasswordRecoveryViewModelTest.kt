@@ -45,16 +45,16 @@ class PasswordRecoveryViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `initial state is EnterContact`() {
-        assertTrue(vm.state.value is RecoveryState.EnterContact)
+    fun `initial state is EnterPhone`() {
+        assertTrue(vm.state.value is RecoveryState.EnterPhone)
     }
 
     @Test
     fun `requestOtp success transitions to EnterOtp`() {
-        coEvery { authRepo.requestPasswordRecoveryOtp("test@example.com") } returns
+        coEvery { authRepo.requestPasswordRecoveryOtp("+639171234567") } returns
             Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
 
-        vm.updateContact("test@example.com")
+        vm.updatePhone("+639171234567")
         vm.requestOtp()
 
         val state = vm.state.value as RecoveryState.EnterOtp
@@ -66,7 +66,7 @@ class PasswordRecoveryViewModelTest {
         coEvery { authRepo.requestPasswordRecoveryOtp(any()) } returns
             Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
 
-        vm.updateContact("test@example.com")
+        vm.updatePhone("+639171234567")
         vm.requestOtp()
         vm.updateOtpCode("123456")
         vm.verifyOtp()
@@ -79,7 +79,7 @@ class PasswordRecoveryViewModelTest {
         coEvery { authRepo.requestPasswordRecoveryOtp(any()) } returns
             Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
 
-        vm.updateContact("test@example.com")
+        vm.updatePhone("+639171234567")
         vm.requestOtp()
         vm.updateOtpCode("123456")
         vm.verifyOtp()
@@ -96,7 +96,7 @@ class PasswordRecoveryViewModelTest {
         coEvery { authRepo.requestPasswordRecoveryOtp(any()) } returns
             Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
 
-        vm.updateContact("test@example.com")
+        vm.updatePhone("+639171234567")
         vm.requestOtp()
         vm.updateOtpCode("123456")
         vm.verifyOtp()
@@ -115,7 +115,7 @@ class PasswordRecoveryViewModelTest {
         coEvery { authRepo.recoverPassword(any(), any(), any(), any(), any(), any()) } returns
             Result.success(AuthenticatedSession("token", fakeAccount))
 
-        vm.updateContact("test@example.com")
+        vm.updatePhone("+639171234567")
         vm.requestOtp()
         vm.updateOtpCode("123456")
         vm.verifyOtp()

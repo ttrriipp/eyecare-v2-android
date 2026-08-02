@@ -218,8 +218,8 @@ fun EyecareNavGraph(
                     AccountSecurityScreen(
                         onSignedOut = {
                             sessionViewModel.signOut()
-                            navController.navigate(SessionGate) {
-                                popUpTo<AccountSecurity> { inclusive = true }
+                            navController.navigate(Welcome) {
+                                popUpTo<MainGraph> { inclusive = true }
                             }
                         },
                         onBack = { navController.popBackStack() },
@@ -368,7 +368,7 @@ fun EyecareNavGraph(
                                 tokenManager.clearToken()
                                 sessionViewModel.signOut()
                                 onLogout()
-                                navController.navigate(AuthGraph) {
+                                navController.navigate(Welcome) {
                                     popUpTo(MainGraph) { inclusive = true }
                                 }
                             },

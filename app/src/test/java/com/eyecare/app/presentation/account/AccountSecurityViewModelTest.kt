@@ -77,6 +77,6 @@ class AccountSecurityViewModelTest {
     fun `logout calls repository`() {
         coEvery { authRepo.logoutCurrent() } returns Result.success(Unit)
         vm.logout()
-        assertTrue(vm.state.value is AccountSecurityState.Result)
+        assertTrue(vm.state.value is AccountSecurityState.SignedOut)
     }
 }

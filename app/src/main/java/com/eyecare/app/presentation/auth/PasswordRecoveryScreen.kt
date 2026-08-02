@@ -1,20 +1,24 @@
 package com.eyecare.app.presentation.auth
 
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
-import com.eyecare.app.presentation.auth.components.ContactField
-import com.eyecare.app.presentation.auth.components.ContactMethod
 import com.eyecare.app.presentation.auth.components.FieldError
 import com.eyecare.app.presentation.auth.components.OtpExpiryRow
 import com.eyecare.app.presentation.auth.components.OtpField
@@ -29,7 +33,7 @@ fun PasswordRecoveryScreen(
     val state by viewModel.state.collectAsState()
 
     when (val s = state) {
-        is RecoveryState.EnterContact -> RecoveryContactStep(s, viewModel, onBack)
+        is RecoveryState.EnterPhone -> RecoveryPhoneStep(s, viewModel, onBack)
         is RecoveryState.EnterOtp -> RecoveryOtpStep(s, viewModel)
         is RecoveryState.EnterNewPassword -> RecoveryPasswordStep(s, viewModel)
         is RecoveryState.Success -> {
@@ -39,27 +43,48 @@ fun PasswordRecoveryScreen(
 }
 
 @Composable
-private fun RecoveryContactStep(
-    state: RecoveryState.EnterContact,
+private fun RecoveryPhoneStep(
+    state: RecoveryState.EnterPhone,
     viewModel: PasswordRecoveryViewModel,
     onBack: () -> Unit,
 ) {
     AuthStepScaffold(title = "Reset password", onBack = onBack) {
         Text(
-            text = "Enter your email or phone. If it matches an account, we'll send a verification code.",
+            text = "Enter your phone number. If it matches an account, we'll send a verification code.",
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(modifier = Modifier.height(16.dp))
-        ContactField(
-            value = state.contactValue,
-            onValueChange = { viewModel.updateContact(it) },
-            method = ContactMethod.EMAIL,
-            error = state.error,
-        )
+        Row(
+            verticalAlignment = Alignment.Top,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            OutlinedTextField(
+                value = "+63",
+                onValueChange = {},
+                readOnly = true,
+                singleLine = true,
+                modifier = Modifier.width(72.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            OutlinedTextField(
+                value = state.phoneNumber,
+                onValueChange = { raw ->
+                    val filtered = raw.filter { it.isDigit() }.take(10)
+                    viewModel.updatePhone(filtered)
+                },
+                label = { Text("Phone number") },
+                placeholder = { Text("9171234567") },
+                singleLine = true,
+                isError = state.error != null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        FieldError(state.error)
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = { viewModel.requestOtp() },
-            enabled = state.contactValue.isNotBlank(),
+            enabled = state.phoneNumber.length >= 10,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Send code")

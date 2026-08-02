@@ -46,8 +46,8 @@ class SignInViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `initial state is EnterContact`() {
-        assertTrue(vm.state.value is SignInState.EnterContact)
+    fun `initial state is EnterCredentials`() {
+        assertTrue(vm.state.value is SignInState.EnterCredentials)
     }
 
     @Test
@@ -55,7 +55,7 @@ class SignInViewModelTest {
         coEvery { authRepo.beginLogin(any(), any(), any(), any()) } returns
             Result.success(LoginOutcome.Authenticated("token", fakeAccount))
 
-        vm.updateContact("test@example.com")
+        vm.updatePhone("+639171234567")
         vm.updatePassword("password123")
         vm.signIn()
 
@@ -67,7 +67,7 @@ class SignInViewModelTest {
         coEvery { authRepo.beginLogin(any(), any(), any(), any()) } returns
             Result.success(LoginOutcome.OtpRequired("ch-1", "2026-08-01T10:10:00"))
 
-        vm.updateContact("test@example.com")
+        vm.updatePhone("+639171234567")
         vm.updatePassword("password123")
         vm.signIn()
 
@@ -80,11 +80,11 @@ class SignInViewModelTest {
         coEvery { authRepo.beginLogin(any(), any(), any(), any()) } returns
             Result.failure(Exception("Invalid credentials"))
 
-        vm.updateContact("test@example.com")
+        vm.updatePhone("+639171234567")
         vm.updatePassword("wrong")
         vm.signIn()
 
-        val state = vm.state.value as SignInState.EnterContact
+        val state = vm.state.value as SignInState.EnterCredentials
         assertTrue(state.error != null)
     }
 
@@ -93,8 +93,8 @@ class SignInViewModelTest {
         vm.updatePassword("password123")
         vm.signIn()
 
-        val state = vm.state.value as SignInState.EnterContact
-        assertEquals("Contact is required", state.error)
+        val state = vm.state.value as SignInState.EnterCredentials
+        assertEquals("Phone number is required", state.error)
     }
 
     @Test
@@ -102,13 +102,13 @@ class SignInViewModelTest {
         coEvery { authRepo.beginLogin(any(), any(), any(), any()) } returns
             Result.success(LoginOutcome.OtpRequired("ch-1", "2026-08-01T10:10:00"))
 
-        vm.updateContact("test@example.com")
+        vm.updatePhone("+639171234567")
         vm.updatePassword("password123")
         vm.signIn()
         vm.back()
 
-        val state = vm.state.value as SignInState.EnterContact
-        assertEquals("test@example.com", state.contactValue)
+        val state = vm.state.value as SignInState.EnterCredentials
+        assertEquals("+639171234567", state.phoneNumber)
         assertEquals("", state.password)
     }
 }

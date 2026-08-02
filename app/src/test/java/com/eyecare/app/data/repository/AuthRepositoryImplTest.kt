@@ -57,7 +57,7 @@ class AuthRepositoryImplTest {
                 """{"data":{"step_up_required":false,"token":"tok123","user":{"id":1,"name":"Jane","email":"jane@example.com","role":"patient","link_status":"linked"}}}"""
             )
         )
-        val result = repository.beginLogin("jane@example.com", "password123", null, null)
+        val result = repository.beginLogin("+639171234567", "password123", null, null)
         assertTrue(result.isSuccess)
         val outcome = result.getOrThrow()
         assertTrue(outcome is LoginOutcome.Authenticated)
@@ -71,10 +71,57 @@ class AuthRepositoryImplTest {
                 """{"data":{"step_up_required":true,"challenge_id":"abc","expires_at":"2026-08-01T10:00:00+08:00"}}"""
             )
         )
-        val result = repository.beginLogin("jane@example.com", "password123", null, null)
+        val result = repository.beginLogin("+639171234567", "password123", null, null)
         assertTrue(result.isSuccess)
         val outcome = result.getOrThrow()
         assertTrue(outcome is LoginOutcome.OtpRequired)
+    }
+
+    @Test
+    fun `requestRegistrationOtp sends phone contact type`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"challenge_id":"reg-1","expires_at":"2026-08-01T10:10:00+08:00"}}""",
+            ),
+        )
+
+        val result = repository.requestRegistrationOtp("9171234567")
+
+        assertTrue(result.isSuccess)
+        val requestBody = server.takeRequest().body.readUtf8()
+        assertTrue(requestBody.contains("\"contact_type\":\"phone\""))
+        assertTrue(requestBody.contains("\"contact_value\":\"+639171234567\""))
+    }
+
+    @Test
+    fun `requestPasswordRecoveryOtp normalizes local phone`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"challenge_id":"recovery-1","expires_at":"2026-08-01T10:10:00+08:00"}}""",
+            ),
+        )
+
+        val result = repository.requestPasswordRecoveryOtp("9171234567")
+
+        assertTrue(result.isSuccess)
+        val requestBody = server.takeRequest().body.readUtf8()
+        assertTrue(requestBody.contains("\"contact_value\":\"+639171234567\""))
+    }
+
+    @Test
+    fun `verifyLogin sends device metadata`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"token":"tok123","user":{"id":1,"name":"Jane","phone":"+639171234567","role":"patient","link_status":"linked"}}}""",
+            ),
+        )
+
+        val result = repository.verifyLogin("challenge-1", "123456", null, null)
+
+        assertTrue(result.isSuccess)
+        val requestBody = server.takeRequest().body.readUtf8()
+        assertTrue(requestBody.contains("\"device_name\":\"Test Device\""))
+        assertTrue(requestBody.contains("\"installation_id\":\"test-install-id\""))
     }
 
     @Test

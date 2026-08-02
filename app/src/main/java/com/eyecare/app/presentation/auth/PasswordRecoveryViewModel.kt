@@ -15,14 +15,19 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface RecoveryState {
-    data class EnterContact(val contactValue: String = "", val error: String? = null) : RecoveryState
+    data class EnterPhone(
+        val phoneNumber: String = "",
+        val error: String? = null,
+    ) : RecoveryState
+
     data class EnterOtp(
         val challengeId: String,
         val expiresAt: String,
-        val contactValue: String,
+        val phoneNumber: String,
         val code: String = "",
         val error: String? = null,
     ) : RecoveryState
+
     data class EnterNewPassword(
         val challengeId: String,
         val code: String,
@@ -30,37 +35,39 @@ sealed interface RecoveryState {
         val passwordConfirmation: String = "",
         val errors: Map<String, String> = emptyMap(),
     ) : RecoveryState
+
     data class Success(val session: AuthenticatedSession) : RecoveryState
 }
-
 @HiltViewModel
 class PasswordRecoveryViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val deviceIdentityProvider: DeviceIdentityProvider,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow<RecoveryState>(RecoveryState.EnterContact())
+    private val _state = MutableStateFlow<RecoveryState>(RecoveryState.EnterPhone())
     val state: StateFlow<RecoveryState> = _state.asStateFlow()
 
-    fun updateContact(value: String) {
+    fun updatePhone(value: String) {
         val current = _state.value
-        if (current is RecoveryState.EnterContact) {
-            _state.value = current.copy(contactValue = value, error = null)
+        if (current is RecoveryState.EnterPhone) {
+            _state.value = current.copy(phoneNumber = value, error = null)
         }
     }
 
     fun requestOtp() {
         val current = _state.value
-        if (current !is RecoveryState.EnterContact || current.contactValue.isBlank()) return
+        if (current !is RecoveryState.EnterPhone || current.phoneNumber.length < 10) return
+
+        val fullPhone = "+63${current.phoneNumber}"
 
         viewModelScope.launch {
             _state.value = current.copy(error = null)
-            authRepository.requestPasswordRecoveryOtp(current.contactValue)
+            authRepository.requestPasswordRecoveryOtp(fullPhone)
                 .onSuccess { challenge ->
                     _state.value = RecoveryState.EnterOtp(
                         challengeId = challenge.challengeId,
                         expiresAt = challenge.expiresAt,
-                        contactValue = current.contactValue,
+                        phoneNumber = current.phoneNumber,
                     )
                 }
                 .onFailure { error ->
@@ -96,7 +103,10 @@ class PasswordRecoveryViewModel @Inject constructor(
     fun updatePasswordConfirmation(value: String) {
         val current = _state.value
         if (current is RecoveryState.EnterNewPassword) {
-            _state.value = current.copy(passwordConfirmation = value, errors = current.errors - "passwordConfirmation")
+            _state.value = current.copy(
+                passwordConfirmation = value,
+                errors = current.errors - "passwordConfirmation",
+            )
         }
     }
 
@@ -129,13 +139,13 @@ class PasswordRecoveryViewModel @Inject constructor(
                     _state.value = RecoveryState.EnterOtp(
                         challengeId = current.challengeId,
                         expiresAt = "",
-                        contactValue = "",
+                        phoneNumber = "",
                         code = "",
                         error = "Invalid or expired code. Please try again.",
                     )
                 } else {
                     _state.value = current.copy(
-                        errors = mapOf("_" to (apiError?.message ?: "Password reset failed"))
+                        errors = mapOf("_" to (apiError?.message ?: "Password reset failed")),
                     )
                 }
             }
@@ -144,14 +154,14 @@ class PasswordRecoveryViewModel @Inject constructor(
 
     fun back() {
         _state.value = when (val current = _state.value) {
-            is RecoveryState.EnterOtp -> RecoveryState.EnterContact(current.contactValue)
+            is RecoveryState.EnterOtp -> RecoveryState.EnterPhone(current.phoneNumber)
             is RecoveryState.EnterNewPassword -> RecoveryState.EnterOtp(
                 challengeId = current.challengeId,
                 expiresAt = "",
-                contactValue = "",
+                phoneNumber = "",
                 code = current.code,
             )
-            else -> RecoveryState.EnterContact()
+            else -> RecoveryState.EnterPhone()
         }
     }
 }
