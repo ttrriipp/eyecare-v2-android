@@ -52,7 +52,10 @@ fun PolicyConsentRow(
                 }
             },
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.clickable(onClick = onLinkClick).padding(top = 12.dp),
+            modifier = Modifier
+                .weight(1f)
+                .clickable(enabled = enabled, onClick = onLinkClick)
+                .padding(top = 12.dp),
         )
     }
 }

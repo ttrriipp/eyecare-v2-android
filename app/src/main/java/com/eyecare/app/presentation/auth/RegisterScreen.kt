@@ -5,18 +5,16 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
@@ -34,6 +32,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.eyecare.app.domain.model.toPhilippineE164
+import com.eyecare.app.presentation.auth.components.AuthIntro
+import com.eyecare.app.presentation.auth.components.AuthPrimaryButton
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.ContactField
 import com.eyecare.app.presentation.auth.components.ContactMethod
@@ -42,6 +42,7 @@ import com.eyecare.app.presentation.auth.components.OtpExpiryRow
 import com.eyecare.app.presentation.auth.components.OtpField
 import com.eyecare.app.presentation.auth.components.PasswordField
 import com.eyecare.app.presentation.auth.components.PolicyConsentRow
+import com.eyecare.app.presentation.auth.components.SectionLabel
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -71,11 +72,8 @@ private fun RegisterPhoneStep(
         title = "Create account",
         onBack = onNavigateToLogin,
     ) {
-        Text(
-            text = "Start with your phone number. We'll send a verification code before you enter your details.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        AuthIntro("We'll verify your phone first, then ask for a few details to set up your account.")
+        Spacer(modifier = Modifier.height(20.dp))
         ContactField(
             value = state.phoneNumber,
             onValueChange = viewModel::updatePhone,
@@ -83,13 +81,11 @@ private fun RegisterPhoneStep(
             error = state.error,
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
+        AuthPrimaryButton(
+            text = "Send code",
             onClick = viewModel::requestPhoneOtp,
             enabled = state.phoneNumber.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Send code")
-        }
+        )
         Spacer(modifier = Modifier.height(12.dp))
         TextButton(onClick = onNavigateToLogin, modifier = Modifier.fillMaxWidth()) {
             Text("Already have an account? Sign in")
@@ -106,10 +102,7 @@ private fun RegisterOtpStep(
         title = "Verify your phone",
         onBack = viewModel::back,
     ) {
-        Text(
-            text = "Enter the 6-digit code sent to ${toPhilippineE164(state.phoneNumber)}.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        AuthIntro("Enter the 6-digit code sent to ${toPhilippineE164(state.phoneNumber)}.")
         Spacer(modifier = Modifier.height(16.dp))
         OtpField(
             value = state.code,
@@ -123,13 +116,12 @@ private fun RegisterOtpStep(
             onResend = viewModel::resendOtp,
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
+        AuthPrimaryButton(
+            text = "Verify phone",
             onClick = viewModel::verifyPhoneOtp,
             enabled = state.code.length == 6 && !state.isResending,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (state.isResending) CircularProgressIndicator() else Text("Verify phone")
-        }
+            loading = state.isResending,
+        )
     }
 }
 
@@ -155,10 +147,16 @@ private fun RegisterDetailsStep(
     )
 
     AuthStepScaffold(title = "Your details") {
+        AuthIntro("Tell us a little about yourself so we can keep your account accurate and secure.")
+        Spacer(modifier = Modifier.height(16.dp))
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            SectionLabel("Personal details")
             OutlinedTextField(
                 value = state.firstName,
                 onValueChange = { viewModel.updateDetails(firstName = it) },
@@ -200,6 +198,7 @@ private fun RegisterDetailsStep(
                 Text(if (state.dateOfBirth.isBlank()) "Select date" else "Change date")
             }
 
+            SectionLabel("Optional contact")
             OutlinedTextField(
                 value = state.email,
                 onValueChange = { viewModel.updateDetails(email = it) },
@@ -211,6 +210,7 @@ private fun RegisterDetailsStep(
             )
             FieldError(state.errors["email"])
 
+            SectionLabel("Account security")
             PasswordField(
                 value = state.password,
                 onValueChange = { viewModel.updateDetails(password = it) },
@@ -225,6 +225,7 @@ private fun RegisterDetailsStep(
                 error = state.errors["passwordConfirmation"],
             )
 
+            SectionLabel("Optional invitation")
             OutlinedTextField(
                 value = state.invitationCode,
                 onValueChange = { viewModel.updateDetails(invitationCode = it) },
@@ -233,6 +234,7 @@ private fun RegisterDetailsStep(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            SectionLabel("Agreements")
             if (state.policies != null) {
                 PolicyConsentRow(
                     label = "I accept the",
@@ -264,13 +266,11 @@ private fun RegisterDetailsStep(
             FieldError(state.errors["_"])
 
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
+            AuthPrimaryButton(
+                text = "Create account",
                 onClick = viewModel::submitRegistration,
                 enabled = state.policies != null,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Create account")
-            }
+            )
             Spacer(modifier = Modifier.height(32.dp))
         }
     }

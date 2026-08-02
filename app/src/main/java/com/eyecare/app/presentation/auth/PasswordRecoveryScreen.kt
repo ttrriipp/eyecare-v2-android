@@ -1,11 +1,7 @@
 package com.eyecare.app.presentation.auth
 
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -13,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.eyecare.app.domain.model.toPhilippineLocalDigits
+import com.eyecare.app.presentation.auth.components.AuthIntro
+import com.eyecare.app.presentation.auth.components.AuthPrimaryButton
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.ContactField
 import com.eyecare.app.presentation.auth.components.ContactMethod
@@ -46,11 +44,8 @@ private fun RecoveryPhoneStep(
     onBack: () -> Unit,
 ) {
     AuthStepScaffold(title = "Reset password", onBack = onBack) {
-        Text(
-            text = "Enter your phone number. If it matches an account, we'll send a verification code.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        AuthIntro("Enter your phone number. If it matches an account, we'll send a verification code.")
+        Spacer(modifier = Modifier.height(20.dp))
         ContactField(
             value = state.phoneNumber,
             onValueChange = viewModel::updatePhone,
@@ -58,13 +53,11 @@ private fun RecoveryPhoneStep(
             error = state.error,
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = { viewModel.requestOtp() },
+        AuthPrimaryButton(
+            text = "Send code",
+            onClick = viewModel::requestOtp,
             enabled = toPhilippineLocalDigits(state.phoneNumber).length >= 10,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Send code")
-        }
+        )
     }
 }
 
@@ -74,10 +67,7 @@ private fun RecoveryOtpStep(
     viewModel: PasswordRecoveryViewModel,
 ) {
     AuthStepScaffold(title = "Enter code", onBack = { viewModel.back() }) {
-        Text(
-            text = "Enter the 6-digit verification code.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        AuthIntro("Enter the 6-digit verification code.")
         Spacer(modifier = Modifier.height(16.dp))
         OtpField(
             value = state.code,
@@ -91,13 +81,12 @@ private fun RecoveryOtpStep(
             onResend = viewModel::resendOtp,
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = { viewModel.verifyOtp() },
+        AuthPrimaryButton(
+            text = "Continue",
+            onClick = viewModel::verifyOtp,
             enabled = state.code.length == 6 && !state.isResending,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Continue")
-        }
+            loading = state.isResending,
+        )
     }
 }
 
@@ -107,10 +96,7 @@ private fun RecoveryPasswordStep(
     viewModel: PasswordRecoveryViewModel,
 ) {
     AuthStepScaffold(title = "New password", onBack = { viewModel.back() }) {
-        Text(
-            text = "Your new password must be at least 12 characters. Other devices will be signed out.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        AuthIntro("Your new password must be at least 12 characters. Other devices will be signed out.")
         Spacer(modifier = Modifier.height(16.dp))
         PasswordField(
             value = state.password,
@@ -126,12 +112,10 @@ private fun RecoveryPasswordStep(
         )
         FieldError(state.errors["_"])
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = { viewModel.resetPassword() },
+        AuthPrimaryButton(
+            text = "Reset password",
+            onClick = viewModel::resetPassword,
             enabled = state.password.isNotBlank() && state.passwordConfirmation.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Reset password")
-        }
+        )
     }
 }

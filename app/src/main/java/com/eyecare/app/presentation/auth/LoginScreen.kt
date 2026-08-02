@@ -3,9 +3,6 @@ package com.eyecare.app.presentation.auth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -14,6 +11,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.eyecare.app.presentation.auth.components.AuthIntro
+import com.eyecare.app.presentation.auth.components.AuthPrimaryButton
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.ContactField
 import com.eyecare.app.presentation.auth.components.ContactMethod
@@ -53,6 +52,8 @@ private fun LoginContactStep(
     onForgotPassword: () -> Unit,
 ) {
     AuthStepScaffold(title = "Sign in") {
+        AuthIntro("Use the phone number and password linked to your account.")
+        Spacer(modifier = Modifier.height(20.dp))
         ContactField(
             value = state.phoneNumber,
             onValueChange = { viewModel.updatePhone(it) },
@@ -70,13 +71,11 @@ private fun LoginContactStep(
         }
         FieldError(state.error)
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = { viewModel.signIn() },
+        AuthPrimaryButton(
+            text = "Sign in",
+            onClick = viewModel::signIn,
             enabled = state.phoneNumber.isNotBlank() && state.password.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Sign in")
-        }
+        )
         Spacer(modifier = Modifier.height(12.dp))
         TextButton(onClick = onNavigateToRegister, modifier = Modifier.fillMaxWidth()) {
             Text("Don't have an account? Create one")
@@ -93,10 +92,7 @@ private fun LoginOtpStep(
         title = "Verification",
         onBack = { viewModel.back() },
     ) {
-        Text(
-            text = "If the details match an account, a code was sent.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        AuthIntro("If the details match an account, we'll send a 6-digit verification code.")
         Spacer(modifier = Modifier.height(16.dp))
         OtpField(
             value = state.code,
@@ -109,12 +105,11 @@ private fun LoginOtpStep(
             onResend = { viewModel.resendOtp() },
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = { viewModel.verifyOtp() },
+        AuthPrimaryButton(
+            text = "Verify code",
+            onClick = viewModel::verifyOtp,
             enabled = state.code.length == 6,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (state.isResending) CircularProgressIndicator() else Text("Verify")
-        }
+            loading = state.isResending,
+        )
     }
 }

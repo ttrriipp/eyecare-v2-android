@@ -46,7 +46,7 @@ fun OtpField(
             placeholder = { Text("000000") },
             singleLine = true,
             enabled = enabled,
-            isError = error != null,
+            isError = !error.isNullOrBlank(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
         )

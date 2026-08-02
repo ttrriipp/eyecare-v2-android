@@ -3,6 +3,7 @@ package com.eyecare.app.presentation.auth.components
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +24,7 @@ fun ContactField(
     modifier: Modifier = Modifier,
 ) {
     val isPhone = method == ContactMethod.PHONE
+    val hasError = !error.isNullOrBlank()
 
     Column(modifier = modifier) {
         OutlinedTextField(
@@ -33,11 +35,19 @@ fun ContactField(
             label = { Text(if (method == ContactMethod.EMAIL) "Email address" else "Phone number") },
             placeholder = { Text(if (method == ContactMethod.EMAIL) "you@example.com" else "9XXXXXXXXX") },
             prefix = if (isPhone) {
-                { Text("+63") }
+                {
+                    Text(
+                        text = "+63",
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             } else null,
             singleLine = true,
             enabled = enabled,
-            isError = error != null,
+            isError = hasError,
+            supportingText = if (isPhone && !hasError) {
+                { Text("Enter the 10 digits after +63") }
+            } else null,
             keyboardOptions = KeyboardOptions(
                 keyboardType = if (method == ContactMethod.EMAIL) KeyboardType.Email else KeyboardType.Phone,
             ),

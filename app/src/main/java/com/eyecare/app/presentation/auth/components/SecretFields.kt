@@ -30,6 +30,7 @@ fun PasswordField(
     modifier: Modifier = Modifier,
 ) {
     var visible by remember { mutableStateOf(false) }
+    val hasError = !error.isNullOrBlank()
 
     Column(modifier = modifier) {
         OutlinedTextField(
@@ -38,11 +39,14 @@ fun PasswordField(
             label = { Text(label) },
             singleLine = true,
             enabled = enabled,
-            isError = error != null,
+            isError = hasError,
             visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             trailingIcon = {
-                IconButton(onClick = { visible = !visible }) {
+                IconButton(
+                    onClick = { visible = !visible },
+                    enabled = enabled,
+                ) {
                     Icon(
                         imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                         contentDescription = if (visible) "Hide password" else "Show password",
