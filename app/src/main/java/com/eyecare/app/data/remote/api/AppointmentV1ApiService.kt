@@ -8,15 +8,11 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface AppointmentV1ApiService {
-    @GET("appointment-types")
-    suspend fun getAppointmentTypes(): AppointmentV1Dtos.AppointmentTypeListResponse
 
     @GET("appointment-availability")
     suspend fun getAppointmentAvailability(
         @Query("date") date: String,
-        @Query("appointment_type_id") appointmentTypeId: Int,
         @Query("appointment_id") appointmentId: Int? = null,
-        @Query("optometrist_id") optometristId: Int? = null,
     ): AppointmentV1Dtos.AppointmentAvailabilityResponse
 
     @GET("appointments")
@@ -27,11 +23,6 @@ interface AppointmentV1ApiService {
 
     @GET("appointments/{id}")
     suspend fun getAppointment(@Path("id") id: Int): AppointmentV1Dtos.AppointmentResponse
-
-    @POST("appointments")
-    suspend fun createAppointment(
-        @Body request: AppointmentV1Dtos.CreateAppointmentRequest,
-    ): AppointmentV1Dtos.AppointmentResponse
 
     @POST("appointments/{id}/cancel")
     suspend fun cancelAppointment(@Path("id") id: Int): AppointmentV1Dtos.AppointmentResponse
