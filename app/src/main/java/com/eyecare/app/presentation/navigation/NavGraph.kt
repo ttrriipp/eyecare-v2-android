@@ -378,6 +378,8 @@ fun EyecareNavGraph(
                             onNavigateToEditProfile = { navController.navigate(EditProfile) },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
                             onNavigateToAccountLink = { navController.navigate(LimitedAccount) },
+                            onNavigateToAccountSecurity = { navController.navigate(AccountSecurity) },
+                            onNavigateToInviteCode = { navController.navigate(LimitedAccount) },
                             unreadMessageCount = unreadCount,
                         )
                     }

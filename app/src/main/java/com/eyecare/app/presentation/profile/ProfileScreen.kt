@@ -79,6 +79,8 @@ fun ProfileScreen(
     onNavigateToEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     onNavigateToAccountLink: () -> Unit = {},
+    onNavigateToAccountSecurity: () -> Unit = {},
+    onNavigateToInviteCode: () -> Unit = {},
     unreadMessageCount: Int = 0,
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
@@ -114,6 +116,8 @@ fun ProfileScreen(
             onNavigateToReservations = onNavigateToReservations,
             onNavigateToEyewear = onNavigateToEyewear,
             onNavigateToAccountLink = onNavigateToAccountLink,
+            onNavigateToAccountSecurity = onNavigateToAccountSecurity,
+            onNavigateToInviteCode = onNavigateToInviteCode,
             onLogoutClick = { showLogoutDialog = true },
         )
     }
@@ -147,6 +151,8 @@ fun ProfileContent(
     onNavigateToReservations: () -> Unit = {},
     onNavigateToEyewear: () -> Unit = {},
     onNavigateToAccountLink: () -> Unit = {},
+    onNavigateToAccountSecurity: () -> Unit = {},
+    onNavigateToInviteCode: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
     Column(
@@ -216,6 +222,56 @@ fun ProfileContent(
                         supportingText = "Track estimates, preparation, pickup, and payments",
                         onClick = onNavigateToEyewear,
                     )
+                }
+            }
+        }
+
+        // Account section
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "Account",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Manage your account and linked records",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Card(
+                shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column {
+                    ProfileNavRow(
+                        icon = Icons.Outlined.Person,
+                        label = "Account & Security",
+                        supportingText = "Edit name, contacts, password",
+                        onClick = onNavigateToAccountSecurity,
+                    )
+                    if (account.linkedPatient != null) {
+                        ProfileDivider()
+                        ProfileNavRow(
+                            icon = Icons.Outlined.LocalHospital,
+                            label = "Linked Patient Record",
+                            supportingText = account.linkedPatient.patientNumber,
+                            onClick = onNavigateToAccountLink,
+                        )
+                    }
+                    if (account.linkStatus != PatientLinkStatus.LINKED) {
+                        ProfileDivider()
+                        ProfileNavRow(
+                            icon = Icons.Outlined.Bookmark,
+                            label = "Enter Invitation Code",
+                            supportingText = "Link your account to a clinic record",
+                            onClick = onNavigateToInviteCode,
+                        )
+                    }
                 }
             }
         }
