@@ -102,6 +102,7 @@ class AppointmentV1RepositoryImpl @Inject constructor(
         status = AppointmentStatus.from(status),
         scheduledAt = scheduledAt,
         contactNotes = contactNotes,
+        reasonForVisit = reasonForVisit,
         lastRescheduleReason = lastRescheduleReason,
         source = source,
         assignedOptometrist = assignedOptometrist?.let { AssignedOptometrist(name = it.name) },

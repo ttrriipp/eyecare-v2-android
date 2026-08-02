@@ -32,6 +32,7 @@ object AppointmentV1Dtos {
         val status: String,
         @SerialName("scheduled_at") val scheduledAt: String,
         @SerialName("contact_notes") val contactNotes: String? = null,
+        @SerialName("reason_for_visit") val reasonForVisit: String? = null,
         @SerialName("last_reschedule_reason") val lastRescheduleReason: String? = null,
         val source: String? = null,
         @SerialName("assigned_optometrist") val assignedOptometrist: AssignedOptometristDto? = null,
