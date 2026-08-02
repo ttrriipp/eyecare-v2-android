@@ -1,6 +1,5 @@
 package com.eyecare.app.presentation.auth
 
-import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.SessionState
 
 enum class AuthDestination {
@@ -18,7 +17,7 @@ fun resolveDestination(sessionState: SessionState): AuthDestination = when (sess
     SessionState.Checking -> AuthDestination.SessionGate
     SessionState.Unauthenticated -> AuthDestination.Welcome
     is SessionState.Linked -> AuthDestination.Main
-    is SessionState.Limited -> AuthDestination.LimitedAccount
+    is SessionState.Limited -> AuthDestination.Main
     is SessionState.TransientFailure -> AuthDestination.SessionGate
 }
 

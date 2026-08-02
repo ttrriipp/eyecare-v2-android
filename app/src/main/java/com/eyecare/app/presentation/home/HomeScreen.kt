@@ -76,6 +76,7 @@ import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.NavyBlue
 import java.time.LocalDate
 import java.util.Locale
+import androidx.compose.runtime.LaunchedEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,13 +86,19 @@ fun HomeScreen(
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
     onNavigateToPrescriptionDetail: (Int) -> Unit = {},
+    hasActivePatientLink: Boolean = true,
+    onNavigateToAccountLink: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(hasActivePatientLink) {
+        viewModel.load(hasActivePatientLink)
+    }
+
     PullToRefreshBox(
         isRefreshing = uiState is HomeUiState.Loading,
-        onRefresh = viewModel::refresh,
+        onRefresh = { viewModel.refresh(hasActivePatientLink) },
         modifier = Modifier.fillMaxSize(),
     ) {
         when (val state = uiState) {
@@ -99,7 +106,7 @@ fun HomeScreen(
 
             is HomeUiState.Error -> ErrorContent(
                 message = state.message,
-                onRetry = viewModel::refresh,
+                onRetry = { viewModel.refresh(hasActivePatientLink) },
             )
 
             is HomeUiState.Success -> HomeContent(
@@ -109,6 +116,8 @@ fun HomeScreen(
                 onNavigateToFrames = onNavigateToFrames,
                 onNavigateToFrameDetail = onNavigateToFrameDetail,
                 onNavigateToPrescriptionDetail = onNavigateToPrescriptionDetail,
+                hasActivePatientLink = hasActivePatientLink,
+                onNavigateToAccountLink = onNavigateToAccountLink,
             )
         }
     }
@@ -162,6 +171,8 @@ fun HomeContent(
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
     onNavigateToPrescriptionDetail: (Int) -> Unit = {},
+    hasActivePatientLink: Boolean = true,
+    onNavigateToAccountLink: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -188,18 +199,22 @@ fun HomeContent(
 
         ClinicHoursCard()
 
-        state.nextAppointment?.let { appointment ->
-            VisitTicket(appointment = appointment, onClick = onNavigateToAppointments)
-        } ?: BookingInvitation(onClick = onNavigateToBooking)
+        if (!hasActivePatientLink) {
+            LimitedAccessCard(onNavigateToAccountLink = onNavigateToAccountLink)
+        } else {
+            state.nextAppointment?.let { appointment ->
+                VisitTicket(appointment = appointment, onClick = onNavigateToAppointments)
+            } ?: BookingInvitation(onClick = onNavigateToBooking)
 
-        state.currentPrescription?.let { prescription ->
-            CurrentPrescriptionCard(
-                prescription = prescription,
-                onViewDetails = { onNavigateToPrescriptionDetail(prescription.id) },
-            )
+            state.currentPrescription?.let { prescription ->
+                CurrentPrescriptionCard(
+                    prescription = prescription,
+                    onViewDetails = { onNavigateToPrescriptionDetail(prescription.id) },
+                )
+            }
         }
 
-        if (state.featuredFrames.isNotEmpty()) {
+        if (hasActivePatientLink && state.featuredFrames.isNotEmpty()) {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -211,37 +226,16 @@ fun HomeContent(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.size(36.dp),
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Image,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp),
-                                    )
-                                }
-                            }
-                            Column {
-                                Text(
-                                    text = "Featured Frames",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    text = "Browse our AR-ready collection",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
+                        Text(
+                            text = "Featured Frames",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "Browse our AR-ready collection",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     HomeFrameShelf(
                         frames = state.featuredFrames,
@@ -355,6 +349,39 @@ private fun ClinicHoursCard() {
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LimitedAccessCard(
+    onNavigateToAccountLink: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "Your account is ready",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "You can explore the app now. Link your account to a clinic record to access appointments, prescriptions, reservations, and clinic messages.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Button(
+                onClick = onNavigateToAccountLink,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Link to clinic")
             }
         }
     }
@@ -518,123 +545,28 @@ private fun CurrentPrescriptionCard(
     prescription: Prescription,
     onViewDetails: () -> Unit,
 ) {
-    val mainOd = prescription.measurements.main.od
-    val mainOs = prescription.measurements.main.os
-
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Outlined.Visibility,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-                Column {
-                    Text(
-                        text = "Current Prescription",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = prescription.date,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            Row(Modifier.fillMaxWidth()) {
-                Spacer(Modifier.weight(1f))
-                listOf("Value", "Sphere", "Cylinder").forEach { label ->
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                }
-            }
-
-            PrescriptionEyeRow(label = "OD", measurement = mainOd)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            PrescriptionEyeRow(label = "OS", measurement = mainOs)
-
-            TextButton(
-                onClick = onViewDetails,
-                modifier = Modifier.defaultMinSize(minHeight = 40.dp),
-            ) {
-                Text("View full details", style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PrescriptionEyeRow(
-    label: String,
-    measurement: com.eyecare.app.domain.model.EyeMeasurement,
-) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(40.dp),
-            contentAlignment = Alignment.Center,
-        ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
+                text = "Current prescription",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-        }
-        listOf(measurement.value, measurement.sphere, measurement.cylinder).forEach { value ->
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer,
-                        RoundedCornerShape(8.dp),
-                    ),
-                contentAlignment = Alignment.Center,
+            Text(
+                text = prescription.date,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(
+                onClick = onViewDetails,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
             ) {
-                Text(
-                    text = value ?: "—",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (value != null) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text("View details", style = MaterialTheme.typography.labelMedium)
             }
         }
     }

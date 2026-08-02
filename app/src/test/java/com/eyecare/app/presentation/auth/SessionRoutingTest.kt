@@ -30,18 +30,18 @@ class SessionRoutingTest {
     }
 
     @Test
-    fun `Limited unlinked resolves to LimitedAccount`() {
-        assertEquals(AuthDestination.LimitedAccount, resolveDestination(SessionState.Limited(account(PatientLinkStatus.UNLINKED))))
+    fun `Limited unlinked resolves to Main`() {
+        assertEquals(AuthDestination.Main, resolveDestination(SessionState.Limited(account(PatientLinkStatus.UNLINKED))))
     }
 
     @Test
-    fun `Limited pending_review resolves to LimitedAccount`() {
-        assertEquals(AuthDestination.LimitedAccount, resolveDestination(SessionState.Limited(account(PatientLinkStatus.PENDING_REVIEW))))
+    fun `Limited pending_review resolves to Main`() {
+        assertEquals(AuthDestination.Main, resolveDestination(SessionState.Limited(account(PatientLinkStatus.PENDING_REVIEW))))
     }
 
     @Test
-    fun `Limited unknown resolves to LimitedAccount`() {
-        assertEquals(AuthDestination.LimitedAccount, resolveDestination(SessionState.Limited(account(PatientLinkStatus.UNKNOWN))))
+    fun `Limited unknown resolves to Main`() {
+        assertEquals(AuthDestination.Main, resolveDestination(SessionState.Limited(account(PatientLinkStatus.UNKNOWN))))
     }
 
     @Test

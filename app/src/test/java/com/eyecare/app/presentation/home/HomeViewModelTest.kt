@@ -12,6 +12,7 @@ import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.domain.repository.PrescriptionRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -73,7 +74,7 @@ class HomeViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo)
+    private fun vm() = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo).also { it.load() }
 
     @Test
     fun `nextAppointment is the soonest future scheduled appointment`() = runTest {
@@ -120,6 +121,21 @@ class HomeViewModelTest {
         assertNull(state.nextAppointment)
         assertEquals(1, state.featuredFrames.size)
         assertNotNull(state.currentPrescription)
+    }
+
+    @Test
+    fun `limited load skips active-link repositories`() = runTest {
+        val limitedVm = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo)
+
+        limitedVm.load(hasActivePatientLink = false)
+
+        val state = limitedVm.uiState.value as HomeUiState.Success
+        assertNull(state.nextAppointment)
+        assertNull(state.currentPrescription)
+        assertEquals(emptyList<Frame>(), state.featuredFrames)
+        coVerify(exactly = 0) { appointmentRepo.getAppointments(any()) }
+        coVerify(exactly = 0) { frameRepo.getFrames(any()) }
+        coVerify(exactly = 0) { prescriptionRepo.getPrescriptions(any()) }
     }
 
     private fun frame(id: Int) = Frame(

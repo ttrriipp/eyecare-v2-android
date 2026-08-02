@@ -38,12 +38,21 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    init { load() }
+    fun refresh(hasActivePatientLink: Boolean = true) {
+        load(hasActivePatientLink)
+    }
 
-    fun refresh() { load() }
-
-    private fun load() {
+    fun load(hasActivePatientLink: Boolean = true) {
         _uiState.value = HomeUiState.Loading
+        if (!hasActivePatientLink) {
+            _uiState.value = HomeUiState.Success(
+                nextAppointment = null,
+                currentPrescription = null,
+                featuredFrames = emptyList(),
+            )
+            return
+        }
+
         viewModelScope.launch {
             val appointmentsDeferred = async {
                 runCatching { appointmentRepository.getAppointments(page = 1).getOrNull()?.data ?: emptyList() }

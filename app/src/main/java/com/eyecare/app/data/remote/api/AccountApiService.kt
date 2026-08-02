@@ -8,6 +8,7 @@ import com.eyecare.app.data.remote.dto.InvitationAcceptRequest
 import com.eyecare.app.data.remote.dto.InvitationAcceptResponse
 import com.eyecare.app.data.remote.dto.InvitationOtpRequest
 import com.eyecare.app.data.remote.dto.LinkStateResponse
+import com.eyecare.app.data.remote.dto.PatientLinkRequestResponse
 import com.eyecare.app.data.remote.dto.PasswordChangeRequest
 import com.eyecare.app.data.remote.dto.PasswordChangeResponse
 import com.eyecare.app.data.remote.dto.RegistrationOtpResponse
@@ -15,6 +16,7 @@ import com.eyecare.app.data.remote.dto.StepUpOtpRequest
 import com.eyecare.app.data.remote.dto.StepUpOtpResponse
 import com.eyecare.app.data.remote.dto.StepUpVerifyRequest
 import com.eyecare.app.data.remote.dto.StepUpVerifyResponse
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -63,6 +65,12 @@ interface AccountApiService {
 
     @GET("account/link")
     suspend fun getLinkState(): LinkStateResponse
+
+    @POST("patient-link-requests")
+    suspend fun submitPatientLinkRequest(): PatientLinkRequestResponse
+
+    @GET("patient-link-requests/current")
+    suspend fun getCurrentPatientLinkRequest(): Response<PatientLinkRequestResponse>
 
     @POST("patient-invitations/acceptance/otp")
     suspend fun requestInvitationOtp(@Body request: InvitationOtpRequest): RegistrationOtpResponse

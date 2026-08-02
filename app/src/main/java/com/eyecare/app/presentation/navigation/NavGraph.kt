@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -17,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavDestination
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -27,6 +29,8 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.eyecare.app.data.local.TokenManager
+import com.eyecare.app.domain.model.SessionState
+import com.eyecare.app.domain.model.canAccessPatientFeatures
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
@@ -35,6 +39,7 @@ import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.PasswordRecoveryScreen
 import com.eyecare.app.presentation.auth.RegisterScreen
 import com.eyecare.app.presentation.auth.SessionGateScreen
+import com.eyecare.app.presentation.auth.SessionViewModel
 import com.eyecare.app.presentation.auth.WelcomeScreen
 import com.eyecare.app.presentation.account.LimitedAccountScreen
 import com.eyecare.app.presentation.account.AccountSecurityScreen
@@ -61,6 +66,8 @@ fun EyecareNavGraph(
     navController: NavHostController = rememberNavController(),
 ) {
     val startDestination = SessionGate
+    val sessionViewModel: SessionViewModel = hiltViewModel()
+    val sessionState by sessionViewModel.state.collectAsState()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDest: NavDestination? = backStackEntry?.destination
 
@@ -82,13 +89,36 @@ fun EyecareNavGraph(
             !route.contains("JobOrder") && !route.contains("Eyewear")
     } ?: false
 
-    val currentRoute = if (showBottomNav && currentDest != null) when {
+    val currentRoute = if (showBottomNav) when {
         currentDest.route?.contains("Home") == true -> Home
         currentDest.route?.contains("Frames") == true -> Frames
         currentDest.route?.contains("Appointments") == true -> Appointments
         currentDest.route?.contains("Profile") == true -> Profile
         else -> Home
     } else null
+
+    fun navigatePatientFeature(route: Any) {
+        if (canAccessPatientFeatures(sessionState)) {
+            navController.navigate(route)
+        } else {
+            navController.navigate(LimitedAccount)
+        }
+    }
+
+    fun navigateMainTab(route: Any) {
+        if (route == Home || route == Profile || canAccessPatientFeatures(sessionState)) {
+            navController.navigate(route) {
+                popUpTo<MainGraph> {
+                    saveState = true
+                    inclusive = false
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        } else {
+            navController.navigate(LimitedAccount)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
@@ -103,6 +133,7 @@ fun EyecareNavGraph(
                 // SessionGate — root start destination
                 composable<SessionGate> {
                     SessionGateScreen(
+                        viewModel = sessionViewModel,
                         onNavigateToWelcome = {
                             navController.navigate(Welcome) {
                                 popUpTo<SessionGate> { inclusive = true }
@@ -110,11 +141,6 @@ fun EyecareNavGraph(
                         },
                         onNavigateToMain = {
                             navController.navigate(MainGraph) {
-                                popUpTo<SessionGate> { inclusive = true }
-                            }
-                        },
-                        onNavigateToLimited = {
-                            navController.navigate(LimitedAccount) {
                                 popUpTo<SessionGate> { inclusive = true }
                             }
                         },
@@ -134,6 +160,7 @@ fun EyecareNavGraph(
                     RegisterScreen(
                         onNavigateToLogin = { navController.popBackStack() },
                         onRegisterSuccess = {
+                            sessionViewModel.resolveSession()
                             navController.navigate(SessionGate) {
                                 popUpTo<Welcome> { inclusive = true }
                             }
@@ -145,6 +172,7 @@ fun EyecareNavGraph(
                 composable<RecoverPassword> {
                     PasswordRecoveryScreen(
                         onRecoverySuccess = {
+                            sessionViewModel.resolveSession()
                             navController.navigate(SessionGate) {
                                 popUpTo<Welcome> { inclusive = true }
                             }
@@ -155,31 +183,41 @@ fun EyecareNavGraph(
 
                 // Account access graph (unlinked/pending)
                 composable<LimitedAccount> {
-                    LimitedAccountScreen(
-                        account = com.eyecare.app.domain.model.PatientAccount(
-                            id = 0, name = "", firstName = null, middleName = null, lastName = null,
-                            email = null, phone = null, role = "patient", dateOfBirth = null,
-                            linkStatus = com.eyecare.app.domain.model.PatientLinkStatus.UNLINKED,
-                            privacyPolicyVersion = null, privacyAcceptedAt = null, linkedPatient = null,
-                        ),
-                        onAccountSecurity = { navController.navigate(AccountSecurity) },
-                        onSignOut = {
-                            navController.navigate(Welcome) {
+                    val account = when (val state = sessionState) {
+                        is SessionState.Linked -> state.account
+                        is SessionState.Limited -> state.account
+                        else -> null
+                    }
+                    if (account != null) {
+                        LimitedAccountScreen(
+                            account = account,
+                            onBack = { navController.popBackStack() },
+                            onAccountSecurity = { navController.navigate(AccountSecurity) },
+                            onSignOut = {
+                                sessionViewModel.signOut()
+                                navController.navigate(Welcome) {
+                                    popUpTo<LimitedAccount> { inclusive = true }
+                                }
+                            },
+                            onNavigateToMain = {
+                                sessionViewModel.resolveSession()
+                                navController.popBackStack()
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) {
+                            navController.navigate(SessionGate) {
                                 popUpTo<LimitedAccount> { inclusive = true }
                             }
-                        },
-                        onNavigateToMain = {
-                            navController.navigate(MainGraph) {
-                                popUpTo<LimitedAccount> { inclusive = true }
-                            }
-                        },
-                    )
+                        }
+                    }
                 }
 
                 // Account & Security (shared from limited and linked)
                 composable<AccountSecurity> {
                     AccountSecurityScreen(
                         onSignedOut = {
+                            sessionViewModel.signOut()
                             navController.navigate(SessionGate) {
                                 popUpTo<AccountSecurity> { inclusive = true }
                             }
@@ -194,6 +232,7 @@ fun EyecareNavGraph(
                         LoginScreen(
                             onNavigateToRegister = { navController.navigate(CreateAccount) },
                             onLoginSuccess = {
+                                sessionViewModel.resolveSession()
                                 navController.navigate(SessionGate) {
                                     popUpTo<Welcome> { inclusive = true }
                                 }
@@ -208,33 +247,21 @@ fun EyecareNavGraph(
                     composable<Home> {
                         HomeScreen(
                             onNavigateToAppointments = {
-                                navController.navigate(Appointments) {
-                                    popUpTo<MainGraph> {
-                                        saveState = true
-                                        inclusive = false
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                                navigateMainTab(Appointments)
                             },
-                            onNavigateToBooking = { navController.navigate(BookAppointment) },
+                            onNavigateToBooking = { navigatePatientFeature(BookAppointment) },
                             onNavigateToFrames = {
-                                navController.navigate(Frames) {
-                                    popUpTo<MainGraph> {
-                                        saveState = true
-                                        inclusive = false
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                                navigateMainTab(Frames)
                             },
-                            onNavigateToFrameDetail = { navController.navigate(FrameDetail(it)) },
-                            onNavigateToPrescriptionDetail = { navController.navigate(PrescriptionDetail(it)) },
+                            onNavigateToFrameDetail = { navigatePatientFeature(FrameDetail(it)) },
+                            onNavigateToPrescriptionDetail = { navigatePatientFeature(PrescriptionDetail(it)) },
+                            hasActivePatientLink = canAccessPatientFeatures(sessionState),
+                            onNavigateToAccountLink = { navController.navigate(LimitedAccount) },
                         )
                     }
                     composable<Frames> {
                         FrameListScreen(
-                            onNavigateToDetail = { id -> navController.navigate(FrameDetail(id)) },
+                            onNavigateToDetail = { id -> navigatePatientFeature(FrameDetail(id)) },
                         )
                     }
                     composable<FrameDetail> { backStackEntry ->
@@ -242,8 +269,8 @@ fun EyecareNavGraph(
                         FrameDetailScreen(
                             frameId = route.frameId,
                             onBack = { navController.popBackStack() },
-                            onNavigateToAr = { fId, vId -> navController.navigate(ArTryOn(fId, vId)) },
-                            onNavigateToReserve = { fId, vId -> navController.navigate(CreateFrameReservation(fId, vId)) },
+                            onNavigateToAr = { fId, vId -> navigatePatientFeature(ArTryOn(fId, vId)) },
+                            onNavigateToReserve = { fId, vId -> navigatePatientFeature(CreateFrameReservation(fId, vId)) },
                         )
                     }
                     composable<CreateFrameReservation> { backStackEntry ->
@@ -257,7 +284,7 @@ fun EyecareNavGraph(
                                     popUpTo<CreateFrameReservation> { inclusive = true }
                                 }
                             },
-                            onBookAppointment = { navController.navigate(BookAppointmentForReservation) },
+                            onBookAppointment = { navigatePatientFeature(BookAppointmentForReservation) },
                         )
                     }
                     composable<BookAppointmentForReservation> {
@@ -282,7 +309,7 @@ fun EyecareNavGraph(
                     composable<PrescriptionList> {
                         PrescriptionListScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToDetail = { navController.navigate(PrescriptionDetail(it)) },
+                            onNavigateToDetail = { navigatePatientFeature(PrescriptionDetail(it)) },
                         )
                     }
                     composable<PrescriptionDetail> { back ->
@@ -310,15 +337,15 @@ fun EyecareNavGraph(
                     }
                     composable<Appointments> {
                         AppointmentListScreen(
-                            onNavigateToDetail = { id -> navController.navigate(AppointmentDetail(id)) },
-                            onNavigateToBook = { navController.navigate(BookAppointment) },
+                            onNavigateToDetail = { id -> navigatePatientFeature(AppointmentDetail(id)) },
+                            onNavigateToBook = { navigatePatientFeature(BookAppointment) },
                         )
                     }
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToIntake = { appointmentId -> navController.navigate(PatientIntake(appointmentId)) },
-                            onNavigateToReservations = { navController.navigate(FrameReservationList) },
+                            onNavigateToIntake = { appointmentId -> navigatePatientFeature(PatientIntake(appointmentId)) },
+                            onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
                         )
                     }
                     composable<PatientIntake> { backStackEntry ->
@@ -331,9 +358,7 @@ fun EyecareNavGraph(
                         BookAppointmentScreen(
                             onBack = { navController.popBackStack() },
                             onBooked = {
-                                navController.navigate(Appointments) {
-                                    popUpTo(BookAppointment) { inclusive = true }
-                                }
+                                navigateMainTab(Appointments)
                             },
                         )
                     }
@@ -341,16 +366,18 @@ fun EyecareNavGraph(
                         ProfileScreen(
                             onLogout = {
                                 tokenManager.clearToken()
+                                sessionViewModel.signOut()
                                 onLogout()
                                 navController.navigate(AuthGraph) {
                                     popUpTo(MainGraph) { inclusive = true }
                                 }
                             },
-                            onNavigateToPrescriptions = { navController.navigate(PrescriptionList) },
-                            onNavigateToReservations = { navController.navigate(FrameReservationList) },
-                            onNavigateToEyewear = { navController.navigate(EyewearList) },
+                            onNavigateToPrescriptions = { navigatePatientFeature(PrescriptionList) },
+                            onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
+                            onNavigateToEyewear = { navigatePatientFeature(EyewearList) },
                             onNavigateToEditProfile = { navController.navigate(EditProfile) },
-                            onNavigateToMessages = { navController.navigate(Chat) },
+                            onNavigateToMessages = { navigatePatientFeature(Chat) },
+                            onNavigateToAccountLink = { navController.navigate(LimitedAccount) },
                             unreadMessageCount = unreadCount,
                         )
                     }
@@ -362,7 +389,7 @@ fun EyecareNavGraph(
                     composable<Chat> {
                         ChatScreen(
                             onBack = { navController.popBackStack() },
-                            onAppointmentClick = { navController.navigate(AppointmentDetail(it)) },
+                            onAppointmentClick = { navigatePatientFeature(AppointmentDetail(it)) },
                         )
                     }
                 }
@@ -374,14 +401,7 @@ fun EyecareNavGraph(
                 SplitBottomNavBar(
                     currentRoute = currentRoute,
                     onTabSelected = { route ->
-                        navController.navigate(route) {
-                            popUpTo<MainGraph> {
-                                saveState = true
-                                inclusive = false
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                        navigateMainTab(route)
                     },
                 )
             }

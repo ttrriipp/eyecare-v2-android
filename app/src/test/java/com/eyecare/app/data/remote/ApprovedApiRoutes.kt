@@ -38,6 +38,8 @@ internal object ApprovedApiRoutes {
         "PATCH $BASE/account/contacts/{contact}/primary",
         "DELETE $BASE/account/contacts/{contact}",
         "GET $BASE/account/link",
+        "POST $BASE/patient-link-requests",
+        "GET $BASE/patient-link-requests/current",
         "POST $BASE/patient-invitations/acceptance/otp",
         "POST $BASE/patient-invitations/accept",
     )

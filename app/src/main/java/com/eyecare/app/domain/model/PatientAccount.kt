@@ -16,6 +16,29 @@ data class PatientAccount(
     val linkedPatient: LinkedPatient?,
 )
 
+data class PatientLinkRequest(
+    val requestNumber: String,
+    val status: PatientLinkRequestStatus,
+    val submittedAt: String,
+    val reviewedAt: String?,
+)
+
+enum class PatientLinkRequestStatus {
+    PENDING,
+    APPROVED,
+    REJECTED,
+    UNKNOWN;
+
+    companion object {
+        fun fromRaw(value: String?): PatientLinkRequestStatus = when (value?.lowercase()) {
+            "pending" -> PENDING
+            "approved" -> APPROVED
+            "rejected" -> REJECTED
+            else -> UNKNOWN
+        }
+    }
+}
+
 data class LinkedPatient(
     val patientNumber: String,
     val fullName: String,

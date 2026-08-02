@@ -78,6 +78,10 @@ com.eyecare.app/
 - **Images:** `buildImageUrl(path)` prepends storage base URL. Prefer variant images → fallback to product images.
 - **Pagination:** `PaginationMeta` (currentPage, lastPage). ViewModel tracks `hasMorePages` + `loadMore()`.
 - **Navigation:** Type-safe routes via `@Serializable` objects/data classes. Auth/Main graph split.
+- **Limited account access:** A validated account with `UNLINKED`, `PENDING_REVIEW`, or `UNKNOWN`
+  link status enters `MainGraph` with the normal shell. Home and account/security remain available;
+  active-link clinical destinations are gated at navigation and open `LimitedAccount` for invitation
+  entry or a clinic-review link request. Profile keeps a persistent link entry point.
 - **Bottom-nav tab switches:** use `popUpTo<MainGraph> { saveState = true; inclusive = false }` + `launchSingleTop = true` + `restoreState = true` so switching tabs doesn't grow the back-stack or lose scroll position.
 - **Wizard flows (e.g. booking):** on terminal success, pop the wizard's own route off the stack with `popUpTo(WizardRoute) { inclusive = true }` before navigating to the result screen.
 - **Backend alias fields:** when the backend returns two field names for the same value (e.g. `lens_category_id` canonical + `lens_type_id` backward-compat alias), the DTO parses both but the domain model exposes only the canonical name. Repository mapping prefers canonical, falls back to alias: `lensCategoryId = lensCategoryId ?: lensTypeId`. Request bodies (e.g. `OrderItemRequest`) may keep using the alias name if the backend documents it as accepted — no need to migrate outbound fields the backend still supports.

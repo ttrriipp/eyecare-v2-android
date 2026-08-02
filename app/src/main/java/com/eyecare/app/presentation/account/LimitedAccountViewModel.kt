@@ -6,6 +6,7 @@ import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.LinkState
 import com.eyecare.app.domain.model.PatientAccount
+import com.eyecare.app.domain.model.PatientLinkRequest
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.repository.AccountRepository
 import com.eyecare.app.domain.repository.AuthRepository
@@ -20,6 +21,9 @@ sealed interface LimitedAccountState {
     data class Overview(
         val account: PatientAccount,
         val linkState: LinkState? = null,
+        val currentLinkRequest: PatientLinkRequest? = null,
+        val isSubmittingLinkRequest: Boolean = false,
+        val requestError: String? = null,
     ) : LimitedAccountState
     data class EnterInvitationCode(
         val account: PatientAccount,
@@ -56,6 +60,7 @@ class LimitedAccountViewModel @Inject constructor(
     fun load(account: PatientAccount) {
         _state.value = LimitedAccountState.Overview(account = account)
         refreshLinkState()
+        refreshCurrentLinkRequest()
     }
 
     fun startInvitationEntry() {
@@ -65,6 +70,41 @@ class LimitedAccountViewModel @Inject constructor(
             else -> return
         }
         _state.value = LimitedAccountState.EnterInvitationCode(account = account)
+    }
+
+    fun submitClinicLinkRequest() {
+        val current = _state.value
+        if (current !is LimitedAccountState.Overview ||
+            current.isSubmittingLinkRequest ||
+            current.currentLinkRequest != null ||
+            current.linkState is LinkState.PendingReview
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            _state.value = current.copy(isSubmittingLinkRequest = true, requestError = null)
+            accountRepository.submitPatientLinkRequest()
+                .onSuccess { request ->
+                    val latest = _state.value
+                    if (latest is LimitedAccountState.Overview) {
+                        _state.value = latest.copy(
+                            linkState = LinkState.PendingReview,
+                            currentLinkRequest = request,
+                            isSubmittingLinkRequest = false,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    val latest = _state.value
+                    if (latest is LimitedAccountState.Overview) {
+                        _state.value = latest.copy(
+                            isSubmittingLinkRequest = false,
+                            requestError = error.message ?: "Could not send the clinic link request",
+                        )
+                    }
+                }
+        }
     }
 
     fun updateInvitationCode(code: String) {
@@ -130,10 +170,16 @@ class LimitedAccountViewModel @Inject constructor(
     }
 
     fun back() {
-        _state.value = when (val current = _state.value) {
-            is LimitedAccountState.EnterInvitationCode -> LimitedAccountState.Overview(current.account)
-            is LimitedAccountState.VerifyInvitationOtp -> LimitedAccountState.EnterInvitationCode(current.account, current.invitationCode)
-            else -> _state.value
+        when (val current = _state.value) {
+            is LimitedAccountState.EnterInvitationCode -> {
+                _state.value = LimitedAccountState.Overview(current.account)
+                refreshLinkState()
+                refreshCurrentLinkRequest()
+            }
+            is LimitedAccountState.VerifyInvitationOtp -> {
+                _state.value = LimitedAccountState.EnterInvitationCode(current.account, current.invitationCode)
+            }
+            else -> Unit
         }
     }
 
@@ -157,9 +203,32 @@ class LimitedAccountViewModel @Inject constructor(
         viewModelScope.launch {
             accountRepository.getLinkState()
                 .onSuccess { linkState ->
+                    if (linkState is LinkState.Linked) {
+                        refreshMeForLinked()
+                    } else {
+                        val current = _state.value
+                        if (current is LimitedAccountState.Overview) {
+                            _state.value = current.copy(linkState = linkState)
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun refreshCurrentLinkRequest() {
+        viewModelScope.launch {
+            accountRepository.getCurrentPatientLinkRequest()
+                .onSuccess { request ->
                     val current = _state.value
                     if (current is LimitedAccountState.Overview) {
-                        _state.value = current.copy(linkState = linkState)
+                        _state.value = current.copy(
+                            currentLinkRequest = request,
+                            linkState = if (request != null && current.linkState !is LinkState.Linked) {
+                                LinkState.PendingReview
+                            } else {
+                                current.linkState
+                            },
+                        )
                     }
                 }
         }

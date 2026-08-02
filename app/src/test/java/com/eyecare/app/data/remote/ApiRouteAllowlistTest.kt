@@ -9,7 +9,7 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `v13 auth routes match expected count`() {
-        assertEquals(23, ApprovedApiRoutes.v13AuthRoutes.size, "V13 auth/account routes")
+        assertEquals(25, ApprovedApiRoutes.v13AuthRoutes.size, "V13 auth/account routes")
     }
 
     @Test

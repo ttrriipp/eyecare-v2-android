@@ -3,6 +3,7 @@ package com.eyecare.app.domain.repository
 import com.eyecare.app.domain.model.AccountContact
 import com.eyecare.app.domain.model.LinkState
 import com.eyecare.app.domain.model.OtpChallenge
+import com.eyecare.app.domain.model.PatientLinkRequest
 import com.eyecare.app.domain.model.StepUpChallenge
 import com.eyecare.app.domain.model.StepUpProof
 
@@ -21,6 +22,8 @@ interface AccountRepository {
         passwordConfirmation: String,
     ): Result<String>
     suspend fun getLinkState(): Result<LinkState>
+    suspend fun submitPatientLinkRequest(): Result<PatientLinkRequest>
+    suspend fun getCurrentPatientLinkRequest(): Result<PatientLinkRequest?>
     suspend fun requestInvitationOtp(invitationCode: String): Result<OtpChallenge>
     suspend fun acceptInvitation(invitationCode: String, challengeId: String, code: String): Result<LinkState>
 }

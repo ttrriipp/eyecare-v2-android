@@ -14,6 +14,8 @@ import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.LinkState
 import com.eyecare.app.domain.model.OtpChallenge
+import com.eyecare.app.domain.model.PatientLinkRequest
+import com.eyecare.app.domain.model.PatientLinkRequestStatus
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.StepUpChallenge
 import com.eyecare.app.domain.model.StepUpProof
@@ -117,6 +119,16 @@ class AccountRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun submitPatientLinkRequest(): Result<PatientLinkRequest> = safeApiCall {
+        api.submitPatientLinkRequest().data.toDomain()
+    }
+
+    override suspend fun getCurrentPatientLinkRequest(): Result<PatientLinkRequest?> = safeApiCall {
+        val response = api.getCurrentPatientLinkRequest()
+        if (!response.isSuccessful) throw HttpException(response)
+        response.body()?.data?.toDomain()
+    }
+
     override suspend fun requestInvitationOtp(invitationCode: String): Result<OtpChallenge> = safeApiCall {
         val response = api.requestInvitationOtp(InvitationOtpRequest(invitationCode = invitationCode.trim()))
         OtpChallenge(challengeId = response.data.challengeId, expiresAt = response.data.expiresAt)
@@ -154,4 +166,11 @@ class AccountRepositoryImpl @Inject constructor(
             fieldErrors = error.fieldErrors,
         )
     }
+
+    private fun com.eyecare.app.data.remote.dto.PatientLinkRequestData.toDomain() = PatientLinkRequest(
+        requestNumber = requestNumber,
+        status = PatientLinkRequestStatus.fromRaw(status),
+        submittedAt = submittedAt,
+        reviewedAt = reviewedAt,
+    )
 }

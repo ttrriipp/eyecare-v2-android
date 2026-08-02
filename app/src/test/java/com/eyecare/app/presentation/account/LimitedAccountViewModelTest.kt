@@ -3,6 +3,8 @@ package com.eyecare.app.presentation.account
 import com.eyecare.app.domain.model.LinkState
 import com.eyecare.app.domain.model.OtpChallenge
 import com.eyecare.app.domain.model.PatientAccount
+import com.eyecare.app.domain.model.PatientLinkRequest
+import com.eyecare.app.domain.model.PatientLinkRequestStatus
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.repository.AccountRepository
 import com.eyecare.app.domain.repository.AuthRepository
@@ -48,6 +50,7 @@ class LimitedAccountViewModelTest {
     @Test
     fun `load sets account and refreshes link state`() {
         coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
         vm.load(unlinkedAccount)
         val state = vm.state.value as LimitedAccountState.Overview
         assertEquals(unlinkedAccount, state.account)
@@ -56,6 +59,7 @@ class LimitedAccountViewModelTest {
     @Test
     fun `startInvitationEntry transitions to EnterInvitationCode`() {
         coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
         vm.load(unlinkedAccount)
         vm.startInvitationEntry()
         assertTrue(vm.state.value is LimitedAccountState.EnterInvitationCode)
@@ -64,6 +68,7 @@ class LimitedAccountViewModelTest {
     @Test
     fun `requestInvitationOtp success transitions to VerifyInvitationOtp`() {
         coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
         coEvery { accountRepo.requestInvitationOtp("INV-123") } returns
             Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
 
@@ -79,6 +84,7 @@ class LimitedAccountViewModelTest {
     @Test
     fun `requestInvitationOtp failure shows error`() {
         coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
         coEvery { accountRepo.requestInvitationOtp("BAD") } returns
             Result.failure(Exception("Invalid invitation"))
 
@@ -89,5 +95,39 @@ class LimitedAccountViewModelTest {
 
         val state = vm.state.value as LimitedAccountState.EnterInvitationCode
         assertTrue(state.error != null)
+    }
+
+    @Test
+    fun `submit clinic link request marks account as pending review`() {
+        val request = PatientLinkRequest(
+            requestNumber = "PLR-2026-000001",
+            status = PatientLinkRequestStatus.PENDING,
+            submittedAt = "2026-08-01T10:00:00+08:00",
+            reviewedAt = null,
+        )
+        coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
+        coEvery { accountRepo.submitPatientLinkRequest() } returns Result.success(request)
+
+        vm.load(unlinkedAccount)
+        vm.submitClinicLinkRequest()
+
+        val state = vm.state.value as LimitedAccountState.Overview
+        assertEquals(LinkState.PendingReview, state.linkState)
+        assertEquals(request, state.currentLinkRequest)
+    }
+
+    @Test
+    fun `submit clinic link request shows specific API error`() {
+        coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
+        coEvery { accountRepo.submitPatientLinkRequest() } returns
+            Result.failure(Exception("A link request is already pending."))
+
+        vm.load(unlinkedAccount)
+        vm.submitClinicLinkRequest()
+
+        val state = vm.state.value as LimitedAccountState.Overview
+        assertEquals("A link request is already pending.", state.requestError)
     }
 }

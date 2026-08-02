@@ -26,7 +26,6 @@ import com.eyecare.app.domain.model.SessionState
 fun SessionGateScreen(
     onNavigateToWelcome: () -> Unit,
     onNavigateToMain: () -> Unit,
-    onNavigateToLimited: () -> Unit,
     viewModel: SessionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -40,7 +39,7 @@ fun SessionGateScreen(
             onNavigateToMain()
         }
         is SessionState.Limited -> {
-            onNavigateToLimited()
+            onNavigateToMain()
         }
         is SessionState.TransientFailure -> SessionGateErrorContent(
             message = s.message,

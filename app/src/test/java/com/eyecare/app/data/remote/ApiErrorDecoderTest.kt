@@ -23,6 +23,27 @@ class ApiErrorDecoderTest {
     }
 
     @Test
+    fun `decodes Laravel validation envelope`() {
+        val body = """
+            {
+              "message": "The given data was invalid.",
+              "errors": {
+                "date_of_birth": ["The date of birth must be before today."]
+              }
+            }
+        """.trimIndent()
+
+        val error = ApiErrorDecoder.decode(422, body)
+
+        assertEquals("VALIDATION", error.code)
+        assertEquals("The given data was invalid.", error.message)
+        assertEquals(
+            listOf("The date of birth must be before today."),
+            error.fieldErrors["date_of_birth"],
+        )
+    }
+
+    @Test
     fun `null body returns unknown error`() {
         val error = ApiErrorDecoder.decode(500, null)
         assertEquals("UNKNOWN_ERROR", error.code)

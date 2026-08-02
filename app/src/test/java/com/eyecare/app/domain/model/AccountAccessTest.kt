@@ -60,10 +60,18 @@ class AccountAccessTest {
     }
 
     @Test
-    fun `routeFromLinkStatus maps non-LINKED to AccountAccessGraph`() {
-        assertEquals(RouteDestination.AccountAccessGraph, routeFromLinkStatus(PatientLinkStatus.UNLINKED))
-        assertEquals(RouteDestination.AccountAccessGraph, routeFromLinkStatus(PatientLinkStatus.PENDING_REVIEW))
-        assertEquals(RouteDestination.AccountAccessGraph, routeFromLinkStatus(PatientLinkStatus.UNKNOWN))
+    fun `routeFromLinkStatus maps non-LINKED to MainGraph with gated features`() {
+        assertEquals(RouteDestination.MainGraph, routeFromLinkStatus(PatientLinkStatus.UNLINKED))
+        assertEquals(RouteDestination.MainGraph, routeFromLinkStatus(PatientLinkStatus.PENDING_REVIEW))
+        assertEquals(RouteDestination.MainGraph, routeFromLinkStatus(PatientLinkStatus.UNKNOWN))
+    }
+
+    @Test
+    fun `only linked sessions can access patient features`() {
+        assertTrue(canAccessPatientFeatures(SessionState.Linked(testAccount(PatientLinkStatus.LINKED))))
+        assertTrue(!canAccessPatientFeatures(SessionState.Limited(testAccount(PatientLinkStatus.UNLINKED))))
+        assertTrue(!canAccessPatientFeatures(SessionState.Limited(testAccount(PatientLinkStatus.PENDING_REVIEW))))
+        assertTrue(!canAccessPatientFeatures(SessionState.Limited(testAccount(PatientLinkStatus.UNKNOWN))))
     }
 
     @Test

@@ -15,11 +15,18 @@ fun resolveSessionState(account: PatientAccount?): SessionState = when {
 }
 
 fun routeFromLinkStatus(linkStatus: PatientLinkStatus): RouteDestination = when (linkStatus) {
-    PatientLinkStatus.LINKED -> RouteDestination.MainGraph
+    PatientLinkStatus.LINKED,
     PatientLinkStatus.UNLINKED,
     PatientLinkStatus.PENDING_REVIEW,
-    PatientLinkStatus.UNKNOWN -> RouteDestination.AccountAccessGraph
+    PatientLinkStatus.UNKNOWN -> RouteDestination.MainGraph
 }
+
+/**
+ * Clinical records are protected by the active patient-link boundary. Account-only screens
+ * remain available to limited sessions, so callers must use this policy only for patient data.
+ */
+fun canAccessPatientFeatures(sessionState: SessionState): Boolean =
+    sessionState is SessionState.Linked
 
 enum class RouteDestination {
     AuthGraph,

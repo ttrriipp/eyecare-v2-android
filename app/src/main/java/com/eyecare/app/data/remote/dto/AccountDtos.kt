@@ -96,6 +96,17 @@ data class LinkStateData(
     @SerialName("request_submitted_at") val requestSubmittedAt: String? = null,
 )
 
+@Serializable
+data class PatientLinkRequestResponse(val data: PatientLinkRequestData)
+
+@Serializable
+data class PatientLinkRequestData(
+    @SerialName("request_number") val requestNumber: String,
+    val status: String,
+    @SerialName("submitted_at") val submittedAt: String,
+    @SerialName("reviewed_at") val reviewedAt: String? = null,
+)
+
 // --- Invitation ---
 
 @Serializable

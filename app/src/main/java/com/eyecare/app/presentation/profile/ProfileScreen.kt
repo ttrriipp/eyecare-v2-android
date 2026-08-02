@@ -66,6 +66,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.PatientAccount
+import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 
@@ -77,6 +78,7 @@ fun ProfileScreen(
     onNavigateToEyewear: () -> Unit = {},
     onNavigateToEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
+    onNavigateToAccountLink: () -> Unit = {},
     unreadMessageCount: Int = 0,
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
@@ -111,6 +113,7 @@ fun ProfileScreen(
             onNavigateToPrescriptions = onNavigateToPrescriptions,
             onNavigateToReservations = onNavigateToReservations,
             onNavigateToEyewear = onNavigateToEyewear,
+            onNavigateToAccountLink = onNavigateToAccountLink,
             onLogoutClick = { showLogoutDialog = true },
         )
     }
@@ -143,6 +146,7 @@ fun ProfileContent(
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
     onNavigateToEyewear: () -> Unit = {},
+    onNavigateToAccountLink: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
     Column(
@@ -156,6 +160,12 @@ fun ProfileContent(
         Spacer(Modifier.height(8.dp))
         ProfileHeader()
         PatientIdentityCard(account = account, onEditProfile = onEditProfile)
+        if (account.linkStatus != PatientLinkStatus.LINKED) {
+            ClinicLinkCard(
+                account = account,
+                onClick = onNavigateToAccountLink,
+            )
+        }
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -228,6 +238,48 @@ fun ProfileContent(
                 text = "Log out",
                 fontWeight = FontWeight.SemiBold,
             )
+        }
+    }
+}
+
+@Composable
+private fun ClinicLinkCard(
+    account: PatientAccount,
+    onClick: () -> Unit,
+) {
+    Card(
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = if (account.linkStatus == PatientLinkStatus.PENDING_REVIEW) {
+                    "Clinic link request pending"
+                } else {
+                    "Connect your clinic record"
+                },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = if (account.linkStatus == PatientLinkStatus.PENDING_REVIEW) {
+                    "Check your link status or enter an invitation code from your clinic."
+                } else {
+                    "Link your account to unlock appointments, prescriptions, reservations, and clinic messages."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            OutlinedButton(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Link to clinic")
+            }
         }
     }
 }
