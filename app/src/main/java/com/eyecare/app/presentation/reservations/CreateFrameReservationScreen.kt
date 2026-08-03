@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.ui.theme.EyecareColors
 import com.eyecare.app.presentation.common.components.ErrorContent
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -244,7 +245,7 @@ private fun AppointmentChoiceCard(
                 )
             }
             if (isSelected) {
-                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = EyecareColors.current.accentText)
             }
         }
     }

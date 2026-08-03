@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -62,7 +61,7 @@ fun MessageBubble(
                     Text(
                         message.body,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isOwn) Color.White else MaterialTheme.colorScheme.onSurface,
+                        color = if (isOwn) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                     )
                 }
 
@@ -97,7 +96,7 @@ fun MessageBubble(
                 Text(
                     message.createdAt.take(16).replace("T", " "),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isOwn) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isOwn) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.End),
                 )
             }
@@ -126,13 +125,13 @@ private fun AttachmentContent(attachment: MessageAttachment, isOwn: Boolean) {
                 Icons.Default.Description,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = if (isOwn) Color.White else MaterialTheme.colorScheme.onSurface,
+                tint = if (isOwn) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
             )
             Spacer(Modifier.width(4.dp))
             Text(
                 attachment.originalName,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isOwn) Color.White else MaterialTheme.colorScheme.onSurface,
+                color = if (isOwn) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
             )
         }
     }

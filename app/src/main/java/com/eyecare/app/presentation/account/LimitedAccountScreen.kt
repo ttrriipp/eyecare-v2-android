@@ -1,5 +1,7 @@
 package com.eyecare.app.presentation.account
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,27 +9,38 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -42,6 +55,7 @@ import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.FieldError
 import com.eyecare.app.presentation.auth.components.OtpExpiryRow
 import com.eyecare.app.presentation.auth.components.OtpField
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun LimitedAccountScreen(
@@ -97,7 +111,7 @@ fun LimitedAccountScreen(
 }
 
 @Composable
-private fun LimitedOverviewContent(
+internal fun LimitedOverviewContent(
     account: PatientAccount,
     linkState: LinkState?,
     currentLinkRequest: PatientLinkRequest?,
@@ -114,21 +128,21 @@ private fun LimitedOverviewContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = account.name.ifBlank { "Account" },
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             if (requestedFeatureLabel != null) {
                 Text(
                     text = "Link your clinic record to open $requestedFeatureLabel.",
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = EyecareColors.current.accentText,
                 )
                 Text(
                     text = "After linking, we’ll take you back there. Your clinical data stays protected until then.",
@@ -144,67 +158,176 @@ private fun LimitedOverviewContent(
             }
             Text(
                 text = statusCopy(account.linkStatus, linkState),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            if (currentLinkRequest != null || linkState is LinkState.PendingReview) {
+            val hasPendingClinicRequest = currentLinkRequest != null || linkState is LinkState.PendingReview
+            if (hasPendingClinicRequest) {
                 Card(
+                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Clinic link request pending",
-                            style = MaterialTheme.typography.titleMedium,
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Schedule,
+                            contentDescription = null,
+                            tint = EyecareColors.current.accentText,
+                            modifier = Modifier.size(24.dp),
                         )
-                        Text(
-                            text = "The clinic can review your account and link it to the right patient record. You can still enter an invitation code if the clinic sends one.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                        currentLinkRequest?.requestNumber?.let { requestNumber ->
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = requestNumber,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(top = 8.dp),
+                                text = "Clinic link request pending",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
+                            Text(
+                                text = "The clinic can review your account and link it to the right patient record. You can still enter an invitation code if the clinic sends one.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            currentLinkRequest?.requestNumber?.let { requestNumber ->
+                                Text(
+                                    text = requestNumber,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
                         }
                     }
                 }
             }
-            AuthPrimaryButton(
-                text = "Enter invitation code",
-                onClick = onEnterInvite,
+
+            ConnectAccountCard(
+                showBothMethods = !hasPendingClinicRequest,
+                isSubmittingLinkRequest = isSubmittingLinkRequest,
+                requestError = requestError,
+                onEnterInvite = onEnterInvite,
+                onRequestClinicLink = onRequestClinicLink,
             )
-            if (currentLinkRequest == null && linkState !is LinkState.PendingReview) {
-                AuthOutlinedButton(
-                    text = "Ask clinic to link me",
-                    onClick = onRequestClinicLink,
-                    enabled = !isSubmittingLinkRequest,
-                    loading = isSubmittingLinkRequest,
-                )
-                FieldError(requestError)
+
+            TextButton(onClick = onAccountSecurity, modifier = Modifier.fillMaxWidth()) {
+                Text("Account & Security")
             }
-            AuthOutlinedButton(
-                text = "Account & Security",
-                onClick = onAccountSecurity,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
             Button(
                 onClick = onSignOut,
-                shape = MaterialTheme.shapes.large,
+                shape = RoundedCornerShape(50),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 52.dp),
+                    .height(48.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
-                Text("Sign out")
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.Logout,
+                    contentDescription = null,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Sign out",
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
+}
+
+private enum class LinkMethod { INVITATION_CODE, CLINIC_REQUEST }
+
+@Composable
+private fun ConnectAccountCard(
+    showBothMethods: Boolean,
+    isSubmittingLinkRequest: Boolean,
+    requestError: String?,
+    onEnterInvite: () -> Unit,
+    onRequestClinicLink: () -> Unit,
+) {
+    var selectedMethod by remember(showBothMethods) { mutableStateOf(LinkMethod.INVITATION_CODE) }
+
+    Card(
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Connect your account",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            if (showBothMethods) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    LinkMethod.entries.forEachIndexed { index, method ->
+                        SegmentedButton(
+                            selected = selectedMethod == method,
+                            onClick = { selectedMethod = method },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = LinkMethod.entries.size),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                activeContentColor = EyecareColors.current.accentText,
+                                activeBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                                inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            ),
+                            label = {
+                                Text(
+                                    if (method == LinkMethod.INVITATION_CODE) "Invitation code" else "Ask clinic",
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
+            Crossfade(
+                targetState = if (showBothMethods) selectedMethod else LinkMethod.INVITATION_CODE,
+                label = "link-method",
+            ) { method ->
+                when (method) {
+                    LinkMethod.INVITATION_CODE -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Enter the code from your clinic to link your account right away.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        AuthPrimaryButton(
+                            text = "Enter invitation code",
+                            onClick = onEnterInvite,
+                        )
+                    }
+                    LinkMethod.CLINIC_REQUEST -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "The clinic reviews your account and links it to your record. This can take longer than an invitation code.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        AuthOutlinedButton(
+                            text = "Request clinic review",
+                            onClick = onRequestClinicLink,
+                            enabled = !isSubmittingLinkRequest,
+                            loading = isSubmittingLinkRequest,
+                        )
+                        FieldError(requestError)
+                    }
+                }
             }
         }
     }
@@ -216,10 +339,7 @@ private fun LimitedInviteCodeStep(
     viewModel: LimitedAccountViewModel,
 ) {
     AuthStepScaffold(title = "Invitation code", onBack = { viewModel.back() }) {
-        Text(
-            text = "Enter the invitation code from your clinic. We'll verify it before linking your account.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        AuthIntro("Enter the invitation code from your clinic. We'll verify it before linking your account.")
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = state.code,

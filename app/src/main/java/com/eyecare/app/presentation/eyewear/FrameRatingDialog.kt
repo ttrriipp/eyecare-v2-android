@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun FrameRatingDialog(
@@ -59,7 +60,7 @@ fun FrameRatingDialog(
                             Icon(
                                 imageVector = if (star <= selectedRating) Icons.Filled.Star else Icons.Outlined.Star,
                                 contentDescription = "Rate $star",
-                                tint = if (star <= selectedRating) MaterialTheme.colorScheme.primary
+                                tint = if (star <= selectedRating) EyecareColors.current.accentText
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(32.dp),
                             )

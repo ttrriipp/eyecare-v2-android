@@ -78,11 +78,7 @@ import com.eyecare.app.presentation.appointments.requests.AppointmentRequestList
 import com.eyecare.app.presentation.appointments.requests.RequestListState
 import com.eyecare.app.presentation.appointments.requests.requestStatusPresentation
 import com.eyecare.app.ui.theme.EyecareTheme
-import com.eyecare.app.ui.theme.OnSurfaceVariant
-import com.eyecare.app.ui.theme.StatusCancelled
-import com.eyecare.app.ui.theme.StatusConfirmed
-import com.eyecare.app.ui.theme.StatusInfo
-import com.eyecare.app.ui.theme.StatusPending
+import com.eyecare.app.ui.theme.EyecareColors
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -148,7 +144,8 @@ fun AppointmentListScreen(
                     if (requestData?.requests?.isNotEmpty() == true) {
                         AppointmentListContent(
                             appointments = emptyList(),
-                            confirmedError = state.message,
+                            hasConfirmedError = true,
+                            onRetryConfirmed = { viewModel.refresh(hasActivePatientLink) },
                             requestState = requestState,
                             onNavigateToDetail = onNavigateToDetail,
                             onNavigateToRequestDetail = onNavigateToRequestDetail,
@@ -221,7 +218,7 @@ private fun AppointmentListHeader(
                 Icon(
                     Icons.Outlined.CalendarMonth,
                     contentDescription = if (dateFilterEnabled) "Close date filter" else "Filter by date",
-                    tint = if (dateFilterEnabled) MaterialTheme.colorScheme.primary
+                    tint = if (dateFilterEnabled) EyecareColors.current.accentText
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
@@ -244,7 +241,7 @@ private fun AppointmentListTabs(
                 shape = SegmentedButtonDefaults.itemShape(index = tab.ordinal, count = AppointmentListTab.entries.size),
                 colors = SegmentedButtonDefaults.colors(
                     activeContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                    activeContentColor = MaterialTheme.colorScheme.primary,
+                    activeContentColor = EyecareColors.current.accentText,
                     activeBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
                     inactiveContainerColor = MaterialTheme.colorScheme.surface,
                     inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -313,22 +310,22 @@ private fun WeeklyAppointmentCalendar(
                                 text = date.format(DateTimeFormatter.ofPattern("E", Locale.US)).take(1).uppercase(Locale.US),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 10.sp),
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                             )
                             Text(
                                 text = date.dayOfMonth.toString(),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 14.sp),
                                 fontWeight = FontWeight.Bold,
-                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                             )
                             Surface(
                                 modifier = Modifier.size(4.dp),
                                 shape = CircleShape,
                                 color = when {
-                                    isSelected && hasAppointment -> Color.White
-                                    hasAppointment -> MaterialTheme.colorScheme.primary
+                                    isSelected && hasAppointment -> MaterialTheme.colorScheme.onPrimary
+                                    hasAppointment -> EyecareColors.current.accentText
                                     else -> Color.Transparent
                                 },
                             ) {}
@@ -353,12 +350,12 @@ private fun WeekNavigationButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(36.dp),
+        modifier = Modifier.size(48.dp),
     ) {
         Icon(
             icon,
             contentDescription = contentDescription,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = EyecareColors.current.accentText,
             modifier = Modifier.size(24.dp),
         )
     }
@@ -527,13 +524,17 @@ fun StatusChip(status: AppointmentStatus, textColor: Color = Color.Unspecified) 
     )
 }
 
-private fun appointmentStatusLabelAndColor(status: AppointmentStatus): Pair<String, Color> = when (status) {
-    AppointmentStatus.SCHEDULED -> "Scheduled" to StatusPending
-    AppointmentStatus.CHECKED_IN -> "Checked in" to StatusInfo
-    AppointmentStatus.FULFILLED -> "Completed" to OnSurfaceVariant
-    AppointmentStatus.NO_SHOW -> "No show" to StatusCancelled
-    AppointmentStatus.CANCELLED -> "Cancelled" to StatusCancelled
-    AppointmentStatus.UNKNOWN -> "Unknown" to OnSurfaceVariant
+@Composable
+private fun appointmentStatusLabelAndColor(status: AppointmentStatus): Pair<String, Color> {
+    val colors = EyecareColors.current
+    return when (status) {
+        AppointmentStatus.SCHEDULED -> "Scheduled" to colors.statusPending
+        AppointmentStatus.CHECKED_IN -> "Checked in" to colors.statusInfo
+        AppointmentStatus.FULFILLED -> "Completed" to MaterialTheme.colorScheme.onSurfaceVariant
+        AppointmentStatus.NO_SHOW -> "No show" to colors.statusCancelled
+        AppointmentStatus.CANCELLED -> "Cancelled" to colors.statusCancelled
+        AppointmentStatus.UNKNOWN -> "Unknown" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
 }
 
 internal fun formatAppointmentTitle(visitReason: String): String = visitReason
@@ -594,7 +595,8 @@ internal fun appointmentsForTab(
 private fun AppointmentListContent(
     appointments: List<AppointmentV1>,
     requestState: RequestListState,
-    confirmedError: String? = null,
+    hasConfirmedError: Boolean = false,
+    onRetryConfirmed: () -> Unit = {},
     onNavigateToDetail: (Int) -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit,
     onLoadMoreRequests: () -> Unit,
@@ -689,12 +691,11 @@ private fun AppointmentListContent(
                 )
             }
         }
-        if (confirmedError != null) {
+        if (hasConfirmedError) {
             item {
-                Text(
-                    text = "Confirmed appointments unavailable: $confirmedError",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
+                RequestListErrorRow(
+                    message = "Confirmed appointments couldn't be loaded",
+                    onRetry = onRetryConfirmed,
                 )
             }
         }
@@ -837,13 +838,14 @@ private fun AppointmentRequestStatusPill(
     status: AppointmentRequestStatus,
     label: String,
 ) {
+    val colors = EyecareColors.current
     val color = when (status) {
-        AppointmentRequestStatus.PENDING -> StatusPending
-        AppointmentRequestStatus.ACCEPTED -> StatusConfirmed
+        AppointmentRequestStatus.PENDING -> colors.statusPending
+        AppointmentRequestStatus.ACCEPTED -> colors.statusConfirmed
         AppointmentRequestStatus.REJECTED,
         AppointmentRequestStatus.CANCELLED,
-        AppointmentRequestStatus.EXPIRED -> StatusCancelled
-        AppointmentRequestStatus.UNKNOWN -> OnSurfaceVariant
+        AppointmentRequestStatus.EXPIRED -> colors.statusCancelled
+        AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.12f)) {
         Text(

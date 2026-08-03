@@ -36,6 +36,7 @@ import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.Quotation
 import com.eyecare.app.presentation.eyewear.estimateCardTitle
 import com.eyecare.app.presentation.eyewear.orderCardTitle
+import com.eyecare.app.ui.theme.EyecareColors
 
 private enum class SheetPage { MAIN, ESTIMATES, ORDERS }
 
@@ -143,7 +144,7 @@ private fun SheetOption(icon: ImageVector, label: String, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+        Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = EyecareColors.current.accentText)
         Spacer(Modifier.width(16.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge)
     }

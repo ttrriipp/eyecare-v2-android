@@ -1,6 +1,8 @@
 package com.eyecare.app.presentation.navigation
 
+import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
+import com.eyecare.app.domain.model.SessionState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -76,4 +78,48 @@ class PatientRouteAccessTest {
         assertFalse(canAccessRoute(CreateFrameReservation(frameId = 7, variantId = 3), linkStatus))
         assertFalse(canAccessRoute(Chat, linkStatus))
     }
+
+    @Test
+    fun `limited session redirects active-link destinations to the link hub`() {
+        val sessionState = SessionState.Limited(testAccount())
+
+        assertTrue(shouldRedirectToLimitedAccount("PrescriptionList", sessionState))
+        assertTrue(shouldRedirectToLimitedAccount("Chat", sessionState))
+        assertTrue(shouldRedirectToLimitedAccount("MyEyewear", sessionState))
+    }
+
+    @Test
+    fun `limited session keeps account-safe destinations in the main shell`() {
+        val sessionState = SessionState.Limited(testAccount())
+
+        assertFalse(shouldRedirectToLimitedAccount("Home", sessionState))
+        assertFalse(shouldRedirectToLimitedAccount("Frames", sessionState))
+        assertFalse(shouldRedirectToLimitedAccount("Profile", sessionState))
+    }
+
+    @Test
+    fun `linked session is not redirected from active-link destinations`() {
+        assertFalse(
+            shouldRedirectToLimitedAccount(
+                "PrescriptionList",
+                SessionState.Linked(testAccount(PatientLinkStatus.LINKED)),
+            ),
+        )
+    }
+
+    private fun testAccount(linkStatus: PatientLinkStatus = PatientLinkStatus.UNLINKED) = PatientAccount(
+        id = 1,
+        name = "Test Account",
+        firstName = "Test",
+        middleName = null,
+        lastName = "Account",
+        email = null,
+        phone = "+639171234567",
+        role = "patient",
+        dateOfBirth = null,
+        linkStatus = linkStatus,
+        privacyPolicyVersion = null,
+        privacyAcceptedAt = null,
+        linkedPatient = null,
+    )
 }

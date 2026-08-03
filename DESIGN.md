@@ -4,7 +4,8 @@ description: A calm, warm, and clear Android care companion built around reassur
 colors:
   primary: "#29B6F6"
   primary-container: "#E1F5FE"
-  on-primary: "#FFFFFF"
+  on-primary: "#3D3535"
+  accent-text: "#076D9D"
   charcoal: "#3D3535"
   visit-navy: "#1A2E5A"
   warm-canvas: "#F8F9FA"
@@ -16,26 +17,56 @@ colors:
   status-pending: "#F6AD55"
   status-confirmed: "#38A169"
   status-cancelled: "#E53E3E"
+  error-container: "#FFE0DE"
+  tertiary-container: "#D8F3E3"
 typography:
   display:
     fontFamily: "Outfit, sans-serif"
     fontSize: "24sp"
     fontWeight: 600
+  headline-large:
+    fontFamily: "Outfit, sans-serif"
+    fontSize: "22sp"
+    fontWeight: 600
   headline:
     fontFamily: "Outfit, sans-serif"
     fontSize: "18sp"
     fontWeight: 500
+  headline-small:
+    fontFamily: "Outfit, sans-serif"
+    fontSize: "16sp"
+    fontWeight: 600
+  title-large:
+    fontFamily: "DM Sans, sans-serif"
+    fontSize: "18sp"
+    fontWeight: 600
   title:
     fontFamily: "DM Sans, sans-serif"
     fontSize: "16sp"
     fontWeight: 600
+  title-small:
+    fontFamily: "DM Sans, sans-serif"
+    fontSize: "14sp"
+    fontWeight: 600
+  body-large:
+    fontFamily: "DM Sans, sans-serif"
+    fontSize: "16sp"
+    fontWeight: 400
   body:
     fontFamily: "DM Sans, sans-serif"
     fontSize: "14sp"
     fontWeight: 400
+  label-large:
+    fontFamily: "DM Sans, sans-serif"
+    fontSize: "14sp"
+    fontWeight: 500
   label:
     fontFamily: "DM Sans, sans-serif"
     fontSize: "12sp"
+    fontWeight: 500
+  label-small:
+    fontFamily: "DM Sans, sans-serif"
+    fontSize: "11sp"
     fontWeight: 500
 rounded:
   field: "4dp"
@@ -131,35 +162,41 @@ The palette combines a bright optical cyan with warm neutrals and one deep navy 
 
 ### Primary
 
-- **Lens Cyan** (`primary`, `#29B6F6`): the canonical action and selection color. Use it for primary buttons, selected navigation, active dates, icons, links, focus strokes, and concise emphasis.
-- **Light Lens Wash** (`primary-container`, `#E1F5FE`): a low-pressure background for icon tiles, booking invitations, review summaries, and other cyan-associated supporting surfaces.
-- **Clear White** (`on-primary`, `#FFFFFF`): content placed directly on Lens Cyan or Deep Vision Navy.
+- **Lens Cyan** (`primary`, `#29B6F6`): the canonical action and selection *fill* color, identical in light and dark. Use it for primary button/FAB/selected-tab fills, active date circles, and other solid cyan surfaces — never as text or icon color on a light surface (see Deep Lens Cyan below).
+- **Light Lens Wash** (`primary-container`, `#E1F5FE` light / `#123846` dark): a low-pressure background for icon tiles, booking invitations, review summaries, and other cyan-associated supporting surfaces. The dark variant is a composed deep cyan-tinted container, not an inverted wash.
+- **Charcoal-on-Cyan** (`on-primary`, `#3D3535`, both themes): content placed directly on a Lens Cyan *fill*. White measured 2.3:1 against Lens Cyan — below the 3:1 floor even for large text — so `on-primary` uses the existing Charcoal Ink instead, which clears 5.18:1.
+- **Deep Lens Cyan** (`accent-text`, `#076D9D` light / `#29B6F6` dark): Lens Cyan itself fails WCAG AA as text or icon color on *any* light surface — white, its own container wash, and the warm canvas all measure 2.0–2.3:1, the identical failure to white-on-cyan, just the two colors swapped. Use this deeper, same-hue cyan for every cyan link, price, icon-tile glyph, status-pill "info" state, and segmented-tab active label sitting on a light surface. In dark mode it resolves back to Lens Cyan unchanged, since Lens Cyan already clears 7:1+ against the dark surfaces.
 
 ### Secondary
 
-- **Deep Vision Navy** (`visit-navy`, `#1A2E5A`): a deliberate high-contrast anchor for the next-visit ticket and similarly important clinic summaries. It is not a general replacement for the warm canvas or white cards.
+- **Deep Vision Navy** (`visit-navy`, `#1A2E5A` light / `#2A4374` dark): a deliberate high-contrast anchor for the next-visit ticket and similarly important clinic summaries. The dark variant is lightened so it still visibly lifts off a dark canvas the way the light variant lifts off the warm canvas; content on top stays white in both themes. Not a general replacement for the warm canvas or white cards.
 
 ### Tertiary
 
-- **Amber Pending** (`status-pending`, `#F6AD55`): scheduled or waiting states.
-- **Confirmation Green** (`status-confirmed`, `#38A169`): explicitly successful or confirmed states.
-- **Alert Red** (`status-cancelled`, `#E53E3E`): cancellation, no-show, destructive, or error-adjacent status communication.
+- **Amber Pending** (`status-pending`, `#F6AD55`, both themes): scheduled or waiting states. Unchanged in dark mode — it already clears WCAG AA against a near-black surface.
+- **Confirmation Green** (`status-confirmed`, `#38A169` light / `#7DD9A8` dark): explicitly successful or confirmed states. This hue also backs Material's `tertiary` role (`tertiary-container` `#D8F3E3` light / `#1B4332` dark), so stock Material components (and the My Eyewear "Accepted / Ready / Paid" states, which read `colorScheme.tertiary`) now resolve to this brand green instead of Material's unbranded default.
+- **Alert Red** (`status-cancelled`, `#E53E3E` light / `#FF8A80` dark): cancellation, no-show, destructive, or error-adjacent status communication. This hue also backs Material's `error` role (`error-container` `#FFE0DE` light / `#5C1A16` dark) for the same reason — form validation, destructive buttons, and inline error text across the app now render in brand Alert Red rather than Material's default red.
+
+**Known contrast gap:** white content on the light-theme `status-cancelled`/`status-confirmed` fills (and those hues as inline text on white) measures 3.25–4.13:1 — clears the 3:1 large-text/UI-component floor but not strict 4.5:1 body text. Both hexes are pre-existing, documented brand tokens; nudging them is a separate decision from adding dark theme and needs its own sign-off before either hex changes.
 
 ### Neutral
 
-- **Warm Clinic Canvas** (`warm-canvas`, `#F8F9FA`): the application background; slightly warm so white surfaces remain visible without heavy shadow.
-- **Pure Care Surface** (`surface`, `#FFFFFF`): cards, dialogs, navigation, fields, and sheets.
-- **Soft Utility Surface** (`surface-variant`, `#F1F3F5`): subdued empty states, search areas, and secondary content groups.
-- **Charcoal Ink** (`charcoal`, `#3D3535`): primary text and icons; warmer than generic black.
-- **Supporting Slate** (`supporting-text`, `#6B7280`): secondary copy, metadata, inactive navigation, and low-emphasis icons.
-- **Quiet Outline** (`outline`, `#E5E7EB`): visible field and control outlines.
-- **Hairline Border** (`card-border`, `rgba(0,0,0,0.08)`): the subtle one-dp boundary used to lift white cards from the warm canvas.
+- **Warm Clinic Canvas** (`warm-canvas`, `#F8F9FA` light / `#15161A` dark): the application background. Dark is a composed near-black with the faintest cool cast, not an inverted warm tone — heavy warmth read as muddy at this lightness.
+- **Pure Care Surface** (`surface`, `#FFFFFF` light / `#1E2024` dark): cards, dialogs, navigation, fields, and sheets.
+- **Soft Utility Surface** (`surface-variant`, `#F1F3F5` light / `#26282D` dark): subdued empty states, search areas, and secondary content groups.
+- **Charcoal Ink** (`charcoal`, `#3D3535`): primary text and icons in light mode; warmer than generic black.
+- **Warm Fog** (`on-surface` dark, `#ECE7E4`): primary text and icons in dark mode — an off-white, not stark `#FFFFFF`, so long reading passages stay comfortable.
+- **Supporting Slate** (`supporting-text`, `#6B7280` light / `#A7ADB4` dark): secondary copy, metadata, inactive navigation, and low-emphasis icons.
+- **Quiet Outline** (`outline`, `#E5E7EB` light / `#6E7178` dark): visible field and control outlines.
+- **Hairline Border** (`card-border`, `rgba(0,0,0,0.08)` light / `rgba(255,255,255,0.12)` dark): the subtle one-dp boundary used to lift cards from the canvas. Direction inverts deliberately — a black-based hairline is invisible on a dark surface, so dark mode uses a white-based one instead.
 
-**The Clear Accent Rule.** Lens Cyan signals action, selection, identity, or information hierarchy; it does not become broad decoration across an entire screen.
+**The Clear Accent Rule.** Lens Cyan signals action, selection, identity, or information hierarchy; it does not become broad decoration across an entire screen. **Cyan-as-fill vs. cyan-as-text are different tokens** (`primary` vs. `accent-text`) — never reach for `primary` to color text or an icon glyph sitting on a light surface; that pairing fails contrast outright.
 
 **The Navy Anchor Rule.** Deep Vision Navy is reserved for high-priority visit information whose contrast should interrupt the otherwise quiet surface system.
 
-Unassigned Material color roles remain implementation defaults and are provisional. Do not promote an incidental default secondary, tertiary, or error color into the Eyecare palette without updating the theme and this record together.
+**The Composed Dark Rule.** Dark theme is a first-class scheme with its own surface, container, and hairline-border decisions — never a mechanical inversion of the light values. `EyecareTheme` switches on `isSystemInDarkTheme()`; the app does not yet opt into Android 12+ Dynamic Color, since it would replace the pinned canonical Lens Cyan with a wallpaper-derived hue.
+
+Material's `secondary`/`secondaryContainer` roles remain unassigned implementation defaults — nothing in the app currently reads them. Do not promote an incidental default color into the Eyecare palette without updating the theme and this record together.
 
 ## Typography
 
@@ -172,12 +209,19 @@ Unassigned Material color roles remain implementation defaults and are provision
 ### Hierarchy
 
 - **Display** (Outfit SemiBold, 24sp): compact screen-level statements such as the Home greeting, the Appointments page title, and the Welcome screen's hero line.
+- **Headline Large** (Outfit SemiBold, 22sp): identity-level headings, e.g. the read-only Patient Profile screen's full-name hero line.
 - **Headline** (Outfit Medium, 18sp): section headings, appointment titles, and important card content; use SemiBold only when the local hierarchy needs additional emphasis.
+- **Headline Small** (Outfit SemiBold, 16sp): in-flow step or empty-state intros, e.g. "Select a visit," "Scheduled visit required."
+- **Title Large** (DM Sans SemiBold, 18sp): a detail screen's own hero heading — the appointment type, an estimate's or order's title, a bottom sheet's header — paired with a small label/reference above it; callers may push to Bold for extra emphasis.
 - **Title** (DM Sans SemiBold, 16sp): component titles and strong row-level labels.
+- **Title Small** (DM Sans SemiBold, 14sp): compact sub-section headers inside a card ("Items," "Notes," "Payment summary") and the Frame Card's frame name.
+- **Body Large** (DM Sans Regular, 16sp): prominent detail-row values, review-step content, and empty-state messages that need more presence than ordinary body copy.
 - **Body** (DM Sans Regular, 14sp): instructions, supporting descriptions, dates, times, and normal informational content.
+- **Label Large** (DM Sans Medium, 14sp): form field labels (e.g. "Gender *").
 - **Label** (DM Sans Medium, 12sp): status labels, metadata, compact actions, and controlled uppercase eyebrow text (e.g. the visit ticket's "YOUR NEXT VISIT" kicker and the registration form's section labels).
+- **Label Small** (DM Sans Medium, 11sp): the smallest captions and badges, including the bottom navigation's per-tab label and compact status chips, both of which further override the base size via `.copy(fontSize = …)` while keeping the DM Sans/Medium voice.
 
-Only the roles above are established custom tokens. Material roles not overridden in `Type.kt`, including `titleLarge`, `bodyLarge`, `headlineSmall`, `headlineLarge`, `titleSmall`, and `labelSmall`, silently fall back to the Material default (Roboto) rather than Outfit/DM Sans — treat any screen still reaching for one of these as an unfixed defect, not an alternate voice.
+These twelve roles are the complete set of Material typography slots the app actually reaches for; `displayMedium` and `displaySmall` remain unstyled Material defaults because no screen currently uses them — style them the moment a screen does, rather than letting them silently fall back to Roboto.
 
 **The Friendly Precision Rule.** Use Outfit to welcome and orient; use DM Sans to explain and operate. Do not add ad hoc font families, hand-picked sizes, or an unstyled Material role when an established custom role fits.
 
@@ -242,7 +286,7 @@ The repeated silhouette is a rounded white or tonal surface with either a hairli
 
 ### Navigation
 
-- **Style:** the four-tab bottom navigation is a compact white floating shell with a 16dp radius and 2dp elevation. Selected tabs receive a 12dp Lens Cyan tile with white icon and label; inactive tabs remain transparent with Supporting Slate content.
+- **Style:** the four-tab bottom navigation is a compact white floating shell with a 16dp radius and 2dp elevation. Selected tabs receive a 12dp Lens Cyan tile with Charcoal-on-Cyan icon and label (`on-primary`, not white — white measured 2.3:1 against Lens Cyan); inactive tabs remain transparent with Supporting Slate content.
 - **Motion:** selection color uses a restrained spring, while the selected tab scales only to 1.05. Route changes combine a fade with a short horizontal slide; movement communicates direction without becoming spectacle.
 - **Android behavior:** preserve navigation-bar insets, system Back, and 48dp touch targets. The current compact-width shell is not an approved tablet pattern.
 
@@ -256,15 +300,23 @@ Appointment cards use a 20dp white surface with one-dp elevation, a semantic sta
 
 ### Frame Card
 
-The eyewear grid card is a 16dp white surface with a one-dp `outlineVariant` border and 2dp elevation — a quieter sibling of the appointment card, sized for a two-up grid. A square product image sits above 12dp of padding holding an uppercase brand label (Label role), the frame name (Title, two-line clamp), and the price in Lens Cyan. AR-ready frames get a small pill badge (Lens Cyan at 15% tint, rounded 20dp) pinned to the image's top-right corner, pairing an icon with the text "AR" rather than color alone.
+The eyewear grid card is a 16dp white surface with a one-dp `outlineVariant` border and 2dp elevation — a quieter sibling of the appointment card, sized for a two-up grid. A square product image sits above 12dp of padding holding an uppercase brand label (Label role), the frame name (Title, two-line clamp), and the price in Deep Lens Cyan (`accent-text`; the fill-strength Lens Cyan fails contrast as text on this white card). AR-ready frames get a small pill badge (Lens Cyan at 15% tint, rounded 20dp) pinned to the image's top-right corner, pairing a Deep Lens Cyan icon with the text "AR" rather than color alone.
 
 ### Segmented Tabs & Date Selector
 
-Appointment history uses a two-item Material `SegmentedButtonRow` for Upcoming/History, tinted with the same ~14%-cyan-fill / cyan-content / ~35%-alpha-border recipe as other selected chip states. The weekly date strip uses 38dp circular date targets: the selected day fills solid Lens Cyan with white text, unselected days sit on a one-dp-elevated white circle, and a 4dp dot (cyan when the day has an appointment) sits beneath the day number as a quiet at-a-glance signal — never the only cue, since the day is also distinguishable by its own date.
+Appointment history uses a two-item Material `SegmentedButtonRow` for Upcoming/History, tinted with the same ~14%-cyan-fill / Deep-Lens-Cyan-content / ~35%-alpha-border recipe as other selected chip states — the active label uses `accent-text`, not `primary`, since it's content on a near-white tint. The weekly date strip uses 38dp circular date targets: the selected day fills solid Lens Cyan with Charcoal-on-Cyan text (`on-primary`), unselected days sit on a one-dp-elevated white circle, and a 4dp dot (`on-primary` when selected and the day has an appointment, otherwise Deep Lens Cyan) sits beneath the day number as a quiet at-a-glance signal — never the only cue, since the day is also distinguishable by its own date.
 
 ### Confirmation Dialog
 
 Appointment confirmations use a 20dp white surface with a hairline border, a 44dp tinted circular icon badge, concise title and body copy, and equal-width pill actions. Destructive confirmations use semantic error color for the confirm action and always retain a clearly worded safe alternative.
+
+### Method-Choice Card
+
+When a screen offers two equally valid ways to complete one task (e.g. the account-linking screen's "enter an invitation code" vs. "ask the clinic to review"), consolidate them into one 16dp bordered white card headed by a Title-role label, with the same segmented-tab recipe as Segmented Tabs choosing between the methods and a crossfade swapping the method-specific copy and action beneath it. This keeps the decision legible as one task rather than a stack of equally-weighted buttons; reserve it for genuinely parallel paths, not a primary action plus a secondary escape hatch.
+
+### Identity Header
+
+Profile leads with a 56dp circular Light Lens Wash avatar holding cyan initials (Headline role), the patient's name (Display role, single line with ellipsis), and a small status dot paired with a short label naming the account's clinic-link state (Confirmation Green when linked, Amber Pending under clinic review, Lens Cyan when not yet linked and a next step exists, Supporting Slate for an unknown status). Never show a bare page title ("Profile") when real account identity is available; the generic title is reserved for states where identity genuinely cannot be shown yet, such as a load error.
 
 ## Do's and Don'ts
 
@@ -276,7 +328,7 @@ Appointment confirmations use a 20dp white surface with a hairline border, a 44d
 - **Do** reserve Deep Vision Navy for high-priority visit summaries.
 - **Do** pair every status color with a clear text label.
 - **Do** preserve 48dp touch targets, Android system insets, system Back behavior, and readable increased-font layouts — including making long or keyboard-compressed content scrollable rather than letting it clip.
-- **Do** route every headline, title, body, and label through the five established typography roles, even in a shared/base component, so no screen silently reverts to unstyled Material defaults.
+- **Do** route every headline, title, body, and label through the twelve established typography roles, even in a shared/base component, so no screen silently reverts to unstyled Material defaults.
 
 ### Don't:
 
@@ -286,4 +338,5 @@ Appointment confirmations use a 20dp white surface with a hairline border, a 44d
 - **Don't** flood whole screens with Lens Cyan; its precision is part of its character.
 - **Don't** introduce heavy shadows, arbitrary radii, or multiple competing primary actions.
 - **Don't** make an entire clickable text run (e.g. a consent label plus an inline link) a single tap target for the link action; isolate the link's own text so the surrounding label can still drive its adjacent control.
-- **Don't** claim dark theme, tablet, expanded-width, or landscape behavior is designed until those states are deliberately resolved.
+- **Don't** claim tablet, expanded-width, or landscape behavior is designed until those states are deliberately resolved. Dark theme is now a first-class scheme; treat any screen that still hard-codes a light-only color as an unfixed defect, not an exception.
+- **Don't** use `primary`/Lens Cyan as a `Text` color or `Icon` tint on a light surface — it fails WCAG AA outright. Use `accent-text` (`EyecareColors.current.accentText`) for cyan text/icons instead; `primary` is reserved for fills.

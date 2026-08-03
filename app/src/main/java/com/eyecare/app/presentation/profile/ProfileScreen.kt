@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -59,6 +60,7 @@ import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun ProfileScreen(
@@ -151,7 +153,7 @@ fun ProfileContent(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Spacer(Modifier.height(8.dp))
-        ProfileHeader()
+        ProfileHeader(account = account)
 
         AccountSection(
             account = account,
@@ -272,11 +274,79 @@ private fun AccountSection(
 }
 
 @Composable
-private fun ProfileHeader() {
-    Text(
-        text = "Profile",
-        style = MaterialTheme.typography.displayLarge,
-    )
+private fun ProfileHeader(account: PatientAccount? = null) {
+    if (account == null) {
+        Text(
+            text = "Profile",
+            style = MaterialTheme.typography.displayLarge,
+        )
+        return
+    }
+
+    val colors = EyecareColors.current
+    val (statusLabel, statusColor) = when (account.linkStatus) {
+        PatientLinkStatus.LINKED -> "Clinic record linked" to colors.statusConfirmed
+        PatientLinkStatus.PENDING_REVIEW -> "Clinic review pending" to colors.statusPending
+        PatientLinkStatus.UNLINKED -> "Not yet linked to a clinic record" to colors.statusInfo
+        PatientLinkStatus.UNKNOWN -> "Account status unknown" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.size(56.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = profileInitials(account),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EyecareColors.current.accentText,
+                )
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = account.name.ifBlank { "Account" },
+                style = MaterialTheme.typography.displayLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(statusColor),
+                )
+                Text(
+                    text = statusLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun profileInitials(account: PatientAccount): String {
+    val first = account.firstName?.trim()?.firstOrNull()
+    val last = account.lastName?.trim()?.firstOrNull()
+    if (first != null && last != null) return "$first$last".uppercase()
+
+    val nameParts = account.name.trim().split(" ").filter { it.isNotBlank() }
+    return when {
+        nameParts.size >= 2 -> "${nameParts.first().first()}${nameParts.last().first()}".uppercase()
+        nameParts.size == 1 -> nameParts.first().take(1).uppercase()
+        else -> "?"
+    }
 }
 @Composable
 private fun ProfileNavRow(
@@ -300,7 +370,7 @@ private fun ProfileNavRow(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = EyecareColors.current.accentText,
                         modifier = Modifier.size(21.dp),
                     )
                 }

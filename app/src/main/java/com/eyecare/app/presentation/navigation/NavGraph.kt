@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavDestination
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -75,6 +76,20 @@ fun EyecareNavGraph(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDest: NavDestination? = backStackEntry?.destination
 
+    LaunchedEffect(currentDest?.route, sessionState) {
+        val route = currentDest?.route
+        if (!shouldRedirectToLimitedAccount(route, sessionState)) return@LaunchedEffect
+        if (navController.currentDestination?.route != route) return@LaunchedEffect
+
+        // This is a backstop for restored/direct navigation paths. Normal feature clicks already
+        // set pendingPatientFeature before opening the hub, while this path removes the protected
+        // destination as soon as a limited session is observed.
+        navController.popBackStack()
+        navController.navigate(LimitedAccount) {
+            launchSingleTop = true
+        }
+    }
+
     // Unread message count — only loaded inside MainGraph
     var unreadCount by remember { mutableIntStateOf(0) }
     var pendingPatientFeature by remember { mutableStateOf<PatientFeatureIntent?>(null) }
@@ -110,12 +125,17 @@ fun EyecareNavGraph(
         else -> false
     }
 
-    fun navigatePatientFeature(route: Any) {
+    fun navigatePatientFeature(
+        route: Any,
+        navOptions: NavOptionsBuilder.() -> Unit = {},
+    ) {
         if (canNavigateTo(route)) {
-            navController.navigate(route)
+            navController.navigate(route, navOptions)
         } else {
             pendingPatientFeature = patientFeatureIntentFrom(route)
-            navController.navigate(LimitedAccount)
+            navController.navigate(LimitedAccount) {
+                launchSingleTop = true
+            }
         }
     }
 
@@ -307,7 +327,7 @@ fun EyecareNavGraph(
                             variantId = route.variantId,
                             onBack = { navController.popBackStack() },
                             onSuccess = {
-                                navController.navigate(FrameReservationList) {
+                                navigatePatientFeature(FrameReservationList) {
                                     popUpTo<CreateFrameReservation> { inclusive = true }
                                 }
                             },
@@ -358,29 +378,29 @@ fun EyecareNavGraph(
                             prescriptionId = route.prescriptionId,
                             onBack = { navController.popBackStack() },
                             onNavigateToPrevious = { previousId ->
-                                navController.navigate(PrescriptionDetail(previousId))
+                                navigatePatientFeature(PrescriptionDetail(previousId))
                             },
                         )
                     }
                     composable<MyEyewear> {
                         MyEyewearScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToEstimate = { id -> navController.navigate(EstimateDetail(id)) },
-                            onNavigateToOrder = { id -> navController.navigate(OpticalOrderDetail(id)) },
+                            onNavigateToEstimate = { id -> navigatePatientFeature(EstimateDetail(id)) },
+                            onNavigateToOrder = { id -> navigatePatientFeature(OpticalOrderDetail(id)) },
                         )
                     }
                     composable<EstimateDetail> { back ->
                         val route = back.toRoute<EstimateDetail>()
                         EstimateDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToOrder = { id -> navController.navigate(OpticalOrderDetail(id)) },
+                            onNavigateToOrder = { id -> navigatePatientFeature(OpticalOrderDetail(id)) },
                         )
                     }
                     composable<OpticalOrderDetail> { back ->
                         val route = back.toRoute<OpticalOrderDetail>()
                         OpticalOrderDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToEstimate = { id -> navController.navigate(EstimateDetail(id)) },
+                            onNavigateToEstimate = { id -> navigatePatientFeature(EstimateDetail(id)) },
                             onRateItem = { /* Rating handled within screen via dialog */ },
                         )
                     }

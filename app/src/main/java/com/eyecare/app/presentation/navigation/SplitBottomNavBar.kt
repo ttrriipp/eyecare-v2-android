@@ -100,7 +100,7 @@ private fun NavTabItem(
         label = "tabBg",
     )
     val contentColor by animateColorAsState(
-        targetValue = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium),
         label = "tabContent",
     )
@@ -127,7 +127,7 @@ private fun NavTabItem(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = label,
+                contentDescription = null,
                 modifier = Modifier.size(18.dp),
                 tint = contentColor,
             )

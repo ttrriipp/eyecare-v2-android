@@ -45,7 +45,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -58,6 +57,7 @@ import com.eyecare.app.presentation.messaging.components.AttachmentPreview
 import com.eyecare.app.presentation.messaging.components.AttachmentSheet
 import com.eyecare.app.presentation.messaging.components.ContextCard
 import com.eyecare.app.presentation.messaging.components.MessageBubble
+import com.eyecare.app.ui.theme.EyecareColors
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -217,7 +217,7 @@ fun ChatScreen(
                 modifier = Modifier.size(44.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Add, contentDescription = "Add attachment", tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.Add, contentDescription = "Add attachment", tint = EyecareColors.current.accentText)
                 }
             }
             Spacer(Modifier.width(8.dp))
@@ -253,9 +253,17 @@ fun ChatScreen(
                 color = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(48.dp),
             ) {
+                val sendContentColor = if (canSend) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 Box(contentAlignment = Alignment.Center) {
-                    if (isSending) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White)
-                    else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = Color.White)
+                    if (isSending) {
+                        CircularProgressIndicator(Modifier.size(20.dp), color = sendContentColor)
+                    } else {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = sendContentColor)
+                    }
                 }
             }
         }

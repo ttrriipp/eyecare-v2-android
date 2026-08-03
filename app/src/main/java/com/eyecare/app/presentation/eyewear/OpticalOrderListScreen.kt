@@ -32,6 +32,7 @@ import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentStatus
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 
 @Composable
@@ -161,7 +162,7 @@ private fun OrderCard(
             )
 
             val statusColor = when (order.status) {
-                OpticalOrderStatus.QUEUED, OpticalOrderStatus.IN_PROGRESS -> MaterialTheme.colorScheme.primary
+                OpticalOrderStatus.QUEUED, OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
                 OpticalOrderStatus.READY_FOR_DISPENSING -> MaterialTheme.colorScheme.tertiary
                 OpticalOrderStatus.DISPENSED -> MaterialTheme.colorScheme.tertiary
                 OpticalOrderStatus.CANCELLED -> MaterialTheme.colorScheme.error

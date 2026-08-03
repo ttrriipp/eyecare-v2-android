@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.messaging.PendingAttachment
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun AttachmentPreview(
@@ -46,7 +47,7 @@ fun AttachmentPreview(
             imageVector = if (isImage) Icons.Default.Image else Icons.Default.Description,
             contentDescription = null,
             modifier = Modifier.size(24.dp),
-            tint = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            tint = if (error != null) MaterialTheme.colorScheme.error else EyecareColors.current.accentText,
         )
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {

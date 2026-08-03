@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.messaging.PendingContext
 import com.eyecare.app.presentation.eyewear.estimateCardTitle
 import com.eyecare.app.presentation.eyewear.orderCardTitle
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun ContextCard(
@@ -45,14 +46,14 @@ fun ContextCard(
             },
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = EyecareColors.current.accentText,
         )
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             when (context) {
                 is PendingContext.Estimate -> {
                     val q = context.quotation
-                    Text("Estimate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Text("Estimate", style = MaterialTheme.typography.labelSmall, color = EyecareColors.current.accentText)
                     Text(
                         "${estimateCardTitle(q)} · ${q.quotationNumber}",
                         style = MaterialTheme.typography.bodySmall,
@@ -60,7 +61,7 @@ fun ContextCard(
                 }
                 is PendingContext.Order -> {
                     val o = context.order
-                    Text("Eyewear order", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Text("Eyewear order", style = MaterialTheme.typography.labelSmall, color = EyecareColors.current.accentText)
                     Text(
                         "${orderCardTitle(o)} · ${o.orderNumber}",
                         style = MaterialTheme.typography.bodySmall,

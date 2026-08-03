@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.domain.model.MessageContext
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 internal fun MessageContextCard(
@@ -52,9 +53,9 @@ internal fun MessageContextCard(
         is MessageContext.Unsupported -> return
     }
 
-    val foregroundColor = if (isOwn) Color.White else MaterialTheme.colorScheme.onSurface
+    val foregroundColor = if (isOwn) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     val secondaryColor = if (isOwn) {
-        Color.White.copy(alpha = 0.72f)
+        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -97,7 +98,7 @@ internal fun MessageContextCard(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isOwn) Color.White else MaterialTheme.colorScheme.primary,
+                        tint = if (isOwn) MaterialTheme.colorScheme.onPrimary else EyecareColors.current.accentText,
                         modifier = Modifier.size(20.dp),
                     )
                 }

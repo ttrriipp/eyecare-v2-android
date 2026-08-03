@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.auth.components.AuthOutlinedButton
 import com.eyecare.app.presentation.auth.components.AuthPrimaryButton
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun WelcomeScreen(
@@ -54,7 +55,7 @@ fun WelcomeScreen(
                     Icon(
                         imageVector = Icons.Filled.Visibility,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = EyecareColors.current.accentText,
                         modifier = Modifier.size(36.dp),
                     )
                 }

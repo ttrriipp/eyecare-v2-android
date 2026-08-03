@@ -33,6 +33,7 @@ import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.isArReady
 import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun FrameCard(
@@ -98,7 +99,7 @@ fun FrameCard(
                 Text(
                     if (displayPrice != null) "₱${String.format("%.2f", displayPrice)}" else "",
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = EyecareColors.current.accentText,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -121,13 +122,13 @@ private fun ArBadge(modifier: Modifier = Modifier) {
             Icon(
                 Icons.Outlined.FaceRetouchingNatural,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = EyecareColors.current.accentText,
                 modifier = Modifier.size(14.dp),
             )
             Text(
                 "AR",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = EyecareColors.current.accentText,
                 fontWeight = FontWeight.SemiBold,
             )
         }

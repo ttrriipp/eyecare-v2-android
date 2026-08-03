@@ -33,7 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.eyecare.app.ui.theme.CardBorder
+import com.eyecare.app.ui.theme.EyecareColors
 
 /**
  * Themed confirmation/notice dialog matching the app's visual language — pill-shaped buttons,
@@ -53,14 +53,14 @@ fun AppConfirmationDialog(
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
     dismissLabel: String? = null,
-    iconTint: Color = MaterialTheme.colorScheme.primary,
+    iconTint: Color = EyecareColors.current.accentText,
     isDestructive: Boolean = false,
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, CardBorder),
+            border = BorderStroke(1.dp, EyecareColors.current.cardBorder),
         ) {
             Column(
                 modifier = Modifier

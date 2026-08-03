@@ -51,10 +51,7 @@ import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.domain.model.isCancellable
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
-import com.eyecare.app.ui.theme.StatusCancelled
-import com.eyecare.app.ui.theme.StatusConfirmed
-import com.eyecare.app.ui.theme.StatusInfo
-import com.eyecare.app.ui.theme.StatusPending
+import com.eyecare.app.ui.theme.EyecareColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -222,13 +219,14 @@ private fun formatReservationSchedule(scheduledAt: String, durationMinutes: Int)
 
 @Composable
 private fun StatusChip(status: ReservationStatus) {
+    val colors = EyecareColors.current
     val (label, color) = when (status) {
-        ReservationStatus.REQUESTED -> "Requested" to StatusPending
-        ReservationStatus.PREPARED -> "Prepared" to StatusConfirmed
-        ReservationStatus.TRIED_ON -> "Tried on" to StatusInfo
-        ReservationStatus.CONVERTED -> "Converted" to StatusConfirmed
+        ReservationStatus.REQUESTED -> "Requested" to colors.statusPending
+        ReservationStatus.PREPARED -> "Prepared" to colors.statusConfirmed
+        ReservationStatus.TRIED_ON -> "Tried on" to colors.statusInfo
+        ReservationStatus.CONVERTED -> "Converted" to colors.statusConfirmed
         ReservationStatus.RELEASED -> "Released" to MaterialTheme.colorScheme.onSurfaceVariant
-        ReservationStatus.CANCELLED -> "Cancelled" to StatusCancelled
+        ReservationStatus.CANCELLED -> "Cancelled" to colors.statusCancelled
         ReservationStatus.UNKNOWN -> "Unknown" to MaterialTheme.colorScheme.onSurfaceVariant
     }
     SuggestionChip(

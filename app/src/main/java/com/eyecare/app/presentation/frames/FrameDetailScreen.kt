@@ -62,6 +62,7 @@ import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.isArReady
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.ui.theme.EyecareColors
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -124,7 +125,7 @@ fun FrameDetailScreen(
                                             imageVector = Icons.Outlined.FaceRetouchingNatural,
                                             contentDescription = null,
                                             modifier = Modifier.padding(16.dp).size(32.dp),
-                                            tint = MaterialTheme.colorScheme.primary,
+                                            tint = EyecareColors.current.accentText,
                                         )
                                     }
                                     Spacer(Modifier.height(12.dp))
@@ -184,7 +185,7 @@ fun FrameDetailScreen(
                                             Icon(
                                                 imageVector = Icons.Outlined.Inventory2,
                                                 contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
+                                                tint = EyecareColors.current.accentText,
                                                 modifier = Modifier.size(20.dp),
                                             )
                                         }
@@ -220,7 +221,7 @@ fun FrameDetailScreen(
                                         Text(
                                             text = "₱${String.format("%.2f", selected.price)}",
                                             style = MaterialTheme.typography.headlineMedium,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            color = EyecareColors.current.accentText,
                                             fontWeight = FontWeight.Bold,
                                         )
                                         selected.compareAtPrice?.let { original ->
@@ -257,7 +258,7 @@ fun FrameDetailScreen(
                                                 Icon(
                                                     imageVector = Icons.Outlined.Palette,
                                                     contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    tint = EyecareColors.current.accentText,
                                                     modifier = Modifier.size(20.dp),
                                                 )
                                             }

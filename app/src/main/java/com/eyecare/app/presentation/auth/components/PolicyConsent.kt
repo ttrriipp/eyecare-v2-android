@@ -22,6 +22,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun PolicyConsentRow(
@@ -34,7 +35,7 @@ fun PolicyConsentRow(
     modifier: Modifier = Modifier,
 ) {
     var linkRange by remember(label, linkText) { mutableStateOf(0 to 0) }
-    val linkColor = MaterialTheme.colorScheme.primary
+    val linkColor = EyecareColors.current.accentText
     val annotatedText = remember(label, linkText, linkColor) {
         buildAnnotatedString {
             append(label)

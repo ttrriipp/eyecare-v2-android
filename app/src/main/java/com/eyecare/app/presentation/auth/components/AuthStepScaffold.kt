@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eyecare.app.ui.theme.EyecareColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -145,7 +146,7 @@ fun AuthOutlinedButton(
             if (loading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
-                    color = MaterialTheme.colorScheme.primary,
+                    color = EyecareColors.current.accentText,
                     strokeWidth = 2.dp,
                 )
             }

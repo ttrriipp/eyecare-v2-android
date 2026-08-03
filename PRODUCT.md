@@ -18,7 +18,7 @@ Success means patients can complete routine clinic interactions from their phone
 
 ## Positioning
 
-Eyecare connects a patient's mobile account to Padilla Optical Clinic's real clinical record and workflow. Its distinguishing mechanism is the combination of clinic-linked care access, direct clinic communication, and AR-assisted eyewear discovery within one patient account.
+Eyecare connects a patient's mobile account to Padilla Optical Clinic's real clinical record and workflow. Its distinguishing mechanism is the combination of clinic-linked care access, direct clinic communication, AR-assisted eyewear discovery, and end-to-end tracking of a patient's own eyewear estimates and orders within one patient account.
 
 An account may exist before a clinical record link is established. Unlinked patients retain safe app access and a persistent path to enter an invitation code or request clinic review, while patient-specific clinical features remain gated until the link is active.
 
@@ -31,8 +31,9 @@ Patients use the app before and between clinic visits to:
 - review upcoming and historical clinic activity;
 - request, review, reschedule, or cancel eligible appointments;
 - view prescriptions and other eligible eyewear or billing information;
+- track their own eyewear estimates (quotations) and optical orders through Current/History views, follow order fulfillment status, and rate rateable order items;
 - browse AR-ready frames, try them on with the front-facing camera, and manage eligible frame reservations;
-- exchange messages and contextual appointment or order information with clinic staff;
+- exchange messages and contextual appointment, estimate, or order information with clinic staff;
 - maintain their supported account and contact details.
 
 The Laravel API and clinic administration system remain authoritative for clinical identity, permissions, availability, workflow status, inventory, and health information.

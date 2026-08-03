@@ -40,6 +40,7 @@ import com.eyecare.app.presentation.auth.components.ContactMethod
 import com.eyecare.app.presentation.auth.components.FieldError
 import com.eyecare.app.presentation.auth.components.OtpField
 import com.eyecare.app.presentation.auth.components.PasswordField
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun AccountSecurityScreen(
@@ -149,7 +150,7 @@ private fun ContactRow(
                 Text(contact.maskedValue, style = MaterialTheme.typography.bodyLarge)
                 Row {
                     if (contact.isPrimary) {
-                        Text("Primary", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text("Primary", style = MaterialTheme.typography.labelSmall, color = EyecareColors.current.accentText)
                     }
                     if (contact.verifiedAt == null) {
                         Text("Pending", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)

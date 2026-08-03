@@ -40,6 +40,7 @@ import com.eyecare.app.domain.model.Quotation
 import com.eyecare.app.domain.model.QuotationItemType
 import com.eyecare.app.domain.model.QuotationStatus
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,7 +105,7 @@ private fun EstimateDetailContent(
         )
 
         val statusColor = when (quotation.status) {
-            QuotationStatus.PRESENTED -> MaterialTheme.colorScheme.primary
+            QuotationStatus.PRESENTED -> EyecareColors.current.statusInfo
             QuotationStatus.ACCEPTED -> MaterialTheme.colorScheme.tertiary
             QuotationStatus.DECLINED, QuotationStatus.EXPIRED -> MaterialTheme.colorScheme.error
             QuotationStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant

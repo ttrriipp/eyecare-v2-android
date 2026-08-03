@@ -30,7 +30,6 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.HorizontalDivider
@@ -67,16 +66,22 @@ import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.Prescription
-import com.eyecare.app.domain.model.Product
 import com.eyecare.app.presentation.appointments.formatAppointmentDate
 import com.eyecare.app.presentation.appointments.formatAppointmentTime
 import com.eyecare.app.presentation.appointments.formatAppointmentTitle
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
-import com.eyecare.app.ui.theme.NavyBlue
+import com.eyecare.app.ui.theme.EyecareColors
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.Locale
 import androidx.compose.runtime.LaunchedEffect
+
+internal fun timeOfDayGreeting(time: LocalTime): String = when (time.hour) {
+    in 5..11 -> "Good morning"
+    in 12..16 -> "Good afternoon"
+    else -> "Good evening"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,7 +189,7 @@ fun HomeContent(
 
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "Good morning",
+                text = timeOfDayGreeting(LocalTime.now()),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -278,7 +283,7 @@ private fun ClinicHoursCard() {
                             Icon(
                                 imageVector = Icons.Outlined.Schedule,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = EyecareColors.current.accentText,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -366,7 +371,7 @@ private fun VisitTicket(
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NavyBlue),
+        colors = CardDefaults.cardColors(containerColor = EyecareColors.current.visitNavy),
         modifier = Modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 48.dp),
@@ -473,7 +478,7 @@ private fun BookingInvitation(onClick: () -> Unit) {
             Icon(
                 imageVector = Icons.Outlined.CalendarMonth,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = EyecareColors.current.accentText,
                 modifier = Modifier.size(28.dp),
             )
             Text(
@@ -595,103 +600,3 @@ private fun FrameSummaryCard(frame: Frame, onClick: () -> Unit) {
     }
 }
 
-@Composable
-private fun HomeProductShelf(
-    title: String,
-    products: List<Product>,
-    onSeeAll: () -> Unit,
-    onProductClick: (Int) -> Unit,
-) {
-    if (products.isEmpty()) return
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            TextButton(
-                onClick = onSeeAll,
-                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-            ) {
-                Text("See all")
-            }
-        }
-        LazyRow(
-            contentPadding = PaddingValues(end = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            items(products, key = Product::id) { product ->
-                HomeProductCard(product, onClick = { onProductClick(product.id) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeProductCard(product: Product, onClick: () -> Unit) {
-    val imageRef = product.images.firstOrNull() ?: product.variants.firstOrNull()?.images?.firstOrNull()
-    val imageUrl = imageRef?.let(::buildImageUrl)
-
-    Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier
-            .width(148.dp)
-            .height(224.dp),
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                if (imageUrl != null) {
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = product.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.Image,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(32.dp),
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = product.brand.ifBlank { product.category }.uppercase(Locale.US),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.5.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = product.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}

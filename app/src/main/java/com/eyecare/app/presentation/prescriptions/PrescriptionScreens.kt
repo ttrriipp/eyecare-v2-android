@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.EyeMeasurement
 import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.ui.theme.EyecareColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,7 +93,7 @@ fun PrescriptionListScreen(
                                 Icon(
                                     Icons.Outlined.RemoveRedEye,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = EyecareColors.current.accentText,
                                     modifier = Modifier.size(32.dp),
                                 )
                             }
@@ -174,7 +175,7 @@ private fun PrescriptionCard(prescription: Prescription, onClick: () -> Unit) {
                             Icon(
                                 imageVector = Icons.Outlined.Visibility,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = EyecareColors.current.accentText,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -194,7 +195,7 @@ private fun PrescriptionCard(prescription: Prescription, onClick: () -> Unit) {
                                     text = "Current",
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = EyecareColors.current.accentText,
                                     fontWeight = FontWeight.SemiBold,
                                 )
                             }
@@ -299,7 +300,7 @@ fun PrescriptionDetailScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.Visibility,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = EyecareColors.current.accentText,
                                         modifier = Modifier.size(20.dp),
                                     )
                                 }
@@ -401,7 +402,7 @@ private fun MeasurementGroupCard(
                         Icon(
                             imageVector = Icons.Outlined.Visibility,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = EyecareColors.current.accentText,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -473,7 +474,7 @@ private fun MeasurementRow(label: String, measurement: EyeMeasurement) {
                     text = value ?: "\u2014",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (value != null) MaterialTheme.colorScheme.primary
+                    color = if (value != null) EyecareColors.current.accentText
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

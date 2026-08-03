@@ -19,19 +19,28 @@ private val Outfit = FontFamily(
     Font(GoogleFont("Outfit"), provider, weight = FontWeight.Normal),
     Font(GoogleFont("Outfit"), provider, weight = FontWeight.Medium),
     Font(GoogleFont("Outfit"), provider, weight = FontWeight.SemiBold),
+    Font(GoogleFont("Outfit"), provider, weight = FontWeight.Bold),
 )
 
 private val DmSans = FontFamily(
     Font(GoogleFont("DM Sans"), provider, weight = FontWeight.Normal),
     Font(GoogleFont("DM Sans"), provider, weight = FontWeight.Medium),
     Font(GoogleFont("DM Sans"), provider, weight = FontWeight.SemiBold),
+    Font(GoogleFont("DM Sans"), provider, weight = FontWeight.Bold),
 )
 
 val EyecareTypography = Typography(
     displayLarge = TextStyle(fontFamily = Outfit, fontWeight = FontWeight.SemiBold, fontSize = 24.sp),
+    headlineLarge = TextStyle(fontFamily = Outfit, fontWeight = FontWeight.SemiBold, fontSize = 22.sp),
     headlineMedium = TextStyle(fontFamily = Outfit, fontWeight = FontWeight.Medium, fontSize = 18.sp),
+    headlineSmall = TextStyle(fontFamily = Outfit, fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+    titleLarge = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.SemiBold, fontSize = 18.sp),
     titleMedium = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+    titleSmall = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
+    bodyLarge = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.Normal, fontSize = 16.sp),
     bodyMedium = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.Normal, fontSize = 14.sp),
-    labelMedium = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.Medium, fontSize = 12.sp),
     bodySmall = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.Normal, fontSize = 12.sp),
+    labelLarge = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.Medium, fontSize = 14.sp),
+    labelMedium = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.Medium, fontSize = 12.sp),
+    labelSmall = TextStyle(fontFamily = DmSans, fontWeight = FontWeight.Medium, fontSize = 11.sp),
 )

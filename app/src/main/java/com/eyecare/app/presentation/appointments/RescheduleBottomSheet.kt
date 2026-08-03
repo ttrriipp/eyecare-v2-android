@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
+import com.eyecare.app.ui.theme.EyecareColors
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -262,13 +263,13 @@ private fun RescheduleDateStep(
                 weekdayContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 navigationContentColor = MaterialTheme.colorScheme.onSurface,
                 yearContentColor = MaterialTheme.colorScheme.onSurface,
-                currentYearContentColor = MaterialTheme.colorScheme.primary,
+                currentYearContentColor = EyecareColors.current.accentText,
                 selectedYearContainerColor = MaterialTheme.colorScheme.primary,
-                selectedYearContentColor = Color.White,
+                selectedYearContentColor = MaterialTheme.colorScheme.onPrimary,
                 dayContentColor = MaterialTheme.colorScheme.onSurface,
                 selectedDayContainerColor = MaterialTheme.colorScheme.primary,
-                selectedDayContentColor = Color.White,
-                todayContentColor = MaterialTheme.colorScheme.primary,
+                selectedDayContentColor = MaterialTheme.colorScheme.onPrimary,
+                todayContentColor = EyecareColors.current.accentText,
                 todayDateBorderColor = MaterialTheme.colorScheme.primary,
                 disabledDayContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
             ),
@@ -335,9 +336,13 @@ private fun RescheduleTimeStep(
     }
 
     val primary      = MaterialTheme.colorScheme.primary
+    val onPrimary    = MaterialTheme.colorScheme.onPrimary
     val onSurface    = MaterialTheme.colorScheme.onSurface
     val surfaceVar   = MaterialTheme.colorScheme.surfaceVariant
     val onSurfaceVar = MaterialTheme.colorScheme.onSurfaceVariant
+    // Cyan-as-text needs the accessible variant; the AM/PM toggle's cyan *fill* below
+    // keeps using `primary` unchanged since it's paired with onPrimary content.
+    val accentText   = EyecareColors.current.accentText
 
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -352,7 +357,7 @@ private fun RescheduleTimeStep(
             Text(
                 "9:00 AM – 5:00 PM",
                 style = MaterialTheme.typography.labelSmall,
-                color = primary,
+                color = accentText,
                 fontWeight = FontWeight.Medium,
             )
         }
@@ -367,7 +372,7 @@ private fun RescheduleTimeStep(
                 value = "%02d".format(hour),
                 onUp = ::nextHour,
                 onDown = ::prevHour,
-                primary = primary,
+                primary = accentText,
                 onSurface = onSurface,
             )
 
@@ -385,7 +390,7 @@ private fun RescheduleTimeStep(
                 value = "%02d".format(minute),
                 onUp = ::nextMinute,
                 onDown = ::prevMinute,
-                primary = primary,
+                primary = accentText,
                 onSurface = onSurface,
             )
 
@@ -409,7 +414,7 @@ private fun RescheduleTimeStep(
                             label,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (selected) Color.White else onSurfaceVar,
+                            color = if (selected) onPrimary else onSurfaceVar,
                         )
                     }
                 }
@@ -430,7 +435,7 @@ private fun RescheduleTimeSegment(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        IconButton(onClick = onUp, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onUp, modifier = Modifier.size(48.dp)) {
             Icon(
                 Icons.Filled.KeyboardArrowUp,
                 contentDescription = "Increase",
@@ -446,7 +451,7 @@ private fun RescheduleTimeSegment(
             ),
             color = onSurface,
         )
-        IconButton(onClick = onDown, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onDown, modifier = Modifier.size(48.dp)) {
             Icon(
                 Icons.Filled.KeyboardArrowDown,
                 contentDescription = "Decrease",

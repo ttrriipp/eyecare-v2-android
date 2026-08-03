@@ -73,11 +73,7 @@ import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.presentation.common.buildImageUrl
 import coil3.compose.AsyncImage
-import com.eyecare.app.ui.theme.OnSurfaceVariant
-import com.eyecare.app.ui.theme.StatusCancelled
-import com.eyecare.app.ui.theme.StatusConfirmed
-import com.eyecare.app.ui.theme.StatusInfo
-import com.eyecare.app.ui.theme.StatusPending
+import com.eyecare.app.ui.theme.EyecareColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -377,7 +373,7 @@ private fun StaffRescheduleNotice(reason: String) {
                 imageVector = Icons.Outlined.EditCalendar,
                 contentDescription = null,
                 modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = EyecareColors.current.accentText,
             )
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
@@ -419,14 +415,14 @@ private fun AppointmentStatusGuidance(status: AppointmentStatus) {
                 imageVector = Icons.Outlined.EventAvailable,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = EyecareColors.current.accentText,
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = EyecareColors.current.accentText,
                 )
                 Text(
                     message,
@@ -466,7 +462,7 @@ private fun ReservedFramesSection(
                         Icon(
                             imageVector = Icons.Outlined.Visibility,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = EyecareColors.current.accentText,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -504,12 +500,13 @@ private fun ReservedFramesSection(
                             .replace("_", " ")
                             .lowercase()
                             .replaceFirstChar { it.titlecase() }
+                        val reservationColors = EyecareColors.current
                         val statusColor = when (reservation.status) {
-                            ReservationStatus.PREPARED, ReservationStatus.TRIED_ON -> StatusConfirmed
-                            ReservationStatus.REQUESTED -> StatusPending
-                            ReservationStatus.CONVERTED -> StatusInfo
-                            ReservationStatus.RELEASED, ReservationStatus.CANCELLED -> StatusCancelled
-                            ReservationStatus.UNKNOWN -> OnSurfaceVariant
+                            ReservationStatus.PREPARED, ReservationStatus.TRIED_ON -> reservationColors.statusConfirmed
+                            ReservationStatus.REQUESTED -> reservationColors.statusPending
+                            ReservationStatus.CONVERTED -> reservationColors.statusInfo
+                            ReservationStatus.RELEASED, ReservationStatus.CANCELLED -> reservationColors.statusCancelled
+                            ReservationStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
                         Surface(
                             shape = RoundedCornerShape(50),
@@ -588,7 +585,7 @@ private fun AppointmentMetadataRow(
             icon,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = EyecareColors.current.accentText,
         )
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
@@ -715,13 +712,13 @@ private fun EditableCustomerNote(note: String?, onEdit: () -> Unit) {
                 text = note ?: "Add details for the clinic",
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (note == null) {
-                    MaterialTheme.colorScheme.primary
+                    EyecareColors.current.accentText
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },
             )
         }
-        IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
             Icon(
                 Icons.Outlined.Edit,
                 contentDescription = if (note == null) "Add appointment note" else "Edit appointment note",
@@ -751,13 +748,14 @@ private fun AppointmentNoteItem(label: String, note: String) {
 
 @Composable
 private fun AppointmentDetailStatusBadge(status: AppointmentStatus) {
+    val colors = EyecareColors.current
     val (label, color) = when (status) {
-        AppointmentStatus.SCHEDULED -> "Scheduled" to StatusPending
-        AppointmentStatus.CHECKED_IN -> "Checked in" to StatusInfo
-        AppointmentStatus.FULFILLED -> "Completed" to OnSurfaceVariant
-        AppointmentStatus.CANCELLED -> "Cancelled" to StatusCancelled
-        AppointmentStatus.NO_SHOW -> "No show" to StatusCancelled
-        AppointmentStatus.UNKNOWN -> "Unknown" to OnSurfaceVariant
+        AppointmentStatus.SCHEDULED -> "Scheduled" to colors.statusPending
+        AppointmentStatus.CHECKED_IN -> "Checked in" to colors.statusInfo
+        AppointmentStatus.FULFILLED -> "Completed" to MaterialTheme.colorScheme.onSurfaceVariant
+        AppointmentStatus.CANCELLED -> "Cancelled" to colors.statusCancelled
+        AppointmentStatus.NO_SHOW -> "No show" to colors.statusCancelled
+        AppointmentStatus.UNKNOWN -> "Unknown" to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.12f)) {
         Text(
