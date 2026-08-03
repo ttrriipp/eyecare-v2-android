@@ -8,6 +8,7 @@ import retrofit2.http.Query
 interface QuotationApiService {
     @GET("quotations")
     suspend fun getQuotations(
+        @Query("filter") filter: String? = null,
         @Query("per_page") perPage: Int = 15,
         @Query("page") page: Int = 1,
     ): QuotationDtos.QuotationListResponse

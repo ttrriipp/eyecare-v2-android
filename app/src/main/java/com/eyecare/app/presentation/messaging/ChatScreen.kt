@@ -64,7 +64,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatScreen(
     onBack: () -> Unit,
-    onAppointmentClick: (Int) -> Unit = {},
+    onEstimateClick: (Int) -> Unit = {},
+    onOrderClick: (Int) -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -122,11 +123,11 @@ fun ChatScreen(
         val state = uiState as? ChatUiState.Success
         AttachmentSheet(
             sheetState = sheetState,
-            appointments = state?.appointments ?: emptyList(),
+            quotations = state?.quotations ?: emptyList(),
             orders = state?.orders ?: emptyList(),
             onAttachFile = { filePicker.launch(arrayOf("image/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
-            onLinkAppointment = { viewModel.setPendingContext(PendingContext.AppointmentContext(it)) },
-            onLinkOrder = { viewModel.setPendingContext(PendingContext.OrderContext(it)) },
+            onLinkEstimate = { viewModel.setPendingContext(PendingContext.Estimate(it)) },
+            onLinkOrder = { viewModel.setPendingContext(PendingContext.Order(it)) },
             onDismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { showSheet = false } },
         )
     }
@@ -170,8 +171,9 @@ fun ChatScreen(
                             items(state.messages, key = { it.id }) { msg ->
                                 MessageBubble(
                                     message = msg,
-                                    isOwn = msg.senderId == viewModel.currentUserId,
-                                    onAppointmentClick = onAppointmentClick,
+                                    isOwn = msg.senderType == com.eyecare.app.domain.model.SenderType.PATIENT,
+                                    onEstimateClick = onEstimateClick,
+                                    onOrderClick = onOrderClick,
                                 )
                             }
                         }

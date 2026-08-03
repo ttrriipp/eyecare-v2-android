@@ -4,12 +4,10 @@ import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
-import com.eyecare.app.domain.model.User
-import com.eyecare.app.domain.repository.AppointmentV1Repository
-import com.eyecare.app.domain.repository.AuthRepository
-import com.eyecare.app.domain.repository.JobOrderRepository
+import com.eyecare.app.domain.model.SenderType
 import com.eyecare.app.domain.repository.ChatRepository
-import com.eyecare.app.domain.repository.PaginatedResult
+import com.eyecare.app.domain.repository.OpticalOrderRepository
+import com.eyecare.app.domain.repository.QuotationRepository
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.cancel
@@ -30,26 +28,24 @@ class ChatViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repo: ChatRepository
-    private lateinit var authRepo: AuthRepository
-    private lateinit var appointmentRepo: AppointmentV1Repository
-    private lateinit var orderRepo: JobOrderRepository
+    private lateinit var quotationRepo: QuotationRepository
+    private lateinit var opticalOrderRepo: OpticalOrderRepository
 
     private val fakeConversation = Conversation(1, null, 0, "2026-10-24T10:00:00Z")
-    private val fakeMessage = Message(1, 1, 42, "Hello", null, "2026-10-24T10:00:00Z", emptyList())
+    private val fakeMessage = Message(1, 42, SenderType.PATIENT, "Hello", null, "2026-10-24T10:00:00Z", emptyList())
 
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
-        authRepo = mockk { coEvery { getMe() } returns Result.success(com.eyecare.app.domain.model.PatientAccount(42, "Test", "Test", null, "User", "t@t.com", null, "patient", null, com.eyecare.app.domain.model.PatientLinkStatus.LINKED, null, null, null)) }
-        appointmentRepo = mockk { coEvery { getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0)) }
-        orderRepo = mockk { coEvery { getJobOrders(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0)) }
+        quotationRepo = mockk()
+        opticalOrderRepo = mockk()
     }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = ChatViewModel(repo, authRepo, appointmentRepo, orderRepo)
+    private fun vm() = ChatViewModel(repo, quotationRepo, opticalOrderRepo)
 
     @Test
     fun `initial state is Loading then loads conversation and messages`() = runTest {

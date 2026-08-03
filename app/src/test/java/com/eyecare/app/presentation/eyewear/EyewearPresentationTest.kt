@@ -1,142 +1,98 @@
 package com.eyecare.app.presentation.eyewear
 
-import com.eyecare.app.domain.model.EyewearPaymentStatus
-import com.eyecare.app.domain.model.EyewearProgress
+import com.eyecare.app.domain.model.OpticalOrderReference
+import com.eyecare.app.domain.model.Quotation
+import com.eyecare.app.domain.model.QuotationItem
+import com.eyecare.app.domain.model.QuotationItemType
+import com.eyecare.app.domain.model.QuotationStatus
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
 class EyewearPresentationTest {
 
-    // Progress labels
-    @Test
-    fun `progress labels match spec`() {
-        assertEquals("Estimate Available", EyewearProgress.ESTIMATE_AVAILABLE.patientLabel)
-        assertEquals("In Preparation", EyewearProgress.IN_PREPARATION.patientLabel)
-        assertEquals("Ready for Pickup", EyewearProgress.READY_FOR_PICKUP.patientLabel)
-        assertEquals("Dispensed", EyewearProgress.DISPENSED.patientLabel)
-        assertEquals("Estimate Declined", EyewearProgress.ESTIMATE_DECLINED.patientLabel)
-        assertEquals("Estimate Expired", EyewearProgress.ESTIMATE_EXPIRED.patientLabel)
-        assertEquals("Cancelled", EyewearProgress.CANCELLED.patientLabel)
-        assertEquals("Status Unavailable", EyewearProgress.UNKNOWN.patientLabel)
-    }
-
-    // Payment labels
-    @Test
-    fun `payment labels match spec`() {
-        assertEquals("Balance Due", EyewearPaymentStatus.BALANCE_DUE.patientLabel)
-        assertEquals("Paid", EyewearPaymentStatus.PAID.patientLabel)
-        assertEquals("Payment Status Unavailable", EyewearPaymentStatus.UNKNOWN.patientLabel)
-    }
-
-    @Test
-    fun `null payment returns null label`() {
-        assertNull(paymentLabel(null))
-    }
-
-    // Date labeling
-    @Test
-    fun `consultation date used when present`() {
-        val (label, _) = formatDateLabel("2026-07-27T09:00:00+08:00", "2026-07-27T10:00:00+08:00")
-        assertEquals("Consultation", label)
-    }
+    private fun createQuotation(
+        status: QuotationStatus = QuotationStatus.PRESENTED,
+        presentedAt: String? = "2026-08-01T10:05:00Z",
+        createdAt: String = "2026-08-01T10:00:00Z",
+        validUntil: String? = "2026-09-01T00:00:00Z",
+        opticalOrder: OpticalOrderReference? = null,
+        items: List<QuotationItem> = listOf(
+            QuotationItem(1, QuotationItemType.PRODUCT, "Progressive lens", 1, BigDecimal("1200.00"), BigDecimal("1200.00")),
+        ),
+    ) = Quotation(
+        id = 1,
+        quotationNumber = "Q-2026-001",
+        status = status,
+        validUntil = validUntil,
+        subtotal = BigDecimal("1500.00"),
+        discountAmount = BigDecimal("100.00"),
+        total = BigDecimal("1400.00"),
+        notes = null,
+        createdAt = createdAt,
+        presentedAt = presentedAt,
+        confirmedAt = null,
+        opticalOrder = opticalOrder,
+        items = items,
+    )
 
     @Test
-    fun `created date used when consultation is null`() {
-        val (label, _) = formatDateLabel(null, "2026-07-27T10:00:00+08:00")
+    fun `estimateStatusLabel maps all statuses`() {
+        assertEquals("Awaiting confirmation", estimateStatusLabel(QuotationStatus.PRESENTED))
+        assertEquals("Confirmed", estimateStatusLabel(QuotationStatus.ACCEPTED))
+        assertEquals("Declined", estimateStatusLabel(QuotationStatus.DECLINED))
+        assertEquals("Expired", estimateStatusLabel(QuotationStatus.EXPIRED))
+        assertEquals("Status unavailable", estimateStatusLabel(QuotationStatus.UNKNOWN))
+    }
+
+    @Test
+    fun `estimateCardTitle uses first item description`() {
+        val q = createQuotation()
+        assertEquals("Progressive lens", estimateCardTitle(q))
+    }
+
+    @Test
+    fun `estimateCardTitle appends count for multiple items`() {
+        val items = listOf(
+            QuotationItem(1, QuotationItemType.PRODUCT, "Lens", 1, BigDecimal("100.00"), BigDecimal("100.00")),
+            QuotationItem(2, QuotationItemType.SERVICE, "Fitting", 1, BigDecimal("50.00"), BigDecimal("50.00")),
+            QuotationItem(3, QuotationItemType.PRODUCT, "Coating", 1, BigDecimal("30.00"), BigDecimal("30.00")),
+        )
+        val q = createQuotation(items = items)
+        assertEquals("Lens and 2 more", estimateCardTitle(q))
+    }
+
+    @Test
+    fun `estimateCardTitle returns Estimate for empty items`() {
+        val q = createQuotation(items = emptyList())
+        assertEquals("Estimate", estimateCardTitle(q))
+    }
+
+    @Test
+    fun `estimateDateLabel prefers presentedAt`() {
+        val q = createQuotation(presentedAt = "2026-08-01T10:05:00Z", createdAt = "2026-08-01T10:00:00Z")
+        val (label, _) = estimateDateLabel(q)
+        assertEquals("Presented", label)
+    }
+
+    @Test
+    fun `estimateDateLabel falls back to createdAt when presentedAt is null`() {
+        val q = createQuotation(presentedAt = null)
+        val (label, _) = estimateDateLabel(q)
         assertEquals("Created", label)
     }
 
-    // Balance visibility
     @Test
-    fun `balance shown when status is balance_due and value exists`() {
-        assertTrue(shouldShowBalance(EyewearPaymentStatus.BALANCE_DUE, BigDecimal("3000")))
+    fun `estimateDateLabel falls back to createdAt when presentedAt is blank`() {
+        val q = createQuotation(presentedAt = "")
+        val (label, _) = estimateDateLabel(q)
+        assertEquals("Created", label)
     }
 
     @Test
-    fun `balance hidden when paid`() {
-        assertFalse(shouldShowBalance(EyewearPaymentStatus.PAID, BigDecimal("0")))
-    }
-
-    @Test
-    fun `balance hidden when null`() {
-        assertFalse(shouldShowBalance(EyewearPaymentStatus.BALANCE_DUE, null))
-    }
-
-    @Test
-    fun `balance hidden when zero`() {
-        assertFalse(shouldShowBalance(EyewearPaymentStatus.BALANCE_DUE, BigDecimal.ZERO))
-    }
-
-    // Rating eligibility
-    @Test
-    fun `rating eligible for dispensed with both IDs`() {
-        assertTrue(isRatingEligible(EyewearProgress.DISPENSED, 1, 42))
-    }
-
-    @Test
-    fun `rating ineligible for non-dispensed`() {
-        assertFalse(isRatingEligible(EyewearProgress.IN_PREPARATION, 1, 42))
-    }
-
-    @Test
-    fun `rating ineligible without item ID`() {
-        assertFalse(isRatingEligible(EyewearProgress.DISPENSED, null, 42))
-    }
-
-    @Test
-    fun `rating ineligible without variant ID`() {
-        assertFalse(isRatingEligible(EyewearProgress.DISPENSED, 1, null))
-    }
-
-    // Tracker states
-    @Test
-    fun `estimate available shows estimate active`() {
-        val tracker = computeTracker(EyewearProgress.ESTIMATE_AVAILABLE)
-        assertEquals(TrackerStep.ESTIMATE, tracker.activeStep)
-        assertNull(tracker.terminalMessage)
-        assertTrue(tracker.steps[0].second) // estimate complete
-        assertFalse(tracker.steps[1].second) // preparation not
-    }
-
-    @Test
-    fun `dispensed shows all complete and released message`() {
-        val tracker = computeTracker(EyewearProgress.DISPENSED)
-        assertNull(tracker.activeStep)
-        assertEquals("Released to You", tracker.terminalMessage)
-        assertTrue(tracker.steps.all { it.second })
-    }
-
-    @Test
-    fun `cancelled shows terminal message`() {
-        val tracker = computeTracker(EyewearProgress.CANCELLED)
-        assertEquals("Cancelled", tracker.terminalMessage)
-        assertFalse(tracker.steps.any { it.second })
-    }
-
-    @Test
-    fun `estimate declined shows reached estimate`() {
-        val tracker = computeTracker(EyewearProgress.ESTIMATE_DECLINED)
-        assertEquals("Estimate Declined", tracker.terminalMessage)
-        assertTrue(tracker.steps[0].second) // estimate was reached
-        assertFalse(tracker.steps[1].second)
-    }
-
-    // Payment method humanization
-    @Test
-    fun `payment methods humanized correctly`() {
-        assertEquals("Cash", humanizePaymentMethod("cash"))
-        assertEquals("GCash", humanizePaymentMethod("gcash"))
-        assertEquals("Bank Transfer", humanizePaymentMethod("bank_transfer"))
-        assertEquals("Credit Card", humanizePaymentMethod("credit_card"))
-        assertEquals("Credit Card", humanizePaymentMethod("card"))
-    }
-
-    @Test
-    fun `unknown payment method humanized safely`() {
-        assertEquals("Some new method", humanizePaymentMethod("some_new_method"))
+    fun `formatPeso formats correctly`() {
+        assertEquals("\u20B11,400.00", formatPeso(BigDecimal("1400.00")))
+        assertEquals("\u20B10.00", formatPeso(BigDecimal("0.00")))
     }
 }

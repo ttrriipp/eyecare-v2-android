@@ -49,8 +49,9 @@ import com.eyecare.app.presentation.account.AccountSecurityScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
-import com.eyecare.app.presentation.eyewear.EyewearListScreen
-import com.eyecare.app.presentation.eyewear.EyewearDetailScreen
+import com.eyecare.app.presentation.eyewear.MyEyewearScreen
+import com.eyecare.app.presentation.eyewear.EstimateDetailScreen
+import com.eyecare.app.presentation.eyewear.OpticalOrderDetailScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
 import com.eyecare.app.presentation.frames.FrameListScreen
 import com.eyecare.app.presentation.reservations.CreateFrameReservationScreen
@@ -361,17 +362,26 @@ fun EyecareNavGraph(
                             },
                         )
                     }
-                    composable<EyewearList> {
-                        EyewearListScreen(
+                    composable<MyEyewear> {
+                        MyEyewearScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToDetail = { navController.navigate(EyewearDetail(it)) },
+                            onNavigateToEstimate = { id -> navController.navigate(EstimateDetail(id)) },
+                            onNavigateToOrder = { id -> navController.navigate(OpticalOrderDetail(id)) },
                         )
                     }
-                    composable<EyewearDetail> { back ->
-                        val route = back.toRoute<EyewearDetail>()
-                        EyewearDetailScreen(
-                            key = route.key,
+                    composable<EstimateDetail> { back ->
+                        val route = back.toRoute<EstimateDetail>()
+                        EstimateDetailScreen(
                             onBack = { navController.popBackStack() },
+                            onNavigateToOrder = { id -> navController.navigate(OpticalOrderDetail(id)) },
+                        )
+                    }
+                    composable<OpticalOrderDetail> { back ->
+                        val route = back.toRoute<OpticalOrderDetail>()
+                        OpticalOrderDetailScreen(
+                            onBack = { navController.popBackStack() },
+                            onNavigateToEstimate = { id -> navController.navigate(EstimateDetail(id)) },
+                            onRateItem = { /* Rating handled within screen via dialog */ },
                         )
                     }
                     composable<Appointments> {
@@ -413,7 +423,7 @@ fun EyecareNavGraph(
                             },
                             onNavigateToPrescriptions = { navigatePatientFeature(PrescriptionList) },
                             onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
-                            onNavigateToEyewear = { navigatePatientFeature(EyewearList) },
+                            onNavigateToEyewear = { navigatePatientFeature(MyEyewear) },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
                             onNavigateToPatientProfile = { navigatePatientFeature(PatientProfile) },
                             onNavigateToAccountSecurity = { navController.navigate(AccountSecurity) },
@@ -436,7 +446,8 @@ fun EyecareNavGraph(
                     composable<Chat> {
                         ChatScreen(
                             onBack = { navController.popBackStack() },
-                            onAppointmentClick = { navigatePatientFeature(AppointmentDetail(it)) },
+                            onEstimateClick = { navigatePatientFeature(EstimateDetail(it)) },
+                            onOrderClick = { navigatePatientFeature(OpticalOrderDetail(it)) },
                         )
                     }
                 }

@@ -8,35 +8,34 @@ import java.io.File
 class ApiRouteAllowlistTest {
 
     @Test
-    fun `v13 auth routes match expected count`() {
-        assertEquals(25, ApprovedApiRoutes.v13AuthRoutes.size, "V13 auth/account routes")
+    fun `public routes match expected count`() {
+        assertEquals(8, ApprovedApiRoutes.publicRoutes.size, "Public auth routes")
     }
 
     @Test
-    fun `deferred routes are explicitly named`() {
-        assertTrue(ApprovedApiRoutes.deferredRoutes.isNotEmpty(), "Deferred routes must be listed")
+    fun `account-only routes match expected count`() {
+        assertEquals(24, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
     }
 
     @Test
-    fun `updated account-only routes are explicitly approved`() {
-        assertEquals(7, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only feature routes")
-        assertTrue("GET /api/v1/appointment-request-availability" in ApprovedApiRoutes.accountOnlyRoutes)
-        assertTrue("GET /api/v1/frames" in ApprovedApiRoutes.accountOnlyRoutes)
-        assertTrue("GET /api/v1/frames/{frame}" in ApprovedApiRoutes.accountOnlyRoutes)
+    fun `active-link routes match expected count`() {
+        assertEquals(19, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes")
     }
 
     @Test
-    fun `legacy auth endpoints are rejected`() {
-        assertTrue("POST /api/v1/register" in ApprovedApiRoutes.rejectedRoutes)
-        assertTrue("POST /api/v1/login" in ApprovedApiRoutes.rejectedRoutes)
+    fun `total approved routes is exactly 51`() {
+        assertEquals(51, ApprovedApiRoutes.allApproved.size, "Total approved routes")
     }
 
     @Test
-    fun `no legacy auth endpoint appears in v13 auth routes`() {
-        val legacyInAuth = ApprovedApiRoutes.v13AuthRoutes.filter {
-            it.endsWith("/register") && !it.contains("auth/") || it.endsWith("/login") && !it.contains("auth/")
-        }
-        assertTrue(legacyInAuth.isEmpty(), "Legacy auth endpoints in V13 set: $legacyInAuth")
+    fun `retired routes are rejected`() {
+        assertTrue("GET /api/v1/eyewear" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("GET /api/v1/eyewear/{key}" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("GET /api/v1/job-orders" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("GET /api/v1/job-orders/{jobOrder}" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("GET /api/v1/billing-records" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("GET /api/v1/billing-records/{billingRecord}" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("POST /api/v1/job-order-items/{item}/rating" in ApprovedApiRoutes.rejectedRoutes)
     }
 
     @Test
@@ -66,26 +65,18 @@ class ApiRouteAllowlistTest {
         val normalizedRejected = rejected.map { normalizeRouteVariables(it) }.toSet()
         val normalizedDiscovered = discoveredRoutes.map { normalizeRouteVariables(it) }.toSet()
 
-        // Discovered routes must be either approved/deferred or explicitly rejected
-        val unaccounted = normalizedDiscovered.filter { it !in normalizedApproved && it !in normalizedRejected }
+        // Every discovered route must be approved (not rejected)
+        val unaccounted = normalizedDiscovered.filter { it !in normalizedApproved }
         assertTrue(
             unaccounted.isEmpty(),
-            "Discovered routes not in any approved/deferred/rejected set: $unaccounted",
+            "Discovered routes not in approved set: $unaccounted",
         )
 
-        // Rejected routes must not appear in approved sets
-        val rejectedInApproved = normalizedRejected.filter { it in normalizedApproved }
+        // Rejected routes must not appear in discovered production code
+        val rejectedDiscovered = normalizedDiscovered.filter { it in normalizedRejected }
         assertTrue(
-            rejectedInApproved.isEmpty(),
-            "Rejected routes found in approved set: $rejectedInApproved",
-        )
-
-        // Don't require all deferred routes to have consumers — some may be added later
-        val v13AuthNormalized = ApprovedApiRoutes.v13AuthRoutes.map { normalizeRouteVariables(it) }.toSet()
-        val missingAuth = v13AuthNormalized.filter { it !in normalizedDiscovered }
-        assertTrue(
-            missingAuth.isEmpty(),
-            "V13 auth routes not found in services: $missingAuth",
+            rejectedDiscovered.isEmpty(),
+            "Rejected routes found in production: $rejectedDiscovered",
         )
     }
 
@@ -99,11 +90,9 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""frame-reservations/\{id\}/cancel"""), "frame-reservations/{reservation}/cancel")
             .replace(Regex("""prescriptions/\{id\}"""), "prescriptions/{prescription}")
             .replace(Regex("""quotations/\{id\}"""), "quotations/{quotation}")
-            .replace(Regex("""job-orders/\{id\}"""), "job-orders/{jobOrder}")
-            .replace(Regex("""billing-records/\{id\}"""), "billing-records/{billingRecord}")
-            .replace(Regex("""eyewear/\{id\}"""), "eyewear/{key}")
+            .replace(Regex("""optical-orders/\{id\}"""), "optical-orders/{opticalOrder}")
             .replace(Regex("""conversation/attachments/\{id\}"""), "conversation/attachments/{attachment}")
-            .replace(Regex("""job-order-items/\{id\}"""), "job-order-items/{item}")
+            .replace(Regex("""optical-order-items/\{id\}"""), "optical-order-items/{item}")
             .replace(Regex("""account/contacts/\{id\}"""), "account/contacts/{contact}")
             .replace(Regex("""account/contacts/\{id\}/primary"""), "account/contacts/{contact}/primary")
             .replace(Regex("""appointment-requests/\{id\}"""), "appointment-requests/{appointmentRequest}")
@@ -117,9 +106,7 @@ class ApiRouteAllowlistTest {
             .replace("{reservation}", "{var}")
             .replace("{prescription}", "{var}")
             .replace("{quotation}", "{var}")
-            .replace("{jobOrder}", "{var}")
-            .replace("{billingRecord}", "{var}")
-            .replace("{key}", "{var}")
+            .replace("{opticalOrder}", "{var}")
             .replace("{attachment}", "{var}")
             .replace("{item}", "{var}")
             .replace("{contact}", "{var}")

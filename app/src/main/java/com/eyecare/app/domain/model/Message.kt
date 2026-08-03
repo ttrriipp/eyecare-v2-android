@@ -9,8 +9,8 @@ data class Conversation(
 
 data class Message(
     val id: Int,
-    val conversationId: Int,
     val senderId: Int,
+    val senderType: SenderType,
     val body: String,
     val readAt: String?,
     val createdAt: String,
@@ -18,10 +18,23 @@ data class Message(
     val contexts: List<MessageContext> = emptyList(),
 )
 
+enum class SenderType {
+    PATIENT, STAFF, UNKNOWN;
+
+    companion object {
+        fun from(value: String?): SenderType = when (value?.lowercase()) {
+            "patient" -> PATIENT
+            "staff", "App\\Models\\User" -> STAFF
+            else -> UNKNOWN
+        }
+    }
+}
+
 sealed interface MessageContext {
     val id: Int
 
-    data class Appointment(override val id: Int) : MessageContext
+    data class Quotation(override val id: Int) : MessageContext
+    data class OpticalOrder(override val id: Int) : MessageContext
     data class Unsupported(val type: String, override val id: Int) : MessageContext
 }
 
@@ -30,4 +43,5 @@ data class MessageAttachment(
     val originalName: String,
     val mimeType: String,
     val fileSize: Long,
+    val downloadUrl: String?,
 )

@@ -8,6 +8,7 @@ import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
 import com.eyecare.app.domain.model.MessageContext
+import com.eyecare.app.domain.model.SenderType
 import com.eyecare.app.domain.repository.AttachmentDownload
 import com.eyecare.app.domain.repository.ChatRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -15,7 +16,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.ResponseBody
 import java.io.File
 import javax.inject.Inject
 
@@ -34,9 +34,10 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun sendMessage(
         body: String,
-        contexts: List<MessageDtos.ContextLinkDto>?,
+        contexts: List<MessageContext>?,
     ): Result<Message> = runCatching {
-        api.sendMessage(MessageDtos.SendMessageRequest(body, contexts)).data.toDomain()
+        val dtos = contexts?.map { it.toDto() }
+        api.sendMessage(MessageDtos.SendMessageRequest(body, dtos)).data.toDomain()
     }
 
     override suspend fun sendFileMessage(
@@ -73,12 +74,18 @@ class ChatRepositoryImpl @Inject constructor(
     private fun MessageDtos.ConversationDto.toDomain() = Conversation(
         id = id, patientId = patientId, unreadCount = unreadCount, createdAt = createdAt,
     )
+
+    private fun MessageContext.toDto(): MessageDtos.ContextLinkDto = when (this) {
+        is MessageContext.Quotation -> MessageDtos.ContextLinkDto(type = "quotation", id = id)
+        is MessageContext.OpticalOrder -> MessageDtos.ContextLinkDto(type = "optical_order", id = id)
+        is MessageContext.Unsupported -> MessageDtos.ContextLinkDto(type = type, id = id)
+    }
 }
 
 internal fun MessageDtos.MessageDto.toDomain() = Message(
     id = id,
-    conversationId = conversationId,
     senderId = senderId,
+    senderType = SenderType.from(senderType),
     body = body,
     readAt = readAt,
     createdAt = createdAt,
@@ -88,12 +95,13 @@ internal fun MessageDtos.MessageDto.toDomain() = Message(
             originalName = attachment.originalName,
             mimeType = attachment.mimeType,
             fileSize = attachment.fileSize,
+            downloadUrl = attachment.downloadUrl,
         )
     },
     contexts = contexts.map { context ->
-        when (context.type.substringAfterLast('\\').lowercase()) {
-            "appointment" -> MessageContext.Appointment(context.id)
-            "order" -> MessageContext.Unsupported(context.type, context.id)
+        when (context.type.lowercase()) {
+            "quotation" -> MessageContext.Quotation(context.id)
+            "optical_order" -> MessageContext.OpticalOrder(context.id)
             else -> MessageContext.Unsupported(context.type, context.id)
         }
     },

@@ -1,23 +1,20 @@
 package com.eyecare.app.data.remote
 
 /**
- * V13 auth-only route governance.
+ * V14 route governance — exact 51-route contract.
  *
- * Two explicit categories:
- * 1. V13 auth/account routes — new endpoints consumed by this phase
- * 2. Account-only feature routes — authenticated routes that do not require a patient link
- * 3. Deferred active-link routes — existing consumers awaiting coordinated V13 migration
+ * Categories:
+ * 1. Public auth routes (8) — no authentication required
+ * 2. Account-only routes (24) — authenticated, no patient link required
+ * 3. Active-link routes (19) — require active patient link
  *
- * Legacy /login and /register are explicitly rejected.
- * The full 55-route V13 allowlist is represented here so Android consumers cannot drift from
- * the backend contract.
+ * Retired routes (eyewear, job-orders, billing-records, old rating) are explicitly rejected.
  */
 internal object ApprovedApiRoutes {
     private const val BASE = "/api/v1"
 
-    /** New V13 auth/account routes consumed by this phase. */
-    val v13AuthRoutes: Set<String> = setOf(
-        // Public auth
+    /** Public auth routes — no authentication required. (8) */
+    val publicRoutes: Set<String> = setOf(
         "POST $BASE/auth/registration/otp",
         "POST $BASE/auth/registration/verify",
         "POST $BASE/auth/register",
@@ -26,7 +23,10 @@ internal object ApprovedApiRoutes {
         "POST $BASE/auth/password-recovery/otp",
         "POST $BASE/auth/password-recovery/verify",
         "GET $BASE/auth/policies",
-        // Authenticated account-only
+    )
+
+    /** Account-only routes — authenticated, no patient link required. (24) */
+    val accountOnlyRoutes: Set<String> = setOf(
         "POST $BASE/logout",
         "POST $BASE/logout-all",
         "GET $BASE/me",
@@ -44,10 +44,6 @@ internal object ApprovedApiRoutes {
         "GET $BASE/patient-link-requests/current",
         "POST $BASE/patient-invitations/acceptance/otp",
         "POST $BASE/patient-invitations/accept",
-    )
-
-    /** Authenticated feature routes that are available to linked and unlinked accounts. */
-    val accountOnlyRoutes: Set<String> = setOf(
         "GET $BASE/appointment-request-availability",
         "GET $BASE/appointment-requests",
         "POST $BASE/appointment-requests",
@@ -57,57 +53,52 @@ internal object ApprovedApiRoutes {
         "GET $BASE/frames/{frame}",
     )
 
-    /**
-     * Deferred non-auth routes with existing Android consumers.
-     * These remain as migration debt — NOT claimed as approved by the updated V13 backend.
-     * Each entry documents why it's deferred.
-     */
-    val deferredRoutes: Set<String> = setOf(
-        // Appointment availability — deferred (requires visit_reason_id in responses)
+    /** Active-link routes — require active patient link. (19) */
+    val activeLinkRoutes: Set<String> = setOf(
         "GET $BASE/appointment-availability",
-        // Confirmed appointments — deferred active-link cutover
         "GET $BASE/appointments",
         "GET $BASE/appointments/{appointment}",
         "POST $BASE/appointments/{appointment}/cancel",
         "POST $BASE/appointments/{appointment}/reschedule",
-        // Frame reservations — deferred active-link cutover
         "GET $BASE/frame-reservations",
         "POST $BASE/frame-reservations",
         "POST $BASE/frame-reservations/{reservation}/cancel",
-        // Prescriptions — deferred active-link cutover
         "GET $BASE/prescriptions",
         "GET $BASE/prescriptions/{prescription}",
-        // Quotations — deferred active-link cutover
         "GET $BASE/quotations",
         "GET $BASE/quotations/{quotation}",
-        // Job orders — deferred active-link cutover
-        "GET $BASE/job-orders",
-        "GET $BASE/job-orders/{jobOrder}",
-        // Billing records — deferred active-link cutover
-        "GET $BASE/billing-records",
-        "GET $BASE/billing-records/{billingRecord}",
-        // Eyewear aggregate — deferred active-link cutover
-        "GET $BASE/eyewear",
-        "GET $BASE/eyewear/{key}",
-        // Conversation — deferred active-link cutover
+        "GET $BASE/optical-orders",
+        "GET $BASE/optical-orders/{opticalOrder}",
         "GET $BASE/conversation",
         "GET $BASE/conversation/messages",
         "POST $BASE/conversation/messages",
         "GET $BASE/conversation/attachments/{attachment}",
-        // Frame ratings — deferred active-link cutover
-        "POST $BASE/job-order-items/{item}/rating",
+        "POST $BASE/optical-order-items/{item}/rating",
     )
 
-    /** Routes explicitly rejected — legacy endpoints removed by V13. */
+    /** Retired routes — must not appear in any production Retrofit annotation. */
     val rejectedRoutes: Set<String> = setOf(
+        // Legacy auth
         "POST $BASE/register",
         "POST $BASE/login",
+        // Aggregate eyewear (V12)
+        "GET $BASE/eyewear",
+        "GET $BASE/eyewear/{key}",
+        // Job orders (replaced by optical-orders)
+        "GET $BASE/job-orders",
+        "GET $BASE/job-orders/{jobOrder}",
+        // Billing records (retired)
+        "GET $BASE/billing-records",
+        "GET $BASE/billing-records/{billingRecord}",
+        // Old rating route (replaced by optical-order-items)
+        "POST $BASE/job-order-items/{item}/rating",
+        // Appointment types (retired)
         "GET $BASE/appointment-types",
-        "POST $BASE/appointments",
+        // Appointment intake (retired)
         "GET $BASE/appointments/{appointment}/intake",
         "PUT $BASE/appointments/{appointment}/intake",
         "POST $BASE/appointments/{appointment}/intake/submit",
     )
 
-    val allApproved: Set<String> = v13AuthRoutes + accountOnlyRoutes + deferredRoutes
+    val allApproved: Set<String> = publicRoutes + accountOnlyRoutes + activeLinkRoutes
 }

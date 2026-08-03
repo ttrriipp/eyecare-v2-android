@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.messaging.PendingContext
+import com.eyecare.app.presentation.eyewear.estimateCardTitle
+import com.eyecare.app.presentation.eyewear.orderCardTitle
 
 @Composable
 fun ContextCard(
@@ -38,8 +40,8 @@ fun ContextCard(
     ) {
         Icon(
             imageVector = when (context) {
-                is PendingContext.AppointmentContext -> Icons.Default.CalendarMonth
-                is PendingContext.OrderContext -> Icons.Default.ShoppingBag
+                is PendingContext.Estimate -> Icons.Outlined.Receipt
+                is PendingContext.Order -> Icons.Outlined.ShoppingBag
             },
             contentDescription = null,
             modifier = Modifier.size(20.dp),
@@ -48,19 +50,19 @@ fun ContextCard(
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             when (context) {
-                is PendingContext.AppointmentContext -> {
-                    val a = context.appointment
-                    Text("Appointment", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                is PendingContext.Estimate -> {
+                    val q = context.quotation
+                    Text("Estimate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     Text(
-                        "${a.appointmentType} · ${a.scheduledAt.take(10)}",
+                        "${estimateCardTitle(q)} · ${q.quotationNumber}",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                is PendingContext.OrderContext -> {
-                    val o = context.jobOrder
-                    Text("Job Order", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                is PendingContext.Order -> {
+                    val o = context.order
+                    Text("Eyewear order", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     Text(
-                        "#${o.jobOrderNumber} · ${o.status.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }}",
+                        "${orderCardTitle(o)} · ${o.orderNumber}",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }

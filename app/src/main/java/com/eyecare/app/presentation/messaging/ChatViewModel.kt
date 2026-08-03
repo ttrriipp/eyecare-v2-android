@@ -3,15 +3,14 @@ package com.eyecare.app.presentation.messaging
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.Conversation
-import com.eyecare.app.domain.model.JobOrder
 import com.eyecare.app.domain.model.Message
-import com.eyecare.app.domain.repository.AppointmentV1Repository
-import com.eyecare.app.domain.repository.AuthRepository
+import com.eyecare.app.domain.model.MessageContext
+import com.eyecare.app.domain.model.OpticalOrder
+import com.eyecare.app.domain.model.Quotation
 import com.eyecare.app.domain.repository.ChatRepository
-import com.eyecare.app.domain.repository.JobOrderRepository
-import com.eyecare.app.data.remote.dto.MessageDtos
+import com.eyecare.app.domain.repository.OpticalOrderRepository
+import com.eyecare.app.domain.repository.QuotationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,8 +29,8 @@ data class PendingAttachment(
 )
 
 sealed interface PendingContext {
-    data class AppointmentContext(val appointment: AppointmentV1) : PendingContext
-    data class OrderContext(val jobOrder: JobOrder) : PendingContext
+    data class Estimate(val quotation: Quotation) : PendingContext
+    data class Order(val order: OpticalOrder) : PendingContext
 }
 
 sealed interface ChatUiState {
@@ -43,8 +42,9 @@ sealed interface ChatUiState {
         val pendingAttachment: PendingAttachment? = null,
         val pendingContext: PendingContext? = null,
         val attachmentError: String? = null,
-        val appointments: List<AppointmentV1> = emptyList(),
-        val orders: List<JobOrder> = emptyList(),
+        val quotations: List<Quotation> = emptyList(),
+        val orders: List<OpticalOrder> = emptyList(),
+        val pickerError: String? = null,
     ) : ChatUiState
     data class Error(val message: String) : ChatUiState
 }
@@ -52,26 +52,17 @@ sealed interface ChatUiState {
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    private val authRepository: AuthRepository,
-    private val appointmentRepository: AppointmentV1Repository,
-    private val orderRepository: JobOrderRepository,
+    private val quotationRepository: QuotationRepository,
+    private val opticalOrderRepository: OpticalOrderRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Loading)
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
-    var currentUserId: Int = -1
-        private set
-
     private var isScreenVisible = false
     private var pollingJob: kotlinx.coroutines.Job? = null
 
-    init {
-        viewModelScope.launch {
-            authRepository.getMe().onSuccess { currentUserId = it.id }
-        }
-        load()
-    }
+    init { load() }
 
     fun setScreenVisible(visible: Boolean) {
         isScreenVisible = visible
@@ -155,21 +146,19 @@ class ChatViewModel @Inject constructor(
     fun sendContextMessage() {
         val current = _uiState.value as? ChatUiState.Success ?: return
         val ctx = current.pendingContext ?: return
-        val (body, contextLink) = when (ctx) {
-            is PendingContext.AppointmentContext -> {
-                val a = ctx.appointment
-                "Appointment: ${a.appointmentType} — ${a.scheduledAt.take(10)}" to
-                    MessageDtos.ContextLinkDto("appointment", a.id)
+        val (body, messageContext) = when (ctx) {
+            is PendingContext.Estimate -> {
+                val q = ctx.quotation
+                "Estimate: ${q.quotationNumber}" to MessageContext.Quotation(q.id)
             }
-            is PendingContext.OrderContext -> {
-                val o = ctx.jobOrder
-                "Job Order #${o.jobOrderNumber}" to
-                    MessageDtos.ContextLinkDto("order", o.id)
+            is PendingContext.Order -> {
+                val o = ctx.order
+                "Eyewear order: ${o.orderNumber}" to MessageContext.OpticalOrder(o.id)
             }
         }
         _uiState.value = current.copy(isSending = true, pendingContext = null)
         viewModelScope.launch {
-            chatRepository.sendMessage(body, listOf(contextLink)).fold(
+            chatRepository.sendMessage(body, listOf(messageContext)).fold(
                 onSuccess = { msg ->
                     _uiState.value = current.copy(messages = current.messages + msg, isSending = false, pendingContext = null)
                 },
@@ -180,11 +169,11 @@ class ChatViewModel @Inject constructor(
 
     fun loadPickerData() {
         val current = _uiState.value as? ChatUiState.Success ?: return
-        if (current.appointments.isNotEmpty() || current.orders.isNotEmpty()) return
+        if (current.quotations.isNotEmpty() || current.orders.isNotEmpty()) return
         viewModelScope.launch {
-            val appointments = appointmentRepository.getAppointments().getOrNull()?.data ?: emptyList()
-            val orders = orderRepository.getJobOrders().getOrNull()?.data ?: emptyList()
-            _uiState.value = current.copy(appointments = appointments, orders = orders)
+            val quotations = quotationRepository.getQuotations(filter = "current").getOrNull()?.data ?: emptyList()
+            val orders = opticalOrderRepository.getOpticalOrders(filter = "current").getOrNull()?.data ?: emptyList()
+            _uiState.value = current.copy(quotations = quotations, orders = orders)
         }
     }
 

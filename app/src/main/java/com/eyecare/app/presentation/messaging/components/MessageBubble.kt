@@ -32,12 +32,14 @@ import com.eyecare.app.BuildConfig
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
 import com.eyecare.app.domain.model.MessageContext
+import com.eyecare.app.domain.model.SenderType
 
 @Composable
 fun MessageBubble(
     message: Message,
     isOwn: Boolean,
-    onAppointmentClick: (Int) -> Unit = {},
+    onEstimateClick: (Int) -> Unit = {},
+    onOrderClick: (Int) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
@@ -72,15 +74,22 @@ fun MessageBubble(
 
                 message.contexts.forEach { context ->
                     when (context) {
-                        is MessageContext.Appointment -> {
+                        is MessageContext.Quotation -> {
                             Spacer(Modifier.height(6.dp))
                             MessageContextCard(
                                 context = context,
                                 isOwn = isOwn,
-                                onClick = { onAppointmentClick(context.id) },
+                                onClick = { onEstimateClick(context.id) },
                             )
                         }
-
+                        is MessageContext.OpticalOrder -> {
+                            Spacer(Modifier.height(6.dp))
+                            MessageContextCard(
+                                context = context,
+                                isOwn = isOwn,
+                                onClick = { onOrderClick(context.id) },
+                            )
+                        }
                         is MessageContext.Unsupported -> Unit
                     }
                 }
@@ -98,36 +107,32 @@ fun MessageBubble(
 
 @Composable
 private fun AttachmentContent(attachment: MessageAttachment, isOwn: Boolean) {
-    val context = LocalContext.current
     if (attachment.mimeType.startsWith("image/")) {
         AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data("${BuildConfig.API_BASE_URL}attachments/${attachment.id}")
+            model = ImageRequest.Builder(LocalContext.current)
+                .data("${BuildConfig.API_BASE_URL}/conversation/attachments/${attachment.id}")
                 .build(),
-            imageLoader = SingletonImageLoader.get(context),
             contentDescription = attachment.originalName,
-            contentScale = ContentScale.Fit,
             modifier = Modifier
-                .width(200.dp)
+                .fillMaxWidth()
+                .height(160.dp)
                 .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop,
+            imageLoader = SingletonImageLoader.get(LocalContext.current),
         )
     } else {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(vertical = 2.dp),
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 Icons.Default.Description,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = if (isOwn) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.primary,
+                tint = if (isOwn) Color.White else MaterialTheme.colorScheme.onSurface,
             )
             Spacer(Modifier.width(4.dp))
             Text(
                 attachment.originalName,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isOwn) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
+                color = if (isOwn) Color.White else MaterialTheme.colorScheme.onSurface,
             )
         }
     }

@@ -2,9 +2,8 @@ package com.eyecare.app.presentation.eyewear
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.data.repository.FrameRatingError
-import com.eyecare.app.domain.model.FrameRating
-import com.eyecare.app.domain.repository.JobOrderRepository
+import com.eyecare.app.domain.model.RatingResult
+import com.eyecare.app.domain.repository.OpticalOrderRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -17,22 +16,20 @@ import kotlinx.coroutines.launch
 sealed interface FrameRatingUiState {
     data object Idle : FrameRatingUiState
     data object Submitting : FrameRatingUiState
-    data class Success(val rating: FrameRating) : FrameRatingUiState
+    data class Success(val result: RatingResult) : FrameRatingUiState
     data class Error(val message: String, val fieldErrors: Map<String, List<String>>? = null) : FrameRatingUiState
 }
 
 @HiltViewModel(assistedFactory = FrameRatingViewModel.Factory::class)
 class FrameRatingViewModel @AssistedInject constructor(
-    private val repository: JobOrderRepository,
-    @Assisted("jobOrderItemId") private val jobOrderItemId: Int,
-    @Assisted("productVariantId") private val productVariantId: Int,
+    private val repository: OpticalOrderRepository,
+    @Assisted("orderItemId") private val orderItemId: Int,
 ) : ViewModel() {
 
     @AssistedFactory
     interface Factory {
         fun create(
-            @Assisted("jobOrderItemId") jobOrderItemId: Int,
-            @Assisted("productVariantId") productVariantId: Int,
+            @Assisted("orderItemId") orderItemId: Int,
         ): FrameRatingViewModel
     }
 
@@ -44,28 +41,24 @@ class FrameRatingViewModel @AssistedInject constructor(
             _uiState.value = FrameRatingUiState.Error("Rating must be between 1 and 5")
             return
         }
+        if (comment != null && comment.length > 1000) {
+            _uiState.value = FrameRatingUiState.Error("Comment must be 1000 characters or less")
+            return
+        }
         _uiState.value = FrameRatingUiState.Submitting
         viewModelScope.launch {
-            repository.submitRating(
-                jobOrderItemId = jobOrderItemId,
-                productVariantId = productVariantId,
+            repository.rateItem(
+                itemId = orderItemId,
                 rating = rating,
                 comment = comment?.takeIf { it.isNotBlank() },
             ).fold(
-                onSuccess = { frameRating ->
-                    _uiState.value = FrameRatingUiState.Success(frameRating)
+                onSuccess = { result ->
+                    _uiState.value = FrameRatingUiState.Success(result)
                 },
                 onFailure = { error ->
-                    if (error is FrameRatingError) {
-                        _uiState.value = FrameRatingUiState.Error(
-                            message = error.message,
-                            fieldErrors = error.fieldErrors,
-                        )
-                    } else {
-                        _uiState.value = FrameRatingUiState.Error(
-                            message = error.message ?: "Failed to submit rating",
-                        )
-                    }
+                    _uiState.value = FrameRatingUiState.Error(
+                        message = error.message ?: "Failed to submit rating",
+                    )
                 },
             )
         }

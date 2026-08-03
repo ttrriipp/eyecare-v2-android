@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,12 +39,16 @@ internal fun MessageContextCard(
     val title: String
     val accessibilityLabel: String
     val icon = when (context) {
-        is MessageContext.Appointment -> {
-            title = "Appointment"
-            accessibilityLabel = "Open appointment ${context.id}"
-            Icons.Default.CalendarMonth
+        is MessageContext.Quotation -> {
+            title = "Estimate"
+            accessibilityLabel = "Open estimate ${context.id}"
+            Icons.Outlined.Receipt
         }
-
+        is MessageContext.OpticalOrder -> {
+            title = "Eyewear order"
+            accessibilityLabel = "Open eyewear order ${context.id}"
+            Icons.Outlined.ShoppingBag
+        }
         is MessageContext.Unsupported -> return
     }
 

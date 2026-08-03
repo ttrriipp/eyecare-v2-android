@@ -9,30 +9,41 @@ object QuotationDtos {
 
     @Serializable
     data class QuotationItemDto(
+        val id: Int,
+        @SerialName("item_type") val itemType: String,
         val description: String,
         val quantity: Int,
-        @SerialName("unit_price") val unitPrice: Double,
-        val amount: Double,
+        @SerialName("unit_price")
+        @Serializable(with = MoneyValueSerializer::class)
+        val unitPrice: BigDecimal,
+        @Serializable(with = MoneyValueSerializer::class)
+        val amount: BigDecimal,
     )
 
     @Serializable
-    data class QuotationRevisionDto(
-        @SerialName("revision_number") val revisionNumber: Int,
-        val subtotal: Double,
-        @SerialName("discount_amount") val discountAmount: Double,
-        val total: Double,
-        val items: List<QuotationItemDto> = emptyList(),
+    data class OpticalOrderReferenceDto(
+        val id: Int,
+        @SerialName("order_number") val orderNumber: String,
     )
 
     @Serializable
     data class QuotationDto(
         val id: Int,
-        @SerialName("quotation_number") val quotationNumber: String? = null,
+        @SerialName("quotation_number") val quotationNumber: String,
         val status: String,
         @SerialName("valid_until") val validUntil: String? = null,
+        @Serializable(with = MoneyValueSerializer::class)
+        val subtotal: BigDecimal,
+        @Serializable(with = MoneyValueSerializer::class)
+        @SerialName("discount_amount") val discountAmount: BigDecimal,
+        @Serializable(with = MoneyValueSerializer::class)
+        val total: BigDecimal,
         val notes: String? = null,
-        val revision: QuotationRevisionDto? = null,
-        @SerialName("created_at") val createdAt: String? = null,
+        @SerialName("created_at") val createdAt: String,
+        @SerialName("presented_at") val presentedAt: String? = null,
+        @SerialName("confirmed_at") val confirmedAt: String? = null,
+        @SerialName("optical_order") val opticalOrder: OpticalOrderReferenceDto? = null,
+        val items: List<QuotationItemDto> = emptyList(),
     )
 
     @Serializable

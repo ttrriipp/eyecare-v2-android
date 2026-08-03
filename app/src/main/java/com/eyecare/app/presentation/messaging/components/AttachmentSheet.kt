@@ -14,8 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -32,20 +32,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.eyecare.app.domain.model.AppointmentV1
-import com.eyecare.app.domain.model.JobOrder
+import com.eyecare.app.domain.model.OpticalOrder
+import com.eyecare.app.domain.model.Quotation
+import com.eyecare.app.presentation.eyewear.estimateCardTitle
+import com.eyecare.app.presentation.eyewear.orderCardTitle
 
-private enum class SheetPage { MAIN, APPOINTMENTS, ORDERS }
+private enum class SheetPage { MAIN, ESTIMATES, ORDERS }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttachmentSheet(
     sheetState: SheetState,
-    appointments: List<AppointmentV1>,
-    orders: List<JobOrder>,
+    quotations: List<Quotation>,
+    orders: List<OpticalOrder>,
     onAttachFile: () -> Unit,
-    onLinkAppointment: (AppointmentV1) -> Unit,
-    onLinkOrder: (JobOrder) -> Unit,
+    onLinkEstimate: (Quotation) -> Unit,
+    onLinkOrder: (OpticalOrder) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var page by remember { mutableStateOf(SheetPage.MAIN) }
@@ -68,29 +70,29 @@ fun AttachmentSheet(
                         onDismiss()
                         onAttachFile()
                     }
-                    SheetOption(Icons.Default.CalendarMonth, "Link appointment") { page = SheetPage.APPOINTMENTS }
-                    SheetOption(Icons.Default.ShoppingBag, "Link order") { page = SheetPage.ORDERS }
+                    SheetOption(Icons.Outlined.Receipt, "Link estimate") { page = SheetPage.ESTIMATES }
+                    SheetOption(Icons.Outlined.ShoppingBag, "Link eyewear order") { page = SheetPage.ORDERS }
                 }
-                SheetPage.APPOINTMENTS -> {
+                SheetPage.ESTIMATES -> {
                     Text(
-                        "Select appointment",
+                        "Select estimate",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     )
-                    if (appointments.isEmpty()) {
+                    if (quotations.isEmpty()) {
                         Text(
-                            "No appointments found",
+                            "No estimates found",
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         LazyColumn {
-                            items(appointments) { appt ->
+                            items(quotations) { quotation ->
                                 PickerRow(
-                                    primary = appt.appointmentType,
-                                    secondary = "${appt.scheduledAt.take(10)} · ${appt.status.name.lowercase()}",
+                                    primary = estimateCardTitle(quotation),
+                                    secondary = "${quotation.quotationNumber} · ${quotation.status.name.lowercase()}",
                                 ) {
-                                    onLinkAppointment(appt)
+                                    onLinkEstimate(quotation)
                                     onDismiss()
                                 }
                                 HorizontalDivider()
@@ -101,13 +103,13 @@ fun AttachmentSheet(
                 }
                 SheetPage.ORDERS -> {
                     Text(
-                        "Select order",
+                        "Select eyewear order",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     )
                     if (orders.isEmpty()) {
                         Text(
-                            "No orders found",
+                            "No eyewear orders found",
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -115,8 +117,8 @@ fun AttachmentSheet(
                         LazyColumn {
                             items(orders) { order ->
                                 PickerRow(
-                                    primary = "Job Order #${order.jobOrderNumber}",
-                                    secondary = order.status.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() },
+                                    primary = orderCardTitle(order),
+                                    secondary = "${order.orderNumber} · ${order.status.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }}",
                                 ) {
                                     onLinkOrder(order)
                                     onDismiss()

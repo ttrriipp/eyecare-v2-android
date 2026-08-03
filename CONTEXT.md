@@ -376,13 +376,71 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 - Home: next appointment, current prescription summary, featured frames preview
 - Frames: searchable/paged catalog, detail, AR, reservation entry
 - Appointments: list, detail, booking, reschedule, cancel, intake
-- Profile: hub for Messages, Prescriptions, Reservations, Eyewear
+- Profile: hub for Messages, Prescriptions, Reservations, My Eyewear
+
+## My Eyewear — Estimates and Orders
+
+`presentation/eyewear/MyEyewearScreen.kt`, `EstimateListViewModel.kt`,
+`OpticalOrderListViewModel.kt`, `EstimateDetailScreen.kt`,
+`OpticalOrderDetailScreen.kt`, `FrameRatingViewModel.kt`:
+
+- Profile **Care & activity** contains one **My Eyewear** row (active-link protected).
+- The destination has primary **Estimates** and **Orders** tabs, each with
+  **Current** and **History** filters. Initial selection is **Estimates → Current**.
+- Estimates call `GET /quotations`; Orders call `GET /optical-orders`. Each tab
+  owns independent results, pagination, loading, empty, and error states.
+- Current/History membership is backend-owned. Draft quotations are never shown.
+- Estimate cards show patient status (Awaiting confirmation, Confirmed, Declined,
+  Expired), reference, dates, total, and **View order** when `optical_order` exists.
+- Order cards show patient status (Preparing, In preparation, Ready for pickup,
+  Released to you, Cancelled), reference, dates, total, payment status, and
+  remaining balance when > 0.
+- Estimate detail is read-only with items, subtotal, discount, total, notes, and
+  optional Order cross-link.
+- Order detail shows fulfillment tracker (Preparation → Ready → Released),
+  timestamps, Eyewear details, optional Payment Summary, optional source Estimate
+  link, and rating/revision on `is_rateable` items.
+- Rating is one POST upsert (`POST /optical-order-items/{id}/rating`): 201 for
+  first creation, 200 for revision. `is_rateable` is server-authoritative.
+- Typed integer routes: `MyEyewear`, `EstimateDetail(quotationId)`,
+  `OpticalOrderDetail(orderId)`. Cross-links pass ID directly.
+- `PatientFeatureIntent` preserves typed Estimate/Order intents through the
+  active-link gate.
+
+## Messaging — Quotation and Optical Order Contexts
+
+`data/remote/dto/MessageDtos.kt`, `data/repository/ChatRepositoryImpl.kt`,
+`domain/model/Message.kt`, `presentation/messaging/ChatViewModel.kt`:
+
+- Messages expose `sender_type` (patient/staff/unknown) and zero-or-one attachment
+  with `download_url`. No `conversation_id` in response DTO.
+- Valid context types: `quotation:{id}` and `optical_order:{id}`. Old `appointment`
+  and `order` contexts are removed.
+- Context picker loads Estimates and Optical Orders independently. Picker failures
+  are scoped per source.
+- Incoming context cards navigate to typed Estimate/Order detail by type and ID.
+  Unknown types render as non-clickable references.
+- Bubble ownership uses `sender_type == patient` as authority.
+
+## Route Governance — 51 Routes
+
+`test/.../ApprovedApiRoutes.kt`, `test/.../ApiRouteAllowlistTest.kt`:
+
+- 8 public, 24 account-only, 19 active-link routes = 51 total.
+- Retired routes explicitly rejected: `/eyewear`, `/job-orders`, `/billing-records`,
+  `/job-order-items/{id}/rating`, legacy `/login`, `/register`, `/appointment-types`,
+  appointment intake routes.
+- Discovery test fails if any rejected route appears in production Retrofit
+  annotations.
 
 ## Active Specs
 
-- `docs/specs/backend-alignment-v13-auth-spec.md` — Approved: patient account access and security
-- `docs/specs/backend-alignment-v13-auth-plan.md` — Approved: implementation plan (7 stages)
-- `docs/specs/backend-alignment-v13-auth-tasks.md` — Approved: 30 tasks + 7 checkpoints
+- `docs/specs/backend-alignment-v14-my-eyewear-spec.md` — Complete: My Eyewear Estimates and Orders
+- `docs/specs/backend-alignment-v14-my-eyewear-plan.md` — Complete: implementation plan
+- `docs/specs/backend-alignment-v14-my-eyewear-tasks.md` — Complete: 31 tasks + checkpoints
+- `docs/specs/backend-alignment-v13-auth-spec.md` — Complete: patient account access and security
+- `docs/specs/backend-alignment-v13-auth-plan.md` — Complete: implementation plan (7 stages)
+- `docs/specs/backend-alignment-v13-auth-tasks.md` — Complete: 30 tasks + 7 checkpoints
 - `docs/specs/backend-alignment-v8-spec.md` — Complete: patient workflow migration (60 tasks)
 - `docs/specs/backend-alignment-v8-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v8-tasks.md` — Complete: all acceptance criteria met
