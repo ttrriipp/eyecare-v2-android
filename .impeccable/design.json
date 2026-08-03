@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-02T07:14:05.3626155Z",
+  "generatedAt": "2026-08-03T00:00:00.0000000Z",
   "title": "Design System: Eyecare",
   "extensions": {
     "colorMeta": {
@@ -97,14 +97,14 @@
       "label": {"displayName": "Label", "purpose": "Statuses, metadata, compact actions, and controlled eyebrow text."}
     },
     "shadows": [
-      {"name": "resting-selection", "value": "1dp Material elevation", "purpose": "Appointment cards and unselected calendar dates."},
+      {"name": "resting-selection", "value": "1-2dp Material elevation", "purpose": "Appointment cards, unselected calendar dates, and Frame grid cards."},
       {"name": "floating-navigation", "value": "2dp Material elevation", "purpose": "The centered bottom navigation shell."},
       {"name": "transient-emphasis", "value": "4dp Material elevation", "purpose": "Temporary appointment actions or overlays above the content plane."}
     ],
     "motion": [
       {"name": "navigation-color-spring", "value": "spring(dampingRatio=0.7, stiffness=medium)", "purpose": "Selected bottom-navigation background and content color."},
       {"name": "navigation-scale-spring", "value": "spring(dampingRatio=low-bouncy, stiffness=medium-low, target=1.05)", "purpose": "Subtle selected-tab emphasis."},
-      {"name": "directional-route-change", "value": "fade plus horizontal slide by one-sixth of the viewport", "purpose": "Communicates forward and back navigation direction without spectacle."}
+      {"name": "directional-route-change", "value": "fade plus horizontal slide by one-sixth of the viewport", "purpose": "Communicates forward and back navigation direction without spectacle, used by both booking and auth steps."}
     ]
   },
   "components": [
@@ -112,7 +112,7 @@
       "name": "Primary Appointment Action",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The single terminal action for an appointment step.",
+      "description": "The single terminal action for an appointment or auth step.",
       "html": "<button class=\"ds-btn-primary\">Confirm booking</button>",
       "css": ".ds-btn-primary { min-height: 52px; padding: 0 24px; border: 0; border-radius: 999px; background: #29B6F6; color: #FFFFFF; font: 600 14px 'DM Sans', sans-serif; cursor: pointer; transition: filter 160ms ease, transform 160ms ease, box-shadow 160ms ease; } .ds-btn-primary:hover { filter: brightness(0.96); } .ds-btn-primary:active { transform: scale(0.985); } .ds-btn-primary:focus-visible { outline: 3px solid rgba(41,182,246,0.30); outline-offset: 3px; }"
     },
@@ -149,6 +149,14 @@
       "css": ".ds-appointment-card { padding: 14px 18px; border-radius: 20px; background: #FFFFFF; color: #3D3535; box-shadow: 0 1px 3px rgba(0,0,0,0.12); font-family: 'DM Sans', sans-serif; transition: transform 160ms ease, box-shadow 160ms ease; } .ds-appointment-card:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.14); } .ds-appointment-card:focus-within { outline: 3px solid rgba(41,182,246,0.24); outline-offset: 3px; } .ds-status-pill { display: inline-block; padding: 5px 12px; border-radius: 999px; background: rgba(246,173,85,0.14); color: #F6AD55; font-size: 11px; font-weight: 700; text-transform: uppercase; } .ds-appointment-card h3 { margin: 12px 0 10px; font-size: 16px; } .ds-appointment-card p { display: flex; align-items: center; gap: 10px; margin: 8px 0; color: #6B7280; font-size: 14px; } .ds-appointment-card svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }"
     },
     {
+      "name": "Frame Card",
+      "kind": "card",
+      "refersTo": "card-frame",
+      "description": "A two-up eyewear grid card: square product image, AR badge, brand/name/price stack.",
+      "html": "<article class=\"ds-frame-card\"><div class=\"ds-frame-image\"><span class=\"ds-frame-ar\">AR</span></div><div class=\"ds-frame-body\"><span class=\"ds-frame-brand\">RAY-BAN</span><h4>Aviator Classic</h4><strong>₱8,500.00</strong></div></article>",
+      "css": ".ds-frame-card { width: 172px; border: 1px solid #E5E7EB; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 4px rgba(0,0,0,0.10); overflow: hidden; font-family: 'DM Sans', sans-serif; } .ds-frame-image { position: relative; aspect-ratio: 1; background: #F1F3F5; } .ds-frame-ar { position: absolute; top: 8px; right: 8px; padding: 4px 8px; border-radius: 20px; background: rgba(41,182,246,0.15); color: #29B6F6; font-size: 11px; font-weight: 600; } .ds-frame-body { display: grid; gap: 2px; padding: 12px; } .ds-frame-brand { color: #6B7280; font-size: 12px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; } .ds-frame-body h4 { margin: 0; font: 600 14px 'DM Sans', sans-serif; } .ds-frame-body strong { color: #29B6F6; font-size: 14px; font-weight: 700; }"
+    },
+    {
       "name": "Compact Bottom Navigation",
       "kind": "nav",
       "refersTo": "navigation-shell",
@@ -165,6 +173,14 @@
       "css": ".ds-visit-ticket { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 16px; background: #1A2E5A; color: #FFFFFF; font-family: 'DM Sans', sans-serif; } .ds-date-tile { display: grid; place-items: center; min-width: 64px; padding: 12px 8px; border-radius: 12px; background: #29B6F6; } .ds-date-tile small { font-size: 12px; font-weight: 600; } .ds-date-tile strong { font: 600 24px 'Outfit', sans-serif; } .ds-visit-copy > span { color: rgba(255,255,255,0.72); font-size: 12px; letter-spacing: 0.08em; } .ds-visit-copy h3 { margin: 6px 0; font: 600 18px 'Outfit', sans-serif; } .ds-visit-copy b { display: inline-block; padding: 4px 8px; border-radius: 12px; background: rgba(255,255,255,0.12); font-size: 12px; } .ds-visit-copy p { margin: 8px 0; font-size: 14px; } .ds-visit-copy a { color: #29B6F6; font-size: 12px; font-weight: 600; text-decoration: none; } .ds-visit-copy a:hover { text-decoration: underline; } .ds-visit-copy a:focus-visible { outline: 2px solid #29B6F6; outline-offset: 3px; }"
     },
     {
+      "name": "Segmented Tabs",
+      "kind": "chip",
+      "refersTo": "button-outlined",
+      "description": "Two-item Upcoming/History selector using the shared selected-chip tint recipe.",
+      "html": "<div class=\"ds-segmented\" role=\"tablist\"><button class=\"ds-segment is-selected\" role=\"tab\" aria-selected=\"true\">Upcoming</button><button class=\"ds-segment\" role=\"tab\" aria-selected=\"false\">History</button></div>",
+      "css": ".ds-segmented { display: flex; border-radius: 999px; overflow: hidden; font-family: 'DM Sans', sans-serif; } .ds-segment { flex: 1; padding: 10px 16px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #6B7280; font: 600 13px 'DM Sans', sans-serif; cursor: pointer; transition: background 160ms ease, color 160ms ease, border-color 160ms ease; } .ds-segment.is-selected { background: rgba(41,182,246,0.14); color: #29B6F6; border-color: rgba(41,182,246,0.35); } .ds-segment:focus-visible { outline: 3px solid rgba(41,182,246,0.28); outline-offset: -3px; }"
+    },
+    {
       "name": "Care Confirmation Dialog",
       "kind": "custom",
       "refersTo": "card-standard",
@@ -175,7 +191,7 @@
   ],
   "narrative": {
     "northStar": "The Clear Care Companion",
-    "overview": "Eyecare should feel like a composed companion beside the patient: calm enough for health-related information, warm enough to remain human, and clear enough that the next action never feels uncertain. Its strongest screens use friendly typography, quiet warm surfaces, and precise cyan cues to make operational tasks feel reassuring rather than clinical or bureaucratic.\n\nThe system is layered but restrained. White cards and soft tonal panels organize information over a warm off-white canvas; fine borders establish most separation, while low elevation is reserved for genuinely floating or selectable elements. Components are softly structured and reassuring, with rounded geometry, readable labels, and explicit state communication.\n\nThis record intentionally treats Home, `SplitBottomNavBar`, and the appointment surfaces as the incumbent visual authority. Patterns found only in unfinished screens are implementation context, not system precedent, until they are explicitly approved and folded into this document.",
+    "overview": "Eyecare should feel like a composed companion beside the patient: calm enough for health-related information, warm enough to remain human, and clear enough that the next action never feels uncertain. Its strongest screens use friendly typography, quiet warm surfaces, and precise cyan cues to make operational tasks feel reassuring rather than clinical or bureaucratic.\n\nThe system is layered but restrained. White cards and soft tonal panels organize information over a warm off-white canvas; fine borders establish most separation, while low elevation is reserved for genuinely floating or selectable elements. Components are softly structured and reassuring, with rounded geometry, readable labels, and explicit state communication.\n\nThis record treats Home, `SplitBottomNavBar`, the appointment surfaces, and the Frames grid as the incumbent visual authority: each independently converges on the same border-led cards, 12–20dp corner family, and restrained status color language, which is the strongest evidence a system is actually being followed rather than reinvented per screen. Patterns found only in unfinished or single-use screens remain implementation context, not system precedent, until they are explicitly approved and folded into this document.",
     "keyCharacteristics": [
       "Calm, warm, and clear operation-first hierarchy.",
       "Lens Cyan reserved for actions, selections, and identity cues.",
@@ -186,18 +202,19 @@
     "rules": [
       {"name": "The Clear Accent Rule", "body": "Lens Cyan signals action, selection, identity, or information hierarchy; it does not become broad decoration across an entire screen.", "section": "colors"},
       {"name": "The Navy Anchor Rule", "body": "Deep Vision Navy is reserved for high-priority visit information whose contrast should interrupt the otherwise quiet surface system.", "section": "colors"},
-      {"name": "The Friendly Precision Rule", "body": "Use Outfit to welcome and orient; use DM Sans to explain and operate. Do not add ad hoc font families or hand-picked sizes when an established role fits.", "section": "typography"},
+      {"name": "The Friendly Precision Rule", "body": "Use Outfit to welcome and orient; use DM Sans to explain and operate. Do not add ad hoc font families, hand-picked sizes, or an unstyled Material role when an established custom role fits.", "section": "typography"},
       {"name": "The Quiet Grid Rule", "body": "Start with 24dp margins for patient overview surfaces and 16dp for task-dense flows, then compose with the established 4/8/12/16/20/24/32dp rhythm.", "section": "layout"},
       {"name": "The Border-Before-Shadow Rule", "body": "Establish hierarchy with surface color and a subtle border first; add elevation only when the element's physical relationship would otherwise be unclear.", "section": "elevation"},
       {"name": "The Nested Radius Rule", "body": "Inner shapes must be visibly tighter than their parent surface; do not place a 20–24dp inner tile inside a 16dp card.", "section": "shapes"}
     ],
     "dos": [
-      "**Do** use Home, `SplitBottomNavBar`, and Appointments as the visual authority until other surfaces are explicitly approved.",
-      "**Do** use 24dp page margins for overview screens and 16dp for task-dense appointment flows.",
+      "**Do** use Home, `SplitBottomNavBar`, Appointments, and the Frames grid as the visual authority until other surfaces are explicitly approved.",
+      "**Do** use 24dp page margins for overview and auth screens, and 16dp for task-dense appointment flows.",
       "**Do** establish hierarchy with a white or tonal surface and a one-dp border before adding shadow.",
       "**Do** reserve Deep Vision Navy for high-priority visit summaries.",
       "**Do** pair every status color with a clear text label.",
-      "**Do** preserve 48dp touch targets, Android system insets, system Back behavior, and readable increased-font layouts."
+      "**Do** preserve 48dp touch targets, Android system insets, system Back behavior, and readable increased-font layouts — including making long or keyboard-compressed content scrollable rather than letting it clip.",
+      "**Do** route every headline, title, body, and label through the five established typography roles, even in a shared/base component, so no screen silently reverts to unstyled Material defaults."
     ],
     "donts": [
       "**Don't** promote one-off patterns from unfinished screens into the system without approval.",
@@ -205,6 +222,7 @@
       "**Don't** imitate decorative wellness apps with gratuitous gradients, blobs, illustrations, or ornamental reassurance.",
       "**Don't** flood whole screens with Lens Cyan; its precision is part of its character.",
       "**Don't** introduce heavy shadows, arbitrary radii, or multiple competing primary actions.",
+      "**Don't** make an entire clickable text run (e.g. a consent label plus an inline link) a single tap target for the link action; isolate the link's own text so the surrounding label can still drive its adjacent control.",
       "**Don't** claim dark theme, tablet, expanded-width, or landscape behavior is designed until those states are deliberately resolved."
     ]
   }

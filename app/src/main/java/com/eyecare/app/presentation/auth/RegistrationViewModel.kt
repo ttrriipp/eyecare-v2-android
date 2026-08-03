@@ -214,6 +214,28 @@ class RegistrationViewModel @Inject constructor(
         }
     }
 
+    fun retryLoadPolicies() {
+        val current = _state.value
+        if (current !is RegistrationState.EnterDetails || current.policies != null) return
+
+        _state.value = current.copy(isLoadingPolicies = true)
+        viewModelScope.launch {
+            authRepository.getPolicies()
+                .onSuccess { policies ->
+                    val latest = _state.value
+                    if (latest is RegistrationState.EnterDetails) {
+                        _state.value = latest.copy(policies = policies, isLoadingPolicies = false)
+                    }
+                }
+                .onFailure {
+                    val latest = _state.value
+                    if (latest is RegistrationState.EnterDetails) {
+                        _state.value = latest.copy(isLoadingPolicies = false)
+                    }
+                }
+        }
+    }
+
     fun back() {
         _state.value = when (val current = _state.value) {
             is RegistrationState.VerifyPhoneOtp -> RegistrationState.EnterPhone(current.phoneNumber)

@@ -25,15 +25,12 @@
 11. [Frame Reservations](#12-frame-reservations)
 12. [Prescriptions](#13-prescriptions)
 13. [Quotations](#14-quotations)
-14. [Job Orders](#15-job-orders)
-15. [Eyewear](#16-eyewear)
-16. [Billing Records](#17-billing-records)
-17. [Conversation](#18-conversation)
-18. [Frame Ratings](#19-frame-ratings)
-19. [Error Responses](#20-error-responses)
-20. [Coordinated Breaking Changes](#21-coordinated-breaking-changes)
-21. [Retired Features](#22-retired-features)
-22. [Clarifications](#23-clarifications)
+14. [Optical Orders](#15-optical-orders)
+15. [Conversation](#16-conversation)
+16. [Error Responses](#17-error-responses)
+17. [Coordinated Breaking Changes](#18-coordinated-breaking-changes)
+18. [Retired Features](#19-retired-features)
+19. [Clarifications](#20-clarifications)
 
 ---
 
@@ -1452,108 +1449,12 @@ Single prescription, including historical superseded versions. Returns `404` if 
 
 **Active patient link required for all endpoints in this section.**
 
+Draft Quotations are hidden from patients. Presented, Accepted, Declined, and
+Expired Quotations are read-only to the linked patient.
+
 ### GET `/quotations`
 
-Paginated list with latest revision.
-
-**Auth:** Required (Sanctum token). **Active patient link required.**
-
-**Response (200):**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "quotation_number": "QUO-01JABC...",
-      "status": "presented",
-      "valid_until": "2026-08-03",
-      "notes": null,
-      "revision": {
-        "revision_number": 1,
-        "subtotal": 8500.00,
-        "discount_amount": 500.00,
-        "total": 8000.00,
-        "items": [
-          { "description": "Classic Rectangle Frame", "quantity": 1, "unit_price": 4500.00, "amount": 4500.00 },
-          { "description": "Single Vision Lens", "quantity": 1, "unit_price": 4000.00, "amount": 4000.00 }
-        ]
-      },
-      "created_at": "2026-07-27T10:00:00+08:00"
-    }
-  ]
-}
-```
-
-**Status values:** `draft`, `presented`, `accepted`, `declined`, `expired`.
-
-**Read-only.** Patients cannot create, accept, or decline quotations via the API.
-
----
-
-### GET `/quotations/{quotation}`
-
-**Response (200):**
-```json
-{
-  "data": {
-    "id": 1,
-    "quotation_number": "QUO-01JABC123...",
-    "status": "presented",
-    "valid_until": "2026-08-03",
-    "notes": "Please handle with care",
-    "revision": { /* same as list */ },
-    "created_at": "2026-07-27T10:00:00+08:00"
-  }
-}
-```
-
----
-
-## 15. Job Orders
-
-**Active patient link required for all endpoints in this section.**
-
-### GET `/job-orders`
-
-Paginated list with items.
-
-**Auth:** Required (Sanctum token). **Active patient link required.**
-
-**Response (200):**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "job_order_number": "JO-2026-000001",
-      "patient_id": 1,
-      "status": "in_progress",
-      "total_amount": 8000.00,
-      "items": [
-        { "id": 1, "description": "Classic Rectangle Frame", "quantity": 1, "unit_price": 4500.00, "amount": 4500.00 }
-      ]
-    }
-  ]
-}
-```
-
-**Status values:** `queued`, `in_progress`, `ready_for_dispensing`, `dispensed`, `cancelled`.
-
-**Internal supplier reference:** `supplier_invoice_number` is excluded from patient serialization.
-
-### GET `/job-orders/{id}`
-
-Returns a single job order with items.
-
----
-
-## 16. Eyewear
-
-**Active patient link required for all endpoints in this section.**
-
-### GET `/eyewear`
-
-Returns the patient's eyewear aggregates with deterministic ordering.
+Paginated list of the patient's non-draft quotations.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
@@ -1565,90 +1466,358 @@ Returns the patient's eyewear aggregates with deterministic ordering.
 | `page` | No | Integer, minimum 1 | `1` |
 | `per_page` | No | Integer, 1 through 50 | `15` |
 
-**Current filter** includes: `estimate_available`, `in_preparation`, `ready_for_pickup`.  
-**History filter** includes: `dispensed`, `estimate_declined`, `estimate_expired`, `cancelled`.
+**Filter behavior:** `current` returns `presented` quotations. `history`
+returns `accepted`, `declined`, and `expired` quotations. Draft quotations are
+never returned.
 
 **Response (200):**
 ```json
 {
   "data": [
     {
-      "key": "eyw_01K1D7H4R1V87GJ7D2GCB9QT4X",
-      "description": "Classic Rectangle Frame + 1 more",
-      "consultation_at": "2026-07-27T09:00:00+08:00",
-      "created_at": "2026-07-27T10:00:00+08:00",
-      "progress": "in_preparation",
-      "payment_status": null,
-      "total_amount": "8000.00",
-      "balance_due": null,
-      "activity_at": "2026-07-27T11:00:00+08:00"
+      "id": 1,
+      "quotation_number": "QUO-01K1ABC123",
+      "status": "presented",
+      "valid_until": "2026-08-15",
+      "subtotal": "8500.00",
+      "discount_amount": "500.00",
+      "total": "8000.00",
+      "notes": "Includes anti-reflective coating",
+      "created_at": "2026-08-01T10:00:00+08:00",
+      "presented_at": "2026-08-01T10:30:00+08:00",
+      "confirmed_at": null,
+      "optical_order": null,
+      "items": [
+        {
+          "id": 1,
+          "item_type": "product",
+          "description": "Classic Rectangle Frame",
+          "quantity": 1,
+          "unit_price": "4500.00",
+          "amount": "4500.00"
+        },
+        {
+          "id": 2,
+          "item_type": "product",
+          "description": "Progressive Lens with AR Coating",
+          "quantity": 1,
+          "unit_price": "3000.00",
+          "amount": "3000.00"
+        },
+        {
+          "id": 3,
+          "item_type": "service",
+          "description": "Eye Examination",
+          "quantity": 1,
+          "unit_price": "1000.00",
+          "amount": "1000.00"
+        }
+      ]
     }
   ],
-  "links": { ... },
-  "meta": { ... }
+  "links": {
+    "first": "/api/v1/quotations?page=1&filter=current",
+    "last": "/api/v1/quotations?page=1&filter=current",
+    "prev": null,
+    "next": null
+  },
+  "meta": {
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 15,
+    "total": 1
+  }
 }
 ```
 
-**Progress mapping:**
+**Status values:** `presented`, `accepted`, `declined`, `expired`.
 
-| Source state | Aggregate progress | Filter |
-|---|---|---|
-| Presented/accepted Quotation without Job Order | `estimate_available` | Current |
-| Queued/in-progress Job Order | `in_preparation` | Current |
-| Ready-for-dispensing Job Order | `ready_for_pickup` | Current |
-| Dispensed Job Order | `dispensed` | History |
-| Declined Quotation without Job Order | `estimate_declined` | History |
-| Expired Quotation without Job Order | `estimate_expired` | History |
-| Cancelled Job Order | `cancelled` | History |
-| Draft Quotation without Job Order | Excluded | Neither |
+**Notes:**
+- Draft quotations are excluded.
+- `item_type` is `product` or `service`.
+- `optical_order` is populated only when `status` is `accepted` and an order was created.
+- Items include both product and service lines because they are part of the proposal.
+- All monetary values are strings with two decimal places.
 
-**Payment status:**
-
-| Active Billing Record state | `payment_status` |
-|---|---|
-| `unpaid` or `partially_paid` | `balance_due` |
-| `paid` | `paid` |
-| No active Billing Record | null |
-
-**Ordering:** `activity_at DESC, key ASC`.
+**Read-only.** Patients cannot create, accept, or decline quotations via the API.
 
 ---
 
-### GET `/eyewear/{key}`
+### GET `/quotations/{quotation}`
 
-Returns a single eyewear aggregate by canonical key (`eyw_...`) or migration alias (`jo_{job_order_id}`).
+Returns a single quotation with items.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
-**Response (200) — complete linked:** Same as existing Eyewear detail contract with `estimate`, `preparation`, `dispensing`, and `payment_summary` sections.
+**Response (200):**
+```json
+{
+  "data": {
+    "id": 1,
+    "quotation_number": "QUO-01K1ABC123",
+    "status": "presented",
+    "valid_until": "2026-08-15",
+    "subtotal": "8500.00",
+    "discount_amount": "500.00",
+    "total": "8000.00",
+    "notes": "Includes anti-reflective coating",
+    "created_at": "2026-08-01T10:00:00+08:00",
+    "presented_at": "2026-08-01T10:30:00+08:00",
+    "confirmed_at": null,
+    "optical_order": null,
+    "items": [ /* same as list */ ]
+  }
+}
+```
+
+**Errors:**
+- `404`: Quotation not found, not owned by patient, or is a draft.
 
 ---
 
-## 17. Billing Records
+## 15. Optical Orders
 
 **Active patient link required for all endpoints in this section.**
 
-### GET `/billing-records`
+Optical Orders represent committed physical products that the clinic must
+prepare, hand over, or otherwise fulfill. Each order is backed by a `JobOrder`
+record. Service-only accepted quotations do not create Optical Orders.
 
-Paginated list with posted payments.
+### GET `/optical-orders`
+
+Paginated list of the patient's confirmed optical orders.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
-**Query:** `per_page` (default: 15)
+**Query parameters:**
 
-**Response (200):** Same as existing Billing Record contract.
+| Parameter | Required | Validation | Default |
+|---|---|---|---|
+| `filter` | No | `current` or `history` | `current` |
+| `page` | No | Integer, minimum 1 | `1` |
+| `per_page` | No | Integer, 1 through 50 | `15` |
 
-**Status values:** `unpaid`, `partially_paid`, `paid`, `voided`.
+**Current filter** includes: `queued`, `in_progress`, `ready_for_dispensing`.
+**History filter** includes: `dispensed`, `cancelled`.
 
-### GET `/billing-records/{id}`
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "order_number": "JO-2026-000001",
+      "status": "in_progress",
+      "fulfillment_mode": "prepared",
+      "total_amount": "8000.00",
+      "started_at": "2026-08-02T09:00:00+08:00",
+      "ready_at": null,
+      "dispensed_at": null,
+      "cancelled_at": null,
+      "created_at": "2026-08-01T11:00:00+08:00",
+      "source_quotation": {
+        "id": 1,
+        "quotation_number": "QUO-01K1ABC123"
+      },
+      "items": [
+        {
+          "id": 1,
+          "description": "Classic Rectangle Frame",
+          "quantity": 1,
+          "unit_price": "4500.00",
+          "amount": "4500.00",
+          "product_variant_id": 42,
+          "is_rateable": false,
+          "rating": null
+        },
+        {
+          "id": 2,
+          "description": "Progressive Lens with AR Coating",
+          "quantity": 1,
+          "unit_price": "3500.00",
+          "amount": "3500.00",
+          "product_variant_id": null,
+          "is_rateable": false,
+          "rating": null
+        }
+      ],
+      "payment_summary": {
+        "status": "partially_paid",
+        "total_amount": "8000.00",
+        "amount_paid": "3000.00",
+        "balance_due": "5000.00",
+        "payment_due_date": "2026-09-01",
+        "is_overdue": false
+      }
+    }
+  ],
+  "links": {
+    "first": "/api/v1/optical-orders?page=1&filter=current",
+    "last": "/api/v1/optical-orders?page=1&filter=current",
+    "prev": null,
+    "next": null
+  },
+  "meta": {
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 15,
+    "total": 1
+  }
+}
+```
 
-Returns a single billing record with posted payments.
+**Field definitions:**
+
+| Field | Type | Nullable | Description |
+|---|---|---|---|
+| `id` | integer | no | Job Order ID |
+| `order_number` | string | no | `JO-YYYY-NNNNNN` format |
+| `status` | string | no | Current fulfillment status |
+| `fulfillment_mode` | string | no | `immediate` or `prepared` |
+| `total_amount` | string | no | Order total, two decimal places |
+| `started_at` | string | yes | ISO 8601 when production started |
+| `ready_at` | string | yes | ISO 8601 when marked ready |
+| `dispensed_at` | string | yes | ISO 8601 when dispensed |
+| `cancelled_at` | string | yes | ISO 8601 when cancelled |
+| `created_at` | string | no | ISO 8601 creation timestamp |
+| `source_quotation` | object | yes | Source quotation reference; null for direct orders |
+| `source_quotation.id` | integer | no | Quotation ID |
+| `source_quotation.quotation_number` | string | no | Quotation number |
+| `items` | array | no | Product items snapshot |
+| `items[].id` | integer | no | Job Order Item ID |
+| `items[].description` | string | no | Item description |
+| `items[].quantity` | integer | no | Item quantity |
+| `items[].unit_price` | string | no | Unit price, two decimal places |
+| `items[].amount` | string | no | Line amount, two decimal places |
+| `items[].product_variant_id` | integer | yes | Catalog variant ID; null for non-catalog or lens-category items |
+| `items[].is_rateable` | boolean | no | Whether the patient may submit or revise a rating for this item now |
+| `items[].rating` | object | yes | Current rating summary; null when not yet rated |
+| `payment_summary` | object | yes | Active billing summary; null if no billing record |
+| `payment_summary.status` | string | no | Machine-readable: `unpaid`, `partially_paid`, `paid`, or `voided` |
+| `payment_summary.total_amount` | string | no | Billing total |
+| `payment_summary.amount_paid` | string | no | Amount paid |
+| `payment_summary.balance_due` | string | no | Remaining balance |
+| `payment_summary.payment_due_date` | string | yes | Due date, `Y-m-d` format |
+| `payment_summary.is_overdue` | boolean | no | Whether the unpaid balance is past its due date |
+
+When `items[].rating` is not null, it contains the current `rating`, optional
+`comment`, and `created_at` timestamp. Rating history is not included in the
+Optical Order response.
+
+**Status values:** `queued`, `in_progress`, `ready_for_dispensing`, `dispensed`, `cancelled`.
+
+**Payment status values:** `unpaid`, `partially_paid`, `paid`, `voided`.
+
+**Rateable items:** `is_rateable` is `true` only for a dispensed Product item
+with a linked `product_variant_id`. Service items, custom products, and items
+from non-dispensed orders have `is_rateable: false`. The client does not submit
+the variant ID; the server resolves it from the Optical Order item route.
+
+**Ordering:** `created_at DESC, id DESC`.
+
+**Notes:**
+- Items contain only product lines. Service lines are never included.
+- `supplier_invoice_number` and internal notes are excluded.
+- `payment_summary` represents the overall checkout balance for combined bills.
+- Monetary values are strings with two decimal places.
 
 ---
 
-## 18. Conversation
+### GET `/optical-orders/{id}`
+
+Returns a single optical order with items and payment summary.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Response (200):**
+```json
+{
+  "data": {
+    "id": 1,
+    "order_number": "JO-2026-000001",
+    "status": "ready_for_dispensing",
+    "fulfillment_mode": "prepared",
+    "total_amount": "8000.00",
+    "started_at": "2026-08-02T09:00:00+08:00",
+    "ready_at": "2026-08-03T14:00:00+08:00",
+    "dispensed_at": null,
+    "cancelled_at": null,
+    "created_at": "2026-08-01T11:00:00+08:00",
+    "source_quotation": {
+      "id": 1,
+      "quotation_number": "QUO-01K1ABC123"
+    },
+    "items": [ /* same as list */ ],
+    "payment_summary": {
+      "status": "unpaid",
+      "total_amount": "8000.00",
+      "amount_paid": "0.00",
+      "balance_due": "8000.00",
+      "payment_due_date": "2026-09-01",
+      "is_overdue": false
+    }
+  }
+}
+```
+
+**Errors:**
+- `404`: Order not found or not owned by the authenticated patient.
+
+---
+
+### POST `/optical-order-items/{id}/rating`
+
+Creates or revises the patient's rating for a rateable item from a dispensed
+Optical Order. This endpoint is an upsert: the first POST creates the rating;
+later POSTs append a revision to the same rating. There is no separate PATCH
+route.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Request:**
+```json
+{
+  "rating": "integer (required, 1-5)",
+  "comment": "string (nullable, max:1000)"
+}
+```
+
+**Response:** `201 Created` for the first rating; `200 OK` when revising an
+existing rating.
+
+```json
+{
+  "data": {
+    "id": 1,
+    "item_id": 5,
+    "rating": 5,
+    "comment": "Excellent frame quality",
+    "revision_number": 1,
+    "created_at": "2026-08-05T10:00:00+08:00"
+  }
+}
+```
+
+The response represents the current rating after the upsert. Revisions are
+retained server-side for moderation history.
+
+**Errors:**
+- `404`: Item not found, not owned by patient, or not rateable.
+- `422 ORDER_NOT_DISPENSED`: Order must be dispensed before rating.
+- `422 VALIDATION_ERROR`: Rating is outside 1-5 or the comment exceeds 1,000
+  characters.
+
+---
+
+## 16. Conversation
 
 **Active patient link required for all endpoints in this section.**
+
+The conversation is the patient's single messaging thread with the clinic.
+Messages may reference an Optical Order or Quotation through optional
+`contexts[]` entries. Context identifiers use the resource type and its
+public ID (e.g., `optical_order:5` or `quotation:12`). The client renders
+context links using the resource type and ID; the API does not return URLs.
 
 ### GET `/conversation`
 
@@ -1672,35 +1841,117 @@ Returns (or creates) the patient's single conversation.
 
 Returns all messages in the conversation (oldest first). NOT paginated.
 
-**Response (200):** Same as existing message contract.
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "sender_id": 5,
+      "sender_type": "staff",
+      "body": "Your frame is ready for pickup.",
+      "read_at": "2026-08-01T10:00:00+08:00",
+      "created_at": "2026-08-01T09:00:00+08:00",
+      "contexts": [
+        { "type": "optical_order", "id": 1 }
+      ],
+      "attachments": [
+        {
+          "id": 1,
+          "original_name": "receipt.pdf",
+          "mime_type": "application/pdf",
+          "file_size": 45678,
+          "download_url": "/api/v1/conversation/attachments/1"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Field definitions:**
+
+| Field | Type | Nullable | Description |
+|---|---|---|---|
+| `id` | integer | no | Message ID |
+| `sender_id` | integer | no | User ID of sender |
+| `sender_type` | string | no | `patient` or `staff` |
+| `body` | string | no | Message text, maximum 5,000 characters |
+| `read_at` | string | yes | ISO 8601 when read by patient |
+| `created_at` | string | no | ISO 8601 creation timestamp |
+| `contexts` | array | no | Referenced resources |
+| `contexts[].type` | string | no | `optical_order` or `quotation` |
+| `contexts[].id` | integer | no | Resource ID |
+| `attachments` | array | no | Attached files |
+| `attachments[].id` | integer | no | Attachment ID |
+| `attachments[].original_name` | string | no | Original filename |
+| `attachments[].mime_type` | string | no | MIME type |
+| `attachments[].file_size` | integer | no | File size in bytes |
+| `attachments[].download_url` | string | no | Authenticated attachment download route |
 
 ### POST `/conversation/messages`
 
 Sends a message. Supports `multipart/form-data` for attachments.
 
-**Request:** Same as existing multipart contract with `body`, `attachment`, and `contexts[]`.
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Request (JSON):**
+```json
+{
+  "body": "string (required, max:5000)",
+  "contexts": [
+    { "type": "optical_order", "id": 1 }
+  ]
+}
+```
+
+**Request (multipart/form-data):**
+```
+body: "string (required, max:5000)"
+attachment: File (optional, max 10MB, allowed: pdf,png,jpg,jpeg,doc,docx)
+contexts[0][type]: "optical_order"
+contexts[0][id]: "1"
+```
+
+**Notes:**
+- `contexts` is optional. Each entry must include `type` and `id`.
+- Valid `type` values: `optical_order`, `quotation`.
+- The referenced resource must exist and belong to the authenticated patient.
+- A message accepts at most one attachment through the singular `attachment`
+  field. To send multiple files, send separate messages.
+
+**Response (201):**
+```json
+{
+  "data": {
+    "id": 2,
+    "sender_id": 1,
+    "sender_type": "patient",
+    "body": "Thank you!",
+    "read_at": null,
+    "created_at": "2026-08-05T11:00:00+08:00",
+    "contexts": [],
+    "attachments": []
+  }
+}
+```
 
 ### GET `/conversation/attachments/{id}`
 
 Downloads a message attachment. Patient can only download from their own conversation.
 
----
-
-## 19. Frame Ratings
-
-**Active patient link required for all endpoints in this section.**
-
-### POST `/job-order-items/{id}/rating`
-
-Submits or revises a rating for a frame variant linked to a job order item.
-
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
-**Request and Response:** Same as existing Frame Rating contract.
+**Response:** Binary file download with appropriate `Content-Type` and `Content-Disposition` headers.
+
+**Errors:**
+- `404`: Attachment not found or not owned by patient's conversation.
 
 ---
 
-## 20. Error Responses
+## 17. Error Responses
 
 All API errors use one consistent JSON shape:
 
@@ -1748,7 +1999,7 @@ All API errors use one consistent JSON shape:
 
 ---
 
-## 21. Coordinated Breaking Changes
+## 18. Coordinated Breaking Changes
 
 The following routes are **removed** in the coordinated Android cutover:
 
@@ -1761,6 +2012,23 @@ The following routes are **removed** in the coordinated Android cutover:
 | `GET /appointments/{id}/intake` | Retired; no replacement |
 | `PUT /appointments/{id}/intake` | Retired; no replacement |
 | `POST /appointments/{id}/intake/submit` | Retired; no replacement |
+| `GET /job-orders` | Replaced by `GET /optical-orders` |
+| `GET /job-orders/{id}` | Replaced by `GET /optical-orders/{id}` |
+| `GET /billing-records` | Removed from patient API; staff-only |
+| `GET /billing-records/{id}` | Removed from patient API; staff-only |
+| `GET /eyewear` | Replaced by separate `GET /quotations` and `GET /optical-orders` |
+| `GET /eyewear/{key}` | Replaced by `GET /quotations/{id}` or `GET /optical-orders/{id}` |
+| `POST /job-order-items/{id}/rating` | Replaced by `POST /optical-order-items/{id}/rating` |
+
+### Coordinated response and behavior changes
+
+| Area | Breaking change |
+|---|---|
+| Eyewear navigation | The unified `/eyewear` aggregate is replaced by separately paginated Estimates (`/quotations`) and Orders (`/optical-orders`). Clients must not join the lists. |
+| Optical Order items | Product items expose nullable `product_variant_id`, explicit `is_rateable`, and a nullable current `rating` summary. |
+| Rating revisions | `POST /optical-order-items/{id}/rating` is an upsert. A later POST revises the rating; no PATCH route or duplicate-rating conflict response exists. |
+| Payment summary | `payment_summary.status` is machine-readable (`unpaid`, `partially_paid`, `paid`, `voided`); `is_overdue` is a separate boolean. |
+| Message attachments | A message accepts one optional `attachment` field. Responses return zero or one attachment; multiple files require separate messages. |
 
 ### New Routes Added
 
@@ -1793,6 +2061,9 @@ The following routes are **removed** in the coordinated Android cutover:
 | `POST /appointment-requests` | Create request |
 | `GET /appointment-requests/{id}` | Get request detail |
 | `POST /appointment-requests/{id}/cancel` | Cancel request |
+| `GET /optical-orders` | List patient optical orders (product fulfillment) |
+| `GET /optical-orders/{id}` | Get optical order detail |
+| `POST /optical-order-items/{id}/rating` | Rate a dispensed product item |
 
 ### Modified Routes
 
@@ -1808,7 +2079,7 @@ The following routes are **removed** in the coordinated Android cutover:
 
 ---
 
-## 22. Retired Features
+## 19. Retired Features
 
 The following old mobile features/routes are **intentionally retired**:
 
@@ -1829,7 +2100,7 @@ The following old mobile features/routes are **intentionally retired**:
 
 ---
 
-## 23. Clarifications
+## 20. Clarifications
 
 ### Registration is two-stage
 `POST /auth/registration/verify` verifies the phone OTP and returns a
@@ -1870,6 +2141,53 @@ Tokens are device-labelled, expire after 30 days, and are limited to 5 per patie
 
 ### Contact normalization
 Email addresses are trimmed and lowercased. Phone numbers are normalized to canonical E.164 (`+63...`) before uniqueness checks and blind-index computation.
+
+### Estimates and Orders UX
+
+The mobile app uses two separate paginated APIs for the patient-facing
+**Eyewear** destination:
+
+- **Estimates**: `GET /api/v1/quotations` — presented quotations in the current
+  view, and accepted, declined, or expired quotations in history. Drafts are
+  hidden.
+- **Orders**: `GET /api/v1/optical-orders` — current product fulfillment in the
+  current view, and dispensed or cancelled orders in history.
+
+The app may present these as tabs or sections within one Eyewear destination,
+but the APIs are not combined and must not be client-side joined. Each endpoint
+has its own pagination and filters. Service-only accepted quotations appear in
+Estimates only because no Optical Order is created.
+
+### Rateable items and rating revisions
+
+Optical Order items expose `is_rateable`, nullable `product_variant_id`, and the
+current rating summary. Only dispensed Product items with a linked variant have
+`is_rateable: true`; Service items, custom products, and items from
+non-dispensed orders have `is_rateable: false`.
+
+`POST /api/v1/optical-order-items/{id}/rating` is an upsert. The first POST
+creates the rating (`201`); subsequent POSTs revise the current rating and
+append a moderation-history revision (`200`). There is no PATCH route and no
+duplicate-rating conflict response.
+
+### Machine-readable payment status
+
+`payment_summary.status` is the machine-readable enum `unpaid`,
+`partially_paid`, `paid`, or `voided`. Clients localize these values for
+display. `payment_summary.is_overdue` is a separate boolean and must not be
+inferred from the status string alone.
+
+### Messaging and attachments
+
+Messages include `sender_id`, `sender_type` (`patient` or `staff`), `body`,
+`read_at`, `created_at`, normalized `contexts`, and an `attachments` array that
+contains zero or one attachment. A message accepts one optional multipart
+`attachment` field; multiple files require separate messages.
+
+Each attachment returns `id`, `original_name`, `mime_type`, `file_size`, and an
+authenticated `download_url`. Allowed file types are PDF, PNG, JPG/JPEG, DOC,
+and DOCX, with a 10 MB maximum. Valid context types are `optical_order` and
+`quotation`; each referenced record must belong to the authenticated patient.
 
 ---
 
@@ -1934,20 +2252,15 @@ GET    /api/v1/prescriptions                  List prescriptions
 GET    /api/v1/prescriptions/{id}             Get prescription
 GET    /api/v1/quotations                     List quotations
 GET    /api/v1/quotations/{id}                Get quotation
-GET    /api/v1/job-orders                     List job orders
-GET    /api/v1/job-orders/{id}                Get job order
-GET    /api/v1/billing-records                List billing records
-GET    /api/v1/billing-records/{id}           Get billing record
-
-GET    /api/v1/eyewear                        List eyewear aggregates
-GET    /api/v1/eyewear/{key}                  Get eyewear detail
+GET    /api/v1/optical-orders                 List optical orders
+GET    /api/v1/optical-orders/{id}            Get optical order
 
 GET    /api/v1/conversation                   Get conversation
 GET    /api/v1/conversation/messages          List messages
 POST   /api/v1/conversation/messages          Send message
 GET    /api/v1/conversation/attachments/{id}  Download attachment
 
-POST   /api/v1/job-order-items/{id}/rating    Submit frame rating
+POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 24 account-only + 23 active-link = **55 routes total.**
+**Route count:** 8 public + 24 account-only + 19 active-link = **51 routes total.**
