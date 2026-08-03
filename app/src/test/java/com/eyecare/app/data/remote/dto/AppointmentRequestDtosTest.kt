@@ -60,10 +60,43 @@ class AppointmentRequestDtosTest {
         val encoded = json.encodeToString(request)
         assertTrue(encoded.contains("scheduled_at"))
         assertTrue(encoded.contains("reason_for_visit"))
+        assertFalse(encoded.contains("\"identity\""))
         assertFalse(encoded.contains("appointment_type"))
         assertFalse(encoded.contains("contact_notes"))
         assertFalse(encoded.contains("patient_id"))
         assertFalse(encoded.contains("optometrist"))
+    }
+
+    @Test
+    fun `create request encodes the expanded identity object`() {
+        val request = CreateAppointmentRequest(
+            scheduledAt = "2026-08-10T09:00:00+08:00",
+            reasonForVisit = "Blurred vision in left eye",
+            identity = AppointmentRequestIdentityDto(
+                phone = "+639171234567",
+                email = "alex@example.com",
+                firstName = "Alex",
+                middleName = "M",
+                lastName = "Rivera",
+                dateOfBirth = "1990-05-15",
+                gender = "female",
+                occupation = "Teacher",
+                address = "123 Main St, Manila",
+            ),
+        )
+
+        val encoded = json.encodeToString(request)
+
+        assertTrue(encoded.contains("\"identity\""))
+        assertTrue(encoded.contains("\"first_name\":\"Alex\""))
+        assertTrue(encoded.contains("\"middle_name\":\"M\""))
+        assertTrue(encoded.contains("\"last_name\":\"Rivera\""))
+        assertTrue(encoded.contains("\"date_of_birth\":\"1990-05-15\""))
+        assertTrue(encoded.contains("\"phone\":\"+639171234567\""))
+        assertTrue(encoded.contains("\"email\":\"alex@example.com\""))
+        assertTrue(encoded.contains("\"gender\":\"female\""))
+        assertTrue(encoded.contains("\"occupation\":\"Teacher\""))
+        assertTrue(encoded.contains("\"address\":\"123 Main St, Manila\""))
     }
 
     @Test

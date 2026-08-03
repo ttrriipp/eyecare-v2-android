@@ -2,6 +2,8 @@ package com.eyecare.app.data.repository
 
 import com.eyecare.app.data.remote.api.AppointmentRequestApiService
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.eyecare.app.domain.model.AppointmentRequestGender
+import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -74,6 +76,39 @@ class AppointmentRequestRepositoryImplTest {
         val request = result.getOrThrow()
         assertEquals(2, request.id)
         assertNull(request.appointmentId)
+    }
+
+    @Test
+    fun `createRequest sends optional identity for an unlinked account`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(201).setBody(
+            """{"data":{"id":3,"request_number":"APR-2026-000003","status":"pending","patient_id":null,"scheduled_at":"2026-08-10T09:00:00+08:00","reason_for_visit":"Blurry","created_at":"2026-08-09T10:00:00+08:00"}}"""
+        ))
+
+        val result = repository.createRequest(
+            scheduledAt = "2026-08-10T09:00:00+08:00",
+            reasonForVisit = "Blurry",
+            identity = AppointmentRequestIdentity(
+                phone = "+639171234567",
+                email = "alex@example.com",
+                firstName = "Alex",
+                middleName = "M",
+                lastName = "Rivera",
+                dateOfBirth = "1990-05-15",
+                gender = AppointmentRequestGender.FEMALE,
+                occupation = "Teacher",
+                address = "123 Main St, Manila",
+            ),
+        )
+
+        assertTrue(result.isSuccess)
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body.contains("\"identity\""))
+        assertTrue(body.contains("\"first_name\":\"Alex\""))
+        assertTrue(body.contains("\"date_of_birth\":\"1990-05-15\""))
+        assertTrue(body.contains("\"phone\":\"+639171234567\""))
+        assertTrue(body.contains("\"gender\":\"female\""))
+        assertTrue(body.contains("\"occupation\":\"Teacher\""))
+        assertTrue(body.contains("\"address\":\"123 Main St, Manila\""))
     }
 
     @Test

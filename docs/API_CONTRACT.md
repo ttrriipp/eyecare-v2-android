@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-02) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary.
+> **Backend version:** Current repository state (2026-08-03) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -87,7 +87,9 @@ registration form.
 
 **Behavior:**
 - An owned phone returns `422 CONTACT_ALREADY_OWNED` and no OTP challenge is created.
-- Phone OTP delivery is queued; the current backend logs phone delivery until an SMS provider is configured.
+- Phone OTP delivery is queued. In `local`/`testing`, the delivery job logs the
+  OTP code for development testing; other environments log only the masked
+  phone until an SMS provider is configured.
 
 ---
 
@@ -418,7 +420,7 @@ Returns the authenticated account's profile, link state, and (when linked) read-
 | Field | Type | Nullable | Editable via PATCH /me | Notes |
 |-------|------|----------|----------------------|-------|
 | `id` | integer | no | no | User ID |
-| `name` | string | no | no | Derived from first + middle + last |
+| `name` | string | no | no | Response-only compatibility value derived from first + middle + last; not stored as `users.name` |
 | `first_name` | string | yes | yes | Account first name |
 | `middle_name` | string | yes | no | Account middle name |
 | `last_name` | string | yes | yes | Account last name |
@@ -860,7 +862,7 @@ Verifies the OTP and activates the patient link.
 
 Returns server-generated time slots for a given date, accounting for clinic hours, provider hours, existing appointments, and unexpired pending request holds.
 
-**Auth:** Required (Sanctum token).
+**Auth:** Required (Sanctum token). No active patient link required; linked and unlinked patient accounts may use this endpoint.
 
 **Query parameters:**
 | Param | Type | Required | Rules |
@@ -881,7 +883,8 @@ Returns server-generated time slots for a given date, accounting for clinic hour
       {
         "starts_at": "2026-07-28T09:00:00+08:00",
         "ends_at": "2026-07-28T09:30:00+08:00",
-        "available": true
+        "available": true,
+        "reason": null
       },
       {
         "starts_at": "2026-07-28T09:30:00+08:00",
@@ -935,6 +938,7 @@ Paginated list of the authenticated account's appointment requests.
 **Notes:**
 - `patient_id` is `null` for unlinked accounts.
 - `appointment` is populated only when `status` is `accepted`.
+- Identity snapshots and contact details are excluded from list responses.
 
 ---
 
@@ -948,9 +952,29 @@ Creates a new appointment request.
 ```json
 {
   "scheduled_at": "datetime (required, must match a returned available slot)",
-  "reason_for_visit": "string (required, max:1000)"
+  "reason_for_visit": "string (required, max:1000)",
+  "identity": {
+    "phone": "string (required when identity is supplied; must match the account's verified phone)",
+    "email": "string (optional, nullable, valid email, max:255)",
+    "first_name": "string (required when identity is supplied, max:255)",
+    "middle_name": "string (nullable, max:255)",
+    "last_name": "string (required when identity is supplied, max:255)",
+    "date_of_birth": "date (required when identity is supplied, before:today, Y-m-d)",
+    "gender": "male | female | other (required when identity is supplied)",
+    "occupation": "string (required when identity is supplied, max:255)",
+    "address": "string (required when identity is supplied, max:255; home address)"
+  }
 }
 ```
+
+**Identity object rules:**
+- `identity` is optional for unlinked accounts. When omitted, the server uses the account's current structured name, date of birth, phone, optional email, and address as fallback; unavailable demographic fields remain `null` in the staff-only snapshot.
+- When `identity` is present, phone, first name, last name, date of birth, gender, occupation, and home address are required. Middle name is nullable and email is optional.
+- `identity` is **prohibited** when the account is already linked to a patient. Linked requests use the authoritative Patient record.
+- Unknown keys inside `identity` fail validation.
+- Client-supplied `patient_id` or verification fields are not accepted.
+- The server derives the canonical phone from the account's verified `PatientAccountContact` record. If `phone` is supplied, it is checked against that server-side value; the client cannot change the verified contact.
+- An optional email is captured in the encrypted request snapshot but is not treated as a verified contact claim.
 
 **Response (201):**
 ```json
@@ -969,10 +993,15 @@ Creates a new appointment request.
 }
 ```
 
+**Notes:**
+- The response does not include identity, contact, or snapshot data.
+- Identity and contact snapshots are stored encrypted and are staff-only.
+
 **Behavior:**
 - Creates a 24-hour capacity hold on the requested slot.
 - For linked accounts, `patient_id` is copied from the active link.
 - For unlinked accounts, `patient_id` remains `null`.
+- For unlinked accounts, an encrypted identity snapshot is stored containing phone, optional email, all structured name fields, date of birth, gender, occupation, home address, and server-derived verified-contact metadata.
 - Maximum 2 active pending requests per account.
 - Rate limited per account and per IP.
 - Does **not** create a Patient or an Appointment.
@@ -980,6 +1009,10 @@ Creates a new appointment request.
 **Errors:**
 - `422 SLOT_UNAVAILABLE`: The requested slot is no longer available.
 - `422 ACTIVE_REQUEST_LIMIT_REACHED`: Maximum active pending requests reached.
+- `422 IDENTITY_NOT_ALLOWED`: Identity object provided for a linked account.
+- `422 INVALID_IDENTITY`: Missing required identity fields or invalid date of birth.
+- `422 NO_VERIFIED_CONTACT`: No unique verified primary contact found on the account.
+- `422 NO_VERIFIED_PHONE` or phone validation error: The account has no verified phone or the supplied phone does not match it.
 
 ---
 
@@ -1188,9 +1221,9 @@ Reschedules an appointment to a new time.
 
 ### GET `/frames`
 
-Paginated list of active AR-eligible frames.
+Paginated list of active AR-eligible frames. Frame browsing is available to any authenticated account, including an account that has not been linked to a clinic Patient record.
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+**Auth:** Required (Sanctum token). No active patient link required.
 
 **Query parameters:**
 | Param | Type | Description |
@@ -1242,7 +1275,10 @@ Paginated list of active AR-eligible frames.
 
 Single frame detail. Returns `404` for non-frame products or non-AR-eligible frames.
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+**Auth:** Required (Sanctum token). No active patient link required.
+
+Browsing the catalog does not grant access to frame reservations. Reservation
+endpoints remain restricted to accounts with an active patient link.
 
 ---
 
@@ -1808,7 +1844,11 @@ check protects against a race after OTP issuance. The existing account is
 never signed in by the registration endpoint.
 
 ### Active patient link boundary
-Routes in sections 7-17 require an active patient link (`patients.user_id`). Unlinked accounts can only access account management (sections 1-6). The `link_status` field on `/me` reflects the current state.
+Patient-specific clinical resources, confirmed appointments, and all frame
+reservation endpoints require an active patient link (`patients.user_id`).
+Appointment requests and frame catalog browsing are account-only routes, so an
+authenticated unlinked account may browse frames but cannot reserve one. The
+`link_status` field on `/me` reflects the current state.
 
 ### Appointment requests vs confirmed appointments
 Every mobile booking creates an `AppointmentRequest`, not an `Appointment`. Staff accept requests to create confirmed `Appointment` records. Only confirmed appointments appear in the confirmed appointments list and calendar.
@@ -1868,10 +1908,13 @@ POST   /api/v1/patient-link-requests          Submit link request
 GET    /api/v1/patient-link-requests/current   Get current link request
 POST   /api/v1/patient-invitations/acceptance/otp  Request invitation OTP
 POST   /api/v1/patient-invitations/accept     Accept invitation and link
+GET    /api/v1/appointment-request-availability Get request availability
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request
 GET    /api/v1/appointment-requests/{id}       Get request detail
 POST   /api/v1/appointment-requests/{id}/cancel  Cancel request
+GET    /api/v1/frames                         List frames
+GET    /api/v1/frames/{id}                    Get frame detail
 ```
 
 ### Active Patient Link Required (token + active link)
@@ -1883,8 +1926,6 @@ GET    /api/v1/appointments/{id}              Get appointment detail
 POST   /api/v1/appointments/{id}/cancel       Cancel appointment
 POST   /api/v1/appointments/{id}/reschedule   Reschedule appointment
 
-GET    /api/v1/frames                         List frames
-GET    /api/v1/frames/{id}                    Get frame detail
 GET    /api/v1/frame-reservations             List reservations
 POST   /api/v1/frame-reservations             Create reservation
 POST   /api/v1/frame-reservations/{id}/cancel Cancel reservation
@@ -1909,4 +1950,4 @@ GET    /api/v1/conversation/attachments/{id}  Download attachment
 POST   /api/v1/job-order-items/{id}/rating    Submit frame rating
 ```
 
-**Route count:** 8 public + 21 account-only + 25 active-link = **54 routes total.**
+**Route count:** 8 public + 24 account-only + 23 active-link = **55 routes total.**

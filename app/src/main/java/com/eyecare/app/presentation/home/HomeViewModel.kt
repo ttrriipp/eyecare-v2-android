@@ -45,11 +45,16 @@ class HomeViewModel @Inject constructor(
     fun load(hasActivePatientLink: Boolean = true) {
         _uiState.value = HomeUiState.Loading
         if (!hasActivePatientLink) {
-            _uiState.value = HomeUiState.Success(
-                nextAppointment = null,
-                currentPrescription = null,
-                featuredFrames = emptyList(),
-            )
+            viewModelScope.launch {
+                val frames = runCatching {
+                    frameRepository.getFrames(page = 1).getOrDefault(emptyList())
+                }.getOrDefault(emptyList())
+                _uiState.value = HomeUiState.Success(
+                    nextAppointment = null,
+                    currentPrescription = null,
+                    featuredFrames = frames.take(HOME_SHELF_LIMIT),
+                )
+            }
             return
         }
 

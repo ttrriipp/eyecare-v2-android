@@ -8,17 +8,20 @@ sealed interface PatientRouteAccess {
 }
 
 fun classifyRouteAccess(route: String): PatientRouteAccess = when {
-    // Account-only: request creation, request list, request detail
+    // Account-only: browse catalog and request creation/list/detail
+    route.contains("Frames") ||
+        route.contains("FrameDetail") ||
+        route.contains("ArTryOn") -> PatientRouteAccess.AccountOnly
+    route.contains("Appointments") -> PatientRouteAccess.AccountOnly
     route.contains("RequestAppointment") -> PatientRouteAccess.AccountOnly
     route.contains("AppointmentRequest") -> PatientRouteAccess.AccountOnly
     // Active-link required: confirmed appointments, clinical resources
     route.contains("AppointmentDetail") -> PatientRouteAccess.ActiveLinkRequired
+    route.contains("PatientProfile") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Prescription") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Eyewear") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("FrameReservation") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Chat") -> PatientRouteAccess.ActiveLinkRequired
-    route.contains("FrameDetail") -> PatientRouteAccess.ActiveLinkRequired
-    route.contains("ArTryOn") -> PatientRouteAccess.ActiveLinkRequired
     // Default: fail closed
     else -> PatientRouteAccess.ActiveLinkRequired
 }
@@ -30,3 +33,6 @@ fun canAccessRoute(route: String, linkStatus: PatientLinkStatus): Boolean {
         PatientRouteAccess.ActiveLinkRequired -> linkStatus == PatientLinkStatus.LINKED
     }
 }
+
+fun canAccessRoute(route: Any, linkStatus: PatientLinkStatus): Boolean =
+    canAccessRoute(route.toString(), linkStatus)

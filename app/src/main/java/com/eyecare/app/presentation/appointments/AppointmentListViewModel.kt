@@ -33,12 +33,11 @@ class AppointmentListViewModel @Inject constructor(
 
     private var currentPage = 1
     private var lastPage = 1
+    private var hasActivePatientLink = true
 
-    init { load() }
-
-    fun refresh() {
+    fun refresh(hasActivePatientLink: Boolean = this.hasActivePatientLink) {
         currentPage = 1
-        load()
+        load(hasActivePatientLink)
     }
 
     fun loadMore() {
@@ -49,8 +48,14 @@ class AppointmentListViewModel @Inject constructor(
         loadMoreInternal()
     }
 
-    private fun load() {
+    fun load(hasActivePatientLink: Boolean = this.hasActivePatientLink) {
+        this.hasActivePatientLink = hasActivePatientLink
         _uiState.value = AppointmentListUiState.Loading
+        if (!hasActivePatientLink) {
+            _uiState.value = AppointmentListUiState.Success(appointments = emptyList())
+            return
+        }
+
         viewModelScope.launch {
             repository.getAppointments(page = 1).fold(
                 onSuccess = { result ->

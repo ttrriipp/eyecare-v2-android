@@ -39,6 +39,53 @@ data class AppointmentRequest(
     val appointmentId: Int?,
 )
 
+enum class AppointmentRequestGender(
+    val apiValue: String,
+    val label: String,
+) {
+    MALE("male", "Male"),
+    FEMALE("female", "Female"),
+    OTHER("other", "Other")
+}
+
+/**
+ * Identity supplied when an account has no linked clinic Patient record yet.
+ * The verified phone is copied from the account and cannot be edited by the user.
+ * The backend rejects this object for linked accounts.
+ */
+data class AppointmentRequestIdentity(
+    val phone: String? = null,
+    val email: String? = null,
+    val firstName: String? = null,
+    val middleName: String? = null,
+    val lastName: String? = null,
+    val dateOfBirth: String? = null,
+    val gender: AppointmentRequestGender? = null,
+    val occupation: String? = null,
+    val address: String? = null,
+)
+
+fun PatientAccount.toAppointmentRequestIdentityOrNull(): AppointmentRequestIdentity? {
+    if (linkStatus == PatientLinkStatus.LINKED) return null
+
+    val identity = AppointmentRequestIdentity(
+        phone = phone?.trim()?.takeIf(String::isNotEmpty),
+        email = email?.trim()?.takeIf(String::isNotEmpty),
+        firstName = firstName?.trim()?.takeIf(String::isNotEmpty),
+        middleName = middleName?.trim()?.takeIf(String::isNotEmpty),
+        lastName = lastName?.trim()?.takeIf(String::isNotEmpty),
+        dateOfBirth = dateOfBirth?.trim()?.takeIf(String::isNotEmpty),
+    )
+    return identity.takeIf {
+        it.phone != null ||
+            it.email != null ||
+            it.firstName != null ||
+            it.middleName != null ||
+            it.lastName != null ||
+            it.dateOfBirth != null
+    }
+}
+
 data class AppointmentRequestAvailability(
     val date: String,
     val timezone: String,

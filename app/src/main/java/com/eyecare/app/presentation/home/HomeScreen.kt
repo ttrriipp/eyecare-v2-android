@@ -87,7 +87,6 @@ fun HomeScreen(
     onNavigateToFrameDetail: (Int) -> Unit = {},
     onNavigateToPrescriptionDetail: (Int) -> Unit = {},
     hasActivePatientLink: Boolean = true,
-    onNavigateToAccountLink: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -117,7 +116,6 @@ fun HomeScreen(
                 onNavigateToFrameDetail = onNavigateToFrameDetail,
                 onNavigateToPrescriptionDetail = onNavigateToPrescriptionDetail,
                 hasActivePatientLink = hasActivePatientLink,
-                onNavigateToAccountLink = onNavigateToAccountLink,
             )
         }
     }
@@ -172,7 +170,6 @@ fun HomeContent(
     onNavigateToFrameDetail: (Int) -> Unit = {},
     onNavigateToPrescriptionDetail: (Int) -> Unit = {},
     hasActivePatientLink: Boolean = true,
-    onNavigateToAccountLink: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -199,9 +196,7 @@ fun HomeContent(
 
         ClinicHoursCard()
 
-        if (!hasActivePatientLink) {
-            LimitedAccessCard(onNavigateToAccountLink = onNavigateToAccountLink)
-        } else {
+        if (hasActivePatientLink) {
             state.nextAppointment?.let { appointment ->
                 VisitTicket(appointment = appointment, onClick = onNavigateToAppointments)
             } ?: BookingInvitation(onClick = onNavigateToBooking)
@@ -214,7 +209,7 @@ fun HomeContent(
             }
         }
 
-        if (hasActivePatientLink && state.featuredFrames.isNotEmpty()) {
+        if (state.featuredFrames.isNotEmpty()) {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -349,39 +344,6 @@ private fun ClinicHoursCard() {
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LimitedAccessCard(
-    onNavigateToAccountLink: () -> Unit,
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                text = "Your account is ready",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "You can explore the app now. Link your account to a clinic record to access appointments, prescriptions, reservations, and clinic messages.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-            Button(
-                onClick = onNavigateToAccountLink,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Link to clinic")
             }
         }
     }

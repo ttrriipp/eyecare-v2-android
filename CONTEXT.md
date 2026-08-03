@@ -110,13 +110,29 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - `GET /me` is resolved before routing. `LINKED` enters `MainGraph`; `UNLINKED`, `PENDING_REVIEW`,
   and unknown link states enter `MainGraph` with limited access; a missing/invalid session enters
   `Welcome`.
-- Limited users can use account-safe areas, Home's limited-access card, Profile, Account & Security,
-  and the normal shell. Clinical data is not loaded or shown until the backend reports an active link.
+- Limited users can use account-safe areas, the limited Home shell, Profile, Account & Security, and
+  the normal shell. Clinical data is not loaded or shown until the backend reports an active link.
+- Limited users may browse the nonclinical frame catalog (including frame details/AR browse) and submit
+  appointment requests. Confirmed appointments, prescriptions, reservations, eyewear, and messaging
+  remain active-link-only.
+- The appointment-request wizard adds a requester-identity step after the visit reason for limited
+  accounts. It pre-fills the verified account phone, optional email, and structured account identity
+  when available. The requester can edit email, first/middle/last name, date of birth, gender,
+  occupation, and home address; phone remains read-only because it must match the account's verified
+  contact. The form validates the contract-required fields and shows the complete identity in Review
+  before sending the encrypted identity snapshot. Linked accounts skip this step, omit client
+  identity, and rely on the authoritative clinic Patient record.
+- The Appointments tab combines confirmed appointments with the account's appointment requests for
+  linked and unlinked users. Pending requests appear in Upcoming; rejected, cancelled, expired, and
+  unresolved accepted requests appear in History. Accepted requests already represented by a confirmed
+  appointment are not duplicated. Request cards open account-owned details, where pending requests can
+  be cancelled. The current contract has no request-edit endpoint, so changing a request requires
+  cancelling it and submitting a new request.
 - Any patient-only destination requested by a limited user opens `LimitedAccount` as a link hub. The
   hub offers **Enter invitation code** and **Ask clinic to link me**. After successful invitation
   acceptance, the app returns to the original feature; backing out clears that pending destination.
-- Profile and Home provide persistent entry points to the link hub, so an unlinked user does not need
-  to trigger a blocked patient feature to enter an invitation code.
+- Profile provides a persistent **Enter Invitation Code** entry point, so an unlinked user does not
+  need to trigger a blocked patient feature to link their account.
 
 ### OTP, phone, and error presentation
 
@@ -236,8 +252,8 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 
 `presentation/profile/ProfileScreen.kt`, `EditProfileScreen.kt`, and `ProfileViewModel.kt`:
 
-- The main Profile screen uses an identity-first hierarchy: a warm outlined patient card with a name-derived initials avatar, name, email, optional phone, and a labelled **Edit profile** action. The avatar is display-only — there is no photo upload, camera/gallery picker, image permission, or storage flow.
-- **Care & activity** keeps the existing Messages, Order History, Prescriptions, and Feedback History destinations. Each row uses a restrained primary-tinted icon treatment and supporting copy; Messages retains the unread badge, caps its visible text at `9+`, and exposes the full count through accessibility semantics.
+- The main Profile screen is account-first: the previous patient-details card and **Edit profile** button are removed. The Account section appears directly under the page title, with **Account & Security**, a linked-only read-only **Profile** destination for the clinic Patient record, and **Enter Invitation Code** for accounts without an active link.
+- **Care & activity** keeps the existing Messages, Order History, Prescriptions, and Feedback History destinations. Navigation rows are label-only with restrained primary-tinted icon treatment; Messages retains the unread badge, caps its visible text at `9+`, and exposes the full count through accessibility semantics.
 - **Log out** is a full-width filled error-colored button. It opens the shared themed `AppConfirmationDialog` with **Log out** / **Stay signed in** actions before invoking the existing logout behavior.
 - Initial profile loading uses an accessible content-shaped placeholder; load errors retain the existing retry action. Profile data still refreshes on lifecycle resume so edits are reflected after returning from Edit Profile.
 - Edit Profile remains limited to the current Android contract: name, email, and nullable phone. Save submits directly without a redundant confirmation dialog. Fields and navigation actions are disabled while saving, validation errors remain attached to their fields, and non-validation failures preserve the draft and show concise inline feedback.

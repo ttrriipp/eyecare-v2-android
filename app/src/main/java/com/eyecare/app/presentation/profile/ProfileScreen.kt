@@ -23,16 +23,9 @@ import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.LocalHospital
-import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Receipt
-import androidx.compose.material.icons.outlined.RequestQuote
-import androidx.compose.material.icons.outlined.Work
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
@@ -40,7 +33,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,10 +47,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -76,9 +66,8 @@ fun ProfileScreen(
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
     onNavigateToEyewear: () -> Unit = {},
-    onNavigateToEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
-    onNavigateToAccountLink: () -> Unit = {},
+    onNavigateToPatientProfile: () -> Unit = {},
     onNavigateToAccountSecurity: () -> Unit = {},
     onNavigateToInviteCode: () -> Unit = {},
     unreadMessageCount: Int = 0,
@@ -110,12 +99,11 @@ fun ProfileScreen(
         is ProfileUiState.Success -> ProfileContent(
             account = state.account,
             unreadMessageCount = unreadMessageCount,
-            onEditProfile = onNavigateToEditProfile,
             onNavigateToMessages = onNavigateToMessages,
             onNavigateToPrescriptions = onNavigateToPrescriptions,
             onNavigateToReservations = onNavigateToReservations,
             onNavigateToEyewear = onNavigateToEyewear,
-            onNavigateToAccountLink = onNavigateToAccountLink,
+            onNavigateToPatientProfile = onNavigateToPatientProfile,
             onNavigateToAccountSecurity = onNavigateToAccountSecurity,
             onNavigateToInviteCode = onNavigateToInviteCode,
             onLogoutClick = { showLogoutDialog = true },
@@ -145,12 +133,11 @@ fun ProfileContent(
     account: PatientAccount,
     unreadMessageCount: Int,
     modifier: Modifier = Modifier,
-    onEditProfile: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
     onNavigateToEyewear: () -> Unit = {},
-    onNavigateToAccountLink: () -> Unit = {},
+    onNavigateToPatientProfile: () -> Unit = {},
     onNavigateToAccountSecurity: () -> Unit = {},
     onNavigateToInviteCode: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
@@ -165,27 +152,20 @@ fun ProfileContent(
     ) {
         Spacer(Modifier.height(8.dp))
         ProfileHeader()
-        PatientIdentityCard(account = account, onEditProfile = onEditProfile)
-        if (account.linkStatus != PatientLinkStatus.LINKED) {
-            ClinicLinkCard(
-                account = account,
-                onClick = onNavigateToAccountLink,
-            )
-        }
+
+        AccountSection(
+            account = account,
+            onNavigateToPatientProfile = onNavigateToPatientProfile,
+            onNavigateToAccountSecurity = onNavigateToAccountSecurity,
+            onNavigateToInviteCode = onNavigateToInviteCode,
+        )
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "Care & activity",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "Your conversations and clinic records",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = "Care & activity",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
 
             Card(
                 shape = MaterialTheme.shapes.medium,
@@ -197,7 +177,6 @@ fun ProfileContent(
                     ProfileNavRow(
                         icon = Icons.AutoMirrored.Outlined.Chat,
                         label = "Messages",
-                        supportingText = "Chat with the clinic",
                         onClick = onNavigateToMessages,
                         badgeCount = unreadMessageCount,
                     )
@@ -205,73 +184,20 @@ fun ProfileContent(
                     ProfileNavRow(
                         icon = Icons.Outlined.LocalHospital,
                         label = "Prescriptions",
-                        supportingText = "View your optical records",
                         onClick = onNavigateToPrescriptions,
                     )
                     ProfileDivider()
                     ProfileNavRow(
                         icon = Icons.Outlined.Bookmark,
                         label = "Reservations",
-                        supportingText = "Frame try-on reservations",
                         onClick = onNavigateToReservations,
                     )
                     ProfileDivider()
                     ProfileNavRow(
                         icon = Icons.Outlined.Receipt,
                         label = "Eyewear",
-                        supportingText = "Track estimates, preparation, pickup, and payments",
                         onClick = onNavigateToEyewear,
                     )
-                }
-            }
-        }
-
-        // Account section
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "Account",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "Manage your account and linked records",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Card(
-                shape = MaterialTheme.shapes.medium,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column {
-                    ProfileNavRow(
-                        icon = Icons.Outlined.Person,
-                        label = "Account & Security",
-                        supportingText = "Edit name, contacts, password",
-                        onClick = onNavigateToAccountSecurity,
-                    )
-                    if (account.linkedPatient != null) {
-                        ProfileDivider()
-                        ProfileNavRow(
-                            icon = Icons.Outlined.LocalHospital,
-                            label = "Linked Patient Record",
-                            supportingText = account.linkedPatient.patientNumber,
-                            onClick = onNavigateToAccountLink,
-                        )
-                    }
-                    if (account.linkStatus != PatientLinkStatus.LINKED) {
-                        ProfileDivider()
-                        ProfileNavRow(
-                            icon = Icons.Outlined.Bookmark,
-                            label = "Enter Invitation Code",
-                            supportingText = "Link your account to a clinic record",
-                            onClick = onNavigateToInviteCode,
-                        )
-                    }
                 }
             }
         }
@@ -299,42 +225,47 @@ fun ProfileContent(
 }
 
 @Composable
-private fun ClinicLinkCard(
+private fun AccountSection(
     account: PatientAccount,
-    onClick: () -> Unit,
+    onNavigateToPatientProfile: () -> Unit,
+    onNavigateToAccountSecurity: () -> Unit,
+    onNavigateToInviteCode: () -> Unit,
 ) {
-    Card(
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = "Account",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        Card(
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                text = if (account.linkStatus == PatientLinkStatus.PENDING_REVIEW) {
-                    "Clinic link request pending"
-                } else {
-                    "Connect your clinic record"
-                },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = if (account.linkStatus == PatientLinkStatus.PENDING_REVIEW) {
-                    "Check your link status or enter an invitation code from your clinic."
-                } else {
-                    "Link your account to unlock appointments, prescriptions, reservations, and clinic messages."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-            OutlinedButton(
-                onClick = onClick,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Link to clinic")
+            Column {
+                ProfileNavRow(
+                    icon = Icons.Outlined.Person,
+                    label = "Account & Security",
+                    onClick = onNavigateToAccountSecurity,
+                )
+                if (account.linkedPatient != null) {
+                    ProfileDivider()
+                    ProfileNavRow(
+                        icon = Icons.Outlined.LocalHospital,
+                        label = "Profile",
+                        onClick = onNavigateToPatientProfile,
+                    )
+                }
+                if (account.linkStatus != PatientLinkStatus.LINKED) {
+                    ProfileDivider()
+                    ProfileNavRow(
+                        icon = Icons.Outlined.Bookmark,
+                        label = "Enter Invitation Code",
+                        onClick = onNavigateToInviteCode,
+                    )
+                }
             }
         }
     }
@@ -342,129 +273,15 @@ private fun ClinicLinkCard(
 
 @Composable
 private fun ProfileHeader() {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            text = "Profile",
-            style = MaterialTheme.typography.displayLarge,
-        )
-        Text(
-            text = "Your care, in one place",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    Text(
+        text = "Profile",
+        style = MaterialTheme.typography.displayLarge,
+    )
 }
-
-@Composable
-private fun PatientIdentityCard(account: PatientAccount, onEditProfile: () -> Unit) {
-    val initials = profileInitials(account.name)
-
-    Card(
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clearAndSetSemantics {
-                            contentDescription = "Profile initials $initials"
-                        },
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = initials,
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    Text(
-                        text = "PATIENT ACCOUNT",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = account.name.ifBlank { "Eyecare patient" },
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                account.linkedPatient?.patientNumber?.takeIf { it.isNotBlank() }?.let { patientNumber ->
-                    IdentityDetail(icon = Icons.Outlined.Person, text = patientNumber)
-                }
-                account.email?.takeIf { it.isNotBlank() }?.let { email ->
-                    IdentityDetail(icon = Icons.Outlined.Email, text = email)
-                }
-                account.phone?.takeIf { it.isNotBlank() }?.let { phone ->
-                    IdentityDetail(icon = Icons.Outlined.Phone, text = phone)
-                }
-            }
-
-            OutlinedButton(
-                onClick = onEditProfile,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(50),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Edit,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("Edit profile", fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun IdentityDetail(icon: ImageVector, text: String) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp),
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
 @Composable
 private fun ProfileNavRow(
     icon: ImageVector,
     label: String,
-    supportingText: String,
     onClick: () -> Unit,
     badgeCount: Int = 0,
 ) {
@@ -489,21 +306,12 @@ private fun ProfileNavRow(
                 }
             }
 
-            Column(
+            Text(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = supportingText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
 
             if (badgeCount > 0) {
                 Surface(
@@ -559,12 +367,10 @@ fun ProfileLoadingContent(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             LoadingBlock(width = 92.dp, height = 26.dp)
-            LoadingBlock(width = 156.dp, height = 14.dp)
         }
         LoadingBlock(modifier = Modifier.fillMaxWidth(), height = 196.dp, cornerRadius = 16.dp)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LoadingBlock(width = 132.dp, height = 20.dp)
-            LoadingBlock(width = 220.dp, height = 14.dp)
         }
         LoadingBlock(modifier = Modifier.fillMaxWidth(), height = 252.dp, cornerRadius = 16.dp)
     }
@@ -600,13 +406,4 @@ private fun LoadingBlock(
             .clip(RoundedCornerShape(cornerRadius))
             .background(MaterialTheme.colorScheme.surfaceVariant),
     )
-}
-
-internal fun profileInitials(name: String): String {
-    val parts = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-    return when {
-        parts.isEmpty() -> "E"
-        parts.size == 1 -> parts.first().take(1).uppercase()
-        else -> "${parts.first().first()}${parts.last().first()}".uppercase()
-    }
 }

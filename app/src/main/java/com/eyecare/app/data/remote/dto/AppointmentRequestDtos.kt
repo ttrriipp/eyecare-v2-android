@@ -62,4 +62,18 @@ data class AppointmentReferenceDto(
 data class CreateAppointmentRequest(
     @SerialName("scheduled_at") val scheduledAt: String,
     @SerialName("reason_for_visit") val reasonForVisit: String,
+    val identity: AppointmentRequestIdentityDto? = null,
+)
+
+@Serializable
+data class AppointmentRequestIdentityDto(
+    val phone: String? = null,
+    val email: String? = null,
+    @SerialName("first_name") val firstName: String? = null,
+    @SerialName("middle_name") val middleName: String? = null,
+    @SerialName("last_name") val lastName: String? = null,
+    @SerialName("date_of_birth") val dateOfBirth: String? = null,
+    val gender: String? = null,
+    val occupation: String? = null,
+    val address: String? = null,
 )

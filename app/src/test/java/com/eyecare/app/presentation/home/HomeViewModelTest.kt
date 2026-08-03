@@ -124,17 +124,18 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `limited load skips active-link repositories`() = runTest {
+    fun `limited load keeps account-safe home data and loads featured frames`() = runTest {
         val limitedVm = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo)
+        coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
 
         limitedVm.load(hasActivePatientLink = false)
 
         val state = limitedVm.uiState.value as HomeUiState.Success
         assertNull(state.nextAppointment)
         assertNull(state.currentPrescription)
-        assertEquals(emptyList<Frame>(), state.featuredFrames)
+        assertEquals(listOf(frame(1)), state.featuredFrames)
         coVerify(exactly = 0) { appointmentRepo.getAppointments(any()) }
-        coVerify(exactly = 0) { frameRepo.getFrames(any()) }
+        coVerify(exactly = 1) { frameRepo.getFrames(any()) }
         coVerify(exactly = 0) { prescriptionRepo.getPrescriptions(any()) }
     }
 

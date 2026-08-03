@@ -6,6 +6,7 @@ import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.PaginatedResult
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -46,7 +47,7 @@ class AppointmentListViewModelTest {
         coEvery { repo.getAppointments(1) } returns Result.success(
             PaginatedResult(fakeList, 1, 1, 2),
         )
-        val vm = AppointmentListViewModel(repo)
+        val vm = AppointmentListViewModel(repo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(AppointmentListUiState.Loading::class.java, awaitItem())
@@ -62,7 +63,7 @@ class AppointmentListViewModelTest {
     @Test
     fun `error from repo emits Error state`() = runTest {
         coEvery { repo.getAppointments(1) } returns Result.failure(RuntimeException("network error"))
-        val vm = AppointmentListViewModel(repo)
+        val vm = AppointmentListViewModel(repo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(AppointmentListUiState.Loading::class.java, awaitItem())
@@ -77,7 +78,7 @@ class AppointmentListViewModelTest {
         coEvery { repo.getAppointments(1) } returns Result.success(
             PaginatedResult(fakeList, 1, 1, 2),
         )
-        val vm = AppointmentListViewModel(repo)
+        val vm = AppointmentListViewModel(repo).also { it.load() }
 
         vm.uiState.test {
             awaitItem() // Loading (init)
@@ -97,7 +98,7 @@ class AppointmentListViewModelTest {
         coEvery { repo.getAppointments(1) } returns Result.success(
             PaginatedResult(emptyList(), 1, 1, 0),
         )
-        val vm = AppointmentListViewModel(repo)
+        val vm = AppointmentListViewModel(repo).also { it.load() }
 
         vm.uiState.test {
             awaitItem() // Loading
@@ -112,7 +113,7 @@ class AppointmentListViewModelTest {
         coEvery { repo.getAppointments(1) } returns Result.success(
             PaginatedResult(fakeList, 1, 1, 2),
         )
-        val vm = AppointmentListViewModel(repo)
+        val vm = AppointmentListViewModel(repo).also { it.load() }
 
         vm.uiState.test {
             awaitItem() // Loading
@@ -128,7 +129,7 @@ class AppointmentListViewModelTest {
         coEvery { repo.getAppointments(1) } returns Result.success(
             PaginatedResult(fakeList, 1, 2, 30),
         )
-        val vm = AppointmentListViewModel(repo)
+        val vm = AppointmentListViewModel(repo).also { it.load() }
 
         vm.uiState.test {
             awaitItem()
@@ -149,7 +150,7 @@ class AppointmentListViewModelTest {
         coEvery { repo.getAppointments(2) } returns Result.success(
             PaginatedResult(page2, 2, 2, 2),
         )
-        val vm = AppointmentListViewModel(repo)
+        val vm = AppointmentListViewModel(repo).also { it.load() }
 
         vm.uiState.test {
             awaitItem() // Loading
@@ -168,5 +169,17 @@ class AppointmentListViewModelTest {
             assertFalse(final.isLoadingMore)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `limited load keeps appointment shell available without fetching confirmed appointments`() = runTest {
+        val vm = AppointmentListViewModel(repo)
+
+        vm.load(hasActivePatientLink = false)
+
+        val state = vm.uiState.value as AppointmentListUiState.Success
+        assertTrue(state.appointments.isEmpty())
+        assertFalse(state.hasMorePages)
+        coVerify(exactly = 0) { repo.getAppointments(any()) }
     }
 }

@@ -18,6 +18,14 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
+    fun `updated account-only routes are explicitly approved`() {
+        assertEquals(7, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only feature routes")
+        assertTrue("GET /api/v1/appointment-request-availability" in ApprovedApiRoutes.accountOnlyRoutes)
+        assertTrue("GET /api/v1/frames" in ApprovedApiRoutes.accountOnlyRoutes)
+        assertTrue("GET /api/v1/frames/{frame}" in ApprovedApiRoutes.accountOnlyRoutes)
+    }
+
+    @Test
     fun `legacy auth endpoints are rejected`() {
         assertTrue("POST /api/v1/register" in ApprovedApiRoutes.rejectedRoutes)
         assertTrue("POST /api/v1/login" in ApprovedApiRoutes.rejectedRoutes)

@@ -54,6 +54,44 @@ fun RequestReviewContent(
             ReviewRow(label = "Requested date", value = formatDate(state.date))
             ReviewRow(label = "Requested time", value = formatTimeSlot(state.slot.startsAt, state.slot.endsAt))
             ReviewRow(label = "Reason for visit", value = state.reason)
+            state.identity?.let { identity ->
+                Text(
+                    text = "Requester details",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                ReviewRow(
+                    label = "Name",
+                    value = listOfNotNull(
+                        identity.firstName,
+                        identity.middleName,
+                        identity.lastName,
+                    ).joinToString(" "),
+                )
+                ReviewRow(
+                    label = "Date of birth",
+                    value = identity.dateOfBirth.orEmpty(),
+                )
+                ReviewRow(
+                    label = "Phone number",
+                    value = identity.phone.orEmpty(),
+                )
+                identity.email?.takeIf(String::isNotBlank)?.let {
+                    ReviewRow(label = "Email", value = it)
+                }
+                ReviewRow(
+                    label = "Gender",
+                    value = identity.gender?.label.orEmpty(),
+                )
+                ReviewRow(
+                    label = "Occupation",
+                    value = identity.occupation.orEmpty(),
+                )
+                ReviewRow(
+                    label = "Home address",
+                    value = identity.address.orEmpty(),
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f))
             Button(

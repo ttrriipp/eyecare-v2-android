@@ -31,10 +31,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.domain.model.SessionState
+import com.eyecare.app.domain.model.toAppointmentRequestIdentityOrNull
 import com.eyecare.app.domain.model.canAccessPatientFeatures
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
+import com.eyecare.app.presentation.appointments.requests.AppointmentRequestDetailScreen
 import com.eyecare.app.presentation.appointments.requests.RequestAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.PasswordRecoveryScreen
@@ -55,6 +57,7 @@ import com.eyecare.app.presentation.reservations.CreateFrameReservationScreen
 import com.eyecare.app.presentation.reservations.FrameReservationListScreen
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.profile.EditProfileScreen
+import com.eyecare.app.presentation.profile.PatientProfileScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
 import com.eyecare.app.presentation.profile.ProfileScreen
 
@@ -82,10 +85,12 @@ fun EyecareNavGraph(
             !route.contains("CreateAccount") && !route.contains("RecoverPassword") &&
             !route.contains("LimitedAccount") && !route.contains("AccountSecurity") &&
             !route.contains("Chat") && !route.contains("AppointmentDetail") &&
+            !route.contains("AppointmentRequest") &&
             !route.contains("BookAppointment") && !route.contains("CreateFrameReservation") &&
             !route.contains("FrameReservation") && !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
             !route.contains("Prescription") &&
             !route.contains("EditProfile") &&
+            !route.contains("PatientProfile") &&
             !route.contains("PatientIntake") && !route.contains("Quotation") &&
             !route.contains("JobOrder") && !route.contains("Eyewear")
     } ?: false
@@ -98,8 +103,14 @@ fun EyecareNavGraph(
         else -> Home
     } else null
 
+    fun canNavigateTo(route: Any): Boolean = when (val state = sessionState) {
+        is SessionState.Linked -> true
+        is SessionState.Limited -> canAccessRoute(route, state.account.linkStatus)
+        else -> false
+    }
+
     fun navigatePatientFeature(route: Any) {
-        if (canAccessPatientFeatures(sessionState)) {
+        if (canNavigateTo(route)) {
             navController.navigate(route)
         } else {
             pendingPatientFeature = patientFeatureIntentFrom(route)
@@ -108,7 +119,7 @@ fun EyecareNavGraph(
     }
 
     fun navigateMainTab(route: Any) {
-        if (route == Home || route == Profile || canAccessPatientFeatures(sessionState)) {
+        if (route == Home || route == Profile || canNavigateTo(route)) {
             navController.navigate(route) {
                 popUpTo<MainGraph> {
                     saveState = true
@@ -272,7 +283,6 @@ fun EyecareNavGraph(
                             onNavigateToFrameDetail = { navigatePatientFeature(FrameDetail(it)) },
                             onNavigateToPrescriptionDetail = { navigatePatientFeature(PrescriptionDetail(it)) },
                             hasActivePatientLink = canAccessPatientFeatures(sessionState),
-                            onNavigateToAccountLink = ::openAccountLink,
                         )
                     }
                     composable<Frames> {
@@ -305,9 +315,21 @@ fun EyecareNavGraph(
                     }
                     composable<RequestAppointment> { backStackEntry ->
                         val route = backStackEntry.toRoute<RequestAppointment>()
+                        val requestIdentity = when (val state = sessionState) {
+                            is SessionState.Linked -> null
+                            is SessionState.Limited -> state.account.toAppointmentRequestIdentityOrNull()
+                            else -> null
+                        }
+                        val identityDetailsRequired = sessionState is SessionState.Limited
                         RequestAppointmentScreen(
                             onBack = { navController.popBackStack() },
-                            onRequestCreated = { navController.popBackStack() },
+                            onRequestCreated = { requestId ->
+                                navController.navigate(AppointmentRequestDetail(requestId)) {
+                                    popUpTo<RequestAppointment> { inclusive = true }
+                                }
+                            },
+                            requestIdentity = requestIdentity,
+                            identityDetailsRequired = identityDetailsRequired,
                         )
                     }
                     composable<FrameReservationList> {
@@ -356,12 +378,27 @@ fun EyecareNavGraph(
                         AppointmentListScreen(
                             onNavigateToDetail = { id -> navigatePatientFeature(AppointmentDetail(id)) },
                             onNavigateToRequest = { navigatePatientFeature(RequestAppointment()) },
+                            onNavigateToRequestDetail = { id ->
+                                navigatePatientFeature(AppointmentRequestDetail(id))
+                            },
+                            hasActivePatientLink = canAccessPatientFeatures(sessionState),
                         )
                     }
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
                             onBack = { navController.popBackStack() },
                             onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
+                        )
+                    }
+                    composable<AppointmentRequestDetail> { backStackEntry ->
+                        val route = backStackEntry.toRoute<AppointmentRequestDetail>()
+                        AppointmentRequestDetailScreen(
+                            requestId = route.requestId,
+                            isLinked = sessionState is SessionState.Linked,
+                            onBack = { navController.popBackStack() },
+                            onViewConfirmedAppointment = { id ->
+                                navigatePatientFeature(AppointmentDetail(id))
+                            },
                         )
                     }
                     composable<Profile> {
@@ -377,9 +414,8 @@ fun EyecareNavGraph(
                             onNavigateToPrescriptions = { navigatePatientFeature(PrescriptionList) },
                             onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
                             onNavigateToEyewear = { navigatePatientFeature(EyewearList) },
-                            onNavigateToEditProfile = { navController.navigate(EditProfile) },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
-                            onNavigateToAccountLink = ::openAccountLink,
+                            onNavigateToPatientProfile = { navigatePatientFeature(PatientProfile) },
                             onNavigateToAccountSecurity = { navController.navigate(AccountSecurity) },
                             onNavigateToInviteCode = ::openAccountLink,
                             unreadMessageCount = unreadCount,
@@ -387,6 +423,13 @@ fun EyecareNavGraph(
                     }
                     composable<EditProfile> {
                         EditProfileScreen(
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable<PatientProfile> {
+                        val patient = (sessionState as? SessionState.Linked)?.account?.linkedPatient
+                        PatientProfileScreen(
+                            patient = patient,
                             onBack = { navController.popBackStack() },
                         )
                     }

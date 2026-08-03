@@ -2,10 +2,12 @@ package com.eyecare.app.data.repository
 
 import com.eyecare.app.data.remote.api.AppointmentRequestApiService
 import com.eyecare.app.data.remote.dto.AppointmentRequestDto
+import com.eyecare.app.data.remote.dto.AppointmentRequestIdentityDto
 import com.eyecare.app.data.remote.dto.AvailabilitySlotDto
 import com.eyecare.app.data.remote.dto.CreateAppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
+import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
@@ -30,8 +32,18 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun createRequest(scheduledAt: String, reasonForVisit: String): Result<AppointmentRequest> = safeApiCall {
-        api.createRequest(CreateAppointmentRequest(scheduledAt = scheduledAt, reasonForVisit = reasonForVisit)).data.toDomain()
+    override suspend fun createRequest(
+        scheduledAt: String,
+        reasonForVisit: String,
+        identity: AppointmentRequestIdentity?,
+    ): Result<AppointmentRequest> = safeApiCall {
+        api.createRequest(
+            CreateAppointmentRequest(
+                scheduledAt = scheduledAt,
+                reasonForVisit = reasonForVisit,
+                identity = identity?.toDto(),
+            ),
+        ).data.toDomain()
     }
 
     override suspend fun getRequest(id: Int): Result<AppointmentRequest> = safeApiCall {
@@ -70,5 +82,17 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         endsAt = endsAt,
         available = available,
         reason = reason,
+    )
+
+    private fun AppointmentRequestIdentity.toDto() = AppointmentRequestIdentityDto(
+        phone = phone,
+        email = email,
+        firstName = firstName,
+        middleName = middleName,
+        lastName = lastName,
+        dateOfBirth = dateOfBirth,
+        gender = gender?.apiValue,
+        occupation = occupation,
+        address = address,
     )
 }

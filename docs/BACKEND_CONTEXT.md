@@ -2,11 +2,12 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-02.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-03.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
-> patient linking, appointment requests, authenticated step-up for sensitive
-> changes, and Optical Orders workflow have been implemented. The API
-> contract includes 54 routes (8 public, 21 account-only, 25 active-link).
+> patient linking, expanded unlinked appointment-request identity snapshots,
+> authenticated step-up for sensitive changes, and Optical Orders workflow
+> have been implemented. The API contract includes 55 routes (8 public,
+> 24 account-only, 23 active-link).
 > Legacy intake routes and direct booking have been removed. All accounts use
 > structured first/middle/last names.
 
@@ -110,26 +111,26 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients. `is_optometrist` capability flag. `first_name`, `middle_name`, `last_name` for all accounts; `name` auto-derived. `privacy_notice_version`, `privacy_acknowledged_at`. |
+| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients. `is_optometrist` capability flag. `first_name`, `middle_name`, `last_name` are the stored account name fields; `full_name` (and the API compatibility `name` value) is derived in the model. The legacy `name` database column has been removed. `privacy_notice_version`, `privacy_acknowledged_at`. |
 | `patient_account_contacts` | Contact methods for patient accounts. `user_id`, `type` (email/phone), encrypted `value`, unique `lookup_hash`, `verified_at`, `is_primary`. Phone is the patient login contact; an optional registration email starts unverified and must be verified through the authenticated contact flow. Unique `(user_id, type)`. |
 | `otp_challenges` | Purpose-bound OTP challenges. `public_id`, `user_id`, `purpose` (registration/login_step_up/password_recovery/add_contact/replace_primary_contact/invitation_acceptance), `channel`, encrypted `destination`, `destination_hash`, `code_digest`, `attempts`, `max_attempts`, `expires_at`, `consumed_at`, `invalidated_at`, `delivery_status`. |
 | `personal_access_tokens` | Sanctum mobile tokens. Device-labelled, expiring tokens with optional `installation_id` for trusted-device login and same-installation replacement. |
 | `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. |
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
-| `appointment_requests` | Patient appointment requests. `request_number`, `user_id`, `patient_id`, `appointment_type_id`, `appointment_id` (unique), `scheduled_at`, `provisional_duration_minutes`, encrypted `reason_for_visit`, encrypted `identity_snapshot`, `status` (pending/accepted/rejected/cancelled/expired), `expires_at`, `resolved_by_user_id`, `resolved_at`. |
+| `appointment_requests` | Patient appointment requests. `request_number`, `user_id`, `patient_id`, `appointment_type_id`, `appointment_id` (unique), `scheduled_at`, `provisional_duration_minutes`, encrypted `reason_for_visit`, encrypted `identity_snapshot` for unlinked submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at`, `resolved_by_user_id`, `resolved_at`. |
 | `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
 | `patient_intakes` | `patient_id`, `appointment_id`, `status` (draft/submitted/verified), demographics snapshot, encrypted clinical narrative fields (`chief_complaint`, `past_ocular_history`, etc.), `submitted_by`, `verified_by`. |
 | `encounters` | `patient_id`, `appointment_id`, `patient_intake_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled), encrypted `findings`/`remarks`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `completed_by`. |
 | `prescriptions` | `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
-| `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`, `eyewear_key` (unique, `eyw_{ULID}`). |
-| `quotation_revisions` | Immutable snapshots with `revision_number`, `subtotal`, `discount_amount`, `total`, `presented_by`, `accepted_by`. |
-| `quotation_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
-| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_revision_id`, `frame_reservation_id` (unique, nullable), `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
-| `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
-| `billing_records` | `patient_id`, `job_order_id` (unique), `encounter_id`, `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `total_amount`, `amount_paid`, `balance_due`, `recorded_by`, `recorded_at`. |
+| `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`, `subtotal`, `discount_amount`, `total`, `presented_by`, `presented_at`, `confirmed_by`, `confirmed_at`, `notes`, `eyewear_key` (unique, `eyw_{ULID}`). |
+| `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `item_type` (product/service). |
+| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_id` (unique, nullable), `frame_reservation_id` (unique, nullable), `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `fulfillment_mode` (immediate/prepared), `uses_external_supplier`, `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
+| `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `item_type` (product only for new records). |
+| `billing_records` | `patient_id`, `job_order_id` (nullable), `encounter_id` (nullable), `quotation_id` (nullable), `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `subtotal_amount`, `discount_amount`, `total_amount`, `amount_paid`, `balance_due`, `payment_due_date`, `recorded_by`, `recorded_at`. |
+| `billing_record_items` | `billing_record_id`, `item_type` (product/service), `source_kind` (optical_order/quotation/encounter/direct_service), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id` (nullable), `quotation_item_id` (nullable), `encounter_id` (nullable). |
 | `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
 | `dispensing_events` | `job_order_id`, `billing_record_id`, `dispensed_by`, `recipient_name`, `notes`. |
 | `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete), `status` (requested/prepared/tried_on/converted/released/cancelled), `staff_notes`, `expires_at`. |
@@ -159,17 +160,13 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Encounters:** `planned → in_progress → completed` (terminal). `cancelled` is terminal from `planned` only. Only optometrists can start/complete. The in-progress Encounter page is the only normal entry point for finalizing its first prescription.
 
-**Quotations:** `draft → presented → accepted/declined/expired`. Presented revisions are immutable. Accepted quotations can create job orders.
+**Quotations:** `draft → presented → accepted/declined/expired`. Draft and presented are editable. Accepted quotations create job orders. No revisions.
 
-Quotation forms expose only the patient-visible notes field. The legacy `internal_notes` column remains temporarily for compatibility but is hidden from creation and editing; a future cleanup may replace the remaining notes field with a single patient-visible `Remarks` field and remove `internal_notes`.
+**Job Orders:** `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory. `supplier_invoice_number` required only for external prepared work. `fulfillment_mode` (immediate/prepared) determines completion path.
 
-**Job Orders:** `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory. `supplier_invoice_number` may be blank while work is queued or in progress, but the domain transition rejects Ready for Dispensing or Dispensed without it.
-
-**Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. No BIR/official number. The Job Order is authoritative for line items; the Billing Record admin detail page displays those linked items read-only rather than duplicating them.
+**Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. `job_order_id` and `encounter_id` are nullable; at least one source required. `billing_record_items` stores immutable charge snapshots. `payment_due_date` tracks due dates.
 
 **Frame Reservations:** `requested → prepared → tried_on → converted/released/cancelled`. Prepared reservations allocate stock. Release restores stock.
-
-**Eyewear Aggregate:** Patient-facing read-only API joining Quotation, Job Order, and Billing Record into one coherent transaction. Each aggregate carries a stable `eyw_{ULID}` key persisted on both Quotations and Job Orders. A `jo_{id}` alias is accepted for migration compatibility. Current filter: `estimate_available`, `in_preparation`, `ready_for_pickup`. History filter: `dispensed`, `estimate_declined`, `estimate_expired`, `cancelled`. Payment state never changes filter membership.
 
 ---
 
@@ -180,7 +177,8 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 **Navigation groups (in order):**
 - Accounts & Access — Staff Accounts, Patient Accounts, Link Requests
 - Patients & Clinical — Patients, Encounters, Prescriptions, Complaints
-- Fulfillment & Finance — Optical Orders, Frame Reservations
+- Optical — Optical Orders (with Orders and Quotations tabs), Frame Reservations
+- Finance — Billing & Payments
 - Catalog & Inventory — Products, Inventory History
 - Communication — Conversations, Frame Ratings
 - Reports — Reorder Report
@@ -222,8 +220,9 @@ Patient authentication rules:
 - Login requires the phone password and a login OTP for a new installation.
   A non-expired token carrying the same `installation_id` may skip the OTP;
   omitting the installation ID requires OTP.
-- Phone OTP delivery is queued, but the current delivery job logs SMS delivery
-  until an SMS provider is configured.
+- Phone OTP delivery is queued. In `local`/`testing`, the delivery job logs the
+  OTP code for development testing; other environments log only the masked
+  phone until an SMS provider is configured.
 
 ### Authenticated Account-Only (token required, no active link needed)
 ```
@@ -244,6 +243,8 @@ POST   /api/v1/patient-link-requests
 GET    /api/v1/patient-link-requests/current
 POST   /api/v1/patient-invitations/acceptance/otp
 POST   /api/v1/patient-invitations/accept
+GET    /api/v1/frames
+GET    /api/v1/frames/{id}
 GET    /api/v1/appointment-request-availability
 GET    /api/v1/appointment-requests
 POST   /api/v1/appointment-requests
@@ -258,8 +259,6 @@ GET    /api/v1/appointments
 GET    /api/v1/appointments/{id}
 POST   /api/v1/appointments/{id}/cancel
 POST   /api/v1/appointments/{id}/reschedule
-GET    /api/v1/frames
-GET    /api/v1/frames/{id}
 GET    /api/v1/frame-reservations
 POST   /api/v1/frame-reservations
 POST   /api/v1/frame-reservations/{id}/cancel
@@ -280,7 +279,7 @@ GET    /api/v1/conversation/attachments/{id}
 POST   /api/v1/job-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 21 account-only + 25 active-link = **54 routes total.**
+**Route count:** 8 public + 24 account-only + 23 active-link = **55 routes total.**
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)
@@ -288,7 +287,7 @@ Breaking changes from coordinated Android cutover:
 - Direct `POST /appointments` removed (use appointment requests)
 - Three intake routes removed (retired)
 
-All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.
+All patient-specific clinical resource access is scoped through the authenticated account's linked patient identity. The frame catalog is account-level catalog data; unlinked accounts may browse it but cannot create frame reservations. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.
 
 ---
 
@@ -312,7 +311,8 @@ All patient resource access is scoped through the authenticated account's linked
 | `IssuePatientInvitation` | `app/Actions/PatientAccounts/` | Creates single-use expiring invitation |
 | `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Verifies OTP, creates/reuses account, activates link |
 | `SearchPatientDuplicates` | `app/Actions/Patients/` | Searches by email hash, phone hash, name+DOB |
-| `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with hold, validates slot availability |
+| `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with hold, validates slot availability, persists encrypted identity snapshot for unlinked accounts |
+| `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
 | `CancelAppointmentRequest` | `app/Actions/Appointments/` | Ownership check, status validation |
 | `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Creates scheduled appointment, copies reason, idempotent |
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |
@@ -344,7 +344,7 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. Patient, appointment, encounter, and author linkage are locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time.
 - **Edit pages:** Quotations, Billing Records, and Job Orders have full form schemas showing related items, financial summaries, and timelines. Billing Record items are read-only values resolved from `jobOrder.items`.
 - **Supplier invoice reference:** `job_orders.supplier_invoice_number` records the supplier's external invoice number only. Staff may enter it while the Job Order is active, and the Mark Ready action requires it. It is clinic-internal, is not part of Billing Records, and is hidden from patient APIs.
-- **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone.
+- **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only structured name + phone.
 - **Patient address:** Single nullable free-text field. Read-only via mobile API; editable by staff via Patients edit form.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
 - **Clinical data encrypted:** Prescription values, intake narrative, encounter findings/remarks use Laravel's `encrypted` cast. Not queryable.

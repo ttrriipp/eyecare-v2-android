@@ -36,7 +36,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AvailabilitySlot
+import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.presentation.common.components.ErrorContent
 import java.time.Instant
 import java.time.LocalDate
@@ -48,6 +50,8 @@ import java.time.format.DateTimeFormatter
 fun RequestAppointmentScreen(
     onBack: () -> Unit,
     onRequestCreated: (requestId: Int) -> Unit,
+    requestIdentity: AppointmentRequestIdentity? = null,
+    identityDetailsRequired: Boolean = false,
     viewModel: RequestAppointmentViewModel = hiltViewModel(),
 ) {
     val step by viewModel.step.collectAsState()
@@ -67,13 +71,31 @@ fun RequestAppointmentScreen(
         is RequestStep.EnterReason -> RequestReasonContent(
             state = s,
             onReasonChange = { viewModel.updateReason(it) },
-            onConfirm = { viewModel.confirmReason() },
+            onConfirm = {
+                viewModel.confirmReason(
+                    identityDetailsRequired = identityDetailsRequired,
+                    initialIdentity = requestIdentity,
+                )
+            },
             onBack = { viewModel.backToSlotSelection() },
+        )
+        is RequestStep.EnterIdentity -> RequestIdentityContent(
+            state = s,
+            onEmailChange = { viewModel.updateIdentity(email = it) },
+            onFirstNameChange = { viewModel.updateIdentity(firstName = it) },
+            onMiddleNameChange = { viewModel.updateIdentity(middleName = it) },
+            onLastNameChange = { viewModel.updateIdentity(lastName = it) },
+            onDateOfBirthChange = { viewModel.updateIdentity(dateOfBirth = it) },
+            onGenderChange = { viewModel.updateIdentity(gender = it) },
+            onOccupationChange = { viewModel.updateIdentity(occupation = it) },
+            onAddressChange = { viewModel.updateIdentity(address = it) },
+            onConfirm = { viewModel.confirmIdentity() },
+            onBack = { viewModel.backToReason() },
         )
         is RequestStep.Review -> RequestReviewContent(
             state = s,
             onSubmit = { viewModel.submit() },
-            onBack = { viewModel.backToReason() },
+            onBack = { viewModel.backFromReview() },
         )
         is RequestStep.Submitting -> RequestSubmittingContent()
         is RequestStep.Success -> {
