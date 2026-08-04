@@ -345,6 +345,18 @@ fun FrameDetailScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
+
+                                selected.attributes?.filterValues { it.isNotBlank() }?.takeIf { it.isNotEmpty() }?.let { specs ->
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    Text(
+                                        text = "Specifications",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    specs.forEach { (key, value) ->
+                                        DetailFactRow(key.toSpecLabel(), value)
+                                    }
+                                }
                             }
                         }
 
@@ -388,6 +400,13 @@ fun FrameDetailScreen(
         }
     }
 }
+
+private fun String.toSpecLabel(): String = replace('_', ' ')
+    .replace('-', ' ')
+    .trim()
+    .split(" ")
+    .filter(String::isNotBlank)
+    .joinToString(" ") { word -> word.replaceFirstChar(Char::uppercaseChar) }
 
 @Composable
 private fun DetailFactRow(label: String, value: String) {
