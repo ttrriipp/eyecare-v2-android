@@ -113,13 +113,20 @@ class ProfileViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            _uiState.value = ProfileUiState.Loading
+            // Only show the loading placeholder when there's nothing on screen yet —
+            // a resume-triggered refresh should update in place, not blink back to Loading.
+            if (_uiState.value !is ProfileUiState.Success) {
+                _uiState.value = ProfileUiState.Loading
+            }
             authRepository.getMe()
                 .onSuccess { account ->
                     _uiState.value = ProfileUiState.Success(account = account)
                 }
                 .onFailure { error ->
-                    _uiState.value = ProfileUiState.Error(error.message ?: "Failed to load profile")
+                    val current = _uiState.value
+                    if (current !is ProfileUiState.Success) {
+                        _uiState.value = ProfileUiState.Error(error.message ?: "Failed to load profile")
+                    }
                 }
         }
     }
