@@ -8,10 +8,12 @@ import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageContext
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.Quotation
+import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.domain.repository.OpticalOrderRepository
 import com.eyecare.app.domain.repository.QuotationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +40,7 @@ sealed interface ChatUiState {
     data class Success(
         val conversation: Conversation,
         val messages: List<Message>,
+        val currentUserId: Int? = null,
         val isSending: Boolean = false,
         val pendingAttachment: PendingAttachment? = null,
         val pendingContext: PendingContext? = null,
@@ -54,6 +57,7 @@ class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val quotationRepository: QuotationRepository,
     private val opticalOrderRepository: OpticalOrderRepository,
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Loading)
@@ -179,11 +183,17 @@ class ChatViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
+            // Loaded alongside the conversation, not derived from message.senderType — this backend
+            // is known to leak raw Eloquent polymorphic class names for other polymorphic fields
+            // instead of its own documented "patient"/"staff" aliases, so bubble ownership is
+            // determined by comparing sender_id to the authenticated account's own id instead.
+            val accountDeferred = async { authRepository.getMe() }
             chatRepository.getConversation().fold(
                 onSuccess = { conversation ->
                     chatRepository.getMessages().fold(
                         onSuccess = { messages ->
-                            _uiState.value = ChatUiState.Success(conversation, messages)
+                            val currentUserId = accountDeferred.await().getOrNull()?.id
+                            _uiState.value = ChatUiState.Success(conversation, messages, currentUserId = currentUserId)
                         },
                         onFailure = { _uiState.value = ChatUiState.Error(it.message ?: "Failed to load messages") },
                     )

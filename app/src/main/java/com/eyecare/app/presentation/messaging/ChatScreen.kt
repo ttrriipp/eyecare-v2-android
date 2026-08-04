@@ -169,9 +169,11 @@ fun ChatScreen(
                             modifier = Modifier.fillMaxSize().padding(vertical = 8.dp),
                         ) {
                             items(state.messages, key = { it.id }) { msg ->
+                                val isOwn = state.currentUserId?.let { it == msg.senderId }
+                                    ?: (msg.senderType == com.eyecare.app.domain.model.SenderType.PATIENT)
                                 MessageBubble(
                                     message = msg,
-                                    isOwn = msg.senderType == com.eyecare.app.domain.model.SenderType.PATIENT,
+                                    isOwn = isOwn,
                                     onEstimateClick = onEstimateClick,
                                     onOrderClick = onOrderClick,
                                 )

@@ -4,7 +4,10 @@ import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
+import com.eyecare.app.domain.model.PatientAccount
+import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.SenderType
+import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.domain.repository.OpticalOrderRepository
 import com.eyecare.app.domain.repository.QuotationRepository
@@ -30,9 +33,25 @@ class ChatViewModelTest {
     private lateinit var repo: ChatRepository
     private lateinit var quotationRepo: QuotationRepository
     private lateinit var opticalOrderRepo: OpticalOrderRepository
+    private lateinit var authRepo: AuthRepository
 
     private val fakeConversation = Conversation(1, null, 0, "2026-10-24T10:00:00Z")
     private val fakeMessage = Message(1, 42, SenderType.PATIENT, "Hello", null, "2026-10-24T10:00:00Z", emptyList())
+    private val fakeAccount = PatientAccount(
+        id = 42,
+        name = "Test Patient",
+        firstName = "Test",
+        middleName = null,
+        lastName = "Patient",
+        email = null,
+        phone = null,
+        role = "patient",
+        dateOfBirth = null,
+        linkStatus = PatientLinkStatus.LINKED,
+        privacyPolicyVersion = null,
+        privacyAcceptedAt = null,
+        linkedPatient = null,
+    )
 
     @BeforeEach
     fun setup() {
@@ -40,12 +59,14 @@ class ChatViewModelTest {
         repo = mockk()
         quotationRepo = mockk()
         opticalOrderRepo = mockk()
+        authRepo = mockk()
+        coEvery { authRepo.getMe() } returns Result.success(fakeAccount)
     }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = ChatViewModel(repo, quotationRepo, opticalOrderRepo)
+    private fun vm() = ChatViewModel(repo, quotationRepo, opticalOrderRepo, authRepo)
 
     @Test
     fun `initial state is Loading then loads conversation and messages`() = runTest {
