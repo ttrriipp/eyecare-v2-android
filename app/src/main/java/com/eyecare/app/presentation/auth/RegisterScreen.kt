@@ -309,8 +309,10 @@ private fun RegisterDetailsStep(
                 onValueChange = { viewModel.updateDetails(invitationCode = it) },
                 label = { Text("Invitation code (optional)") },
                 singleLine = true,
+                isError = state.errors.containsKey("invitationCode"),
                 modifier = Modifier.fillMaxWidth(),
             )
+            FieldError(state.errors["invitationCode"])
 
             SectionLabel("Agreements")
             if (state.policies != null) {
