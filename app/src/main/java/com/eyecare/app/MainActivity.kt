@@ -17,13 +17,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.data.remote.interceptor.AuthEvent
 import com.eyecare.app.data.remote.interceptor.AuthEventBus
 import com.eyecare.app.domain.repository.ChatRepository
+import com.eyecare.app.presentation.auth.SessionViewModel
 import com.eyecare.app.presentation.navigation.EyecareNavGraph
-import com.eyecare.app.presentation.navigation.MainGraph
-import com.eyecare.app.presentation.navigation.SessionGate
+import com.eyecare.app.presentation.navigation.Welcome
 import com.eyecare.app.ui.theme.EyecareTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
@@ -51,17 +52,21 @@ class MainActivity : ComponentActivity() {
             EyecareTheme {
                 val navController = rememberNavController()
                 val snackbarHostState = remember { SnackbarHostState() }
+                val sessionViewModel: SessionViewModel = hiltViewModel()
                 var logoutTrigger by remember { mutableStateOf(0) }
 
-                // Listen for 401 → show snackbar → clear token → navigate to login
+                // Listen for 401 → show snackbar → clear session → navigate to Welcome
                 LaunchedEffect(Unit) {
                     authEventBus.events.collect { event ->
                         if (event is AuthEvent.Logout) {
                             snackbarHostState.showSnackbar("Session expired. Please sign in again.")
                             delay(500)
-                            tokenManager.clearToken()
-                            navController.navigate(SessionGate) {
-                                popUpTo<SessionGate> { inclusive = true }
+                            // Must clear SessionViewModel's cached state, not just the token —
+                            // otherwise SessionGate reads the stale Linked/Limited state and
+                            // bounces straight back into MainGraph instead of redirecting.
+                            sessionViewModel.signOut()
+                            navController.navigate(Welcome) {
+                                popUpTo(0) { inclusive = true }
                             }
                             logoutTrigger++
                         }
