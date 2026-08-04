@@ -2,33 +2,50 @@ package com.eyecare.app.presentation.appointments.requests
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.eyecare.app.domain.model.AppointmentRequest
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
+import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
+import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
+import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.common.components.LoadingContent
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun AppointmentRequestDetailScreen(
@@ -44,13 +61,31 @@ fun AppointmentRequestDetailScreen(
     }
 
     val state by viewModel.state.collectAsState()
+    var showCancelDialog by remember { mutableStateOf(false) }
+
+    if (showCancelDialog) {
+        AppConfirmationDialog(
+            icon = Icons.Outlined.EventBusy,
+            iconTint = MaterialTheme.colorScheme.error,
+            isDestructive = true,
+            title = "Cancel this request?",
+            message = "This can't be undone. Your requested time will be released.",
+            confirmLabel = "Cancel request",
+            dismissLabel = "Keep",
+            onConfirm = {
+                showCancelDialog = false
+                viewModel.cancel()
+            },
+            onDismissRequest = { showCancelDialog = false },
+        )
+    }
 
     when (val s = state) {
         is RequestDetailState.Loading -> RequestDetailLoadingContent(onBack = onBack)
         is RequestDetailState.Data -> RequestDetailDataContent(
             state = s,
             onBack = onBack,
-            onCancel = { viewModel.cancel() },
+            onCancelClick = { showCancelDialog = true },
             onViewConfirmed = { onViewConfirmedAppointment(it) },
         )
         is RequestDetailState.Error -> ErrorContent(
@@ -61,6 +96,13 @@ fun AppointmentRequestDetailScreen(
     }
 }
 
+@Composable
+private fun RequestBackIcon(onBack: () -> Unit) {
+    IconButton(onClick = onBack) {
+        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RequestDetailLoadingContent(onBack: () -> Unit) {
@@ -68,17 +110,11 @@ private fun RequestDetailLoadingContent(onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text("Request details") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                navigationIcon = { RequestBackIcon(onBack) },
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            CircularProgressIndicator()
-        }
+        LoadingContent(modifier = Modifier.fillMaxSize().padding(padding))
     }
 }
 
@@ -87,7 +123,7 @@ private fun RequestDetailLoadingContent(onBack: () -> Unit) {
 private fun RequestDetailDataContent(
     state: RequestDetailState.Data,
     onBack: () -> Unit,
-    onCancel: () -> Unit,
+    onCancelClick: () -> Unit,
     onViewConfirmed: (Int) -> Unit,
 ) {
     val presentation = requestStatusPresentation(state.request.status)
@@ -96,53 +132,95 @@ private fun RequestDetailDataContent(
         topBar = {
             TopAppBar(
                 title = { Text("Request ${state.request.requestNumber}") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                navigationIcon = { RequestBackIcon(onBack) },
             )
         },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            DetailRow(label = "Status", value = presentation.label)
-            DetailRow(label = "Requested date", value = formatDetailDate(state.request.scheduledAt))
-            DetailRow(label = "Requested time", value = formatDetailTime(state.request.scheduledAt))
-            DetailRow(label = "Reason for visit", value = state.request.reasonForVisit)
-
-            state.request.expiresAt?.let {
-                if (state.request.status == AppointmentRequestStatus.PENDING) {
-                    DetailRow(label = "Expires", value = formatDetailDate(it))
-                }
-            }
-
-            state.request.cancelledAt?.let {
-                DetailRow(label = "Cancelled", value = formatDetailDateTime(it))
-            }
-
-            if (presentation.showCancel && state.request.status.isCancellable) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = onCancel,
-                    enabled = !state.isCancelling,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    if (state.isCancelling) CircularProgressIndicator() else Text("Cancel request")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            presentation.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        AppointmentRequestStatusPill(state.request.status, presentation.label)
+                    }
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            DetailMetadataRow(
+                                Icons.Outlined.CalendarMonth,
+                                "Date",
+                                formatDetailDate(state.request.scheduledAt),
+                            )
+                            DetailMetadataRow(
+                                Icons.Outlined.AccessTime,
+                                "Time",
+                                formatDetailTime(state.request.scheduledAt),
+                            )
+                        }
+                    }
+
+                    DetailRow(label = "Reason for visit", value = state.request.reasonForVisit)
+
+                    state.request.expiresAt?.let {
+                        if (state.request.status == AppointmentRequestStatus.PENDING) {
+                            DetailRow(label = "Expires", value = formatDetailDate(it))
+                        }
+                    }
+
+                    state.request.cancelledAt?.let {
+                        DetailRow(label = "Cancelled", value = formatDetailDateTime(it))
+                    }
                 }
             }
 
             state.cancelError?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            }
+
+            if (presentation.showCancel && state.request.status.isCancellable) {
+                AppointmentOutlinedButton(
+                    text = "Cancel request",
+                    onClick = onCancelClick,
+                    enabled = !state.isCancelling,
+                    loading = state.isCancelling,
+                    icon = Icons.Outlined.EventBusy,
+                    isDestructive = true,
+                )
             }
 
             if (presentation.showViewConfirmed && state.isLinked && state.request.appointmentId != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
+                AppointmentPrimaryButton(
+                    text = "View confirmed appointment",
                     onClick = { onViewConfirmed(state.request.appointmentId) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("View confirmed appointment")
-                }
+                    icon = Icons.Outlined.EventAvailable,
+                )
             }
         }
     }
@@ -155,18 +233,36 @@ private fun RequestDetailNotFoundContent(onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text("Request details") },
-                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } },
+                navigationIcon = { RequestBackIcon(onBack) },
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text("Request not found", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("This request may belong to another account or has been removed.")
+        EmptyContent(
+            message = "This request may belong to another account or has been removed.",
+            modifier = Modifier.fillMaxSize().padding(padding),
+        )
+    }
+}
+
+@Composable
+private fun DetailMetadataRow(icon: ImageVector, label: String, value: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = EyecareColors.current.accentText,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -180,16 +276,16 @@ private fun DetailRow(label: String, value: String) {
 }
 
 private fun formatDetailDate(iso: String): String = try {
-    java.time.Instant.parse(iso).atZone(java.time.ZoneId.of("Asia/Manila"))
+    java.time.Instant.parse(iso).atZone(CLINIC_TIME_ZONE)
         .format(java.time.format.DateTimeFormatter.ofPattern("MMMM d, yyyy"))
 } catch (_: Exception) { iso }
 
 private fun formatDetailTime(iso: String): String = try {
-    java.time.Instant.parse(iso).atZone(java.time.ZoneId.of("Asia/Manila"))
+    java.time.Instant.parse(iso).atZone(CLINIC_TIME_ZONE)
         .format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))
 } catch (_: Exception) { iso }
 
 private fun formatDetailDateTime(iso: String): String = try {
-    java.time.Instant.parse(iso).atZone(java.time.ZoneId.of("Asia/Manila"))
+    java.time.Instant.parse(iso).atZone(CLINIC_TIME_ZONE)
         .format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a"))
 } catch (_: Exception) { iso }

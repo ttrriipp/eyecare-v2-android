@@ -531,7 +531,7 @@ private fun ReservedFramesSection(
                             if (imageUrl != null) {
                                 AsyncImage(
                                     model = imageUrl,
-                                    contentDescription = item.frameName,
+                                    contentDescription = null,
                                     modifier = Modifier
                                         .size(48.dp)
                                         .clip(RoundedCornerShape(8.dp)),
@@ -557,7 +557,7 @@ private fun ReservedFramesSection(
 
             TextButton(
                 onClick = onViewDetails,
-                modifier = Modifier.defaultMinSize(minHeight = 40.dp),
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
             ) {
                 Text("View all reservations", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.width(4.dp))

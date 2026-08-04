@@ -1,27 +1,46 @@
 package com.eyecare.app.presentation.appointments.requests
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
+import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
+import com.eyecare.app.ui.theme.EyecareColors
 import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,69 +55,107 @@ fun RequestReviewContent(
             TopAppBar(
                 title = { Text("Review request") },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
                 },
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = "Review your appointment request",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-
-            ReviewRow(label = "Requested date", value = formatDate(state.date))
-            ReviewRow(label = "Requested time", value = formatTimeSlot(state.slot.startsAt, state.slot.endsAt))
-            ReviewRow(label = "Reason for visit", value = state.reason)
-            state.identity?.let { identity ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 92.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
                 Text(
-                    text = "Requester details",
+                    text = "Review your appointment request",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                ReviewRow(
-                    label = "Name",
-                    value = listOfNotNull(
-                        identity.firstName,
-                        identity.middleName,
-                        identity.lastName,
-                    ).joinToString(" "),
-                )
-                ReviewRow(
-                    label = "Date of birth",
-                    value = identity.dateOfBirth.orEmpty(),
-                )
-                ReviewRow(
-                    label = "Phone number",
-                    value = identity.phone.orEmpty(),
-                )
-                identity.email?.takeIf(String::isNotBlank)?.let {
-                    ReviewRow(label = "Email", value = it)
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                ReviewMetadataRow(Icons.Outlined.CalendarMonth, "Date", formatDate(state.date))
+                                ReviewMetadataRow(
+                                    Icons.Outlined.AccessTime,
+                                    "Time",
+                                    formatTimeSlot(state.slot.startsAt, state.slot.endsAt),
+                                )
+                            }
+                        }
+                        ReviewRow(label = "Reason for visit", value = state.reason)
+                    }
                 }
-                ReviewRow(
-                    label = "Gender",
-                    value = identity.gender?.label.orEmpty(),
-                )
-                ReviewRow(
-                    label = "Occupation",
-                    value = identity.occupation.orEmpty(),
-                )
-                ReviewRow(
-                    label = "Home address",
-                    value = identity.address.orEmpty(),
-                )
+
+                state.identity?.let { identity ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text(
+                                text = "Requester details",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            ReviewRow(
+                                label = "Name",
+                                value = listOfNotNull(
+                                    identity.firstName,
+                                    identity.middleName,
+                                    identity.lastName,
+                                ).joinToString(" "),
+                            )
+                            ReviewRow(label = "Date of birth", value = identity.dateOfBirth.orEmpty())
+                            ReviewRow(label = "Phone number", value = identity.phone.orEmpty())
+                            identity.email?.takeIf(String::isNotBlank)?.let {
+                                ReviewRow(label = "Email", value = it)
+                            }
+                            ReviewRow(label = "Gender", value = identity.gender?.label.orEmpty())
+                            ReviewRow(label = "Occupation", value = identity.occupation.orEmpty())
+                            ReviewRow(label = "Home address", value = identity.address.orEmpty())
+                        }
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-            Button(
-                onClick = onSubmit,
-                modifier = Modifier.fillMaxWidth(),
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+                color = MaterialTheme.colorScheme.background,
+                shadowElevation = 4.dp,
             ) {
-                Text("Submit request")
+                Column(
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    AppointmentPrimaryButton(text = "Submit request", onClick = onSubmit)
+                }
             }
         }
     }
@@ -119,7 +176,11 @@ fun RequestSubmittingContent() {
         ) {
             CircularProgressIndicator()
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Submitting your request…")
+            Text(
+                "Submitting your request…",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -136,7 +197,9 @@ fun RequestSubmissionErrorContent(
             TopAppBar(
                 title = { Text("Request appointment") },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
                 },
             )
         },
@@ -146,21 +209,51 @@ fun RequestSubmissionErrorContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            Icon(
+                Icons.Outlined.ErrorOutline,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(40.dp),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = "Unable to submit request",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = state.errorMessage,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
-                Text("Try again")
-            }
+            AppointmentPrimaryButton(text = "Try again", onClick = onRetry)
+        }
+    }
+}
+
+@Composable
+private fun ReviewMetadataRow(icon: ImageVector, label: String, value: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = EyecareColors.current.accentText,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -190,8 +283,8 @@ private fun formatDate(dateStr: String): String {
 
 private fun formatTimeSlot(startsAt: String, endsAt: String): String {
     return try {
-        val start = Instant.parse(startsAt).atZone(ZoneId.of("Asia/Manila"))
-        val end = Instant.parse(endsAt).atZone(ZoneId.of("Asia/Manila"))
+        val start = Instant.parse(startsAt).atZone(CLINIC_TIME_ZONE)
+        val end = Instant.parse(endsAt).atZone(CLINIC_TIME_ZONE)
         val fmt = DateTimeFormatter.ofPattern("h:mm a")
         "${start.format(fmt)} – ${end.format(fmt)}"
     } catch (_: Exception) {

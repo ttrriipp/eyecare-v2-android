@@ -1,7 +1,10 @@
 package com.eyecare.app.presentation.appointments.requests
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,18 +12,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -34,15 +44,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
+import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
+import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
+import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.common.components.LoadingContent
+import com.eyecare.app.ui.theme.EyecareColors
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,30 +73,22 @@ fun RequestAppointmentScreen(
     val step by viewModel.step.collectAsState()
 
     when (val s = step) {
-        is RequestStep.ChooseDate -> RequestDateContent(
+        is RequestStep.Schedule -> ScheduleContent(
+            state = s,
             onDateSelected = { viewModel.selectDate(it) },
-            onBack = onBack,
-        )
-        is RequestStep.ChooseSlot -> RequestSlotContent(
-            state = s,
             onSelectSlot = { viewModel.selectSlot(it) },
-            onConfirm = { viewModel.confirmSlot() },
             onRetry = { viewModel.retryAvailability() },
-            onBack = onBack,
-        )
-        is RequestStep.EnterReason -> RequestReasonContent(
-            state = s,
-            onReasonChange = { viewModel.updateReason(it) },
             onConfirm = {
-                viewModel.confirmReason(
+                viewModel.confirmSchedule(
                     identityDetailsRequired = identityDetailsRequired,
                     initialIdentity = requestIdentity,
                 )
             },
-            onBack = { viewModel.backToSlotSelection() },
+            onBack = onBack,
         )
-        is RequestStep.EnterIdentity -> RequestIdentityContent(
+        is RequestStep.ProfileAndReason -> ProfileAndReasonContent(
             state = s,
+            onReasonChange = { viewModel.updateReason(it) },
             onEmailChange = { viewModel.updateIdentity(email = it) },
             onFirstNameChange = { viewModel.updateIdentity(firstName = it) },
             onMiddleNameChange = { viewModel.updateIdentity(middleName = it) },
@@ -89,8 +97,8 @@ fun RequestAppointmentScreen(
             onGenderChange = { viewModel.updateIdentity(gender = it) },
             onOccupationChange = { viewModel.updateIdentity(occupation = it) },
             onAddressChange = { viewModel.updateIdentity(address = it) },
-            onConfirm = { viewModel.confirmIdentity() },
-            onBack = { viewModel.backToReason() },
+            onConfirm = { viewModel.confirmProfileAndReason() },
+            onBack = { viewModel.backToSchedule() },
         )
         is RequestStep.Review -> RequestReviewContent(
             state = s,
@@ -98,9 +106,10 @@ fun RequestAppointmentScreen(
             onBack = { viewModel.backFromReview() },
         )
         is RequestStep.Submitting -> RequestSubmittingContent()
-        is RequestStep.Success -> {
-            onRequestCreated(s.request.id)
-        }
+        is RequestStep.Success -> RequestSuccessContent(
+            state = s,
+            onContinue = { onRequestCreated(s.request.id) },
+        )
         is RequestStep.SubmissionError -> RequestSubmissionErrorContent(
             state = s,
             onRetry = { viewModel.handleSubmissionError() },
@@ -109,42 +118,115 @@ fun RequestAppointmentScreen(
     }
 }
 
+@Composable
+private fun RequestBackIcon(onBack: () -> Unit) {
+    IconButton(onClick = onBack) {
+        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+    }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        letterSpacing = 0.8.sp,
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RequestDateContent(
+private fun ScheduleContent(
+    state: RequestStep.Schedule,
     onDateSelected: (String) -> Unit,
+    onSelectSlot: (AvailabilitySlot) -> Unit,
+    onRetry: () -> Unit,
+    onConfirm: () -> Unit,
     onBack: () -> Unit,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    val today = remember { LocalDate.now(CLINIC_TIME_ZONE) }
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = System.currentTimeMillis(),
+        initialSelectedDateMillis = state.date?.toDatePickerMillis() ?: System.currentTimeMillis(),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val date = Instant.ofEpochMilli(utcTimeMillis).atZone(CLINIC_TIME_ZONE).toLocalDate()
+                return !date.isBefore(today)
+            }
+        },
     )
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Request appointment") },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
-                },
+                navigationIcon = { RequestBackIcon(onBack) },
             )
         },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Text(
-                text = "Choose a date for your appointment request.",
+                text = "Choose a date and time for your appointment request.",
                 style = MaterialTheme.typography.bodyLarge,
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { showDatePicker = true },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Select date")
+
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SectionLabel("Date")
+                AppointmentOutlinedButton(
+                    text = state.date?.let { formatDate(it) } ?: "Select date",
+                    onClick = { showDatePicker = true },
+                    icon = Icons.Outlined.CalendarMonth,
+                )
             }
+
+            if (state.date != null) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    SectionLabel("Available times")
+
+                    when {
+                        state.isLoadingAvailability -> {
+                            LoadingContent(modifier = Modifier.fillMaxWidth().weight(1f))
+                        }
+                        state.availabilityError != null -> {
+                            ErrorContent(message = state.availabilityError, onRetry = onRetry)
+                        }
+                        state.availability == null || state.availability.slots.isEmpty() -> {
+                            Text(
+                                "No available times for this date. Please choose another date.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(state.availability.slots) { slot ->
+                                    SlotCard(
+                                        slot = slot,
+                                        isSelected = slot == state.selectedSlot,
+                                        onClick = { onSelectSlot(slot) },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            AppointmentPrimaryButton(
+                text = "Continue",
+                onClick = onConfirm,
+                enabled = state.selectedSlot != null,
+            )
         }
     }
 
@@ -154,12 +236,8 @@ private fun RequestDateContent(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        val date = Instant.ofEpochMilli(millis)
-                            .atZone(ZoneId.of("Asia/Manila"))
-                            .toLocalDate()
-                        if (date.isAfter(LocalDate.now().minusDays(1))) {
-                            onDateSelected(date.toString())
-                        }
+                        val date = Instant.ofEpochMilli(millis).atZone(CLINIC_TIME_ZONE).toLocalDate()
+                        onDateSelected(date.toString())
                     }
                     showDatePicker = false
                 }) { Text("OK") }
@@ -173,72 +251,6 @@ private fun RequestDateContent(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun RequestSlotContent(
-    state: RequestStep.ChooseSlot,
-    onSelectSlot: (AvailabilitySlot) -> Unit,
-    onConfirm: () -> Unit,
-    onRetry: () -> Unit,
-    onBack: () -> Unit,
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Request appointment") },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-        ) {
-            Text(
-                text = "Available times for ${formatDate(state.date)}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            when {
-                state.isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                }
-                state.error != null -> {
-                    ErrorContent(message = state.error, onRetry = onRetry)
-                }
-                state.availability == null || state.availability.slots.isEmpty() -> {
-                    Text("No available times for this date. Please choose another date.")
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(state.availability.slots) { slot ->
-                            SlotCard(
-                                slot = slot,
-                                isSelected = slot == state.selectedSlot,
-                                onClick = { onSelectSlot(slot) },
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = onConfirm,
-                        enabled = state.selectedSlot != null,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Continue")
-                    }
-                }
-            }
-        }
-    }
-}
-
 @Composable
 private fun SlotCard(
     slot: AvailabilitySlot,
@@ -247,13 +259,20 @@ private fun SlotCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(enabled = slot.available, onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+        border = if (isSelected) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+        } else {
+            null
+        },
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
             else MaterialTheme.colorScheme.surface,
         ),
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -262,6 +281,7 @@ private fun SlotCard(
                     text = formatTimeRange(slot.startsAt, slot.endsAt),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (isSelected) EyecareColors.current.accentText else MaterialTheme.colorScheme.onSurface,
                 )
                 if (!slot.available && slot.reason != null) {
                     Text(
@@ -277,53 +297,47 @@ private fun SlotCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RequestReasonContent(
-    state: RequestStep.EnterReason,
-    onReasonChange: (String) -> Unit,
-    onConfirm: () -> Unit,
-    onBack: () -> Unit,
+private fun RequestSuccessContent(
+    state: RequestStep.Success,
+    onContinue: () -> Unit,
 ) {
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Request appointment") },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
-                },
-            )
-        },
+        topBar = { TopAppBar(title = { Text("Request appointment") }) },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = "What is the reason for your visit?",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            androidx.compose.material3.OutlinedTextField(
-                value = state.reason,
-                onValueChange = onReasonChange,
-                label = { Text("Reason for visit") },
-                placeholder = { Text("e.g., Blurred vision in left eye") },
-                modifier = Modifier.fillMaxWidth().height(120.dp),
-                isError = state.reasonError != null,
-                supportingText = state.reasonError?.let { { Text(it) } },
-                maxLines = 5,
-            )
-            Text(
-                text = "${state.reason.length}/1000",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Button(
-                onClick = onConfirm,
-                modifier = Modifier.fillMaxWidth(),
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(EyecareColors.current.statusConfirmed.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center,
             ) {
-                Text("Continue")
+                Icon(
+                    Icons.Outlined.EventAvailable,
+                    contentDescription = null,
+                    tint = EyecareColors.current.statusConfirmed,
+                    modifier = Modifier.size(36.dp),
+                )
             }
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "Request sent",
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Request ${state.request.requestNumber} is now awaiting clinic review. " +
+                    "We'll notify you once it's confirmed.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            AppointmentPrimaryButton(text = "View request", onClick = onContinue)
         }
     }
 }
@@ -338,11 +352,15 @@ private fun formatDate(dateStr: String): String {
 
 private fun formatTimeRange(startsAt: String, endsAt: String): String {
     return try {
-        val start = Instant.parse(startsAt).atZone(ZoneId.of("Asia/Manila"))
-        val end = Instant.parse(endsAt).atZone(ZoneId.of("Asia/Manila"))
+        val start = Instant.parse(startsAt).atZone(CLINIC_TIME_ZONE)
+        val end = Instant.parse(endsAt).atZone(CLINIC_TIME_ZONE)
         val fmt = DateTimeFormatter.ofPattern("h:mm a")
         "${start.format(fmt)} – ${end.format(fmt)}"
     } catch (_: Exception) {
         "$startsAt – $endsAt"
     }
 }
+
+private fun String.toDatePickerMillis(): Long? = runCatching {
+    LocalDate.parse(this).atStartOfDay(CLINIC_TIME_ZONE).toInstant().toEpochMilli()
+}.getOrNull()

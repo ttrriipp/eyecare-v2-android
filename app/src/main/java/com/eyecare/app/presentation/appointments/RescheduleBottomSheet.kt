@@ -404,7 +404,7 @@ private fun RescheduleTimeStep(
                     val selected = isPm == pm
                     Box(
                         modifier = Modifier
-                            .size(width = 52.dp, height = 34.dp)
+                            .size(width = 52.dp, height = 48.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (selected) primary else surfaceVar)
                             .clickable { switchPeriod(pm) },

@@ -75,6 +75,7 @@ import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestListViewModel
+import com.eyecare.app.presentation.appointments.requests.AppointmentRequestStatusPill
 import com.eyecare.app.presentation.appointments.requests.RequestListState
 import com.eyecare.app.presentation.appointments.requests.requestStatusPresentation
 import com.eyecare.app.ui.theme.EyecareTheme
@@ -830,31 +831,6 @@ private fun AppointmentRequestCard(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-    }
-}
-
-@Composable
-private fun AppointmentRequestStatusPill(
-    status: AppointmentRequestStatus,
-    label: String,
-) {
-    val colors = EyecareColors.current
-    val color = when (status) {
-        AppointmentRequestStatus.PENDING -> colors.statusPending
-        AppointmentRequestStatus.ACCEPTED -> colors.statusConfirmed
-        AppointmentRequestStatus.REJECTED,
-        AppointmentRequestStatus.CANCELLED,
-        AppointmentRequestStatus.EXPIRED -> colors.statusCancelled
-        AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.12f)) {
-        Text(
-            text = label.uppercase(Locale.US),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = color,
-        )
     }
 }
 

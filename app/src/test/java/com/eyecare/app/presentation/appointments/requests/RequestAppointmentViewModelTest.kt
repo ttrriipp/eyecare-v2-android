@@ -8,7 +8,6 @@ import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
-import com.eyecare.app.domain.repository.PaginatedResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -71,16 +70,23 @@ class RequestAppointmentViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
+    private fun scheduleWithSlot(): RequestStep.Schedule {
+        coEvery { repo.getAvailability("2026-08-10") } returns Result.success(fakeAvailability)
+        vm.selectDate("2026-08-10")
+        vm.selectSlot(fakeSlot)
+        return vm.step.value as RequestStep.Schedule
+    }
+
     @Test
-    fun `initial step is ChooseDate`() {
-        assertTrue(vm.step.value is RequestStep.ChooseDate)
+    fun `initial step is Schedule`() {
+        assertTrue(vm.step.value is RequestStep.Schedule)
     }
 
     @Test
     fun `selectDate loads availability`() {
         coEvery { repo.getAvailability("2026-08-10") } returns Result.success(fakeAvailability)
         vm.selectDate("2026-08-10")
-        val step = vm.step.value as RequestStep.ChooseSlot
+        val step = vm.step.value as RequestStep.Schedule
         assertEquals("2026-08-10", step.date)
         assertEquals(1, step.availability?.slots?.size)
     }
@@ -89,55 +95,33 @@ class RequestAppointmentViewModelTest {
     fun `selectDate failure shows error`() {
         coEvery { repo.getAvailability(any()) } returns Result.failure(Exception("Network"))
         vm.selectDate("2026-08-10")
-        val step = vm.step.value as RequestStep.ChooseSlot
-        assertEquals("Network", step.error)
+        val step = vm.step.value as RequestStep.Schedule
+        assertEquals("Network", step.availabilityError)
     }
 
     @Test
     fun `selectSlot selects available slot`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        val step = vm.step.value as RequestStep.ChooseSlot
+        val step = scheduleWithSlot()
         assertEquals(fakeSlot, step.selectedSlot)
     }
 
     @Test
-    fun `confirmSlot moves to EnterReason`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
-        assertTrue(vm.step.value is RequestStep.EnterReason)
+    fun `confirmSchedule moves to ProfileAndReason`() {
+        scheduleWithSlot()
+        vm.confirmSchedule()
+        assertTrue(vm.step.value is RequestStep.ProfileAndReason)
     }
 
     @Test
-    fun `empty reason shows validation error`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
-        vm.updateReason("")
-        vm.confirmReason()
-        val step = vm.step.value as RequestStep.EnterReason
-        assertEquals("Reason for visit is required", step.reasonError)
+    fun `confirmSchedule without identity required skips identity fields`() {
+        scheduleWithSlot()
+        vm.confirmSchedule()
+        val step = vm.step.value as RequestStep.ProfileAndReason
+        assertTrue(!step.identityRequired)
     }
 
     @Test
-    fun `confirmReason moves to Review`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
-        vm.updateReason("Blurred vision")
-        vm.confirmReason()
-        val step = vm.step.value as RequestStep.Review
-        assertEquals("Blurred vision", step.reason)
-        assertNull(step.identity)
-    }
-
-    @Test
-    fun `confirmReason moves to identity step with account details when identity is required`() {
+    fun `confirmSchedule with identity required seeds account details`() {
         val accountIdentity = AppointmentRequestIdentity(
             phone = "+639171234567",
             email = "alex@example.com",
@@ -149,17 +133,11 @@ class RequestAppointmentViewModelTest {
             occupation = "Teacher",
             address = "123 Main St, Manila",
         )
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
-        vm.updateReason("Blurred vision")
-        vm.confirmReason(
-            identityDetailsRequired = true,
-            initialIdentity = accountIdentity,
-        )
+        scheduleWithSlot()
+        vm.confirmSchedule(identityDetailsRequired = true, initialIdentity = accountIdentity)
 
-        val step = vm.step.value as RequestStep.EnterIdentity
+        val step = vm.step.value as RequestStep.ProfileAndReason
+        assertTrue(step.identityRequired)
         assertEquals("Alex", step.firstName)
         assertEquals("M", step.middleName)
         assertEquals("Rivera", step.lastName)
@@ -172,16 +150,34 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `confirmIdentity rejects missing required requester details`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
-        vm.updateReason("Blurred vision")
-        vm.confirmReason(identityDetailsRequired = true)
-        vm.confirmIdentity()
+    fun `empty reason shows validation error`() {
+        scheduleWithSlot()
+        vm.confirmSchedule()
+        vm.updateReason("")
+        vm.confirmProfileAndReason()
+        val step = vm.step.value as RequestStep.ProfileAndReason
+        assertEquals("Reason for visit is required", step.reasonError)
+    }
 
-        val step = vm.step.value as RequestStep.EnterIdentity
+    @Test
+    fun `confirmProfileAndReason moves to Review without identity`() {
+        scheduleWithSlot()
+        vm.confirmSchedule()
+        vm.updateReason("Blurred vision")
+        vm.confirmProfileAndReason()
+        val step = vm.step.value as RequestStep.Review
+        assertEquals("Blurred vision", step.reason)
+        assertNull(step.identity)
+    }
+
+    @Test
+    fun `confirmProfileAndReason rejects missing required requester details`() {
+        scheduleWithSlot()
+        vm.confirmSchedule(identityDetailsRequired = true)
+        vm.updateReason("Blurred vision")
+        vm.confirmProfileAndReason()
+
+        val step = vm.step.value as RequestStep.ProfileAndReason
         assertEquals("First name is required", step.errors["firstName"])
         assertEquals("Last name is required", step.errors["lastName"])
         assertEquals("Date of birth is required", step.errors["dateOfBirth"])
@@ -192,13 +188,10 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `confirmIdentity rejects an invalid optional email`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
+    fun `confirmProfileAndReason rejects an invalid optional email`() {
+        scheduleWithSlot()
+        vm.confirmSchedule(identityDetailsRequired = true)
         vm.updateReason("Blurred vision")
-        vm.confirmReason(identityDetailsRequired = true)
         vm.updateIdentity(
             phone = "+639171234567",
             email = "not-an-email",
@@ -210,20 +203,17 @@ class RequestAppointmentViewModelTest {
             address = "123 Main St, Manila",
         )
 
-        vm.confirmIdentity()
+        vm.confirmProfileAndReason()
 
-        val step = vm.step.value as RequestStep.EnterIdentity
+        val step = vm.step.value as RequestStep.ProfileAndReason
         assertEquals("Enter a valid email address", step.errors["email"])
     }
 
     @Test
-    fun `confirmIdentity moves to Review with normalized requester identity`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
+    fun `confirmProfileAndReason moves to Review with normalized requester identity`() {
+        scheduleWithSlot()
+        vm.confirmSchedule(identityDetailsRequired = true)
         vm.updateReason("Blurred vision")
-        vm.confirmReason(identityDetailsRequired = true)
         vm.updateIdentity(
             phone = "+639171234567",
             email = "alex@example.com",
@@ -235,7 +225,7 @@ class RequestAppointmentViewModelTest {
             occupation = " Teacher ",
             address = " 123 Main St, Manila ",
         )
-        vm.confirmIdentity()
+        vm.confirmProfileAndReason()
 
         val step = vm.step.value as RequestStep.Review
         assertEquals(
@@ -255,13 +245,10 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `backFromReview returns to identity step when requester identity was collected`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
+    fun `backFromReview returns to ProfileAndReason with identity repopulated`() {
+        scheduleWithSlot()
+        vm.confirmSchedule(identityDetailsRequired = true)
         vm.updateReason("Blurred vision")
-        vm.confirmReason(identityDetailsRequired = true)
         vm.updateIdentity(
             phone = "+639171234567",
             email = "alex@example.com",
@@ -272,10 +259,11 @@ class RequestAppointmentViewModelTest {
             occupation = "Teacher",
             address = "123 Main St, Manila",
         )
-        vm.confirmIdentity()
+        vm.confirmProfileAndReason()
         vm.backFromReview()
 
-        val step = vm.step.value as RequestStep.EnterIdentity
+        val step = vm.step.value as RequestStep.ProfileAndReason
+        assertTrue(step.identityRequired)
         assertEquals("+639171234567", step.phone)
         assertEquals("alex@example.com", step.email)
         assertEquals("Alex", step.firstName)
@@ -287,36 +275,44 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `back from identity preserves the draft when returning from reason`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
+    fun `backToSchedule preserves the draft when returning to ProfileAndReason`() {
+        scheduleWithSlot()
+        vm.confirmSchedule(identityDetailsRequired = true)
         vm.updateReason("Blurred vision")
-        vm.confirmReason(identityDetailsRequired = true)
         vm.updateIdentity(
             firstName = "Alex",
             lastName = "Rivera",
             dateOfBirth = "1990-05-15",
         )
-        vm.backToReason()
-        vm.confirmReason(identityDetailsRequired = true)
+        vm.backToSchedule()
+        vm.confirmSchedule(identityDetailsRequired = true)
 
-        val step = vm.step.value as RequestStep.EnterIdentity
+        val step = vm.step.value as RequestStep.ProfileAndReason
+        assertEquals("Blurred vision", step.reason)
         assertEquals("Alex", step.firstName)
         assertEquals("Rivera", step.lastName)
         assertEquals("1990-05-15", step.dateOfBirth)
     }
 
     @Test
+    fun `backToSchedule reloads availability for the current date`() {
+        scheduleWithSlot()
+        vm.confirmSchedule()
+        vm.backToSchedule()
+
+        val step = vm.step.value as RequestStep.Schedule
+        assertEquals("2026-08-10", step.date)
+        assertEquals(fakeSlot, step.selectedSlot)
+        assertEquals(1, step.availability?.slots?.size)
+    }
+
+    @Test
     fun `submit success returns request`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
         coEvery { repo.createRequest(any(), any(), any()) } returns Result.success(fakeRequest)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
+        scheduleWithSlot()
+        vm.confirmSchedule()
         vm.updateReason("Test")
-        vm.confirmReason()
+        vm.confirmProfileAndReason()
         vm.submit()
         val step = vm.step.value as RequestStep.Success
         assertEquals(1, step.request.id)
@@ -335,14 +331,11 @@ class RequestAppointmentViewModelTest {
             occupation = "Teacher",
             address = "123 Main St, Manila",
         )
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
         coEvery { repo.createRequest(any(), any(), identity) } returns Result.success(fakeRequest)
 
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
+        scheduleWithSlot()
+        vm.confirmSchedule(identityDetailsRequired = true)
         vm.updateReason("Test")
-        vm.confirmReason(identityDetailsRequired = true)
         vm.updateIdentity(
             phone = "+639171234567",
             email = "alex@example.com",
@@ -354,7 +347,7 @@ class RequestAppointmentViewModelTest {
             occupation = identity.occupation,
             address = identity.address,
         )
-        vm.confirmIdentity()
+        vm.confirmProfileAndReason()
         vm.submit()
 
         coVerify {
@@ -367,32 +360,28 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `submit SLOT_UNAVAILABLE returns to slot selection`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
+    fun `submit SLOT_UNAVAILABLE returns to Schedule`() {
         coEvery { repo.createRequest(any(), any(), any()) } returns Result.failure(
             ApiDomainError(422, "SLOT_UNAVAILABLE", "Slot taken.")
         )
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
+        scheduleWithSlot()
+        vm.confirmSchedule()
         vm.updateReason("Test")
-        vm.confirmReason()
+        vm.confirmProfileAndReason()
         vm.submit()
         vm.handleSubmissionError()
-        assertTrue(vm.step.value is RequestStep.ChooseSlot)
+        assertTrue(vm.step.value is RequestStep.Schedule)
     }
 
     @Test
     fun `submit ACTIVE_REQUEST_LIMIT_REACHED preserves draft`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
         coEvery { repo.createRequest(any(), any(), any()) } returns Result.failure(
             ApiDomainError(422, "ACTIVE_REQUEST_LIMIT_REACHED", "Limit reached.")
         )
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
+        scheduleWithSlot()
+        vm.confirmSchedule()
         vm.updateReason("Test")
-        vm.confirmReason()
+        vm.confirmProfileAndReason()
         vm.submit()
         vm.handleSubmissionError()
         val step = vm.step.value as RequestStep.SubmissionError
@@ -401,15 +390,13 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `backToReason preserves reason`() {
-        coEvery { repo.getAvailability(any()) } returns Result.success(fakeAvailability)
-        vm.selectDate("2026-08-10")
-        vm.selectSlot(fakeSlot)
-        vm.confirmSlot()
+    fun `backToSchedule preserves reason`() {
+        scheduleWithSlot()
+        vm.confirmSchedule()
         vm.updateReason("My reason")
-        vm.confirmReason()
-        vm.backToReason()
-        val step = vm.step.value as RequestStep.EnterReason
+        vm.backToSchedule()
+        vm.confirmSchedule()
+        val step = vm.step.value as RequestStep.ProfileAndReason
         assertEquals("My reason", step.reason)
     }
 }
