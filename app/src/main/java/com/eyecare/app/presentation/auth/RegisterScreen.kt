@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,6 +19,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -36,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -70,6 +73,7 @@ fun RegisterScreen(
         is RegistrationState.Success -> onRegisterSuccess()
     }
 }
+
 @Composable
 private fun RegisterPhoneStep(
     viewModel: RegistrationViewModel,
@@ -80,8 +84,17 @@ private fun RegisterPhoneStep(
         title = "Create account",
         onBack = onNavigateToLogin,
     ) {
+        // Maya pattern: bold conversational heading, generous spacing
+        Text(
+            text = "Get started",
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = FontWeight.Bold,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         AuthIntro("We'll verify your phone first, then ask for a few details to set up your account.")
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         ContactField(
             value = state.phoneNumber,
             onValueChange = viewModel::updatePhone,
@@ -94,9 +107,43 @@ private fun RegisterPhoneStep(
             onClick = viewModel::requestPhoneOtp,
             enabled = state.phoneNumber.isNotBlank(),
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        TextButton(onClick = onNavigateToLogin, modifier = Modifier.fillMaxWidth()) {
-            Text("Already have an account? Sign in")
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Divider with "or" text
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            HorizontalDivider(modifier = Modifier.weight(1f))
+            Text(
+                text = "or",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            HorizontalDivider(modifier = Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "Already have an account?",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = onNavigateToLogin) {
+                Text(
+                    "Sign in",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+            }
         }
     }
 }
@@ -110,8 +157,17 @@ private fun RegisterOtpStep(
         title = "Verify your phone",
         onBack = viewModel::back,
     ) {
+        // Maya pattern: bold conversational heading, generous spacing
+        Text(
+            text = "Almost there",
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = FontWeight.Bold,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         AuthIntro("Enter the 6-digit code sent to ${toPhilippineE164(state.phoneNumber)}.")
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         OtpField(
             value = state.code,
             onValueChange = viewModel::updateOtpCode,
@@ -155,8 +211,17 @@ private fun RegisterDetailsStep(
     )
 
     AuthStepScaffold(title = "Your details") {
-        AuthIntro("Tell us a little about yourself so we can keep your account accurate and secure.")
-        Spacer(modifier = Modifier.height(16.dp))
+        // Maya pattern: bold conversational heading, generous spacing
+        Text(
+            text = "Tell us about you",
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = FontWeight.Bold,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        AuthIntro("A few details so we can keep your account accurate and secure.")
+        Spacer(modifier = Modifier.height(24.dp))
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),

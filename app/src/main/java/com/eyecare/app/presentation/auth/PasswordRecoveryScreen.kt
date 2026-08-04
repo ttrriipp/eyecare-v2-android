@@ -2,10 +2,13 @@ package com.eyecare.app.presentation.auth
 
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.eyecare.app.domain.model.toPhilippineLocalDigits
@@ -44,8 +47,17 @@ private fun RecoveryPhoneStep(
     onBack: () -> Unit,
 ) {
     AuthStepScaffold(title = "Reset password", onBack = onBack) {
+        // Maya pattern: bold conversational heading, generous spacing
+        Text(
+            text = "Reset password",
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = FontWeight.Bold,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         AuthIntro("Enter your phone number. If it matches an account, we'll send a verification code.")
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         ContactField(
             value = state.phoneNumber,
             onValueChange = viewModel::updatePhone,
@@ -67,8 +79,17 @@ private fun RecoveryOtpStep(
     viewModel: PasswordRecoveryViewModel,
 ) {
     AuthStepScaffold(title = "Enter code", onBack = { viewModel.back() }) {
+        // Maya pattern: bold conversational heading, generous spacing
+        Text(
+            text = "Check your phone",
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = FontWeight.Bold,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         AuthIntro("Enter the 6-digit verification code.")
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         OtpField(
             value = state.code,
             onValueChange = { viewModel.updateOtpCode(it) },
@@ -96,8 +117,17 @@ private fun RecoveryPasswordStep(
     viewModel: PasswordRecoveryViewModel,
 ) {
     AuthStepScaffold(title = "New password", onBack = { viewModel.back() }) {
+        // Maya pattern: bold conversational heading, generous spacing
+        Text(
+            text = "Set new password",
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = FontWeight.Bold,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         AuthIntro("Your new password must be at least 12 characters. Other devices will be signed out.")
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         PasswordField(
             value = state.password,
             onValueChange = { viewModel.updatePassword(it) },
