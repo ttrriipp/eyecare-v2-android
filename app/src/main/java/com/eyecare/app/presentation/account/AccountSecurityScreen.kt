@@ -22,6 +22,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -67,6 +70,7 @@ fun AccountSecurityScreen(
             }
         }
         is AccountSecurityState.Overview -> ContactOverviewContent(s, viewModel, onSignedOut, onBack)
+        is AccountSecurityState.EnterNewContact -> EnterNewContactContent(s, viewModel)
         is AccountSecurityState.StepUpOtp -> StepUpOtpContent(s, viewModel)
         is AccountSecurityState.AddContactOtp -> AddContactOtpContent(s, viewModel)
         is AccountSecurityState.ChangePassword -> ChangePasswordContent(s, viewModel)
@@ -106,7 +110,7 @@ private fun ContactOverviewContent(
         }
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedButton(
-            onClick = { viewModel.startStepUp(StepUpAction.AddContact(ContactType.EMAIL, "")) },
+            onClick = { viewModel.startAddContact() },
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Add contact") }
         Spacer(modifier = Modifier.height(24.dp))
@@ -164,6 +168,40 @@ private fun ContactRow(
                 TextButton(onClick = onRemove) { Text("Remove") }
             }
         }
+    }
+}
+
+@Composable
+private fun EnterNewContactContent(
+    state: AccountSecurityState.EnterNewContact,
+    viewModel: AccountSecurityViewModel,
+) {
+    AuthStepScaffold(title = "Add contact", onBack = { viewModel.back() }) {
+        Text("Choose a contact method and enter the value you'd like to add.")
+        Spacer(modifier = Modifier.height(16.dp))
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            ContactType.entries.forEachIndexed { index, type ->
+                SegmentedButton(
+                    selected = state.contactType == type,
+                    onClick = { viewModel.updateNewContactType(type) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = ContactType.entries.size),
+                    label = { Text(if (type == ContactType.EMAIL) "Email" else "Phone") },
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        ContactField(
+            value = state.contactValue,
+            onValueChange = { viewModel.updateNewContactValue(it) },
+            method = if (state.contactType == ContactType.EMAIL) ContactMethod.EMAIL else ContactMethod.PHONE,
+            error = state.error,
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = { viewModel.submitNewContact() },
+            enabled = state.contactValue.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Continue") }
     }
 }
 

@@ -22,6 +22,11 @@ sealed interface AccountSecurityState {
         val contacts: List<AccountContact> = emptyList(),
         val error: String? = null,
     ) : AccountSecurityState
+    data class EnterNewContact(
+        val contactType: ContactType = ContactType.EMAIL,
+        val contactValue: String = "",
+        val error: String? = null,
+    ) : AccountSecurityState
     data class StepUpOtp(
         val challenge: StepUpChallenge,
         val code: String = "",
@@ -76,6 +81,34 @@ class AccountSecurityViewModel @Inject constructor(
                     _state.value = AccountSecurityState.Overview(error = error.message ?: "Failed to load contacts")
                 }
         }
+    }
+
+    fun startAddContact() {
+        _state.value = AccountSecurityState.EnterNewContact()
+    }
+
+    fun updateNewContactType(type: ContactType) {
+        val current = _state.value
+        if (current is AccountSecurityState.EnterNewContact) {
+            _state.value = current.copy(contactType = type, contactValue = "", error = null)
+        }
+    }
+
+    fun updateNewContactValue(value: String) {
+        val current = _state.value
+        if (current is AccountSecurityState.EnterNewContact) {
+            _state.value = current.copy(contactValue = value, error = null)
+        }
+    }
+
+    fun submitNewContact() {
+        val current = _state.value
+        if (current !is AccountSecurityState.EnterNewContact) return
+        if (current.contactValue.isBlank()) {
+            _state.value = current.copy(error = "Enter a value")
+            return
+        }
+        startStepUp(StepUpAction.AddContact(current.contactType, current.contactValue.trim()))
     }
 
     fun startStepUp(action: StepUpAction) {

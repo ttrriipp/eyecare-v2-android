@@ -43,7 +43,10 @@ object ApiErrorDecoder {
                 ApiDomainError(
                     httpStatus = httpStatus,
                     code = if (fieldErrors.isNotEmpty()) "VALIDATION" else "UNKNOWN_ERROR",
-                    message = message ?: fieldErrors.firstMessage() ?: UNKNOWN_MESSAGE,
+                    // Laravel's default validation-failure wrapper always sets a generic top-level
+                    // message ("The given data was invalid.") alongside the real per-field reason in
+                    // `errors` — prefer the specific field message so users see the actual problem.
+                    message = fieldErrors.firstMessage() ?: message ?: UNKNOWN_MESSAGE,
                     fieldErrors = fieldErrors,
                 )
             }
