@@ -36,7 +36,10 @@ class ApiErrorDecoderTest {
         val error = ApiErrorDecoder.decode(422, body)
 
         assertEquals("VALIDATION", error.code)
-        assertEquals("The given data was invalid.", error.message)
+        // The specific field message wins over Laravel's generic wrapper text, so callers that
+        // just show `error.message` (rather than walking fieldErrors themselves) still surface
+        // the actual validation reason instead of a blanket "The given data was invalid."
+        assertEquals("The date of birth must be before today.", error.message)
         assertEquals(
             listOf("The date of birth must be before today."),
             error.fieldErrors["date_of_birth"],
