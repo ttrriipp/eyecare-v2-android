@@ -12,16 +12,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -30,7 +26,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,14 +35,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.domain.model.LinkState
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkRequest
-import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.auth.components.AuthIntro
 import com.eyecare.app.presentation.auth.components.AuthOutlinedButton
 import com.eyecare.app.presentation.auth.components.AuthPrimaryButton
@@ -61,8 +53,6 @@ import com.eyecare.app.ui.theme.EyecareColors
 fun LimitedAccountScreen(
     account: PatientAccount,
     onBack: () -> Unit,
-    onAccountSecurity: () -> Unit,
-    onSignOut: () -> Unit,
     onLinkComplete: () -> Unit,
     requestedFeatureLabel: String? = null,
     viewModel: LimitedAccountViewModel = hiltViewModel(),
@@ -75,7 +65,6 @@ fun LimitedAccountScreen(
 
     when (val s = state) {
         is LimitedAccountState.Overview -> LimitedOverviewContent(
-            account = s.account,
             linkState = s.linkState,
             currentLinkRequest = s.currentLinkRequest,
             isSubmittingLinkRequest = s.isSubmittingLinkRequest,
@@ -84,8 +73,6 @@ fun LimitedAccountScreen(
             onBack = onBack,
             onEnterInvite = { viewModel.startInvitationEntry() },
             onRequestClinicLink = { viewModel.submitClinicLinkRequest() },
-            onAccountSecurity = onAccountSecurity,
-            onSignOut = onSignOut,
         )
         is LimitedAccountState.EnterInvitationCode -> LimitedInviteCodeStep(s, viewModel)
         is LimitedAccountState.VerifyInvitationOtp -> LimitedInviteOtpStep(s, viewModel)
@@ -112,7 +99,6 @@ fun LimitedAccountScreen(
 
 @Composable
 internal fun LimitedOverviewContent(
-    account: PatientAccount,
     linkState: LinkState?,
     currentLinkRequest: PatientLinkRequest?,
     isSubmittingLinkRequest: Boolean,
@@ -121,125 +107,31 @@ internal fun LimitedOverviewContent(
     onBack: () -> Unit,
     onEnterInvite: () -> Unit,
     onRequestClinicLink: () -> Unit,
-    onAccountSecurity: () -> Unit,
-    onSignOut: () -> Unit,
 ) {
+    val hasPendingClinicRequest = currentLinkRequest != null || linkState is LinkState.PendingReview
+
     AuthStepScaffold(title = "Link your care record", onBack = onBack) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = account.name.ifBlank { "Account" },
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            if (requestedFeatureLabel != null) {
-                Text(
-                    text = "Link your clinic record to open $requestedFeatureLabel.",
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center,
-                    color = EyecareColors.current.accentText,
-                )
-                Text(
-                    text = "After linking, we’ll take you back there. Your clinical data stays protected until then.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                )
-            } else {
-                Text(
-                    text = "Connect this account to your clinic record to unlock patient features.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            Text(
-                text = statusCopy(account.linkStatus, linkState),
+                text = requestedFeatureLabel?.let { "Link your clinic record to open $it." }
+                    ?: "Connect this account to your clinic record to unlock patient features.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
             )
-            val hasPendingClinicRequest = currentLinkRequest != null || linkState is LinkState.PendingReview
-            if (hasPendingClinicRequest) {
-                Card(
-                    shape = MaterialTheme.shapes.medium,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Schedule,
-                            contentDescription = null,
-                            tint = EyecareColors.current.accentText,
-                            modifier = Modifier.size(24.dp),
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "Clinic link request pending",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = "The clinic can review your account and link it to the right patient record. You can still enter an invitation code if the clinic sends one.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            currentLinkRequest?.requestNumber?.let { requestNumber ->
-                                Text(
-                                    text = requestNumber,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 4.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-            }
 
             ConnectAccountCard(
                 showBothMethods = !hasPendingClinicRequest,
+                pendingRequestNumber = currentLinkRequest?.requestNumber,
                 isSubmittingLinkRequest = isSubmittingLinkRequest,
                 requestError = requestError,
                 onEnterInvite = onEnterInvite,
                 onRequestClinicLink = onRequestClinicLink,
             )
-
-            TextButton(onClick = onAccountSecurity, modifier = Modifier.fillMaxWidth()) {
-                Text("Account & Security")
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            Button(
-                onClick = onSignOut,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.Logout,
-                    contentDescription = null,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Sign out",
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
         }
     }
 }
@@ -249,6 +141,7 @@ private enum class LinkMethod { INVITATION_CODE, CLINIC_REQUEST }
 @Composable
 private fun ConnectAccountCard(
     showBothMethods: Boolean,
+    pendingRequestNumber: String?,
     isSubmittingLinkRequest: Boolean,
     requestError: String?,
     onEnterInvite: () -> Unit,
@@ -295,6 +188,23 @@ private fun ConnectAccountCard(
                         )
                     }
                 }
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Schedule,
+                        contentDescription = null,
+                        tint = EyecareColors.current.accentText,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "Clinic review pending" + (pendingRequestNumber?.let { " · $it" } ?: ""),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             Crossfade(
@@ -304,7 +214,11 @@ private fun ConnectAccountCard(
                 when (method) {
                     LinkMethod.INVITATION_CODE -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = "Enter the code from your clinic to link your account right away.",
+                            text = if (showBothMethods) {
+                                "Enter the code from your clinic to link your account right away."
+                            } else {
+                                "You can still enter an invitation code while the clinic reviews your request."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -400,13 +314,4 @@ private fun LimitedInviteOtpStep(
             loading = state.isResending,
         )
     }
-}
-
-private fun statusCopy(status: PatientLinkStatus, linkState: LinkState?): String = when {
-    linkState is LinkState.PendingReview -> "Clinic review pending."
-    status == PatientLinkStatus.UNLINKED -> "Your account is not linked to a clinic record yet."
-    status == PatientLinkStatus.PENDING_REVIEW -> "Clinic review pending."
-    status == PatientLinkStatus.UNKNOWN -> "Account status unknown."
-    status == PatientLinkStatus.LINKED -> ""
-    else -> "Your account is not linked to a clinic record yet."
 }

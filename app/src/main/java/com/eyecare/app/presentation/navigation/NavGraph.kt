@@ -236,14 +236,6 @@ fun EyecareNavGraph(
                                 pendingPatientFeature = null
                                 navController.popBackStack()
                             },
-                            onAccountSecurity = { navController.navigate(AccountSecurity) },
-                            onSignOut = {
-                                pendingPatientFeature = null
-                                sessionViewModel.signOut()
-                                navController.navigate(Welcome) {
-                                    popUpTo<LimitedAccount> { inclusive = true }
-                                }
-                            },
                             onLinkComplete = {
                                 val destination = pendingPatientFeature
                                 pendingPatientFeature = null
