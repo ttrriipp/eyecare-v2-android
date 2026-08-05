@@ -94,7 +94,7 @@ private fun ContactOverviewContent(
     onSignedOut: () -> Unit,
     onBack: () -> Unit,
 ) {
-    AuthStepScaffold(title = "Account & Security", onBack = onBack) {
+    AuthStepScaffold(title = "Account & Security", onBack = onBack, showGradientBar = false) {
         if (state.error != null) {
             Text(state.error, color = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.height(8.dp))
@@ -176,7 +176,7 @@ private fun EnterNewContactContent(
     state: AccountSecurityState.EnterNewContact,
     viewModel: AccountSecurityViewModel,
 ) {
-    AuthStepScaffold(title = "Add contact", onBack = { viewModel.back() }) {
+    AuthStepScaffold(title = "Add contact", onBack = { viewModel.back() }, showGradientBar = false) {
         Text("Choose a contact method and enter the value you'd like to add.")
         Spacer(modifier = Modifier.height(16.dp))
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -210,7 +210,7 @@ private fun StepUpOtpContent(
     state: AccountSecurityState.StepUpOtp,
     viewModel: AccountSecurityViewModel,
 ) {
-    AuthStepScaffold(title = "Verify it's you", onBack = { viewModel.back() }) {
+    AuthStepScaffold(title = "Verify it's you", onBack = { viewModel.back() }, showGradientBar = false) {
         Text("A code was sent to ${state.challenge.maskedContact}.")
         Spacer(modifier = Modifier.height(16.dp))
         OtpField(
@@ -232,7 +232,7 @@ private fun AddContactOtpContent(
     state: AccountSecurityState.AddContactOtp,
     viewModel: AccountSecurityViewModel,
 ) {
-    AuthStepScaffold(title = "Verify new contact", onBack = { viewModel.back() }) {
+    AuthStepScaffold(title = "Verify new contact", onBack = { viewModel.back() }, showGradientBar = false) {
         Text("Enter the code sent to ${state.contactValue}.")
         Spacer(modifier = Modifier.height(16.dp))
         OtpField(
@@ -254,7 +254,7 @@ private fun ChangePasswordContent(
     state: AccountSecurityState.ChangePassword,
     viewModel: AccountSecurityViewModel,
 ) {
-    AuthStepScaffold(title = "Change password", onBack = { viewModel.back() }) {
+    AuthStepScaffold(title = "Change password", onBack = { viewModel.back() }, showGradientBar = false) {
         Text("Other devices will be signed out after password change.")
         Spacer(modifier = Modifier.height(16.dp))
         PasswordField(

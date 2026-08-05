@@ -110,7 +110,7 @@ internal fun LimitedOverviewContent(
 ) {
     val hasPendingClinicRequest = currentLinkRequest != null || linkState is LinkState.PendingReview
 
-    AuthStepScaffold(title = "Link your care record", onBack = onBack) {
+    AuthStepScaffold(title = "Link your care record", onBack = onBack, showGradientBar = false) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -252,7 +252,7 @@ private fun LimitedInviteCodeStep(
     state: LimitedAccountState.EnterInvitationCode,
     viewModel: LimitedAccountViewModel,
 ) {
-    AuthStepScaffold(title = "Invitation code", onBack = { viewModel.back() }) {
+    AuthStepScaffold(title = "Invitation code", onBack = { viewModel.back() }, showGradientBar = false) {
         AuthIntro("Enter the invitation code from your clinic. We'll verify it before linking your account.")
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
@@ -278,7 +278,7 @@ private fun LimitedInviteOtpStep(
     state: LimitedAccountState.VerifyInvitationOtp,
     viewModel: LimitedAccountViewModel,
 ) {
-    AuthStepScaffold(title = "Verify code", onBack = { viewModel.back() }) {
+    AuthStepScaffold(title = "Verify code", onBack = { viewModel.back() }, showGradientBar = false) {
         AuthIntro("Enter the 6-digit verification code sent to your phone.")
         Spacer(modifier = Modifier.height(20.dp))
         OtpField(

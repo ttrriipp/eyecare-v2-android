@@ -47,13 +47,10 @@ import androidx.compose.ui.unit.sp
 import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
+import com.eyecare.app.presentation.appointments.components.WizardStepIndicator
 import java.time.Instant
 import java.time.LocalDate
 
-/**
- * Step 2 of 3: reason for visit, plus the patient's own profile fields when the account has
- * no linked clinic record yet ([RequestStep.ProfileAndReason.identityRequired]).
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileAndReasonContent(
@@ -87,7 +84,7 @@ fun ProfileAndReasonContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (state.identityRequired) "Profile & reason for visit" else "Reason for visit") },
+                title = { Text(if (state.identityRequired) "Profile & reason" else "Reason for visit") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -96,149 +93,154 @@ fun ProfileAndReasonContent(
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SectionLabel("Reason for visit")
-                OutlinedTextField(
-                    value = state.reason,
-                    onValueChange = onReasonChange,
-                    label = { Text("Reason for visit") },
-                    placeholder = { Text("e.g., Blurred vision in left eye") },
-                    modifier = Modifier.fillMaxWidth().height(120.dp),
-                    isError = state.reasonError != null,
-                    supportingText = state.reasonError?.let { { Text(it) } },
-                    maxLines = 5,
-                )
-                Text(
-                    text = "${state.reason.length}/1000",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            WizardStepIndicator(
+                currentStep = 1,
+                steps = listOf("Schedule", "Details", "Review"),
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+            )
 
-            if (state.identityRequired) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SectionLabel("Reason for visit")
+                    OutlinedTextField(
+                        value = state.reason,
+                        onValueChange = onReasonChange,
+                        label = { Text("Reason for visit") },
+                        placeholder = { Text("e.g., Blurred vision in left eye") },
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        isError = state.reasonError != null,
+                        supportingText = state.reasonError?.let { { Text(it) } },
+                        maxLines = 5,
+                    )
+                    Text(
+                        text = "${state.reason.length}/1000",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                if (state.identityRequired) {
                     Text(
                         text = "Add your details so the clinic can match this request to your record.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                }
 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SectionLabel("Contact")
-                    OutlinedTextField(
-                        value = state.phone,
-                        onValueChange = {},
-                        label = { Text("Phone number *") },
-                        readOnly = true,
-                        isError = state.errors.containsKey("phone"),
-                        supportingText = {
-                            Text(state.errors["phone"] ?: "Verified account contact")
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = state.email,
-                        onValueChange = onEmailChange,
-                        label = { Text("Email (optional)") },
-                        singleLine = true,
-                        isError = state.errors.containsKey("email"),
-                        supportingText = state.errors["email"]?.let { { Text(it) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SectionLabel("Personal details")
-                    OutlinedTextField(
-                        value = state.firstName,
-                        onValueChange = onFirstNameChange,
-                        label = { Text("First name *") },
-                        singleLine = true,
-                        isError = state.errors.containsKey("firstName"),
-                        supportingText = state.errors["firstName"]?.let { { Text(it) } },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = state.middleName,
-                        onValueChange = onMiddleNameChange,
-                        label = { Text("Middle name (optional)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = state.lastName,
-                        onValueChange = onLastNameChange,
-                        label = { Text("Last name *") },
-                        singleLine = true,
-                        isError = state.errors.containsKey("lastName"),
-                        supportingText = state.errors["lastName"]?.let { { Text(it) } },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SectionLabel("About you")
-                    OutlinedTextField(
-                        value = state.dateOfBirth,
-                        onValueChange = {},
-                        label = { Text("Date of birth *") },
-                        readOnly = true,
-                        isError = state.errors.containsKey("dateOfBirth"),
-                        supportingText = state.errors["dateOfBirth"]?.let { { Text(it) } },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    TextButton(onClick = { showDatePicker = true }) {
-                        Text(if (state.dateOfBirth.isBlank()) "Select date" else "Change date")
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SectionLabel("Contact")
+                        OutlinedTextField(
+                            value = state.phone,
+                            onValueChange = {},
+                            label = { Text("Phone number *") },
+                            readOnly = true,
+                            isError = state.errors.containsKey("phone"),
+                            supportingText = {
+                                Text(state.errors["phone"] ?: "Verified account contact")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.email,
+                            onValueChange = onEmailChange,
+                            label = { Text("Email (optional)") },
+                            singleLine = true,
+                            isError = state.errors.containsKey("email"),
+                            supportingText = state.errors["email"]?.let { { Text(it) } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
-                    GenderSelector(
-                        selectedGender = state.gender,
-                        error = state.errors["gender"],
-                        onGenderChange = onGenderChange,
-                    )
-                    OutlinedTextField(
-                        value = state.occupation,
-                        onValueChange = onOccupationChange,
-                        label = { Text("Occupation *") },
-                        singleLine = true,
-                        isError = state.errors.containsKey("occupation"),
-                        supportingText = state.errors["occupation"]?.let { { Text(it) } },
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Words,
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SectionLabel("Personal details")
+                        OutlinedTextField(
+                            value = state.firstName,
+                            onValueChange = onFirstNameChange,
+                            label = { Text("First name *") },
+                            singleLine = true,
+                            isError = state.errors.containsKey("firstName"),
+                            supportingText = state.errors["firstName"]?.let { { Text(it) } },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.middleName,
+                            onValueChange = onMiddleNameChange,
+                            label = { Text("Middle name (optional)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.lastName,
+                            onValueChange = onLastNameChange,
+                            label = { Text("Last name *") },
+                            singleLine = true,
+                            isError = state.errors.containsKey("lastName"),
+                            supportingText = state.errors["lastName"]?.let { { Text(it) } },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SectionLabel("About you")
+                        OutlinedTextField(
+                            value = state.dateOfBirth,
+                            onValueChange = {},
+                            label = { Text("Date of birth *") },
+                            readOnly = true,
+                            isError = state.errors.containsKey("dateOfBirth"),
+                            supportingText = state.errors["dateOfBirth"]?.let { { Text(it) } },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TextButton(onClick = { showDatePicker = true }) {
+                            Text(if (state.dateOfBirth.isBlank()) "Select date" else "Change date")
+                        }
+                        GenderSelector(
+                            selectedGender = state.gender,
+                            error = state.errors["gender"],
+                            onGenderChange = onGenderChange,
+                        )
+                        OutlinedTextField(
+                            value = state.occupation,
+                            onValueChange = onOccupationChange,
+                            label = { Text("Occupation *") },
+                            singleLine = true,
+                            isError = state.errors.containsKey("occupation"),
+                            supportingText = state.errors["occupation"]?.let { { Text(it) } },
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Words,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SectionLabel("Address")
+                        OutlinedTextField(
+                            value = state.address,
+                            onValueChange = onAddressChange,
+                            label = { Text("Home address *") },
+                            minLines = 3,
+                            maxLines = 4,
+                            isError = state.errors.containsKey("address"),
+                            supportingText = state.errors["address"]?.let { { Text(it) } },
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Sentences,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SectionLabel("Address")
-                    OutlinedTextField(
-                        value = state.address,
-                        onValueChange = onAddressChange,
-                        label = { Text("Home address *") },
-                        minLines = 3,
-                        maxLines = 4,
-                        isError = state.errors.containsKey("address"),
-                        supportingText = state.errors["address"]?.let { { Text(it) } },
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Sentences,
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                AppointmentPrimaryButton(text = "Continue", onClick = onConfirm)
+                Spacer(modifier = Modifier.height(16.dp))
             }
-
-            AppointmentPrimaryButton(text = "Continue", onClick = onConfirm)
-            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 

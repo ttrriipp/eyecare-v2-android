@@ -49,23 +49,26 @@ private val AccentEnd = Color(0xFF29B6F6)
 fun AuthStepScaffold(
     title: String,
     onBack: (() -> Unit)? = null,
+    showGradientBar: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             Column {
-                // Gradient accent bar — ties auth screens back to the WelcomeScreen hero
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(AccentStart, AccentMid, AccentEnd),
+                // Gradient accent bar — only on auth screens, not account/profile screens
+                if (showGradientBar) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(AccentStart, AccentMid, AccentEnd),
+                                ),
                             ),
-                        ),
-                )
+                    )
+                }
                 TopAppBar(
                     title = { Text(title) },
                     colors = TopAppBarDefaults.topAppBarColors(

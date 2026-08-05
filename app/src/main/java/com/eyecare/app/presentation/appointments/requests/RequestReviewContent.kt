@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
+import com.eyecare.app.presentation.appointments.components.WizardStepIndicator
 import com.eyecare.app.ui.theme.EyecareColors
 import java.time.Instant
 import java.time.format.DateTimeFormatter
@@ -63,51 +64,26 @@ fun RequestReviewContent(
         },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 92.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    text = "Review your appointment request",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+            Column(modifier = Modifier.fillMaxSize()) {
+                WizardStepIndicator(
+                    currentStep = 2,
+                    steps = listOf("Schedule", "Details", "Review"),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                 )
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 16.dp, end = 16.dp, bottom = 92.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                ReviewMetadataRow(Icons.Outlined.CalendarMonth, "Date", formatDate(state.date))
-                                ReviewMetadataRow(
-                                    Icons.Outlined.AccessTime,
-                                    "Time",
-                                    formatTimeSlot(state.slot.startsAt, state.slot.endsAt),
-                                )
-                            }
-                        }
-                        ReviewRow(label = "Reason for visit", value = state.reason)
-                    }
-                }
+                    Text(
+                        text = "Review your appointment request",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
 
-                state.identity?.let { identity ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
@@ -116,29 +92,62 @@ fun RequestReviewContent(
                     ) {
                         Column(
                             modifier = Modifier.padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            Text(
-                                text = "Requester details",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            ReviewRow(
-                                label = "Name",
-                                value = listOfNotNull(
-                                    identity.firstName,
-                                    identity.middleName,
-                                    identity.lastName,
-                                ).joinToString(" "),
-                            )
-                            ReviewRow(label = "Date of birth", value = identity.dateOfBirth.orEmpty())
-                            ReviewRow(label = "Phone number", value = identity.phone.orEmpty())
-                            identity.email?.takeIf(String::isNotBlank)?.let {
-                                ReviewRow(label = "Email", value = it)
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    ReviewMetadataRow(Icons.Outlined.CalendarMonth, "Date", formatDate(state.date))
+                                    ReviewMetadataRow(
+                                        Icons.Outlined.AccessTime,
+                                        "Time",
+                                        formatTimeSlot(state.slot.startsAt, state.slot.endsAt),
+                                    )
+                                }
                             }
-                            ReviewRow(label = "Gender", value = identity.gender?.label.orEmpty())
-                            ReviewRow(label = "Occupation", value = identity.occupation.orEmpty())
-                            ReviewRow(label = "Home address", value = identity.address.orEmpty())
+                            ReviewRow(label = "Reason for visit", value = state.reason)
+                        }
+                    }
+
+                    state.identity?.let { identity ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Text(
+                                    text = "Requester details",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                ReviewRow(
+                                    label = "Name",
+                                    value = listOfNotNull(
+                                        identity.firstName,
+                                        identity.middleName,
+                                        identity.lastName,
+                                    ).joinToString(" "),
+                                )
+                                ReviewRow(label = "Date of birth", value = identity.dateOfBirth.orEmpty())
+                                ReviewRow(label = "Phone number", value = identity.phone.orEmpty())
+                                identity.email?.takeIf(String::isNotBlank)?.let {
+                                    ReviewRow(label = "Email", value = it)
+                                }
+                                ReviewRow(label = "Gender", value = identity.gender?.label.orEmpty())
+                                ReviewRow(label = "Occupation", value = identity.occupation.orEmpty())
+                                ReviewRow(label = "Home address", value = identity.address.orEmpty())
+                            }
                         }
                     }
                 }
@@ -165,9 +174,7 @@ fun RequestReviewContent(
 @Composable
 fun RequestSubmittingContent() {
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Request appointment") })
-        },
+        topBar = { TopAppBar(title = { Text("Request appointment") }) },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
