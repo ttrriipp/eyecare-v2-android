@@ -49,7 +49,7 @@ class EstimateListViewModelTest {
         confirmedAt = null,
         opticalOrder = opticalOrder,
         items = listOf(
-            QuotationItem(10, QuotationItemType.PRODUCT, "Lens", 1, BigDecimal("1200.00"), BigDecimal("1200.00")),
+            QuotationItem(10, QuotationItemType.PRODUCT, "Lens", 1, BigDecimal("1200.00"), BigDecimal("1200.00"), null, null, null),
         ),
     )
 

@@ -32,7 +32,7 @@ class FrameRatingViewModelTest {
     @Test
     fun `submitRating sends item ID only`() = runTest {
         coEvery { repository.rateItem(10, 5, "Great!") } returns Result.success(
-            RatingResult(rating = 5, comment = "Great!", revisionNumber = 1)
+            RatingResult(id = 1, itemId = 10, rating = 5, comment = "Great!", revisionNumber = 1)
         )
         val vm = FrameRatingViewModel(repository, orderItemId = 10)
         vm.submitRating(5, "Great!")
@@ -69,7 +69,7 @@ class FrameRatingViewModelTest {
     @Test
     fun `reset returns to idle`() = runTest {
         coEvery { repository.rateItem(10, 5, null) } returns Result.success(
-            RatingResult(rating = 5, comment = null, revisionNumber = 1)
+            RatingResult(id = 2, itemId = 10, rating = 5, comment = null, revisionNumber = 1)
         )
         val vm = FrameRatingViewModel(repository, orderItemId = 10)
         vm.submitRating(5, null)

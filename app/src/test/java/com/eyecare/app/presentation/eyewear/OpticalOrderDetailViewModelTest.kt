@@ -133,7 +133,7 @@ class OpticalOrderDetailViewModelTest {
         val vm = createVm()
         dispatcher.scheduler.advanceUntilIdle()
 
-        vm.updateItemRating(10, RatingResult(5, "Great!", 1))
+        vm.updateItemRating(10, RatingResult(1, 10, 5, "Great!", 1))
         val state = vm.uiState.value as OpticalOrderDetailUiState.Success
         assertEquals(5, state.order.items[0].rating?.rating)
     }

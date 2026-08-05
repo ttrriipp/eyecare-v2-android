@@ -217,6 +217,104 @@ class QuotationDtosTest {
     }
 
     @Test
+    fun `decodes item catalog references`() {
+        val fixture = """
+        {
+            "id": 6,
+            "quotation_number": "Q-2026-006",
+            "status": "presented",
+            "subtotal": "5500.00",
+            "discount_amount": "0.00",
+            "total": "5500.00",
+            "created_at": "2026-08-01T00:00:00Z",
+            "items": [
+                {
+                    "id": 40,
+                    "item_type": "product",
+                    "description": "Classic Rectangle Frame",
+                    "quantity": 1,
+                    "unit_price": "4500.00",
+                    "amount": "4500.00",
+                    "product_variant_id": 42,
+                    "lens_category_id": null,
+                    "service_id": null
+                },
+                {
+                    "id": 41,
+                    "item_type": "product",
+                    "description": "Progressive Lens",
+                    "quantity": 1,
+                    "unit_price": "0.00",
+                    "amount": "0.00",
+                    "product_variant_id": null,
+                    "lens_category_id": 7,
+                    "service_id": null
+                },
+                {
+                    "id": 42,
+                    "item_type": "service",
+                    "description": "Eye Examination",
+                    "quantity": 1,
+                    "unit_price": "1000.00",
+                    "amount": "1000.00",
+                    "product_variant_id": null,
+                    "lens_category_id": null,
+                    "service_id": 3
+                }
+            ]
+        }
+        """.trimIndent()
+
+        val dto = json.decodeFromString<QuotationDto>(fixture)
+        assertEquals(3, dto.items.size)
+
+        val frameItem = dto.items[0]
+        assertEquals(42, frameItem.productVariantId)
+        assertNull(frameItem.lensCategoryId)
+        assertNull(frameItem.serviceId)
+
+        val lensItem = dto.items[1]
+        assertNull(lensItem.productVariantId)
+        assertEquals(7, lensItem.lensCategoryId)
+        assertNull(lensItem.serviceId)
+
+        val serviceItem = dto.items[2]
+        assertNull(serviceItem.productVariantId)
+        assertNull(serviceItem.lensCategoryId)
+        assertEquals(3, serviceItem.serviceId)
+    }
+
+    @Test
+    fun `decodes item catalog references as null when absent`() {
+        val fixture = """
+        {
+            "id": 7,
+            "quotation_number": "Q-2026-007",
+            "status": "presented",
+            "subtotal": "100.00",
+            "discount_amount": "0.00",
+            "total": "100.00",
+            "created_at": "2026-08-01T00:00:00Z",
+            "items": [
+                {
+                    "id": 50,
+                    "item_type": "product",
+                    "description": "Legacy free-text item",
+                    "quantity": 1,
+                    "unit_price": "100.00",
+                    "amount": "100.00"
+                }
+            ]
+        }
+        """.trimIndent()
+
+        val dto = json.decodeFromString<QuotationDto>(fixture)
+        assertNull(dto.items[0].productVariantId)
+        assertNull(dto.items[0].lensCategoryId)
+        assertNull(dto.items[0].serviceId)
+    }
+
+    @Test
     fun `decodes nullable fields as null when absent`() {
         val fixture = """
         {

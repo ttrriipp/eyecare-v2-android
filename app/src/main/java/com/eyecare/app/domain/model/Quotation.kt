@@ -25,6 +25,9 @@ data class QuotationItem(
     val quantity: Int,
     val unitPrice: BigDecimal,
     val amount: BigDecimal,
+    val productVariantId: Int?,
+    val lensCategoryId: Int?,
+    val serviceId: Int?,
 )
 
 data class OpticalOrderReference(

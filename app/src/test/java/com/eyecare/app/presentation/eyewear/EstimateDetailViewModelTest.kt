@@ -48,8 +48,8 @@ class EstimateDetailViewModelTest {
         confirmedAt = null,
         opticalOrder = opticalOrder,
         items = listOf(
-            QuotationItem(10, QuotationItemType.PRODUCT, "Lens", 1, BigDecimal("1200.00"), BigDecimal("1200.00")),
-            QuotationItem(11, QuotationItemType.SERVICE, "Fitting", 1, BigDecimal("300.00"), BigDecimal("300.00")),
+            QuotationItem(10, QuotationItemType.PRODUCT, "Lens", 1, BigDecimal("1200.00"), BigDecimal("1200.00"), null, null, null),
+            QuotationItem(11, QuotationItemType.SERVICE, "Fitting", 1, BigDecimal("300.00"), BigDecimal("300.00"), null, null, null),
         ),
     )
 

@@ -146,15 +146,6 @@ fun FrameListScreen(
                         }
                     }
 
-                    if (!state.hasMorePages && state.frames.isNotEmpty()) {
-                        item(span = { GridItemSpan(2) }) {
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                Text("All frames loaded", style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-
                     if (state.hasMorePages && !state.isLoadingMore) {
                         item(span = { GridItemSpan(2) }) {
                             Box(

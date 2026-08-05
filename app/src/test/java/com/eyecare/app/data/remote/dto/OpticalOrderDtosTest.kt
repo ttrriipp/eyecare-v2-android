@@ -172,4 +172,26 @@ class OpticalOrderDtosTest {
         assertTrue(dto.paymentSummary!!.isOverdue)
         assertEquals("unpaid", dto.paymentSummary!!.status)
     }
+
+    @Test
+    fun `decodes rating result with id and item_id`() {
+        val fixture = """
+        {
+            "id": 1,
+            "item_id": 5,
+            "rating": 5,
+            "comment": "Excellent frame quality",
+            "revision_number": 1,
+            "created_at": "2026-08-05T10:00:00+08:00"
+        }
+        """.trimIndent()
+
+        val result = json.decodeFromString<OpticalOrderDtos.RatingResultDto>(fixture)
+        assertEquals(1, result.id)
+        assertEquals(5, result.itemId)
+        assertEquals(5, result.rating)
+        assertEquals("Excellent frame quality", result.comment)
+        assertEquals(1, result.revisionNumber)
+        assertEquals("2026-08-05T10:00:00+08:00", result.createdAt)
+    }
 }

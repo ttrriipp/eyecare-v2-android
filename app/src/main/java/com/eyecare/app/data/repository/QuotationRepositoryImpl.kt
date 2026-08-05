@@ -54,5 +54,8 @@ class QuotationRepositoryImpl @Inject constructor(
         quantity = quantity,
         unitPrice = unitPrice,
         amount = amount,
+        productVariantId = productVariantId,
+        lensCategoryId = lensCategoryId,
+        serviceId = serviceId,
     )
 }

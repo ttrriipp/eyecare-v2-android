@@ -18,6 +18,9 @@ object QuotationDtos {
         val unitPrice: BigDecimal,
         @Serializable(with = MoneyValueSerializer::class)
         val amount: BigDecimal,
+        @SerialName("product_variant_id") val productVariantId: Int? = null,
+        @SerialName("lens_category_id") val lensCategoryId: Int? = null,
+        @SerialName("service_id") val serviceId: Int? = null,
     )
 
     @Serializable

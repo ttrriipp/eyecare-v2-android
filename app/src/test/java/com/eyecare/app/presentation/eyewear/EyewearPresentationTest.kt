@@ -19,7 +19,7 @@ class EyewearPresentationTest {
         validUntil: String? = "2026-09-01T00:00:00Z",
         opticalOrder: OpticalOrderReference? = null,
         items: List<QuotationItem> = listOf(
-            QuotationItem(1, QuotationItemType.PRODUCT, "Progressive lens", 1, BigDecimal("1200.00"), BigDecimal("1200.00")),
+            QuotationItem(1, QuotationItemType.PRODUCT, "Progressive lens", 1, BigDecimal("1200.00"), BigDecimal("1200.00"), null, null, null),
         ),
     ) = Quotation(
         id = 1,
@@ -55,9 +55,9 @@ class EyewearPresentationTest {
     @Test
     fun `estimateCardTitle appends count for multiple items`() {
         val items = listOf(
-            QuotationItem(1, QuotationItemType.PRODUCT, "Lens", 1, BigDecimal("100.00"), BigDecimal("100.00")),
-            QuotationItem(2, QuotationItemType.SERVICE, "Fitting", 1, BigDecimal("50.00"), BigDecimal("50.00")),
-            QuotationItem(3, QuotationItemType.PRODUCT, "Coating", 1, BigDecimal("30.00"), BigDecimal("30.00")),
+            QuotationItem(1, QuotationItemType.PRODUCT, "Lens", 1, BigDecimal("100.00"), BigDecimal("100.00"), null, null, null),
+            QuotationItem(2, QuotationItemType.SERVICE, "Fitting", 1, BigDecimal("50.00"), BigDecimal("50.00"), null, null, null),
+            QuotationItem(3, QuotationItemType.PRODUCT, "Coating", 1, BigDecimal("30.00"), BigDecimal("30.00"), null, null, null),
         )
         val q = createQuotation(items = items)
         assertEquals("Lens and 2 more", estimateCardTitle(q))

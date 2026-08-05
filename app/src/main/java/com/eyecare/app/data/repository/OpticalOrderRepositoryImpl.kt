@@ -36,6 +36,8 @@ class OpticalOrderRepositoryImpl @Inject constructor(
     override suspend fun rateItem(itemId: Int, rating: Int, comment: String?): Result<RatingResult> = runCatching {
         val response = api.rateItem(itemId, OpticalOrderDtos.RatingRequest(rating = rating, comment = comment))
         RatingResult(
+            id = response.id,
+            itemId = response.itemId,
             rating = response.rating,
             comment = response.comment,
             revisionNumber = response.revisionNumber,
