@@ -1,6 +1,12 @@
-# Eyecare Mobile API v1 — Authoritative Contract
+# EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-05) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references.
+> **Backend version:** Current repository state (2026-08-07) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. No route or response-shape changes since 2026-08-05; frame reservation `expires_at` semantics (§12) corrected to match actual behavior.
+>
+> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped. `?filter=` works on both quotations and optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. Any `⚠️` marker remaining below this line is stale — flag it for removal on sight rather than trusting it.
+>
+> **Shipped 2026-08-07:** patient-submitted visit feedback — `POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`. See §10. Design rationale is in `docs/specs/mobile-visit-feedback-spec.md`, but that spec's own tasks checklist is stale (unchecked despite the work landing).
+>
+> **Also shipped:** `GET /frames` and `GET /frames/{id}` now return `average_rating`/`rating_count` per product (§11) — corrected here 2026-08-07 after this note wrongly called that surface still write-only. **Known bug:** the aggregate excludes hidden ratings' stars entirely rather than just their comments, contradicting the documented moderation model — see §11.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -1147,6 +1153,8 @@ Paginated list of the patient's confirmed appointments.
 - `source` values: `mobile`, `walk_in`, `manual`.
 - `reason_for_visit` is the accepted request's reason, nullable for staff-created appointments.
 - `contact_notes` is nullable.
+- `is_rateable` is `true` only when `status = fulfilled` and the appointment belongs to the authenticated patient.
+- `rating` is `null` until submitted, then contains `{rating, comment, revision_number, created_at}`. Hidden comments return `comment: null` to non-authors.
 
 ---
 
@@ -1214,6 +1222,59 @@ Reschedules an appointment to a new time.
 
 ---
 
+### POST `/appointments/{appointment}/rating`
+
+Creates or revises the patient's visit rating for a fulfilled appointment.
+Upsert semantics: 201 on create, 200 on revise.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Request:**
+```json
+{
+  "rating": "integer (required, 1-5)",
+  "comment": "string (nullable, max:1000)"
+}
+```
+
+**Response (201 Created — first rating):**
+```json
+{
+  "data": {
+    "id": 1,
+    "rating": 5,
+    "comment": "Dr. Santos explained everything clearly.",
+    "revision_number": 1,
+    "created_at": "2026-08-07T10:00:00+08:00"
+  }
+}
+```
+
+**Response (200 OK — revision):**
+```json
+{
+  "data": {
+    "id": 1,
+    "rating": 4,
+    "comment": "Updated comment",
+    "revision_number": 2,
+    "created_at": "2026-08-07T10:00:00+08:00"
+  }
+}
+```
+
+**Behavior:**
+- Only fulfilled appointments can be rated.
+- Appointment must belong to the authenticated patient.
+- `optometrist_id` and `service_ids` are snapshotted at submission time.
+- Hidden comments return `comment: null` to non-authors; authors always see their own.
+
+**Errors:**
+- `404`: Appointment not found or not owned by the patient.
+- `422`: Appointment not fulfilled, or rating outside 1–5.
+
+---
+
 ## 11. Frames
 
 ### GET `/frames`
@@ -1243,6 +1304,8 @@ Paginated list of active AR-eligible frames. Frame browsing is available to any 
       "product_type": "frame",
       "brand": "Ray-Ban",
       "category": "Full Rim",
+      "average_rating": 4.5,
+      "rating_count": 12,
       "variants": [
         {
           "id": 1,
@@ -1265,6 +1328,19 @@ Paginated list of active AR-eligible frames. Frame browsing is available to any 
 ```
 
 **Excluded fields:** `cost_price`, `stock_quantity`, `low_stock_threshold`.
+
+**Rating aggregates:** `average_rating` (float, 1 decimal, `null` when unrated)
+and `rating_count` (integer) are computed across all of the product's frame
+ratings, collected via `POST /optical-order-items/{id}/rating`.
+
+> ⚠️ **Known bug (2026-08-07):** both fields are computed from ratings
+> filtered to `is_hidden = false` (`FrameController` / `FrameResource`), so a
+> **hidden rating's star value is excluded from the aggregate entirely**, not
+> just its comment. This contradicts the documented moderation model — hiding
+> is meant to suppress the comment only, with the star still counting (see
+> `ModerateFrameRating`'s own docblock and the visit-feedback spec's Task 0d
+> acceptance criteria). As shipped, staff hiding an abusive 1-star comment
+> also quietly erases that 1 star from the product's average. Not yet fixed.
 
 ---
 
@@ -1297,7 +1373,7 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
       "id": 1,
       "appointment_id": 42,
       "status": "requested",
-      "expires_at": "2026-08-03T10:00:00+08:00",
+      "expires_at": null,
       "created_at": "2026-07-27T10:00:00+08:00",
       "appointment": {
         "id": 42,
@@ -1341,6 +1417,8 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
 - Variant excludes: `cost_price`, `stock_quantity`, `low_stock_threshold`, `target_stock_level`, `is_active`, `ar_eligible`, `ar_asset_reference`, `product_id`, `deleted_at`, timestamps.
 - Product excludes: `brand_id`, `category_id`, `lens_category_id`, `is_active`, `images`, `deleted_at`, timestamps. `brand` and `category` are string names, not objects.
 - `status` values: `requested`, `prepared`, `tried_on`, `converted`, `released`, `cancelled`.
+- `expires_at` is `null` until the reservation reaches `prepared` (staff have pulled the frames and stock is allocated); it's then set to the appointment day's clinic close time, and an automatic sweep releases the reservation if it's still `prepared` past that time.
+- An appointment can have at most one frame reservation, ever — the reservation exists only to hold stock before the visit; frames tried on in person flow directly into the eventual order without a reservation.
 
 ---
 
@@ -1468,7 +1546,7 @@ Paginated list of the patient's non-draft quotations.
 
 **Filter behavior:** `current` returns `presented` quotations. `history`
 returns `accepted`, `declined`, and `expired` quotations. Draft quotations are
-never returned.
+never returned. Invalid `filter` values return `422`.
 
 **Response (200):**
 ```json
@@ -1593,6 +1671,7 @@ Optical Orders represent committed physical products that the clinic must
 prepare, hand over, or otherwise fulfill. Each order is backed by a `JobOrder`
 record. Service-only accepted quotations do not create Optical Orders.
 
+
 ### GET `/optical-orders`
 
 Paginated list of the patient's confirmed optical orders.
@@ -1608,7 +1687,8 @@ Paginated list of the patient's confirmed optical orders.
 | `per_page` | No | Integer, 1 through 50 | `15` |
 
 **Current filter** includes: `queued`, `in_progress`, `ready_for_dispensing`.
-**History filter** includes: `dispensed`, `cancelled`.
+**History filter** includes: `dispensed`, `cancelled`. Invalid `filter` values
+return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 
 **Response (200):**
 ```json
@@ -1702,28 +1782,27 @@ Paginated list of the patient's confirmed optical orders.
 | `items[].product_variant_id` | integer | yes | Catalog variant ID; null for non-catalog or lens-category items |
 | `items[].is_rateable` | boolean | no | Whether the patient may submit or revise a rating for this item now |
 | `items[].rating` | object | yes | Current rating summary; null when not yet rated |
-| `payment_summary` | object | yes | Active billing summary; null if no billing record |
-| `payment_summary.status` | string | no | Machine-readable: `unpaid`, `partially_paid`, `paid`, or `voided` |
+| `payment_summary` | object | yes | Active billing summary; omitted entirely if no billing record |
+| `payment_summary.status` | string | no | Machine-readable: `unpaid`, `partially_paid`, `paid`, `voided` |
 | `payment_summary.total_amount` | string | no | Billing total |
 | `payment_summary.amount_paid` | string | no | Amount paid |
 | `payment_summary.balance_due` | string | no | Remaining balance |
 | `payment_summary.payment_due_date` | string | yes | Due date, `Y-m-d` format |
 | `payment_summary.is_overdue` | boolean | no | Whether the unpaid balance is past its due date |
 
-When `items[].rating` is not null, it contains the current `rating`, optional
-`comment`, and `created_at` timestamp. Rating history is not included in the
-Optical Order response.
+When `items[].rating` is not null, it contains `rating`, optional `comment`,
+`created_at`, and `revision_number`. Hidden comments return `comment: null` to
+non-authors; the author always sees their own comment.
+
+**Rateable items:** `is_rateable` is `true` only for a dispensed order's item
+with a non-null `product_variant_id`. Service items, custom products, and items
+from non-dispensed orders have `is_rateable: false`.
 
 **Status values:** `queued`, `in_progress`, `ready_for_dispensing`, `dispensed`, `cancelled`.
 
 **Payment status values:** `unpaid`, `partially_paid`, `paid`, `voided`.
 
-**Rateable items:** `is_rateable` is `true` only for a dispensed Product item
-with a linked `product_variant_id`. Service items, custom products, and items
-from non-dispensed orders have `is_rateable: false`. The client does not submit
-the variant ID; the server resolves it from the Optical Order item route.
-
-**Ordering:** `created_at DESC, id DESC`.
+**Ordering:** `created_at DESC, id DESC` (deterministic ties).
 
 **Notes:**
 - Items contain only product lines. Service lines are never included.
@@ -1787,19 +1866,27 @@ route.
 **Request:**
 ```json
 {
+  "product_variant_id": "integer (nullable, derived from route item when omitted)",
   "rating": "integer (required, 1-5)",
-  "comment": "string (nullable, max:1000)"
+  "comment": "string (nullable, max:1000)",
+  "dispensing_event_id": "integer (nullable, must belong to the same job order)"
 }
 ```
 
-**Response:** `201 Created` for the first rating; `200 OK` when revising an
-existing rating.
+`product_variant_id` is optional. When omitted, the server derives it from the
+route's job-order item. When supplied, it must match the item's variant.
+
+**Response:** `201 Created` on first rating, `200 OK` on revision.
+
+The response is wrapped in a `FrameRatingResource` that exposes only
+patient-safe fields:
 
 ```json
 {
   "data": {
     "id": 1,
-    "item_id": 5,
+    "item_id": null,
+    "product_variant_id": 42,
     "rating": 5,
     "comment": "Excellent frame quality",
     "revision_number": 1,
@@ -1808,14 +1895,19 @@ existing rating.
 }
 ```
 
-The response represents the current rating after the upsert. Revisions are
-retained server-side for moderation history.
+**Hidden comments:** When staff hide a comment, the author still sees their own
+`comment` text. Other patients and aggregate surfaces see `comment: null`. The
+star value always counts toward averages regardless of hiding.
+
+**Fields excluded from response:** `patient_id`, `is_hidden`, `moderation_reason`,
+`moderated_by`, `moderated_at`, `current_revision_id`, `deleted_at`, `updated_at`,
+`dispensing_event_id`.
 
 **Errors:**
-- `404`: Item not found, not owned by patient, or not rateable.
-- `422 ORDER_NOT_DISPENSED`: Order must be dispensed before rating.
-- `422 VALIDATION_ERROR`: Rating is outside 1-5 or the comment exceeds 1,000
-  characters.
+- `403`: Item belongs to another patient.
+- `404`: Item not found.
+- `422`: Order is not dispensed, `product_variant_id` mismatched, rating outside
+  1–5, or comment over 1,000 characters.
 
 ---
 
@@ -2253,6 +2345,7 @@ GET    /api/v1/appointments                   List confirmed appointments
 GET    /api/v1/appointments/{id}              Get appointment detail
 POST   /api/v1/appointments/{id}/cancel       Cancel appointment
 POST   /api/v1/appointments/{id}/reschedule   Reschedule appointment
+POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
 GET    /api/v1/frame-reservations             List reservations
 POST   /api/v1/frame-reservations             Create reservation
@@ -2271,6 +2364,13 @@ POST   /api/v1/conversation/messages          Send message
 GET    /api/v1/conversation/attachments/{id}  Download attachment
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
+POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above
 ```
 
-**Route count:** 8 public + 24 account-only + 19 active-link = **51 routes total.**
+**Route count:** 8 public + 24 account-only + 21 active-link = **53 routes total.**
+
+> **Corrected 2026-08-07 (was 51).** `POST /api/v1/job-order-items/{id}/rating` is a
+> **legacy alias** of `POST /api/v1/optical-order-items/{id}/rating` — same controller,
+> same behavior — kept for Android builds predating the Optical Order rename. It was
+> undocumented, which is why the count was one short. **New clients should use
+> `optical-order-items`;** the alias is retained but will not gain new behavior.
