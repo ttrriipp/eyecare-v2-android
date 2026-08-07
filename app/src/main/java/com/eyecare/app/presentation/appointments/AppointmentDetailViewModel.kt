@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.FrameReservation
+import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.FrameReservationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +28,9 @@ sealed interface AppointmentDetailUiState {
         val isRescheduling: Boolean = false,
         val rescheduleError: String? = null,
         val showRescheduleSuccessDialog: Boolean = false,
+        val showRatingDialog: Boolean = false,
+        val isSubmittingRating: Boolean = false,
+        val ratingError: String? = null,
     ) : AppointmentDetailUiState
     data class Error(val message: String) : AppointmentDetailUiState
 }
@@ -117,6 +122,68 @@ class AppointmentDetailViewModel @Inject constructor(
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success) return
         _uiState.value = current.copy(showRescheduleSuccessDialog = false)
+    }
+
+    fun showRatingDialog() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        _uiState.value = current.copy(showRatingDialog = true, ratingError = null)
+    }
+
+    fun dismissRatingDialog() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        _uiState.value = current.copy(showRatingDialog = false, ratingError = null)
+    }
+
+    fun clearRatingError() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success || current.ratingError == null) return
+        _uiState.value = current.copy(ratingError = null)
+    }
+
+    fun submitRating(rating: Int, comment: String?) {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+
+        // Client-side validation
+        if (rating < 1 || rating > 5) {
+            _uiState.value = current.copy(ratingError = "Rating must be between 1 and 5")
+            return
+        }
+        if (comment != null && comment.length > 1000) {
+            _uiState.value = current.copy(ratingError = "Comment must be 1000 characters or less")
+            return
+        }
+
+        _uiState.value = current.copy(isSubmittingRating = true, ratingError = null)
+        viewModelScope.launch {
+            repository.rateAppointment(appointmentId, rating, comment).fold(
+                onSuccess = { visitRating ->
+                    // Merge locally — no re-fetch
+                    val updatedAppointment = current.appointment.copy(
+                        isRateable = true, // stays rateable for revisions
+                        visitRating = visitRating,
+                    )
+                    _uiState.value = current.copy(
+                        appointment = updatedAppointment,
+                        isSubmittingRating = false,
+                        showRatingDialog = false,
+                    )
+                },
+                onFailure = { error ->
+                    val message = when (error) {
+                        is AppointmentError.NotFound -> "This appointment is no longer available."
+                        is AppointmentError.ValidationError -> "This visit can't be rated yet."
+                        else -> error.message ?: "Failed to submit rating"
+                    }
+                    _uiState.value = current.copy(
+                        isSubmittingRating = false,
+                        ratingError = message,
+                    )
+                },
+            )
+        }
     }
 
     private fun load() {

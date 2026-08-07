@@ -32,6 +32,8 @@ import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -67,10 +69,12 @@ import com.eyecare.app.ui.theme.EyecareTheme
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.appointments.components.VisitFeedbackDialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.ReservationStatus
+import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.presentation.common.buildImageUrl
 import coil3.compose.AsyncImage
 import com.eyecare.app.ui.theme.EyecareColors
@@ -136,6 +140,18 @@ fun AppointmentDetailScreen(
                 onDismissRequest = viewModel::dismissRescheduleSuccessDialog,
             )
         }
+        if (state.showRatingDialog) {
+            val existingRating = state.appointment.visitRating
+            VisitFeedbackDialog(
+                onSubmit = viewModel::submitRating,
+                onDismiss = viewModel::dismissRatingDialog,
+                initialRating = existingRating?.rating ?: 0,
+                initialComment = existingRating?.comment ?: "",
+                title = if (existingRating != null) "Update your rating" else "Rate your visit",
+                isSubmitting = state.isSubmittingRating,
+                errorMessage = state.ratingError,
+            )
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -167,6 +183,7 @@ fun AppointmentDetailScreen(
                     onReschedule = viewModel::showRescheduleSheet,
                     onCancel = { showCancelDialog = true },
                     onNavigateToReservations = onNavigateToReservations,
+                    onRateVisit = viewModel::showRatingDialog,
                 )
             }
         }
@@ -179,6 +196,7 @@ private fun AppointmentDetailContent(
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
     onNavigateToReservations: () -> Unit,
+    onRateVisit: () -> Unit = {},
 ) {
     val appointment = state.appointment
     val canCancel = appointment.status.canCancel
@@ -295,6 +313,14 @@ private fun AppointmentDetailContent(
             state.rescheduleError?.let { AppointmentActionError(it) }
             state.cancelError?.let { AppointmentActionError(it) }
 
+            // Visit feedback section
+            if (appointment.isRateable) {
+                VisitFeedbackCard(
+                    visitRating = appointment.visitRating,
+                    onRateClick = onRateVisit,
+                )
+            }
+
         }
 
         if (canCancel || canReschedule) {
@@ -386,6 +412,84 @@ private fun StaffRescheduleNotice(reason: String) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VisitFeedbackCard(
+    visitRating: VisitRating?,
+    onRateClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (visitRating != null) {
+                // Show existing rating
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    (1..5).forEach { star ->
+                        Icon(
+                            imageVector = if (star <= visitRating.rating) Icons.Filled.Star else Icons.Outlined.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (star <= visitRating.rating) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if ((visitRating.revisionNumber ?: 1) > 1) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Edited",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                visitRating.comment?.takeIf { it.isNotBlank() }?.let { comment ->
+                    Text(
+                        text = comment,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = onRateClick) {
+                    Text("Update rating")
+                }
+            } else {
+                // Unrated — show prompt
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Outlined.RateReview,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        "Rate your visit",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Button(
+                    onClick = onRateClick,
+                    shape = RoundedCornerShape(50),
+                ) {
+                    Text("Rate your visit")
+                }
             }
         }
     }
