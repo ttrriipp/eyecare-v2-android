@@ -32,6 +32,7 @@ data class OpticalOrderItem(
 data class RatingSummary(
     val rating: Int,
     val comment: String?,
+    val revisionNumber: Int?,
     val createdAt: String?,
 )
 

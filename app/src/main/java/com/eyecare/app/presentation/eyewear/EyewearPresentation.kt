@@ -77,6 +77,9 @@ fun paymentStatusLabel(status: PaymentStatus): String = when (status) {
     PaymentStatus.UNKNOWN -> "Payment status unavailable"
 }
 
+/** Returns true only when revisionNumber > 1. Null and 1 → false. */
+fun isEdited(revisionNumber: Int?): Boolean = (revisionNumber ?: 1) > 1
+
 fun orderCardTitle(order: OpticalOrder): String {
     val items = order.items
     if (items.isEmpty()) return "Eyewear order"

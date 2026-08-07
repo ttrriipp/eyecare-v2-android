@@ -11,6 +11,7 @@ object OpticalOrderDtos {
     data class RatingSummaryDto(
         val rating: Int,
         val comment: String? = null,
+        @SerialName("revision_number") val revisionNumber: Int? = null,
         @SerialName("created_at") val createdAt: String? = null,
     )
 

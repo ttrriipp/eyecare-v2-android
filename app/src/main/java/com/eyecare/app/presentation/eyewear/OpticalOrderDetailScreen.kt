@@ -176,11 +176,23 @@ private fun OrderDetailContent(
                             }
                         }
                         if (item.rating != null) {
-                            Text(
-                                "Rating: ${item.rating.rating}/5${item.rating.comment?.let { " - $it" } ?: ""}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    "Rating: ${item.rating.rating}/5${item.rating.comment?.let { " - $it" } ?: ""}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                if (isEdited(item.rating.revisionNumber)) {
+                                    Text(
+                                        "Edited",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         }
                         HorizontalDivider()
                     }

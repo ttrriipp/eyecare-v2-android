@@ -42,6 +42,7 @@ class OpticalOrderDetailViewModel @Inject constructor(
                 rating = com.eyecare.app.domain.model.RatingSummary(
                     rating = ratingResult.rating,
                     comment = ratingResult.comment,
+                    revisionNumber = ratingResult.revisionNumber,
                     createdAt = null,
                 )
             ) else item
