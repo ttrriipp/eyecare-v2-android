@@ -1,14 +1,18 @@
 package com.eyecare.app.data.remote
 
 /**
- * V14 route governance — exact 51-route contract.
+ * V15 route governance — exact 53-route contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
  * 2. Account-only routes (24) — authenticated, no patient link required
- * 3. Active-link routes (19) — require active patient link
+ * 3. Active-link routes (20) — require active patient link
+ * 4. Legacy alias routes (1) — exists server-side, must not be called by this client
  *
- * Retired routes (eyewear, job-orders, billing-records, old rating) are explicitly rejected.
+ * The API contract's active-link section lists 21 routes (20 canonical + 1 legacy alias).
+ * Total contract routes: 8 + 24 + 21 = 53.
+ *
+ * Retired routes (eyewear, job-orders, billing-records) are explicitly rejected.
  */
 internal object ApprovedApiRoutes {
     private const val BASE = "/api/v1"
@@ -53,13 +57,14 @@ internal object ApprovedApiRoutes {
         "GET $BASE/frames/{frame}",
     )
 
-    /** Active-link routes — require active patient link. (19) */
+    /** Active-link routes — require active patient link. (20 canonical) */
     val activeLinkRoutes: Set<String> = setOf(
         "GET $BASE/appointment-availability",
         "GET $BASE/appointments",
         "GET $BASE/appointments/{appointment}",
         "POST $BASE/appointments/{appointment}/cancel",
         "POST $BASE/appointments/{appointment}/reschedule",
+        "POST $BASE/appointments/{appointment}/rating",
         "GET $BASE/frame-reservations",
         "POST $BASE/frame-reservations",
         "POST $BASE/frame-reservations/{reservation}/cancel",
@@ -90,14 +95,21 @@ internal object ApprovedApiRoutes {
         // Billing records (retired)
         "GET $BASE/billing-records",
         "GET $BASE/billing-records/{billingRecord}",
-        // Old rating route (replaced by optical-order-items)
-        "POST $BASE/job-order-items/{item}/rating",
         // Appointment types (retired)
         "GET $BASE/appointment-types",
         // Appointment intake (retired)
         "GET $BASE/appointments/{appointment}/intake",
         "PUT $BASE/appointments/{appointment}/intake",
         "POST $BASE/appointments/{appointment}/intake/submit",
+    )
+
+    /**
+     * Legacy alias routes — exist server-side for backward compatibility,
+     * but must not be called by this client. We use the canonical path instead.
+     * Asserted: no production Retrofit annotation references these.
+     */
+    val legacyAliasRoutes: Set<String> = setOf(
+        "POST $BASE/job-order-items/{item}/rating",
     )
 
     val allApproved: Set<String> = publicRoutes + accountOnlyRoutes + activeLinkRoutes

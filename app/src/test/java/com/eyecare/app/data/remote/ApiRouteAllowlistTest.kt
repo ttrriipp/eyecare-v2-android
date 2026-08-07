@@ -19,12 +19,15 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `active-link routes match expected count`() {
-        assertEquals(19, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes")
+        // 20 canonical active-link routes + 1 legacy alias = 21 in the contract's active-link section
+        assertEquals(20, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes (canonical)")
     }
 
     @Test
-    fun `total approved routes is exactly 51`() {
-        assertEquals(51, ApprovedApiRoutes.allApproved.size, "Total approved routes")
+    fun `total approved routes is exactly 53`() {
+        // 8 public + 24 account-only + 20 active-link = 52 callable
+        // + 1 legacy alias (in contract's active-link section but not callable) = 53 total
+        assertEquals(52, ApprovedApiRoutes.allApproved.size, "Total callable approved routes")
     }
 
     @Test
@@ -35,7 +38,25 @@ class ApiRouteAllowlistTest {
         assertTrue("GET /api/v1/job-orders/{jobOrder}" in ApprovedApiRoutes.rejectedRoutes)
         assertTrue("GET /api/v1/billing-records" in ApprovedApiRoutes.rejectedRoutes)
         assertTrue("GET /api/v1/billing-records/{billingRecord}" in ApprovedApiRoutes.rejectedRoutes)
-        assertTrue("POST /api/v1/job-order-items/{item}/rating" in ApprovedApiRoutes.rejectedRoutes)
+    }
+
+    @Test
+    fun `legacy alias routes are not rejected and not callable`() {
+        // The backend keeps job-order-items as a compatibility alias,
+        // so it must not be in rejectedRoutes (that would assert absence from production).
+        // But it must not be in allApproved either (we don't call it).
+        assertTrue(
+            "POST /api/v1/job-order-items/{item}/rating" in ApprovedApiRoutes.legacyAliasRoutes,
+            "job-order-items rating should be in legacyAliasRoutes",
+        )
+        assertTrue(
+            "POST /api/v1/job-order-items/{item}/rating" !in ApprovedApiRoutes.allApproved,
+            "Legacy alias must not be in the approved callable set",
+        )
+        assertTrue(
+            "POST /api/v1/job-order-items/{item}/rating" !in ApprovedApiRoutes.rejectedRoutes,
+            "Legacy alias must not be in rejectedRoutes (backend keeps it intentionally)",
+        )
     }
 
     @Test
@@ -61,8 +82,10 @@ class ApiRouteAllowlistTest {
 
         val allApproved = ApprovedApiRoutes.allApproved
         val rejected = ApprovedApiRoutes.rejectedRoutes
+        val legacyAlias = ApprovedApiRoutes.legacyAliasRoutes
         val normalizedApproved = allApproved.map { normalizeRouteVariables(it) }.toSet()
         val normalizedRejected = rejected.map { normalizeRouteVariables(it) }.toSet()
+        val normalizedLegacyAlias = legacyAlias.map { normalizeRouteVariables(it) }.toSet()
         val normalizedDiscovered = discoveredRoutes.map { normalizeRouteVariables(it) }.toSet()
 
         // Every discovered route must be approved (not rejected)
@@ -78,6 +101,13 @@ class ApiRouteAllowlistTest {
             rejectedDiscovered.isEmpty(),
             "Rejected routes found in production: $rejectedDiscovered",
         )
+
+        // Legacy alias routes must not appear in discovered production code
+        val legacyAliasDiscovered = normalizedDiscovered.filter { it in normalizedLegacyAlias }
+        assertTrue(
+            legacyAliasDiscovered.isEmpty(),
+            "Legacy alias routes found in production (use canonical path instead): $legacyAliasDiscovered",
+        )
     }
 
     private fun normalizePathVariables(path: String): String {
@@ -85,6 +115,7 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""appointments/\{id\}"""), "appointments/{appointment}")
             .replace(Regex("""appointments/\{id\}/cancel"""), "appointments/{appointment}/cancel")
             .replace(Regex("""appointments/\{id\}/reschedule"""), "appointments/{appointment}/reschedule")
+            .replace(Regex("""appointments/\{id\}/rating"""), "appointments/{appointment}/rating")
             .replace(Regex("""frames/\{id\}"""), "frames/{frame}")
             .replace(Regex("""frame-reservations/\{id\}"""), "frame-reservations/{reservation}")
             .replace(Regex("""frame-reservations/\{id\}/cancel"""), "frame-reservations/{reservation}/cancel")
