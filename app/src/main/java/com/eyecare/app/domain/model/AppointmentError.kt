@@ -1,6 +1,8 @@
 package com.eyecare.app.domain.model
 
 sealed class AppointmentError(message: String) : Exception(message) {
+    data object NotFound : AppointmentError("Appointment not found")
+
     data class ValidationError(
         val fieldErrors: Map<String, List<String>>,
         val code: String? = null,

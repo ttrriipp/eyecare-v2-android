@@ -32,4 +32,10 @@ interface AppointmentV1ApiService {
         @Path("id") id: Int,
         @Body request: AppointmentV1Dtos.RescheduleRequest,
     ): AppointmentV1Dtos.AppointmentResponse
+
+    @POST("appointments/{id}/rating")
+    suspend fun rateAppointment(
+        @Path("id") id: Int,
+        @Body request: AppointmentV1Dtos.VisitRatingRequest,
+    ): AppointmentV1Dtos.VisitRatingResponse
 }

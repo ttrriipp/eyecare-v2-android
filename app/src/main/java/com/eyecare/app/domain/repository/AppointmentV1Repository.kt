@@ -2,6 +2,7 @@ package com.eyecare.app.domain.repository
 
 import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.VisitRating
 
 interface AppointmentV1Repository {
     suspend fun getAppointments(page: Int = 1): Result<PaginatedResult<AppointmentV1>>
@@ -12,6 +13,7 @@ interface AppointmentV1Repository {
     ): Result<AppointmentAvailability>
     suspend fun cancelAppointment(id: Int): Result<AppointmentV1>
     suspend fun rescheduleAppointment(id: Int, scheduledAt: String): Result<AppointmentV1>
+    suspend fun rateAppointment(id: Int, rating: Int, comment: String?): Result<VisitRating>
 }
 
 data class PaginatedResult<T>(

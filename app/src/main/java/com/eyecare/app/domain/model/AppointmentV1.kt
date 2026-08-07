@@ -15,6 +15,15 @@ data class AppointmentV1(
     val lastRescheduleReason: String?,
     val source: String?,
     val assignedOptometrist: AssignedOptometrist?,
+    val isRateable: Boolean = false,
+    val visitRating: VisitRating? = null,
+)
+
+data class VisitRating(
+    val rating: Int,
+    val comment: String?,
+    val revisionNumber: Int?,
+    val createdAt: String?,
 )
 
 enum class AppointmentStatus {

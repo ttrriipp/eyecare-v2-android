@@ -36,6 +36,8 @@ object AppointmentV1Dtos {
         @SerialName("last_reschedule_reason") val lastRescheduleReason: String? = null,
         val source: String? = null,
         @SerialName("assigned_optometrist") val assignedOptometrist: AssignedOptometristDto? = null,
+        @SerialName("is_rateable") val isRateable: Boolean = false,
+        val rating: VisitRatingDto? = null,
     )
 
     @Serializable
@@ -85,4 +87,21 @@ object AppointmentV1Dtos {
     data class RescheduleRequest(
         @SerialName("scheduled_at") val scheduledAt: String,
     )
+
+    @Serializable
+    data class VisitRatingDto(
+        val rating: Int,
+        val comment: String? = null,
+        @SerialName("revision_number") val revisionNumber: Int? = null,
+        @SerialName("created_at") val createdAt: String? = null,
+    )
+
+    @Serializable
+    data class VisitRatingRequest(
+        val rating: Int,
+        val comment: String? = null,
+    )
+
+    @Serializable
+    data class VisitRatingResponse(val data: VisitRatingDto)
 }

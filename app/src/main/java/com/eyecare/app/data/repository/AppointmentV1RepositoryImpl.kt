@@ -9,6 +9,7 @@ import com.eyecare.app.domain.model.AppointmentSlot
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AssignedOptometrist
+import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.PaginatedResult
 import kotlinx.serialization.json.Json
@@ -56,6 +57,22 @@ class AppointmentV1RepositoryImpl @Inject constructor(
         throw throwable
     }
 
+    override suspend fun rateAppointment(id: Int, rating: Int, comment: String?): Result<VisitRating> = runCatching {
+        val response = api.rateAppointment(id, AppointmentV1Dtos.VisitRatingRequest(rating = rating, comment = comment))
+        response.data.toDomain()
+    }.recoverCatching { throwable ->
+        when {
+            throwable is HttpException && throwable.code() == 404 ->
+                throw AppointmentError.NotFound
+            throwable is HttpException && throwable.code() == 422 -> {
+                val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
+                val parsed = json.decodeFromString<ApiErrorBody>(body)
+                throw AppointmentError.ValidationError(parsed.errors ?: emptyMap())
+            }
+            else -> throw throwable
+        }
+    }
+
     private fun AppointmentV1Dtos.AppointmentDto.toDomain() = AppointmentV1(
         id = id,
         appointmentNumber = appointmentNumber,
@@ -69,6 +86,15 @@ class AppointmentV1RepositoryImpl @Inject constructor(
         lastRescheduleReason = lastRescheduleReason,
         source = source,
         assignedOptometrist = assignedOptometrist?.let { AssignedOptometrist(name = it.name) },
+        isRateable = isRateable,
+        visitRating = rating?.toDomain(),
+    )
+
+    private fun AppointmentV1Dtos.VisitRatingDto.toDomain() = VisitRating(
+        rating = rating,
+        comment = comment,
+        revisionNumber = revisionNumber,
+        createdAt = createdAt,
     )
 
     private fun AppointmentV1Dtos.AppointmentAvailabilityDto.toDomain() = AppointmentAvailability(
