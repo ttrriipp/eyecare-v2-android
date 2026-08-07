@@ -275,99 +275,12 @@ and `presentation/navigation/NavGraph.kt`:
 
 ## Backend API (base: `/api/v1`)
 
-34 approved patient-mobile routes. Source of truth: `docs/API_CONTRACT.md`.
+53 approved patient-mobile routes (8 public, 24 account-only, 21 active-link).
+Source of truth: `docs/API_CONTRACT.md`.
 
 **Auth:** V13 two-stage OTP registration, hybrid login (trusted skips OTP), password recovery, Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). Installation identity via `DeviceIdentityProvider`. 401 → bearer-aware logout via `AuthEventBus`. Session resolution via `GET /me` before routing.
 
-**Key endpoints the app consumes:**
-```
-POST   /auth/registration/otp, /auth/registration/verify, /auth/register  (two-stage registration)
-POST   /auth/login, /auth/login/verify  (hybrid login with OTP step-up)
-POST   /auth/password-recovery/otp, /auth/password-recovery/verify
-GET    /auth/policies
-POST   /logout, /logout-all
-GET    /me                              → PatientAccount with link status
-PATCH  /me                              → first/last name only
-GET    /account/contacts                → masked contacts
-POST   /account/contacts/otp, /account/contacts/verify  (step-up protected)
-PATCH  /account/contacts/{id}/primary   (step-up protected)
-DELETE /account/contacts/{id}           (step-up protected)
-POST   /auth/step-up/otp, /auth/step-up/verify
-POST   /auth/password                   (step-up protected)
-GET    /account/link
-POST   /patient-invitations/acceptance/otp, /patient-invitations/accept
-
-GET    /appointment-types               → [{id, name, duration_minutes, requires_referral}]
-GET    /appointment-availability         → slot grid for date + appointment_type_id
-GET    /appointments                    → paginated list
-POST   /appointments                    → book (pending)
-GET    /appointments/{id}               → single appointment
-POST   /appointments/{id}/cancel
-POST   /appointments/{id}/reschedule
-
-GET    /appointments/{id}/intake        → nullable draft intake
-PUT    /appointments/{id}/intake        → save draft
-POST   /appointments/{id}/intake/submit → submit draft
-
-GET    /frames                          → paginated AR-ready frames
-GET    /frames/{id}                     → single frame
-
-GET    /frame-reservations              → unpaginated list
-POST   /frame-reservations              → create (1-5 variants)
-POST   /frame-reservations/{id}/cancel
-
-GET    /prescriptions                   → paginated, read-only
-GET    /prescriptions/{id}
-GET    /quotations                      → paginated, read-only
-GET    /quotations/{id}
-GET    /job-orders                      → paginated, read-only
-GET    /job-orders/{id}
-GET    /billing-records                 → paginated, read-only internal ledger
-GET    /billing-records/{id}
-GET    /eyewear                         → paginated aggregate (current/history filter)
-GET    /eyewear/{key}                   → detail by canonical key or jo_ alias
-
-GET    /conversation                    → singleton patient conversation
-GET    /conversation/messages           → unpaginated, oldest-first
-POST   /conversation/messages           → send text + optional attachment/context
-GET    /conversation/attachments/{id}   → authenticated file download
-
-POST   /job-order-items/{id}/rating     → create/revise frame rating
-```
-
-## Architecture
-
-MVVM + Clean Architecture: `data/` → `domain/` → `presentation/`
-
-```
-com.eyecare.app/
-├── data/
-│   ├── remote/
-│   │   ├── api/           Retrofit services by resource group
-│   │   ├── dto/           Kotlinx-serializable transport models
-│   │   └── interceptor/   Sanctum auth and 401 handling
-│   ├── local/             Frame-only Room cache
-│   └── repository/        DTO-to-domain mapping
-├── domain/
-│   ├── model/             Domain data classes + enums
-│   └── repository/        Repository interfaces
-├── presentation/
-│   ├── auth/              Login, Register
-│   ├── home/              Dashboard
-│   ├── frames/            Browse, detail, AR
-│   ├── reservations/      Frame reservation list/create/cancel
-│   ├── appointments/      List, detail, booking, reschedule
-│   ├── intake/            Patient intake draft/submit
-│   ├── prescriptions/     Read-only versioned list/detail + history
-│   ├── quotations/        Read-only list/detail
-│   ├── joborders/         Read-only list/detail + rating
-│   ├── billingrecords/    Read-only billing records
-│   ├── messaging/         Singleton conversation
-│   ├── profile/           Patient profile + hub
-│   └── navigation/        Type-safe routes, bottom nav
-├── di/                    Hilt modules
-└── ui/theme/              Color, Type, Shape, Theme
-```
+**Breaking changes:** `POST /register`, `POST /login`, `GET /appointment-types`, `POST /appointments`, three intake routes, `/eyewear`, `/job-orders`, `/billing-records`, and `/job-order-items/{id}/rating` are retired or replaced. See `docs/API_CONTRACT.md` §18–19.
 
 ## Root Navigation
 
@@ -427,19 +340,64 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
   its documented `patient`/`staff` aliases, and patient accounts are `App\Models\User`
   rows just like staff, so `sender_type` alone is not a reliable ownership signal.
 
-## Route Governance — 51 Routes
+## Route Governance — 53 Routes
 
 `test/.../ApprovedApiRoutes.kt`, `test/.../ApiRouteAllowlistTest.kt`:
 
-- 8 public, 24 account-only, 19 active-link routes = 51 total.
+- 8 public, 24 account-only, 20 active-link (canonical) = 52 callable.
+- 1 legacy alias (`POST /job-order-items/{id}/rating`) — exists server-side for backward compatibility, not callable by this client.
+- Total contract routes: 53 (8 + 24 + 21 active-link including the alias).
 - Retired routes explicitly rejected: `/eyewear`, `/job-orders`, `/billing-records`,
-  `/job-order-items/{id}/rating`, legacy `/login`, `/register`, `/appointment-types`,
-  appointment intake routes.
-- Discovery test fails if any rejected route appears in production Retrofit
-  annotations.
+  legacy `/login`, `/register`, `/appointment-types`, appointment intake routes.
+- Discovery test fails if any rejected route appears in production Retrofit annotations.
+
+## Visit Feedback
+
+`presentation/appointments/AppointmentDetailScreen.kt`,
+`AppointmentDetailViewModel.kt`, `AppointmentListScreen.kt`,
+`AppointmentListViewModel.kt`, `components/VisitFeedbackDialog.kt`:
+
+- `POST /appointments/{id}/rating` — upsert: 201 creates, 200 revises.
+- `AppointmentDto` decodes `is_rateable` (default false) and `rating` (VisitRatingDto?, default null).
+- **List entry point:** compact **Rate this visit** chip on confirmed-appointment rows where `isRateable && visitRating == null`. No persisted dismissal.
+- **Detail surface:** when rateable and unrated, **Rate your visit** action. When rated, stars + comment + **Update rating** + **Edited** when `revisionNumber > 1`.
+- Gated on `isRateable` only — never inferred from `status == fulfilled`.
+- Client-side validation: rating 1–5, comment ≤ 1000.
+- On success, returned rating merges locally — no re-`load()` round trip.
+- `VisitFeedbackDialog` themed to match `AppConfirmationDialog`.
+
+## Frame Rating Aggregates
+
+`data/remote/dto/FrameDtos.kt`, `domain/model/Frame.kt`,
+`data/local/entity/FrameEntity.kt`, `data/local/EyecareDatabase.kt`,
+`presentation/frames/components/RatingBadge.kt`:
+
+- `GET /frames` and `GET /frames/{id}` return `average_rating` (Double?, null when unrated) and `rating_count` (Int).
+- `averageRating` is nullable end-to-end — unrated is not 0.0.
+- Room schema 3→4: explicit additive migration (`ALTER TABLE frames ADD COLUMN`).
+  `fallbackToDestructiveMigration` removed.
+- `RatingBadge` renders `★ 4.5 (12)` for populated values, nothing for null.
+  Accessibility: "rated 4.5 out of 5 from 12 ratings".
+- Frame detail shows "No ratings yet" when unrated.
+- **Known backend bug:** aggregate excludes hidden ratings from both average and count (directional upward skew). Being fixed backend-side. Android displays what the server sends — no client-side correction.
+
+## Branding
+
+| Element | Value |
+|---|---|
+| Primary color | `#29B6F6` (logo cyan) |
+| Text / on-surface | `#3D3535` (logo charcoal) |
+| Background | `#F8F9FA` (warm off-white) |
+| App name | EyeCare |
+| Font | Instrument Sans (Google Fonts, downloaded at runtime) |
+
+Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.colorScheme` via `ui/theme/Theme.kt` (light scheme only — no dark theme defined yet). Cards use pure white (`CardSurface`) with a subtle 8%-black border (`CardBorder`, mapped to `outlineVariant`) so they float above the warm background.
 
 ## Active Specs
 
+- `docs/specs/backend-alignment-v15-spec.md` — Complete: Visit Feedback, Frame Ratings, and Contract Correction
+- `docs/specs/backend-alignment-v15-plan.md` — Complete: implementation plan (6 stages)
+- `docs/specs/backend-alignment-v15-tasks.md` — Complete: 16 tasks + checkpoints
 - `docs/specs/backend-alignment-v14-my-eyewear-spec.md` — Complete: My Eyewear Estimates and Orders
 - `docs/specs/backend-alignment-v14-my-eyewear-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v14-my-eyewear-tasks.md` — Complete: 31 tasks + checkpoints
@@ -450,48 +408,12 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 - `docs/specs/backend-alignment-v8-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v8-tasks.md` — Complete: all acceptance criteria met
 - `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
-- `docs/API_CONTRACT.md` — Authoritative mobile API contract
+- `docs/API_CONTRACT.md` — Authoritative mobile API contract (53 routes)
 
 ## Boundaries
 
 - **Never** use Gson — only Kotlinx Serialization
 - **Never** store tokens or health data in Room (only frame cache)
-- **Never** apply `org.jetbrains.kotlin.android` plugin (AGP 9 built-in)
-- **Never** add `android.disallowKotlinSourceSets=false`
-- **Always** run `./gradlew assembleDebug` after changes
-- **Always** map DTOs to domain models at repository boundary
-- **Always** use `sealed interface` for UI state
-- **Ask first** before adding new dependencies
-- **Ask first** before changing navigation graph structure
-
-## Branding
-
-| Element | Value |
-|---|---|
-| Primary color | `#29B6F6` (logo cyan) |
-| Text / on-surface | `#3D3535` (logo charcoal) |
-| Background | `#F8F9FA` (warm off-white) |
-| App name | Eyecare |
-| Font | Instrument Sans (Google Fonts, downloaded at runtime) |
-
-Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.colorScheme` via `ui/theme/Theme.kt` (light scheme only — no dark theme defined yet). Cards use pure white (`CardSurface`) with a subtle 8%-black border (`CardBorder`, mapped to `outlineVariant`) so they float above the warm background.
-
-## Active Specs
-
-- `docs/specs/backend-alignment-v2-spec.md` — Complete: fixed initial API misalignments (11 tasks)
-- `docs/specs/backend-alignment-v3-spec.md` — Complete: reschedule endpoint, or_number removal, lens_category_id fields, price filter params (6 tasks)
-- `docs/specs/backend-alignment-v5-spec.md` — In progress: booking availability complete; reschedule availability awaits `visit_reason_id` in appointment responses
-- `docs/specs/backend-alignment-v6-spec.md` — Complete: product taxonomy, order invariants, and customer-visible staff reschedule reasons
-- `docs/specs/backend-alignment-v7-spec.md` — Complete: accessory-only mobile ordering, browse-only AR frames, cache safeguards, and mixed-page catalog traversal
-- `docs/specs/implementation-plan-v2.md` — Task breakdown for alignment v2
-- `docs/specs/profile-ui-refresh-spec.md` — Complete: approved UI-only Profile and Edit Profile refresh
-- `docs/specs/profile-ui-refresh-plan.md` — Complete: TDD task breakdown and verification plan for the profile refresh
-- `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
-
-## Boundaries
-
-- **Never** use Gson — only Kotlinx Serialization
-- **Never** store tokens or health data in Room (only product cache)
 - **Never** apply `org.jetbrains.kotlin.android` plugin (AGP 9 built-in)
 - **Never** add `android.disallowKotlinSourceSets=false`
 - **Always** run `./gradlew assembleDebug` after changes
