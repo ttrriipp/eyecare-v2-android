@@ -147,6 +147,34 @@ class OpticalOrderRepositoryImplTest {
     }
 
     @Test
+    fun `all payment status values map correctly`() = runTest {
+        mapOf(
+            "unpaid" to PaymentStatus.UNPAID,
+            "partially_paid" to PaymentStatus.PARTIALLY_PAID,
+            "paid" to PaymentStatus.PAID,
+            "voided" to PaymentStatus.VOIDED,
+        ).forEach { (apiValue, expected) ->
+            enqueueSingle(orderJson(paymentSummary = """{"status":"$apiValue","total_amount":"100.00","amount_paid":"0.00","balance_due":"100.00"}"""))
+            val o = repository.getOpticalOrder(1).getOrThrow()
+            assertEquals(expected, o.paymentSummary!!.status, "Expected $expected for '$apiValue'")
+        }
+    }
+
+    @Test
+    fun `unrecognized payment status maps to UNKNOWN`() = runTest {
+        enqueueSingle(orderJson(paymentSummary = """{"status":"Partially Paid","total_amount":"100.00","amount_paid":"50.00","balance_due":"50.00"}"""))
+        val o = repository.getOpticalOrder(1).getOrThrow()
+        assertEquals(PaymentStatus.UNKNOWN, o.paymentSummary!!.status)
+    }
+
+    @Test
+    fun `is_overdue true survives to domain`() = runTest {
+        enqueueSingle(orderJson(paymentSummary = """{"status":"unpaid","total_amount":"1000.00","amount_paid":"0.00","balance_due":"1000.00","payment_due_date":"2026-08-01","is_overdue":true}"""))
+        val o = repository.getOpticalOrder(1).getOrThrow()
+        assertTrue(o.paymentSummary!!.isOverdue)
+    }
+
+    @Test
     fun `null payment summary maps to null`() = runTest {
         enqueueSingle(orderJson(paymentSummary = "null"))
         val o = repository.getOpticalOrder(1).getOrThrow()
