@@ -77,9 +77,8 @@ fun FrameCard(
             Column(
                 modifier = Modifier
                     .padding(12.dp)
-                    .fillMaxWidth()
-                    .height(80.dp),
-                verticalArrangement = Arrangement.SpaceBetween,
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Column {
                     Text(
@@ -96,6 +95,10 @@ fun FrameCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                RatingBadge(
+                    averageRating = frame.averageRating,
+                    ratingCount = frame.ratingCount,
+                )
                 Text(
                     if (displayPrice != null) "₱${String.format("%.2f", displayPrice)}" else "",
                     style = MaterialTheme.typography.titleSmall,

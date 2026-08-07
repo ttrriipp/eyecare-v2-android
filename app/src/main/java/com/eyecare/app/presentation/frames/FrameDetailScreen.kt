@@ -62,6 +62,7 @@ import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.isArReady
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.frames.components.RatingSummary
 import com.eyecare.app.ui.theme.EyecareColors
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -201,6 +202,10 @@ fun FrameDetailScreen(
                                             text = frame.name,
                                             style = MaterialTheme.typography.headlineMedium,
                                             fontWeight = FontWeight.SemiBold,
+                                        )
+                                        RatingSummary(
+                                            averageRating = frame.averageRating,
+                                            ratingCount = frame.ratingCount,
                                         )
                                     }
                                 }
