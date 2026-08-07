@@ -51,7 +51,7 @@ data class PaymentSummary(
 
 data class RatingResult(
     val id: Int,
-    val itemId: Int,
+    val itemId: Int?,
     val rating: Int,
     val comment: String?,
     val revisionNumber: Int?,

@@ -194,4 +194,63 @@ class OpticalOrderDtosTest {
         assertEquals(1, result.revisionNumber)
         assertEquals("2026-08-05T10:00:00+08:00", result.createdAt)
     }
+
+    @Test
+    fun `decodes rating result with null item_id`() {
+        // Regression: FrameRatingResource returns item_id: null, which must not crash
+        val fixture = """
+        {
+            "id": 1,
+            "item_id": null,
+            "rating": 5,
+            "comment": "Excellent frame quality",
+            "revision_number": 1,
+            "created_at": "2026-08-05T10:00:00+08:00"
+        }
+        """.trimIndent()
+
+        val result = json.decodeFromString<OpticalOrderDtos.RatingResultDto>(fixture)
+        assertEquals(1, result.id)
+        assertNull(result.itemId)
+        assertEquals(5, result.rating)
+    }
+
+    @Test
+    fun `decodes rating result with product_variant_id`() {
+        val fixture = """
+        {
+            "id": 2,
+            "item_id": 10,
+            "product_variant_id": 42,
+            "rating": 4,
+            "comment": null,
+            "revision_number": null,
+            "created_at": "2026-08-05T10:00:00+08:00"
+        }
+        """.trimIndent()
+
+        val result = json.decodeFromString<OpticalOrderDtos.RatingResultDto>(fixture)
+        assertEquals(2, result.id)
+        assertEquals(10, result.itemId)
+        assertEquals(42, result.productVariantId)
+        assertNull(result.comment)
+        assertNull(result.revisionNumber)
+    }
+
+    @Test
+    fun `decodes rating result without product_variant_id defaults to null`() {
+        val fixture = """
+        {
+            "id": 3,
+            "item_id": null,
+            "rating": 3,
+            "comment": "OK",
+            "revision_number": 2,
+            "created_at": "2026-08-05T10:00:00+08:00"
+        }
+        """.trimIndent()
+
+        val result = json.decodeFromString<OpticalOrderDtos.RatingResultDto>(fixture)
+        assertNull(result.productVariantId)
+    }
 }

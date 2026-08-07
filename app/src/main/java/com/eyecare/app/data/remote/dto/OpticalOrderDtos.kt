@@ -85,7 +85,8 @@ object OpticalOrderDtos {
     @Serializable
     data class RatingResultDto(
         val id: Int,
-        @SerialName("item_id") val itemId: Int,
+        @SerialName("item_id") val itemId: Int? = null,
+        @SerialName("product_variant_id") val productVariantId: Int? = null,
         val rating: Int,
         val comment: String? = null,
         @SerialName("revision_number") val revisionNumber: Int? = null,
