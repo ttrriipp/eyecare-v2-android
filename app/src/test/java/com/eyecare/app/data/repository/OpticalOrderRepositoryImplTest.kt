@@ -14,6 +14,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -158,6 +159,16 @@ class OpticalOrderRepositoryImplTest {
         val o = repository.getOpticalOrder(1).getOrThrow()
         assertTrue(o.items[0].isRateable)
         assertEquals(4, o.items[0].rating?.rating)
+        assertEquals(5, o.items[0].productVariantId)
+    }
+
+    @Test
+    fun `item with absent rateable fields defaults safely`() = runTest {
+        enqueueSingle(orderJson(items = """[{"id":21,"description":"Lens","quantity":1,"unit_price":"1000.00","amount":"1000.00"}]"""))
+        val o = repository.getOpticalOrder(1).getOrThrow()
+        assertFalse(o.items[0].isRateable)
+        assertNull(o.items[0].rating)
+        assertNull(o.items[0].productVariantId)
     }
 
     @Test
