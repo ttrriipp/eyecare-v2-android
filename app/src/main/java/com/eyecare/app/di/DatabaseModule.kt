@@ -20,7 +20,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): EyecareDatabase =
         Room.databaseBuilder(context, EyecareDatabase::class.java, "eyecare.db")
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            .addMigrations(EyecareDatabase.MIGRATION_3_4)
             .build()
 
     @Provides

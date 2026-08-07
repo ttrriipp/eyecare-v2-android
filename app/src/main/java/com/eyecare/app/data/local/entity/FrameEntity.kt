@@ -13,4 +13,6 @@ data class FrameEntity(
     val categoryName: String,
     val variantsJson: String,
     val imagesJson: String,
+    val averageRating: Double? = null,
+    val ratingCount: Int = 0,
 )
