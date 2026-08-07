@@ -80,6 +80,8 @@ class FrameRepositoryImpl @Inject constructor(
         categoryName = category.orEmpty(),
         variantsJson = json.encodeToString(variants),
         imagesJson = json.encodeToString(images),
+        averageRating = averageRating,
+        ratingCount = ratingCount,
     )
 
     private fun FrameEntity.toDomain(): Frame {
@@ -98,6 +100,8 @@ class FrameRepositoryImpl @Inject constructor(
             category = categoryName,
             variants = variants.map { it.toDomain() },
             images = images,
+            averageRating = averageRating,
+            ratingCount = ratingCount,
         )
     }
 
@@ -110,6 +114,8 @@ class FrameRepositoryImpl @Inject constructor(
         category = category.orEmpty(),
         variants = variants.map { it.toDomain() },
         images = images,
+        averageRating = averageRating,
+        ratingCount = ratingCount,
     )
 
     private fun FrameDtos.FrameVariantDto.toDomain() = FrameVariant(

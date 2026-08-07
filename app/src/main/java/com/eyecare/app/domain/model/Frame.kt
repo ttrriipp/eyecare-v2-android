@@ -11,6 +11,8 @@ data class Frame(
     val category: String,
     val variants: List<FrameVariant>,
     val images: List<String>,
+    val averageRating: Double? = null,
+    val ratingCount: Int = 0,
 )
 
 data class FrameVariant(

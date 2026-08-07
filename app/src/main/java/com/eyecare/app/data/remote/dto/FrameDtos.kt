@@ -30,6 +30,8 @@ object FrameDtos {
         val category: String? = null,
         val variants: List<FrameVariantDto> = emptyList(),
         val images: List<String> = emptyList(),
+        @SerialName("average_rating") val averageRating: Double? = null,
+        @SerialName("rating_count") val ratingCount: Int = 0,
     )
 
     @Serializable
