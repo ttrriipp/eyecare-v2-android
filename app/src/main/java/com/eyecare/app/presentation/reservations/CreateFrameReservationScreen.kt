@@ -189,6 +189,12 @@ private fun AppointmentSelectionContent(
             }
         }
 
+        Text(
+            "Each appointment can have one reservation.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
         Button(
             onClick = onSubmit,
             modifier = Modifier.fillMaxWidth().height(48.dp),
