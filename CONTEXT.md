@@ -420,7 +420,12 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
   are scoped per source.
 - Incoming context cards navigate to typed Estimate/Order detail by type and ID.
   Unknown types render as non-clickable references.
-- Bubble ownership uses `sender_type == patient` as authority.
+- Bubble ownership compares `message.senderId` to the authenticated account's own id
+  (loaded via `GET /me` alongside the conversation), falling back to
+  `sender_type == patient` only if that id is unavailable. This backend is known to
+  leak raw Eloquent polymorphic class names for other polymorphic fields instead of
+  its documented `patient`/`staff` aliases, and patient accounts are `App\Models\User`
+  rows just like staff, so `sender_type` alone is not a reliable ownership signal.
 
 ## Route Governance — 51 Routes
 
