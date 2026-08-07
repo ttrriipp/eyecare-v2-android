@@ -48,6 +48,8 @@ import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material.icons.filled.Star
+import com.eyecare.app.presentation.appointments.components.VisitFeedbackDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -164,8 +166,25 @@ fun AppointmentListScreen(
                     onNavigateToRequestDetail = onNavigateToRequestDetail,
                     onLoadMoreRequests = requestViewModel::loadMore,
                     onRefreshRequests = requestViewModel::refresh,
+                    onRateClick = { viewModel.showRatingDialog(it) },
                 )
             }
+        }
+
+        // Visit feedback dialog
+        val successState = uiState as? AppointmentListUiState.Success
+        if (successState?.ratingAppointmentId != null) {
+            val appointment = successState.appointments.find { it.id == successState.ratingAppointmentId }
+            val existingRating = appointment?.visitRating
+            VisitFeedbackDialog(
+                onSubmit = viewModel::submitRating,
+                onDismiss = viewModel::dismissRatingDialog,
+                initialRating = existingRating?.rating ?: 0,
+                initialComment = existingRating?.comment ?: "",
+                title = if (existingRating != null) "Update your rating" else "Rate your visit",
+                isSubmitting = successState.isSubmittingRating,
+                errorMessage = successState.ratingError,
+            )
         }
 
         ExtendedFloatingActionButton(
@@ -418,6 +437,7 @@ private fun EmptyAppointmentTab(tab: AppointmentListTab) {
 private fun AppointmentCard(
     appointment: AppointmentV1,
     onClick: () -> Unit,
+    onRateClick: (() -> Unit)? = null,
 ) {
     Card(
         onClick = onClick,
@@ -455,6 +475,26 @@ private fun AppointmentCard(
                     icon = Icons.Outlined.AccessTime,
                     text = formatAppointmentTime(appointment.scheduledAt),
                 )
+
+                if (onRateClick != null) {
+                    SuggestionChip(
+                        onClick = onRateClick,
+                        label = { Text("Rate this visit") },
+                        icon = {
+                            Icon(
+                                Icons.Filled.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
+                        shape = RoundedCornerShape(50),
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    )
+                }
             }
         }
     }
@@ -602,6 +642,7 @@ private fun AppointmentListContent(
     onNavigateToRequestDetail: (Int) -> Unit,
     onLoadMoreRequests: () -> Unit,
     onRefreshRequests: () -> Unit,
+    onRateClick: (Int) -> Unit = {},
 ) {
     var selectedTab by remember { mutableStateOf(AppointmentListTab.UPCOMING) }
     var dateFilterEnabled by remember { mutableStateOf(false) }
@@ -729,6 +770,9 @@ private fun AppointmentListContent(
                 AppointmentCard(
                     appointment = appointment,
                     onClick = { onNavigateToDetail(appointment.id) },
+                    onRateClick = if (appointment.isRateable && appointment.visitRating == null) {
+                        { onRateClick(appointment.id) }
+                    } else null,
                 )
             }
         }

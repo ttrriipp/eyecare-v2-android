@@ -3,6 +3,8 @@ package com.eyecare.app.presentation.appointments
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.AppointmentError
+import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +20,9 @@ sealed interface AppointmentListUiState {
         val isLoadingMore: Boolean = false,
         val hasMorePages: Boolean = false,
         val loadMoreError: String? = null,
+        val ratingAppointmentId: Int? = null,
+        val isSubmittingRating: Boolean = false,
+        val ratingError: String? = null,
     ) : AppointmentListUiState
     data object Empty : AppointmentListUiState
     data class Error(val message: String) : AppointmentListUiState
@@ -46,6 +51,63 @@ class AppointmentListViewModel @Inject constructor(
         if (state.isLoadingMore || !state.hasMorePages) return
         currentPage++
         loadMoreInternal()
+    }
+
+    fun showRatingDialog(appointmentId: Int) {
+        val current = _uiState.value
+        if (current !is AppointmentListUiState.Success) return
+        _uiState.value = current.copy(ratingAppointmentId = appointmentId, ratingError = null)
+    }
+
+    fun dismissRatingDialog() {
+        val current = _uiState.value
+        if (current !is AppointmentListUiState.Success) return
+        _uiState.value = current.copy(ratingAppointmentId = null, ratingError = null)
+    }
+
+    fun submitRating(rating: Int, comment: String?) {
+        val current = _uiState.value
+        if (current !is AppointmentListUiState.Success) return
+        val appointmentId = current.ratingAppointmentId ?: return
+
+        if (rating < 1 || rating > 5) {
+            _uiState.value = current.copy(ratingError = "Rating must be between 1 and 5")
+            return
+        }
+        if (comment != null && comment.length > 1000) {
+            _uiState.value = current.copy(ratingError = "Comment must be 1000 characters or less")
+            return
+        }
+
+        _uiState.value = current.copy(isSubmittingRating = true, ratingError = null)
+        viewModelScope.launch {
+            repository.rateAppointment(appointmentId, rating, comment).fold(
+                onSuccess = { visitRating ->
+                    val updatedAppointments = current.appointments.map { appt ->
+                        if (appt.id == appointmentId) appt.copy(
+                            isRateable = true,
+                            visitRating = visitRating,
+                        ) else appt
+                    }
+                    _uiState.value = current.copy(
+                        appointments = updatedAppointments,
+                        isSubmittingRating = false,
+                        ratingAppointmentId = null,
+                    )
+                },
+                onFailure = { error ->
+                    val message = when (error) {
+                        is AppointmentError.NotFound -> "This appointment is no longer available."
+                        is AppointmentError.ValidationError -> "This visit can't be rated yet."
+                        else -> error.message ?: "Failed to submit rating"
+                    }
+                    _uiState.value = current.copy(
+                        isSubmittingRating = false,
+                        ratingError = message,
+                    )
+                },
+            )
+        }
     }
 
     fun load(hasActivePatientLink: Boolean = this.hasActivePatientLink) {
