@@ -233,7 +233,7 @@ private fun ConnectAccountCard(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        AuthOutlinedButton(
+                        AuthPrimaryButton(
                             text = "Request clinic review",
                             onClick = onRequestClinicLink,
                             enabled = !isSubmittingLinkRequest,
