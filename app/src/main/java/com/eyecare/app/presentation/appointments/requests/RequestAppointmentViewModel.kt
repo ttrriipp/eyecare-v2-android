@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
+import com.eyecare.app.domain.model.AppointmentType
 import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,30 +23,44 @@ import javax.inject.Inject
 private val appointmentRequestZone = ZoneId.of("Asia/Manila")
 private val appointmentRequestEmailPattern = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
 private const val maxIdentityFieldLength = 255
+private const val maxReferralLength = 255
+private const val maxAlternatives = 2
 
 /**
- * A 3-step wizard: [Schedule] (date + time), [ProfileAndReason] (reason for visit, plus the
- * patient's own profile when the account has no linked clinic record yet), then [Review].
- * [Submitting], [Success], and [SubmissionError] are transient outcomes of Review, not
- * additional steps the patient navigates through.
+ * A 4-step wizard: [Type] → [Schedule] (primary + alternatives) → [Details] (reason, referral,
+ * identity) → [Review]. [Submitting], [Success], and [SubmissionError] are transient outcomes.
  */
 sealed interface RequestStep {
+    data class Type(
+        val types: List<AppointmentType> = emptyList(),
+        val isLoading: Boolean = true,
+        val error: String? = null,
+        val selectedType: AppointmentType? = null,
+    ) : RequestStep
+
     data class Schedule(
+        val selectedType: AppointmentType,
         val date: String? = null,
         val availability: AppointmentRequestAvailability? = null,
         val isLoadingAvailability: Boolean = false,
         val availabilityError: String? = null,
-        val selectedSlot: AvailabilitySlot? = null,
+        val primarySlot: AvailabilitySlot? = null,
+        val alternativeSlots: List<AvailabilitySlot> = emptyList(),
         val reasonDraft: String = "",
+        val referringSourceDraft: String? = null,
         val identityDraft: AppointmentRequestIdentity? = null,
     ) : RequestStep
 
-    data class ProfileAndReason(
+    data class Details(
+        val selectedType: AppointmentType,
         val date: String,
-        val slot: AvailabilitySlot,
+        val primarySlot: AvailabilitySlot,
+        val alternativeSlots: List<AvailabilitySlot>,
         val identityRequired: Boolean,
         val reason: String = "",
         val reasonError: String? = null,
+        val referringSource: String = "",
+        val referringSourceError: String? = null,
         val phone: String = "",
         val email: String = "",
         val firstName: String = "",
@@ -59,25 +74,37 @@ sealed interface RequestStep {
     ) : RequestStep
 
     data class Review(
+        val selectedType: AppointmentType,
         val date: String,
-        val slot: AvailabilitySlot,
+        val primarySlot: AvailabilitySlot,
+        val alternativeSlots: List<AvailabilitySlot>,
         val reason: String,
+        val referringSource: String?,
         val identity: AppointmentRequestIdentity? = null,
     ) : RequestStep
+
     data class Submitting(
+        val selectedType: AppointmentType,
         val date: String,
-        val slot: AvailabilitySlot,
+        val primarySlot: AvailabilitySlot,
+        val alternativeSlots: List<AvailabilitySlot>,
         val reason: String,
+        val referringSource: String?,
         val identity: AppointmentRequestIdentity? = null,
     ) : RequestStep
+
     data class Success(
         val request: AppointmentRequest,
         val isFrameReservationOrigin: Boolean = false,
     ) : RequestStep
+
     data class SubmissionError(
+        val selectedType: AppointmentType,
         val date: String,
-        val slot: AvailabilitySlot,
+        val primarySlot: AvailabilitySlot,
+        val alternativeSlots: List<AvailabilitySlot>,
         val reason: String,
+        val referringSource: String?,
         val identity: AppointmentRequestIdentity? = null,
         val errorCode: String?,
         val errorMessage: String,
@@ -89,29 +116,73 @@ class RequestAppointmentViewModel @Inject constructor(
     private val repository: AppointmentRequestRepository,
 ) : ViewModel() {
 
-    private val _step = MutableStateFlow<RequestStep>(RequestStep.Schedule())
+    private val _step = MutableStateFlow<RequestStep>(RequestStep.Type())
     val step: StateFlow<RequestStep> = _step.asStateFlow()
 
     private var availabilityJob: Job? = null
-    private var currentLoadDate: String? = null
+    private var currentLoadKey: Pair<Int, String>? = null // (typeId, date)
+
+    init {
+        loadTypes()
+    }
+
+    fun loadTypes() {
+        _step.value = RequestStep.Type(isLoading = true)
+        viewModelScope.launch {
+            repository.getAppointmentTypes()
+                .onSuccess { types ->
+                    val current = _step.value as? RequestStep.Type ?: return@onSuccess
+                    _step.value = current.copy(
+                        types = types,
+                        isLoading = false,
+                        error = null,
+                    )
+                }
+                .onFailure { error ->
+                    val current = _step.value as? RequestStep.Type ?: return@onFailure
+                    _step.value = current.copy(
+                        isLoading = false,
+                        error = error.message ?: "Failed to load appointment types",
+                    )
+                }
+        }
+    }
+
+    fun retryTypes() = loadTypes()
+
+    fun selectType(type: AppointmentType) {
+        val current = _step.value as? RequestStep.Type ?: return
+        _step.value = current.copy(selectedType = type)
+    }
+
+    fun confirmType() {
+        val current = _step.value as? RequestStep.Type ?: return
+        val type = current.selectedType ?: return
+        _step.value = RequestStep.Schedule(selectedType = type)
+    }
 
     fun selectDate(date: String) {
-        val current = _step.value as? RequestStep.Schedule ?: RequestStep.Schedule()
-        val preserveSelection = current.date == date
+        val current = _step.value as? RequestStep.Schedule ?: return
+        val preservePrimary = current.date == date
         availabilityJob?.cancel()
-        currentLoadDate = date
+        val loadKey = Pair(current.selectedType.id, date)
+        currentLoadKey = loadKey
         _step.value = current.copy(
             date = date,
             availability = null,
             isLoadingAvailability = true,
             availabilityError = null,
-            selectedSlot = if (preserveSelection) current.selectedSlot else null,
+            primarySlot = if (preservePrimary) current.primarySlot else null,
+            alternativeSlots = if (preservePrimary) current.alternativeSlots else emptyList(),
         )
         availabilityJob = viewModelScope.launch {
-            repository.getAvailability(date, appointmentTypeId = 0)
+            repository.getAvailability(date, current.selectedType.id)
                 .onSuccess { availability ->
-                    if (currentLoadDate == date) {
+                    if (currentLoadKey == loadKey) {
                         val schedule = _step.value as? RequestStep.Schedule ?: return@onSuccess
+                        if (availability.appointmentTypeId != null &&
+                            availability.appointmentTypeId != schedule.selectedType.id
+                        ) return@onSuccess
                         _step.value = schedule.copy(
                             availability = availability,
                             isLoadingAvailability = false,
@@ -120,7 +191,7 @@ class RequestAppointmentViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    if (currentLoadDate == date) {
+                    if (currentLoadKey == loadKey) {
                         val schedule = _step.value as? RequestStep.Schedule ?: return@onFailure
                         _step.value = schedule.copy(
                             isLoadingAvailability = false,
@@ -131,34 +202,60 @@ class RequestAppointmentViewModel @Inject constructor(
         }
     }
 
-    fun selectSlot(slot: AvailabilitySlot) {
-        val current = _step.value
-        if (current !is RequestStep.Schedule || !slot.available) return
-        _step.value = current.copy(selectedSlot = slot)
+    fun selectPrimarySlot(slot: AvailabilitySlot) {
+        val current = _step.value as? RequestStep.Schedule ?: return
+        if (!slot.available) return
+        _step.value = current.copy(
+            primarySlot = slot,
+            alternativeSlots = current.alternativeSlots.filter { it.startsAt != slot.startsAt },
+        )
+    }
+
+    fun addAlternative(slot: AvailabilitySlot) {
+        val current = _step.value as? RequestStep.Schedule ?: return
+        if (!slot.available) return
+        if (slot.startsAt == current.primarySlot?.startsAt) return
+        if (current.alternativeSlots.any { it.startsAt == slot.startsAt }) return
+        if (current.alternativeSlots.size >= maxAlternatives) return
+        _step.value = current.copy(
+            alternativeSlots = current.alternativeSlots + slot,
+        )
+    }
+
+    fun removeAlternative(slot: AvailabilitySlot) {
+        val current = _step.value as? RequestStep.Schedule ?: return
+        _step.value = current.copy(
+            alternativeSlots = current.alternativeSlots.filter { it.startsAt != slot.startsAt },
+        )
     }
 
     fun retryAvailability() {
-        val current = _step.value
-        if (current is RequestStep.Schedule && current.date != null) {
-            selectDate(current.date)
-        }
+        val current = _step.value as? RequestStep.Schedule ?: return
+        val date = current.date ?: return
+        selectDate(date)
     }
 
     fun confirmSchedule(
         identityDetailsRequired: Boolean = false,
         initialIdentity: AppointmentRequestIdentity? = null,
     ) {
-        val current = _step.value
-        if (current !is RequestStep.Schedule) return
+        val current = _step.value as? RequestStep.Schedule ?: return
         val date = current.date ?: return
-        val slot = current.selectedSlot ?: return
+        val primarySlot = current.primarySlot ?: return
         val identitySeed = current.identityDraft ?: initialIdentity
 
-        _step.value = RequestStep.ProfileAndReason(
+        _step.value = RequestStep.Details(
+            selectedType = current.selectedType,
             date = date,
-            slot = slot,
+            primarySlot = primarySlot,
+            alternativeSlots = current.alternativeSlots,
             identityRequired = identityDetailsRequired,
             reason = current.reasonDraft,
+            referringSource = if (current.selectedType.requiresReferral) {
+                current.referringSourceDraft.orEmpty()
+            } else {
+                ""
+            },
             phone = identitySeed?.phone.orEmpty(),
             email = identitySeed?.email.orEmpty(),
             firstName = identitySeed?.firstName.orEmpty(),
@@ -171,11 +268,45 @@ class RequestAppointmentViewModel @Inject constructor(
         )
     }
 
-    fun updateReason(reason: String) {
-        val current = _step.value
-        if (current is RequestStep.ProfileAndReason) {
-            _step.value = current.copy(reason = reason, reasonError = null)
+    fun backToType() {
+        val current = _step.value as? RequestStep.Schedule ?: return
+        val types = _step.value.let {
+            (it as? RequestStep.Schedule)?.let { emptyList<AppointmentType>() } ?: emptyList()
         }
+        _step.value = RequestStep.Type(
+            types = types,
+            isLoading = false,
+            selectedType = current.selectedType,
+        )
+        loadTypes()
+    }
+
+    fun backToSchedule() {
+        val current = _step.value as? RequestStep.Details ?: return
+        _step.value = RequestStep.Schedule(
+            selectedType = current.selectedType,
+            date = current.date,
+            primarySlot = current.primarySlot,
+            alternativeSlots = current.alternativeSlots,
+            reasonDraft = current.reason,
+            referringSourceDraft = if (current.selectedType.requiresReferral) {
+                current.referringSource.ifBlank { null }
+            } else {
+                null
+            },
+            identityDraft = current.toIdentityDraftOrNull(),
+        )
+        selectDate(current.date)
+    }
+
+    fun updateReason(reason: String) {
+        val current = _step.value as? RequestStep.Details ?: return
+        _step.value = current.copy(reason = reason, reasonError = null)
+    }
+
+    fun updateReferringSource(source: String) {
+        val current = _step.value as? RequestStep.Details ?: return
+        _step.value = current.copy(referringSource = source, referringSourceError = null)
     }
 
     fun updateIdentity(
@@ -189,32 +320,38 @@ class RequestAppointmentViewModel @Inject constructor(
         occupation: String? = null,
         address: String? = null,
     ) {
-        val current = _step.value
-        if (current is RequestStep.ProfileAndReason) {
-            _step.value = current.copy(
-                phone = phone ?: current.phone,
-                email = email ?: current.email,
-                firstName = firstName ?: current.firstName,
-                middleName = middleName ?: current.middleName,
-                lastName = lastName ?: current.lastName,
-                dateOfBirth = dateOfBirth ?: current.dateOfBirth,
-                gender = gender ?: current.gender,
-                occupation = occupation ?: current.occupation,
-                address = address ?: current.address,
-                errors = emptyMap(),
-            )
-        }
+        val current = _step.value as? RequestStep.Details ?: return
+        _step.value = current.copy(
+            phone = phone ?: current.phone,
+            email = email ?: current.email,
+            firstName = firstName ?: current.firstName,
+            middleName = middleName ?: current.middleName,
+            lastName = lastName ?: current.lastName,
+            dateOfBirth = dateOfBirth ?: current.dateOfBirth,
+            gender = gender ?: current.gender,
+            occupation = occupation ?: current.occupation,
+            address = address ?: current.address,
+            errors = emptyMap(),
+        )
     }
 
-    fun confirmProfileAndReason() {
-        val current = _step.value
-        if (current !is RequestStep.ProfileAndReason) return
+    fun confirmDetails() {
+        val current = _step.value as? RequestStep.Details ?: return
 
         val reason = current.reason.trim()
         val reasonError = when {
             reason.isBlank() -> "Reason for visit is required"
             reason.length > 1000 -> "Reason must be 1000 characters or less"
             else -> null
+        }
+
+        var referringSourceError: String? = null
+        val trimmedReferring = current.referringSource.trim()
+        if (current.selectedType.requiresReferral) {
+            when {
+                trimmedReferring.isBlank() -> referringSourceError = "Referral source is required for this appointment type"
+                trimmedReferring.length > maxReferralLength -> referringSourceError = "Referral source must be $maxReferralLength characters or less"
+            }
         }
 
         var identity: AppointmentRequestIdentity? = null
@@ -283,41 +420,38 @@ class RequestAppointmentViewModel @Inject constructor(
             }
         }
 
-        if (reasonError != null || errors.isNotEmpty()) {
-            _step.value = current.copy(reason = reason, reasonError = reasonError, errors = errors)
+        if (reasonError != null || referringSourceError != null || errors.isNotEmpty()) {
+            _step.value = current.copy(
+                reason = reason,
+                reasonError = reasonError,
+                referringSourceError = referringSourceError,
+                errors = errors,
+            )
             return
         }
 
         _step.value = RequestStep.Review(
+            selectedType = current.selectedType,
             date = current.date,
-            slot = current.slot,
+            primarySlot = current.primarySlot,
+            alternativeSlots = current.alternativeSlots,
             reason = reason,
+            referringSource = if (current.selectedType.requiresReferral) trimmedReferring else null,
             identity = identity,
         )
     }
 
-    fun backToSchedule() {
-        val current = _step.value
-        if (current !is RequestStep.ProfileAndReason) return
-        _step.value = RequestStep.Schedule(
-            date = current.date,
-            selectedSlot = current.slot,
-            reasonDraft = current.reason,
-            identityDraft = current.toIdentityDraftOrNull(),
-        )
-        selectDate(current.date)
-    }
-
     fun backFromReview() {
-        val current = _step.value
-        if (current !is RequestStep.Review) return
-
+        val current = _step.value as? RequestStep.Review ?: return
         val identity = current.identity
-        _step.value = RequestStep.ProfileAndReason(
+        _step.value = RequestStep.Details(
+            selectedType = current.selectedType,
             date = current.date,
-            slot = current.slot,
+            primarySlot = current.primarySlot,
+            alternativeSlots = current.alternativeSlots,
             identityRequired = identity != null,
             reason = current.reason,
+            referringSource = current.referringSource.orEmpty(),
             phone = identity?.phone.orEmpty(),
             email = identity?.email.orEmpty(),
             firstName = identity?.firstName.orEmpty(),
@@ -331,19 +465,27 @@ class RequestAppointmentViewModel @Inject constructor(
     }
 
     fun submit(isFrameReservationOrigin: Boolean = false) {
-        val current = _step.value
-        if (current !is RequestStep.Review) return
+        val current = _step.value as? RequestStep.Review ?: return
         _step.value = RequestStep.Submitting(
+            selectedType = current.selectedType,
             date = current.date,
-            slot = current.slot,
+            primarySlot = current.primarySlot,
+            alternativeSlots = current.alternativeSlots,
             reason = current.reason,
+            referringSource = current.referringSource,
             identity = current.identity,
         )
         viewModelScope.launch {
+            val alternativeTimes = current.alternativeSlots
+                .sortedBy { it.startsAt }
+                .map { it.startsAt }
+
             repository.createRequest(
-                appointmentTypeId = 0,
-                scheduledAt = current.slot.startsAt,
+                appointmentTypeId = current.selectedType.id,
+                scheduledAt = current.primarySlot.startsAt,
                 reasonForVisit = current.reason,
+                alternativeScheduledTimes = alternativeTimes.ifEmpty { null },
+                referringSource = current.referringSource,
                 identity = current.identity,
             ).onSuccess { request ->
                 _step.value = RequestStep.Success(
@@ -354,9 +496,12 @@ class RequestAppointmentViewModel @Inject constructor(
                 val apiError = error as? ApiDomainError
                 val submitting = _step.value as? RequestStep.Submitting ?: return@launch
                 _step.value = RequestStep.SubmissionError(
+                    selectedType = submitting.selectedType,
                     date = submitting.date,
-                    slot = submitting.slot,
+                    primarySlot = submitting.primarySlot,
+                    alternativeSlots = submitting.alternativeSlots,
                     reason = submitting.reason,
+                    referringSource = submitting.referringSource,
                     identity = submitting.identity,
                     errorCode = apiError?.code,
                     errorMessage = apiError?.message ?: "Failed to submit request",
@@ -366,40 +511,38 @@ class RequestAppointmentViewModel @Inject constructor(
     }
 
     fun handleSubmissionError() {
-        val current = _step.value
-        if (current is RequestStep.SubmissionError) {
-            when (current.errorCode) {
-                "SLOT_UNAVAILABLE" -> {
-                    _step.value = RequestStep.Schedule(
-                        date = current.date,
-                        reasonDraft = current.reason,
-                        identityDraft = current.identity,
-                    )
-                    selectDate(current.date)
-                }
-                "ACTIVE_REQUEST_LIMIT_REACHED" -> {
-                    _step.value = RequestStep.SubmissionError(
-                        date = current.date,
-                        slot = current.slot,
-                        reason = current.reason,
-                        identity = current.identity,
-                        errorCode = current.errorCode,
-                        errorMessage = "You already have pending requests. Please wait for them to be resolved or cancel one.",
-                    )
-                }
-                else -> {
-                    _step.value = RequestStep.Review(
-                        date = current.date,
-                        slot = current.slot,
-                        reason = current.reason,
-                        identity = current.identity,
-                    )
-                }
+        val current = _step.value as? RequestStep.SubmissionError ?: return
+        when (current.errorCode) {
+            "SLOT_UNAVAILABLE" -> {
+                _step.value = RequestStep.Schedule(
+                    selectedType = current.selectedType,
+                    date = current.date,
+                    reasonDraft = current.reason,
+                    referringSourceDraft = current.referringSource,
+                    identityDraft = current.identity,
+                )
+                selectDate(current.date)
+            }
+            "ACTIVE_REQUEST_LIMIT_REACHED" -> {
+                _step.value = current.copy(
+                    errorMessage = "You already have pending requests. Please wait for them to be resolved or cancel one.",
+                )
+            }
+            else -> {
+                _step.value = RequestStep.Review(
+                    selectedType = current.selectedType,
+                    date = current.date,
+                    primarySlot = current.primarySlot,
+                    alternativeSlots = current.alternativeSlots,
+                    reason = current.reason,
+                    referringSource = current.referringSource,
+                    identity = current.identity,
+                )
             }
         }
     }
 
-    private fun RequestStep.ProfileAndReason.toIdentityDraftOrNull(): AppointmentRequestIdentity? {
+    private fun RequestStep.Details.toIdentityDraftOrNull(): AppointmentRequestIdentity? {
         if (!identityRequired) return null
         return AppointmentRequestIdentity(
             phone = phone.ifBlank { null },

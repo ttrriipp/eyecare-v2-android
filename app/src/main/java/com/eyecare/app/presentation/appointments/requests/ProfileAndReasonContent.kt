@@ -54,7 +54,7 @@ import java.time.LocalDate
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileAndReasonContent(
-    state: RequestStep.ProfileAndReason,
+    state: RequestStep.Details,
     onReasonChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onFirstNameChange: (String) -> Unit,

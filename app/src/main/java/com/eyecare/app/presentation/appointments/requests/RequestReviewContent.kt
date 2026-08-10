@@ -107,7 +107,7 @@ fun RequestReviewContent(
                                     ReviewMetadataRow(
                                         Icons.Outlined.AccessTime,
                                         "Time",
-                                        formatTimeSlot(state.slot.startsAt, state.slot.endsAt),
+                                        formatTimeSlot(state.primarySlot.startsAt, state.primarySlot.endsAt),
                                     )
                                 }
                             }

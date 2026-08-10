@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.eyecare.app.domain.model.AppointmentRequestGender
+import com.eyecare.app.domain.model.AppointmentType
 import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
@@ -84,10 +85,17 @@ fun RequestAppointmentScreen(
     val step by viewModel.step.collectAsState()
 
     when (val s = step) {
+        is RequestStep.Type -> TypePlaceholderContent(
+            state = s,
+            onSelectType = { viewModel.selectType(it) },
+            onConfirm = { viewModel.confirmType() },
+            onRetry = { viewModel.retryTypes() },
+            onBack = onBack,
+        )
         is RequestStep.Schedule -> ScheduleContent(
             state = s,
             onDateSelected = { viewModel.selectDate(it) },
-            onSelectSlot = { viewModel.selectSlot(it) },
+            onSelectSlot = { viewModel.selectPrimarySlot(it) },
             onRetry = { viewModel.retryAvailability() },
             onConfirm = {
                 viewModel.confirmSchedule(
@@ -97,7 +105,7 @@ fun RequestAppointmentScreen(
             },
             onBack = onBack,
         )
-        is RequestStep.ProfileAndReason -> ProfileAndReasonContent(
+        is RequestStep.Details -> ProfileAndReasonContent(
             state = s,
             onReasonChange = { viewModel.updateReason(it) },
             onEmailChange = { viewModel.updateIdentity(email = it) },
@@ -108,7 +116,7 @@ fun RequestAppointmentScreen(
             onGenderChange = { viewModel.updateIdentity(gender = it) },
             onOccupationChange = { viewModel.updateIdentity(occupation = it) },
             onAddressChange = { viewModel.updateIdentity(address = it) },
-            onConfirm = { viewModel.confirmProfileAndReason() },
+            onConfirm = { viewModel.confirmDetails() },
             onBack = { viewModel.backToSchedule() },
         )
         is RequestStep.Review -> RequestReviewContent(
@@ -249,7 +257,7 @@ private fun ScheduleContent(
                                         items(morningSlots) { slot ->
                                             SlotCard(
                                                 slot = slot,
-                                                isSelected = slot == state.selectedSlot,
+                                                isSelected = slot == state.primarySlot,
                                                 onClick = { onSelectSlot(slot) },
                                             )
                                         }
@@ -266,7 +274,7 @@ private fun ScheduleContent(
                                         items(afternoonSlots) { slot ->
                                             SlotCard(
                                                 slot = slot,
-                                                isSelected = slot == state.selectedSlot,
+                                                isSelected = slot == state.primarySlot,
                                                 onClick = { onSelectSlot(slot) },
                                             )
                                         }
@@ -280,7 +288,7 @@ private fun ScheduleContent(
                 AppointmentPrimaryButton(
                     text = "Continue",
                     onClick = onConfirm,
-                    enabled = state.selectedSlot != null,
+                    enabled = state.primarySlot != null,
                 )
             }
         }
@@ -510,4 +518,71 @@ private fun placeholderSlots(): List<AvailabilitySlot> {
         }
     }
     return slots
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TypePlaceholderContent(
+    state: RequestStep.Type,
+    onSelectType: (AppointmentType) -> Unit,
+    onConfirm: () -> Unit,
+    onRetry: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Request appointment") },
+                navigationIcon = { RequestBackIcon(onBack) },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            WizardStepIndicator(
+                currentStep = 0,
+                steps = listOf("Type", "Schedule", "Details", "Review"),
+                modifier = Modifier.padding(bottom = 16.dp),
+            )
+            when {
+                state.isLoading -> LoadingContent(modifier = Modifier.fillMaxWidth().weight(1f))
+                state.error != null -> ErrorContent(
+                    message = state.error,
+                    onRetry = onRetry,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                )
+                else -> {
+                    Text("Select appointment type", style = MaterialTheme.typography.bodyLarge)
+                    state.types.forEach { type ->
+                        val isSelected = type == state.selectedType
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().clickable { onSelectType(type) },
+                            shape = RoundedCornerShape(12.dp),
+                            border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface,
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(type.name, style = MaterialTheme.typography.titleMedium)
+                                type.description?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text("${type.durationMinutes} min", style = MaterialTheme.typography.bodySmall)
+                                if (type.requiresReferral) {
+                                    Text("Requires referral", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    AppointmentPrimaryButton(
+                        text = "Continue",
+                        onClick = onConfirm,
+                        enabled = state.selectedType != null,
+                    )
+                }
+            }
+        }
+    }
 }
