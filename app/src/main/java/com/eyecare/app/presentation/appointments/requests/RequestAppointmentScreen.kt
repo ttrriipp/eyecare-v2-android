@@ -493,32 +493,6 @@ private fun String.toDatePickerMillis(): Long? = runCatching {
     LocalDate.parse(this).atStartOfDay(CLINIC_TIME_ZONE).toInstant().toEpochMilli()
 }.getOrNull()
 
-/**
- * Placeholder 30-min slots from 9:00 AM to 5:00 PM for UI preview.
- * Remove when the availability API is connected.
- */
-private fun placeholderSlots(): List<AvailabilitySlot> {
-    val baseDate = LocalDate.now().plusDays(1).toString()
-    val slots = mutableListOf<AvailabilitySlot>()
-    for (hour in 9..16) {
-        for (minute in listOf(0, 30)) {
-            val start = java.time.LocalTime.of(hour, minute)
-            val end = start.plusMinutes(30)
-            val startsAt = "${baseDate}T${start}:00+08:00"
-            val endsAt = "${baseDate}T${end}:00+08:00"
-            slots.add(
-                AvailabilitySlot(
-                    startsAt = startsAt,
-                    endsAt = endsAt,
-                    available = true,
-                    reason = null,
-                ),
-            )
-        }
-    }
-    return slots
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TypePlaceholderContent(
