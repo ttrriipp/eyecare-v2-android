@@ -275,12 +275,28 @@ and `presentation/navigation/NavGraph.kt`:
 
 ## Backend API (base: `/api/v1`)
 
-53 approved patient-mobile routes (8 public, 24 account-only, 21 active-link).
+55 approved patient-mobile routes (8 public, 26 account-only, 21 active-link).
 Source of truth: `docs/API_CONTRACT.md`.
 
 **Auth:** V13 two-stage OTP registration, hybrid login (trusted skips OTP), password recovery, Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). Installation identity via `DeviceIdentityProvider`. 401 → bearer-aware logout via `AuthEventBus`. Session resolution via `GET /me` before routing.
 
-**Breaking changes:** `POST /register`, `POST /login`, `GET /appointment-types`, `POST /appointments`, three intake routes, `/eyewear`, `/job-orders`, `/billing-records`, and `/job-order-items/{id}/rating` are retired or replaced. See `docs/API_CONTRACT.md` §18–19.
+**Breaking changes:** `POST /register`, `POST /login`, `POST /appointments`, three intake routes, `/eyewear`, `/job-orders`, `/billing-records`, and `/job-order-items/{id}/rating` are retired or replaced. `GET /appointment-types` was restored as an account-only patient-visible catalog. See `docs/API_CONTRACT.md` §18–19.
+
+## Appointment Requests — Variable-Duration Scheduling (v16)
+
+`presentation/appointments/requests/RequestAppointmentViewModel.kt`, `RequestAppointmentScreen.kt`:
+
+- **4-step wizard:** Type → Schedule → Details → Review. The patient selects an appointment type first, then date/time, then enters reason/referral/identity, then reviews and submits.
+- **Appointment types:** loaded from `GET /appointment-types` on flow entry. Shows patient label, optional description, duration, and referral indicator. No hardcoded types or IDs. Failure shows retry, no fallback.
+- **Availability:** `GET /appointment-request-availability` sends both `date` and `appointment_type_id`. Response includes `visit_duration_minutes`, `appointment_type_id`, and 15-minute cadence slots. Only server-returned `available = true` slots are selectable. No fabricated or placeholder slots. No hardcoded Sunday restriction (server-authoritative).
+- **Time preferences:** one required primary slot plus up to two optional ordered alternatives. Alternatives are distinct from primary and each other, capped at two. Changing type clears all selections and availability.
+- **Referral:** if type `requires_referral` is true, `referring_source` is required (1–255 chars). Non-referral types clear and send `null`.
+- **Identity:** linked accounts omit identity; unlinked/pending-review accounts retain existing identity collection with verified-phone behavior.
+- **Submission:** sends `appointment_type_id`, `scheduled_at` (primary), `alternative_scheduled_times` (ordered), `reason_for_visit`, conditional `referring_source`, and optional `identity`.
+- **Non-binding semantics:** pending requests never reserve capacity. `time_preferences_are_reserved = false` is in the model. UI copy never claims a time is held, reserved, or released. `expires_at` is mapped but omitted from UI.
+- **Request detail/list:** shows appointment type, duration, ordered alternatives, referral source when present. Legacy records without new fields render safely (nullable).
+- **Error handling:** `SLOT_UNAVAILABLE` clears affected selections and refreshes availability. `ACTIVE_REQUEST_LIMIT_REACHED` preserves draft. Type catalog failure blocks at Type with retry.
+- **Tests:** `RequestAppointmentViewModelTest` covers type loading/selection/retry, alternative max-two/uniqueness, referral validation, stale-response handling, and submission.
 
 ## Root Navigation
 
@@ -340,15 +356,16 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
   its documented `patient`/`staff` aliases, and patient accounts are `App\Models\User`
   rows just like staff, so `sender_type` alone is not a reliable ownership signal.
 
-## Route Governance — 53 Routes
+## Route Governance — 55 Routes
 
 `test/.../ApprovedApiRoutes.kt`, `test/.../ApiRouteAllowlistTest.kt`:
 
-- 8 public, 24 account-only, 20 active-link (canonical) = 52 callable.
+- 8 public, 26 account-only, 20 active-link (canonical) = 54 canonical callable.
 - 1 legacy alias (`POST /job-order-items/{id}/rating`) — exists server-side for backward compatibility, not callable by this client.
-- Total contract routes: 53 (8 + 24 + 21 active-link including the alias).
+- Total registered callable routes: 55 (54 canonical + 1 legacy alias).
+- Account-only includes `GET /appointment-types` (restored patient-visible catalog) and `GET /appointment-optometrists` (governance-only, no Android consumer).
 - Retired routes explicitly rejected: `/eyewear`, `/job-orders`, `/billing-records`,
-  legacy `/login`, `/register`, `/appointment-types`, appointment intake routes.
+  legacy `/login`, `/register`, appointment intake routes.
 - Discovery test fails if any rejected route appears in production Retrofit annotations.
 
 ## Visit Feedback
@@ -395,6 +412,9 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 
 ## Active Specs
 
+- `docs/specs/backend-alignment-v16-variable-duration-appointment-requests-spec.md` — Complete: Variable-Duration Appointment Requests
+- `docs/specs/backend-alignment-v16-variable-duration-appointment-requests-plan.md` — Complete: implementation plan (5 stages)
+- `docs/specs/backend-alignment-v16-variable-duration-appointment-requests-tasks.md` — Complete: 12 tasks + 4 checkpoints
 - `docs/specs/backend-alignment-v15-spec.md` — Complete: Visit Feedback, Frame Ratings, and Contract Correction
 - `docs/specs/backend-alignment-v15-plan.md` — Complete: implementation plan (6 stages)
 - `docs/specs/backend-alignment-v15-tasks.md` — Complete: 16 tasks + checkpoints
@@ -408,7 +428,7 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 - `docs/specs/backend-alignment-v8-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v8-tasks.md` — Complete: all acceptance criteria met
 - `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
-- `docs/API_CONTRACT.md` — Authoritative mobile API contract (53 routes)
+- `docs/API_CONTRACT.md` — Authoritative mobile API contract (55 routes)
 
 ## Boundaries
 

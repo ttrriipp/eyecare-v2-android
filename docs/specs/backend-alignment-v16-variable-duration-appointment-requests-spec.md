@@ -1,6 +1,6 @@
 # Spec: Backend Alignment v16 — Variable-Duration Appointment Requests
 
-Status: Phase 1 approved — 2026-08-10
+Status: Complete — 2026-08-10
 Date: 2026-08-10
 
 ## Objective
@@ -412,32 +412,32 @@ validation branch, and state transition requires a focused assertion.
 
 ## Success Criteria
 
-- [ ] A patient-visible appointment-type catalog loads for linked and unlinked
+- [x] A patient-visible appointment-type catalog loads for linked and unlinked
       authenticated accounts without hardcoded types.
-- [ ] A type must be selected before availability can load.
-- [ ] Availability sends required `appointment_type_id` and renders only the
+- [x] A type must be selected before availability can load.
+- [x] Availability sends required `appointment_type_id` and renders only the
       latest server-returned slots.
-- [ ] No production path fabricates selectable time slots.
-- [ ] Request creation sends required type ID, primary time, ordered distinct
+- [x] No production path fabricates selectable time slots.
+- [x] Request creation sends required type ID, primary time, ordered distinct
       alternatives (maximum two), reason, conditional referral source, and
       identity only when allowed.
-- [ ] Referral types cannot advance without a nonblank referral source;
+- [x] Referral types cannot advance without a nonblank referral source;
       non-referral types send no stale referral value.
-- [ ] Expanded request responses map type, alternatives, duration, referral,
+- [x] Expanded request responses map type, alternatives, duration, referral,
       and non-reservation semantics without breaking legacy rows.
-- [ ] Review and detail show the selected type and all returned preferences.
-- [ ] Pending, expired, cancellation, and success copy never claims a time is
+- [x] Review and detail show the selected type and all returned preferences.
+- [x] Pending, expired, cancellation, and success copy never claims a time is
       held, reserved, or released.
-- [ ] `GET /appointment-optometrists` is governed as account-only but no patient
+- [x] `GET /appointment-optometrists` is governed as account-only but no patient
       provider picker is introduced.
-- [ ] Route governance reports 54 canonical routes and 55 callable registered
+- [x] Route governance reports 54 canonical routes and 55 callable registered
       routes, including the intentionally unused legacy alias.
-- [ ] Existing identity, linking, confirmed appointments, rescheduling, visit
+- [x] Existing identity, linking, confirmed appointments, rescheduling, visit
       ratings, frames, reservations, prescriptions, eyewear, and messaging tests
       remain green.
-- [ ] Focused tests, complete unit tests, `assembleDebug`, `lintDebug`, and
+- [x] Focused tests, complete unit tests, `assembleDebug`, `lintDebug`, and
       `ktlintCheck` pass.
-- [ ] `CONTEXT.md` records 55 routes, restored appointment types, variable
+- [x] `CONTEXT.md` records 55 routes, restored appointment types, variable
       duration, alternatives, referral behavior, and non-binding requests.
 
 ## Open Questions

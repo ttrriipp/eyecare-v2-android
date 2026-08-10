@@ -1,6 +1,6 @@
 # Plan: Backend Alignment v16 — Variable-Duration Appointment Requests
 
-Status: Phase 2 approved — 2026-08-10; implementation not started
+Status: Complete — 2026-08-10
 Date: 2026-08-10
 Spec: `docs/specs/backend-alignment-v16-variable-duration-appointment-requests-spec.md`
 

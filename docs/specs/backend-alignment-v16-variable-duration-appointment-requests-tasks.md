@@ -1,6 +1,6 @@
 # Implementation Plan: Backend Alignment v16 — Variable-Duration Appointment Requests
 
-Status: Phase 3 approved — 2026-08-10; implementation not started
+Status: Complete — 2026-08-10
 Date: 2026-08-10
 Spec: `docs/specs/backend-alignment-v16-variable-duration-appointment-requests-spec.md`
 Technical plan: `docs/specs/backend-alignment-v16-variable-duration-appointment-requests-plan.md`
@@ -36,17 +36,17 @@ unambiguous contract.
 
 **Acceptance criteria:**
 
-- [ ] All appointment-request examples use the shared expanded resource and
+- [x] All appointment-request examples use the shared expanded resource and
       document nullable legacy fields.
-- [ ] Stale patient-type, pending-hold, `expires_at`, referral-limit, and route
+- [x] Stale patient-type, pending-hold, `expires_at`, referral-limit, and route
       count statements are corrected consistently.
-- [ ] The route documentation reports 55 callable registered routes: 54
+- [x] The route documentation reports 55 callable registered routes: 54
       canonical and one legacy alias.
 
 **Verification:**
 
-- [ ] `rg -n "never select|pending request hold|24 account-only|53 routes|53 total" docs/API_CONTRACT.md docs/BACKEND_CONTEXT.md` returns no stale authoritative claim.
-- [ ] `git diff --check -- docs/API_CONTRACT.md docs/BACKEND_CONTEXT.md`
+- [x] `rg -n "never select|pending request hold|24 account-only|53 routes|53 total" docs/API_CONTRACT.md docs/BACKEND_CONTEXT.md` returns no stale authoritative claim.
+- [x] `git diff --check -- docs/API_CONTRACT.md docs/BACKEND_CONTEXT.md`
 
 **Dependencies:** None
 
@@ -67,17 +67,17 @@ that production Android services may consume.
 
 **Acceptance criteria:**
 
-- [ ] Governance contains 8 public, 26 account-only, 20 canonical active-link,
+- [x] Governance contains 8 public, 26 account-only, 20 canonical active-link,
       and one callable legacy-alias route.
-- [ ] `GET /appointment-types` and `GET /appointment-optometrists` are approved
+- [x] `GET /appointment-types` and `GET /appointment-optometrists` are approved
       account-only routes; appointment types are no longer rejected.
-- [ ] Retrofit discovery accepts only canonical routes and still fails if the
+- [x] Retrofit discovery accepts only canonical routes and still fails if the
       legacy alias appears in production code.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
-- [ ] `./gradlew assembleDebug`
+- [x] `./gradlew testDebugUnitTest --tests "*ApiRouteAllowlistTest"`
+- [x] `./gradlew assembleDebug`
 
 **Dependencies:** Task 1
 
@@ -90,9 +90,9 @@ that production Android services may consume.
 
 ### Checkpoint: Contract boundary
 
-- [ ] Backend docs have no stale decision conflicts.
-- [ ] Route-governance tests pass with 55 registered/54 canonical semantics.
-- [ ] Debug build succeeds.
+- [x] Backend docs have no stale decision conflicts.
+- [x] Route-governance tests pass with 55 registered/54 canonical semantics.
+- [x] Debug build succeeds.
 
 ### Phase 2: Transport and repository foundation
 
@@ -104,18 +104,18 @@ create body while retaining legacy response compatibility.
 
 **Acceptance criteria:**
 
-- [ ] DTOs decode appointment types and all expanded request fields, using
+- [x] DTOs decode appointment types and all expanded request fields, using
       nullable/defaulted additions for legacy records.
-- [ ] Domain models expose type summary, alternatives, duration, referral,
+- [x] Domain models expose type summary, alternatives, duration, referral,
       reservation semantics, and mapped-but-hidden `expiresAt` without
       serialization annotations.
-- [ ] Dead duplicate appointment-request/type wire models are removed from the
+- [x] Dead duplicate appointment-request/type wire models are removed from the
       confirmed-appointment DTO container.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest --tests "*AppointmentRequestDtosTest" --tests "*AppointmentRequestStatusTest"`
-- [ ] `./gradlew assembleDebug`
+- [x] `./gradlew testDebugUnitTest --tests "*AppointmentRequestDtosTest" --tests "*AppointmentRequestStatusTest"`
+- [x] `./gradlew assembleDebug`
 
 **Dependencies:** Task 1
 
@@ -138,17 +138,17 @@ and map the shared expanded resource.
 
 **Acceptance criteria:**
 
-- [ ] `getAppointmentTypes()` maps transport types to domain types at the
+- [x] `getAppointmentTypes()` maps transport types to domain types at the
       repository boundary.
-- [ ] Availability always sends both `date` and `appointment_type_id`.
-- [ ] Create bodies contain only approved fields and shared expanded responses
+- [x] Availability always sends both `date` and `appointment_type_id`.
+- [x] Create bodies contain only approved fields and shared expanded responses
       map consistently for list, detail, create, and cancel.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest --tests "*AppointmentRequestApiServiceTest" --tests "*AppointmentRequestRepositoryImplTest"`
-- [ ] Inspect MockWebServer assertions for exact query/body field names.
-- [ ] `./gradlew assembleDebug`
+- [x] `./gradlew testDebugUnitTest --tests "*AppointmentRequestApiServiceTest" --tests "*AppointmentRequestRepositoryImplTest"`
+- [x] Inspect MockWebServer assertions for exact query/body field names.
+- [x] `./gradlew assembleDebug`
 
 **Dependencies:** Tasks 2 and 3
 
@@ -164,10 +164,10 @@ and map the shared expanded resource.
 
 ### Checkpoint: Data path
 
-- [ ] Expanded and legacy DTO fixtures pass.
-- [ ] Retrofit queries and create bodies match the approved contract.
-- [ ] Repository mapping never leaks DTOs beyond the data layer.
-- [ ] Debug build succeeds.
+- [x] Expanded and legacy DTO fixtures pass.
+- [x] Retrofit queries and create bodies match the approved contract.
+- [x] Repository mapping never leaks DTOs beyond the data layer.
+- [x] Debug build succeeds.
 
 ### Phase 3: Request state machine
 
@@ -178,15 +178,15 @@ downstream invalidation behavior before scheduling can begin.
 
 **Acceptance criteria:**
 
-- [ ] The initial state loads types and blocks progression until a type is
+- [x] The initial state loads types and blocks progression until a type is
       selected.
-- [ ] Type failures expose retry without a hardcoded fallback.
-- [ ] Changing type clears primary/alternative slots and stale referral data.
+- [x] Type failures expose retry without a hardcoded fallback.
+- [x] Changing type clears primary/alternative slots and stale referral data.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
-- [ ] `./gradlew assembleDebug`
+- [x] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
+- [x] `./gradlew assembleDebug`
 
 **Dependencies:** Task 4
 
@@ -206,19 +206,19 @@ and up to two ordered alternatives, all loaded for the selected type.
 
 **Acceptance criteria:**
 
-- [ ] Availability state and jobs are keyed by both type ID and date; stale
+- [x] Availability state and jobs are keyed by both type ID and date; stale
       responses cannot overwrite current state.
-- [ ] Alternatives remain ordered, are distinct from the primary and each other,
+- [x] Alternatives remain ordered, are distinct from the primary and each other,
       and cannot exceed two.
-- [ ] `SLOT_UNAVAILABLE` clears affected selections and refreshes current
+- [x] `SLOT_UNAVAILABLE` clears affected selections and refreshes current
       authoritative availability while preserving safe draft details.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
-- [ ] Tests cover type/date races, add/remove/reorder boundaries, duplicates,
+- [x] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
+- [x] Tests cover type/date races, add/remove/reorder boundaries, duplicates,
       max-two enforcement, and stale-slot recovery.
-- [ ] `./gradlew assembleDebug`
+- [x] `./gradlew assembleDebug`
 
 **Dependencies:** Task 5
 
@@ -238,17 +238,17 @@ validation while retaining current linked/unlinked identity behavior.
 
 **Acceptance criteria:**
 
-- [ ] Referral types require a trimmed 1–255-character source; non-referral
+- [x] Referral types require a trimmed 1–255-character source; non-referral
       types clear and send `null`.
-- [ ] Linked accounts omit identity and unlinked accounts preserve existing
+- [x] Linked accounts omit identity and unlinked accounts preserve existing
       verified-phone/profile validation.
-- [ ] Submission sends selected type, primary, ordered alternatives, reason,
+- [x] Submission sends selected type, primary, ordered alternatives, reason,
       referral source, and permitted identity exactly once.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest" --tests "*AppointmentRequestIdentityTest"`
-- [ ] `./gradlew assembleDebug`
+- [x] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest" --tests "*AppointmentRequestIdentityTest"`
+- [x] `./gradlew assembleDebug`
 
 **Dependencies:** Task 6
 
@@ -262,9 +262,9 @@ validation while retaining current linked/unlinked identity behavior.
 
 ### Checkpoint: State machine
 
-- [ ] All type, preference, referral, identity, and submission state tests pass.
-- [ ] No state transition can submit without type and primary time.
-- [ ] Debug build succeeds.
+- [x] All type, preference, referral, identity, and submission state tests pass.
+- [x] No state transition can submit without type and primary time.
+- [x] Debug build succeeds.
 
 ### Phase 4: Patient-facing wizard
 
@@ -276,16 +276,16 @@ behavior and the four-step indicator.
 
 **Acceptance criteria:**
 
-- [ ] Loading, retry, empty-catalog, selected, and unselected states render
+- [x] Loading, retry, empty-catalog, selected, and unselected states render
       without a hardcoded type.
-- [ ] Continue requires a selection and advances to Schedule.
-- [ ] Back and step labels follow Type → Schedule → Details → Review.
+- [x] Continue requires a selection and advances to Schedule.
+- [x] Back and step labels follow Type → Schedule → Details → Review.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
-- [ ] `./gradlew assembleDebug`
-- [ ] Manual check: type cards display nullable descriptions and dynamic duration.
+- [x] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
+- [x] `./gradlew assembleDebug`
+- [x] Manual check: type cards display nullable descriptions and dynamic duration.
 
 **Dependencies:** Task 7
 
@@ -306,18 +306,18 @@ hardcoded closure behavior with real states.
 
 **Acceptance criteria:**
 
-- [ ] No placeholder/generated slot or hardcoded Sunday restriction remains in
+- [x] No placeholder/generated slot or hardcoded Sunday restriction remains in
       the production request flow.
-- [ ] Primary and up to two alternatives can be added/removed with clear labels
+- [x] Primary and up to two alternatives can be added/removed with clear labels
       and duplicate prevention.
-- [ ] Loading, retry, closed-day, and no-times states cannot expose a selectable
+- [x] Loading, retry, closed-day, and no-times states cannot expose a selectable
       fake time.
 
 **Verification:**
 
-- [ ] `rg -n "placeholderSlots|DayOfWeek.SUNDAY" app/src/main/java/com/eyecare/app/presentation/appointments/requests/RequestAppointmentScreen.kt` finds no request-flow fallback/restriction.
-- [ ] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
-- [ ] `./gradlew assembleDebug`
+- [x] `rg -n "placeholderSlots|DayOfWeek.SUNDAY" app/src/main/java/com/eyecare/app/presentation/appointments/requests/RequestAppointmentScreen.kt` finds no request-flow fallback/restriction.
+- [x] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
+- [x] `./gradlew assembleDebug`
 
 **Dependencies:** Task 8
 
@@ -338,17 +338,17 @@ before submission and after success.
 
 **Acceptance criteria:**
 
-- [ ] Details shows referral source only when required and displays its 255
+- [x] Details shows referral source only when required and displays its 255
       character validation feedback.
-- [ ] Review shows all outbound patient-entered values in a stable hierarchy.
-- [ ] Success says the request awaits clinic review and never says a time is
+- [x] Review shows all outbound patient-entered values in a stable hierarchy.
+- [x] Success says the request awaits clinic review and never says a time is
       reserved or confirmed.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
-- [ ] `./gradlew assembleDebug`
-- [ ] Manual check: linked/unlinked normal and referral requests match Review.
+- [x] `./gradlew testDebugUnitTest --tests "*RequestAppointmentViewModelTest"`
+- [x] `./gradlew assembleDebug`
+- [x] Manual check: linked/unlinked normal and referral requests match Review.
 
 **Dependencies:** Task 9
 
@@ -362,10 +362,10 @@ before submission and after success.
 
 ### Checkpoint: End-to-end request flow
 
-- [ ] Type → Schedule → Details → Review works in both link states.
-- [ ] Normal/referral and zero/one/two alternative bodies are valid.
-- [ ] Empty and failed availability cannot be submitted.
-- [ ] Debug build succeeds.
+- [x] Type → Schedule → Details → Review works in both link states.
+- [x] Normal/referral and zero/one/two alternative bodies are valid.
+- [x] Empty and failed availability cannot be submitted.
+- [x] Debug build succeeds.
 
 ### Phase 5: History, copy, and final reconciliation
 
@@ -376,17 +376,17 @@ surfaces and remove every stale hold/release/expiry promise.
 
 **Acceptance criteria:**
 
-- [ ] Request cards/details show type and ordered preferences when available and
+- [x] Request cards/details show type and ordered preferences when available and
       remain safe for legacy records.
-- [ ] `expires_at` is not displayed; requested times are shown instead.
-- [ ] Pending, expired, cancellation, and accepted copy makes no capacity-hold
+- [x] `expires_at` is not displayed; requested times are shown instead.
+- [x] Pending, expired, cancellation, and accepted copy makes no capacity-hold
       claim.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest --tests "*AppointmentRequestPresentationTest" --tests "*AppointmentRequestListPresentationTest" --tests "*AppointmentRequestDetailViewModelTest"`
-- [ ] `rg -n "held|hold expired|will be released|Expires" app/src/main/java/com/eyecare/app/presentation/appointments` returns no stale request copy.
-- [ ] `./gradlew assembleDebug`
+- [x] `./gradlew testDebugUnitTest --tests "*AppointmentRequestPresentationTest" --tests "*AppointmentRequestListPresentationTest" --tests "*AppointmentRequestDetailViewModelTest"`
+- [x] `rg -n "held|hold expired|will be released|Expires" app/src/main/java/com/eyecare/app/presentation/appointments` returns no stale request copy.
+- [x] `./gradlew assembleDebug`
 
 **Dependencies:** Tasks 3 and 10
 
@@ -409,21 +409,21 @@ only after all production behavior and quality gates pass.
 
 **Acceptance criteria:**
 
-- [ ] `CONTEXT.md` documents 55 registered routes, 54 canonical client routes,
+- [x] `CONTEXT.md` documents 55 registered routes, 54 canonical client routes,
       restored types, variable duration, alternatives, referral rules, and
       non-binding request semantics.
-- [ ] Spec, plan, and tasks accurately reflect the shipped implementation and
+- [x] Spec, plan, and tasks accurately reflect the shipped implementation and
       completed verification; no checkbox is marked early.
-- [ ] No unrelated user-owned change is overwritten or reformatted.
+- [x] No unrelated user-owned change is overwritten or reformatted.
 
 **Verification:**
 
-- [ ] `./gradlew testDebugUnitTest`
-- [ ] `./gradlew assembleDebug`
-- [ ] `./gradlew lintDebug`
-- [ ] `./gradlew ktlintCheck`
-- [ ] `git diff --check`
-- [ ] Manual matrix: linked/unlinked × normal/referral × zero/two alternatives,
+- [x] `./gradlew testDebugUnitTest`
+- [x] `./gradlew assembleDebug`
+- [x] `./gradlew lintDebug`
+- [x] `./gradlew ktlintCheck`
+- [x] `git diff --check`
+- [x] Manual matrix: linked/unlinked × normal/referral × zero/two alternatives,
       plus empty day, type/date race, stale slot, legacy detail, and cancellation.
 
 **Dependencies:** Task 11
@@ -439,11 +439,11 @@ only after all production behavior and quality gates pass.
 
 ### Checkpoint: Complete
 
-- [ ] All v16 success criteria are met.
-- [ ] Focused and full tests pass.
-- [ ] Build, lint, formatting, and diff checks pass.
-- [ ] Manual behavior matrix passes.
-- [ ] Artifacts are ready for code review.
+- [x] All v16 success criteria are met.
+- [x] Focused and full tests pass.
+- [x] Build, lint, formatting, and diff checks pass.
+- [x] Manual behavior matrix passes.
+- [x] Artifacts are ready for code review.
 
 ## Parallelization Opportunities
 
