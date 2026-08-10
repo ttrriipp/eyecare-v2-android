@@ -26,13 +26,24 @@ enum class AppointmentRequestStatus {
         get() = this == PENDING
 }
 
+data class AppointmentRequestTypeSummary(
+    val id: Int,
+    val name: String,
+    val durationMinutes: Int,
+)
+
 data class AppointmentRequest(
     val id: Int,
     val requestNumber: String,
     val status: AppointmentRequestStatus,
     val patientId: Int?,
+    val appointmentType: AppointmentRequestTypeSummary?,
     val scheduledAt: String,
+    val alternativeScheduledTimes: List<String>,
+    val provisionalDurationMinutes: Int?,
     val reasonForVisit: String,
+    val referringSource: String?,
+    val timePreferencesAreReserved: Boolean,
     val expiresAt: String?,
     val cancelledAt: String?,
     val createdAt: String,
@@ -91,6 +102,8 @@ data class AppointmentRequestAvailability(
     val timezone: String,
     val intervalMinutes: Int,
     val slotDurationMinutes: Int,
+    val visitDurationMinutes: Int?,
+    val appointmentTypeId: Int?,
     val dayStatus: String,
     val generatedAt: String,
     val slots: List<AvailabilitySlot>,

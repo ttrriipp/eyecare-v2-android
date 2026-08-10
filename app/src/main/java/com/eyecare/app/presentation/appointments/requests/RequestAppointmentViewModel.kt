@@ -108,7 +108,7 @@ class RequestAppointmentViewModel @Inject constructor(
             selectedSlot = if (preserveSelection) current.selectedSlot else null,
         )
         availabilityJob = viewModelScope.launch {
-            repository.getAvailability(date)
+            repository.getAvailability(date, appointmentTypeId = 0)
                 .onSuccess { availability ->
                     if (currentLoadDate == date) {
                         val schedule = _step.value as? RequestStep.Schedule ?: return@onSuccess
@@ -341,6 +341,7 @@ class RequestAppointmentViewModel @Inject constructor(
         )
         viewModelScope.launch {
             repository.createRequest(
+                appointmentTypeId = 0,
                 scheduledAt = current.slot.startsAt,
                 reasonForVisit = current.reason,
                 identity = current.identity,

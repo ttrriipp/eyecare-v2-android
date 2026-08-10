@@ -40,8 +40,10 @@ class RequestAppointmentViewModelTest {
     private val fakeAvailability = AppointmentRequestAvailability(
         date = "2026-08-10",
         timezone = "Asia/Manila",
-        intervalMinutes = 30,
-        slotDurationMinutes = 30,
+        intervalMinutes = 15,
+        slotDurationMinutes = 45,
+        visitDurationMinutes = 45,
+        appointmentTypeId = 1,
         dayStatus = "open",
         generatedAt = "2026-08-09T10:00:00+08:00",
         slots = listOf(fakeSlot),
@@ -52,8 +54,13 @@ class RequestAppointmentViewModelTest {
         requestNumber = "APR-2026-000001",
         status = AppointmentRequestStatus.PENDING,
         patientId = null,
+        appointmentType = null,
         scheduledAt = "2026-08-10T09:00:00+08:00",
+        alternativeScheduledTimes = emptyList(),
+        provisionalDurationMinutes = null,
         reasonForVisit = "Test",
+        referringSource = null,
+        timePreferencesAreReserved = false,
         expiresAt = "2026-08-11T09:00:00+08:00",
         cancelledAt = null,
         createdAt = "2026-08-09T10:00:00+08:00",
@@ -71,7 +78,8 @@ class RequestAppointmentViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun scheduleWithSlot(): RequestStep.Schedule {
-        coEvery { repo.getAvailability("2026-08-10") } returns Result.success(fakeAvailability)
+        coEvery { repo.getAvailability(any(), any()) } returns Result.success(fakeAvailability)
+        coEvery { repo.getAppointmentTypes() } returns Result.success(emptyList())
         vm.selectDate("2026-08-10")
         vm.selectSlot(fakeSlot)
         return vm.step.value as RequestStep.Schedule
@@ -84,7 +92,7 @@ class RequestAppointmentViewModelTest {
 
     @Test
     fun `selectDate loads availability`() {
-        coEvery { repo.getAvailability("2026-08-10") } returns Result.success(fakeAvailability)
+        coEvery { repo.getAvailability(any(), any()) } returns Result.success(fakeAvailability)
         vm.selectDate("2026-08-10")
         val step = vm.step.value as RequestStep.Schedule
         assertEquals("2026-08-10", step.date)
@@ -93,7 +101,7 @@ class RequestAppointmentViewModelTest {
 
     @Test
     fun `selectDate failure shows error`() {
-        coEvery { repo.getAvailability(any()) } returns Result.failure(Exception("Network"))
+        coEvery { repo.getAvailability(any(), any()) } returns Result.failure(Exception("Network"))
         vm.selectDate("2026-08-10")
         val step = vm.step.value as RequestStep.Schedule
         assertEquals("Network", step.availabilityError)
@@ -308,7 +316,7 @@ class RequestAppointmentViewModelTest {
 
     @Test
     fun `submit success returns request`() {
-        coEvery { repo.createRequest(any(), any(), any()) } returns Result.success(fakeRequest)
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.success(fakeRequest)
         scheduleWithSlot()
         vm.confirmSchedule()
         vm.updateReason("Test")
@@ -331,7 +339,7 @@ class RequestAppointmentViewModelTest {
             occupation = "Teacher",
             address = "123 Main St, Manila",
         )
-        coEvery { repo.createRequest(any(), any(), identity) } returns Result.success(fakeRequest)
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), identity) } returns Result.success(fakeRequest)
 
         scheduleWithSlot()
         vm.confirmSchedule(identityDetailsRequired = true)
@@ -352,8 +360,11 @@ class RequestAppointmentViewModelTest {
 
         coVerify {
             repo.createRequest(
+                appointmentTypeId = any(),
                 scheduledAt = fakeSlot.startsAt,
                 reasonForVisit = "Test",
+                alternativeScheduledTimes = any(),
+                referringSource = any(),
                 identity = identity,
             )
         }
@@ -361,7 +372,7 @@ class RequestAppointmentViewModelTest {
 
     @Test
     fun `submit SLOT_UNAVAILABLE returns to Schedule`() {
-        coEvery { repo.createRequest(any(), any(), any()) } returns Result.failure(
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
             ApiDomainError(422, "SLOT_UNAVAILABLE", "Slot taken.")
         )
         scheduleWithSlot()
@@ -375,7 +386,7 @@ class RequestAppointmentViewModelTest {
 
     @Test
     fun `submit ACTIVE_REQUEST_LIMIT_REACHED preserves draft`() {
-        coEvery { repo.createRequest(any(), any(), any()) } returns Result.failure(
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
             ApiDomainError(422, "ACTIVE_REQUEST_LIMIT_REACHED", "Limit reached.")
         )
         scheduleWithSlot()

@@ -27,7 +27,9 @@ class AppointmentRequestDetailViewModelTest {
 
     private val pendingRequest = AppointmentRequest(
         id = 1, requestNumber = "APR-2026-000001", status = AppointmentRequestStatus.PENDING,
-        patientId = null, scheduledAt = "2026-08-10T10:00:00+08:00", reasonForVisit = "Test",
+        patientId = null, appointmentType = null, scheduledAt = "2026-08-10T10:00:00+08:00",
+        alternativeScheduledTimes = emptyList(), provisionalDurationMinutes = null,
+        reasonForVisit = "Test", referringSource = null, timePreferencesAreReserved = false,
         expiresAt = "2026-08-11T10:00:00+08:00", cancelledAt = null, createdAt = "2026-08-09T10:00:00+08:00",
         appointmentId = null,
     )

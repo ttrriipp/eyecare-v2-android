@@ -3,6 +3,7 @@ package com.eyecare.app.data.remote.api
 import com.eyecare.app.data.remote.dto.AppointmentRequestAvailabilityResponse
 import com.eyecare.app.data.remote.dto.AppointmentRequestListResponse
 import com.eyecare.app.data.remote.dto.AppointmentRequestResponse
+import com.eyecare.app.data.remote.dto.AppointmentTypeListResponse
 import com.eyecare.app.data.remote.dto.CreateAppointmentRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -12,9 +13,13 @@ import retrofit2.http.Query
 
 interface AppointmentRequestApiService {
 
+    @GET("appointment-types")
+    suspend fun getAppointmentTypes(): AppointmentTypeListResponse
+
     @GET("appointment-request-availability")
     suspend fun getAvailability(
         @Query("date") date: String,
+        @Query("appointment_type_id") appointmentTypeId: Int,
     ): AppointmentRequestAvailabilityResponse
 
     @GET("appointment-requests")

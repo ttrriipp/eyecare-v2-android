@@ -7,17 +7,6 @@ import kotlinx.serialization.json.JsonElement
 object AppointmentV1Dtos {
 
     @Serializable
-    data class AppointmentTypeDto(
-        val id: Int,
-        val name: String,
-        @SerialName("duration_minutes") val durationMinutes: Int,
-        @SerialName("requires_referral") val requiresReferral: Boolean,
-    )
-
-    @Serializable
-    data class AppointmentTypeListResponse(val data: List<AppointmentTypeDto>)
-
-    @Serializable
     data class AssignedOptometristDto(
         val name: String,
     )
@@ -74,14 +63,6 @@ object AppointmentV1Dtos {
 
     @Serializable
     data class AppointmentAvailabilityResponse(val data: AppointmentAvailabilityDto)
-
-    @Serializable
-    data class CreateAppointmentRequest(
-        @SerialName("appointment_type_id") val appointmentTypeId: Int,
-        @SerialName("scheduled_at") val scheduledAt: String,
-        @SerialName("contact_notes") val contactNotes: String? = null,
-        @SerialName("referring_source") val referringSource: String? = null,
-    )
 
     @Serializable
     data class RescheduleRequest(

@@ -6,6 +6,12 @@ import org.junit.jupiter.api.Test
 class AppointmentRequestApiServiceTest {
 
     @Test
+    fun `service has getAppointmentTypes method`() {
+        val method = AppointmentRequestApiService::class.java.declaredMethods.firstOrNull { it.name == "getAppointmentTypes" }
+        assertTrue(method != null, "getAppointmentTypes method must exist")
+    }
+
+    @Test
     fun `service has availability method`() {
         val method = AppointmentRequestApiService::class.java.declaredMethods.firstOrNull { it.name == "getAvailability" }
         assertTrue(method != null, "getAvailability method must exist")

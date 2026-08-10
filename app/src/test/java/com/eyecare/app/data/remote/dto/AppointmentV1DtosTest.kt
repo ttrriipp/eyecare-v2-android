@@ -14,43 +14,6 @@ class AppointmentV1DtosTest {
     private val json = ApiContractFixtures.json
 
     @Test
-    fun `appointment type decodes requires_referral`() {
-        val dto = json.decodeFromString<AppointmentV1Dtos.AppointmentTypeDto>(
-            """
-            {
-              "id": 4,
-              "name": "Referral",
-              "duration_minutes": 30,
-              "requires_referral": true
-            }
-            """.trimIndent(),
-        )
-
-        assertEquals(4, dto.id)
-        assertEquals("Referral", dto.name)
-        assertEquals(30, dto.durationMinutes)
-        assertTrue(dto.requiresReferral)
-    }
-
-    @Test
-    fun `appointment type with requires_referral false`() {
-        val dto = json.decodeFromString<AppointmentV1Dtos.AppointmentTypeDto>(
-            """
-            {
-              "id": 1,
-              "name": "New Patient",
-              "duration_minutes": 30,
-              "requires_referral": false
-            }
-            """.trimIndent(),
-        )
-
-        assertEquals(1, dto.id)
-        assertEquals("New Patient", dto.name)
-        assertFalse(dto.requiresReferral)
-    }
-
-    @Test
     fun `appointment list decodes pagination and name-only optometrist`() {
         val response = json.decodeFromString<AppointmentV1Dtos.AppointmentListResponse>(
             """
@@ -143,33 +106,5 @@ class AppointmentV1DtosTest {
         assertNull(dto.slots[0].reason)
         assertFalse(dto.slots[1].available)
         assertEquals("capacity_reached", dto.slots[1].reason)
-    }
-
-    @Test
-    fun `create request uses appointment_type_id and optional referring_source`() {
-        val request = AppointmentV1Dtos.CreateAppointmentRequest(
-            appointmentTypeId = 4,
-            scheduledAt = "2026-07-28T10:00:00+08:00",
-            contactNotes = null,
-            referringSource = "Dr. Smith",
-        )
-
-        val encoded = json.encodeToString(AppointmentV1Dtos.CreateAppointmentRequest.serializer(), request)
-
-        assertTrue(encoded.contains("\"appointment_type_id\":4"))
-        assertTrue(encoded.contains("\"referring_source\":\"Dr. Smith\""))
-    }
-
-    @Test
-    fun `create request omits null referring_source`() {
-        val request = AppointmentV1Dtos.CreateAppointmentRequest(
-            appointmentTypeId = 1,
-            scheduledAt = "2026-07-28T10:00:00+08:00",
-        )
-
-        val encoded = json.encodeToString(AppointmentV1Dtos.CreateAppointmentRequest.serializer(), request)
-
-        assertTrue(encoded.contains("\"appointment_type_id\":1"))
-        assertFalse(encoded.contains("referring_source"))
     }
 }
