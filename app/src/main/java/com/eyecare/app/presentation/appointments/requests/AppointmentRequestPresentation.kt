@@ -50,7 +50,7 @@ fun AppointmentRequestStatusPill(status: AppointmentRequestStatus, label: String
 fun requestStatusPresentation(status: AppointmentRequestStatus): RequestStatusPresentation = when (status) {
     AppointmentRequestStatus.PENDING -> RequestStatusPresentation(
         label = "Awaiting clinic review",
-        description = "The requested time is held while staff review it.",
+        description = "Your request is awaiting clinic review. No time is reserved until confirmed.",
         showCancel = true,
     )
     AppointmentRequestStatus.ACCEPTED -> RequestStatusPresentation(
@@ -68,7 +68,7 @@ fun requestStatusPresentation(status: AppointmentRequestStatus): RequestStatusPr
     )
     AppointmentRequestStatus.EXPIRED -> RequestStatusPresentation(
         label = "Expired",
-        description = "The request was not resolved before its hold expired.",
+        description = "The request was not resolved.",
     )
     AppointmentRequestStatus.UNKNOWN -> RequestStatusPresentation(
         label = "Status unavailable",

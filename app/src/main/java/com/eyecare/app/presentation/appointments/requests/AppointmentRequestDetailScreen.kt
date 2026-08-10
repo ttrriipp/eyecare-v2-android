@@ -69,7 +69,7 @@ fun AppointmentRequestDetailScreen(
             iconTint = MaterialTheme.colorScheme.error,
             isDestructive = true,
             title = "Cancel this request?",
-            message = "This can't be undone. Your requested time will be released.",
+            message = "This can't be undone. Your request will be cancelled.",
             confirmLabel = "Cancel request",
             dismissLabel = "Keep",
             onConfirm = {
@@ -183,15 +183,36 @@ private fun RequestDetailDataContent(
                                 "Time",
                                 formatDetailTime(state.request.scheduledAt),
                             )
+                            state.request.appointmentType?.let { type ->
+                                DetailMetadataRow(
+                                    Icons.Outlined.EventAvailable,
+                                    "Type",
+                                    "${type.name} (${type.durationMinutes} min)",
+                                )
+                            }
+                        }
+                    }
+
+                    if (state.request.alternativeScheduledTimes.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Alternative times",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            state.request.alternativeScheduledTimes.forEachIndexed { index, time ->
+                                Text(
+                                    text = "${index + 1}. ${formatDetailTime(time)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
                         }
                     }
 
                     DetailRow(label = "Reason for visit", value = state.request.reasonForVisit)
 
-                    state.request.expiresAt?.let {
-                        if (state.request.status == AppointmentRequestStatus.PENDING) {
-                            DetailRow(label = "Expires", value = formatDetailDate(it))
-                        }
+                    state.request.referringSource?.let {
+                        DetailRow(label = "Referral source", value = it)
                     }
 
                     state.request.cancelledAt?.let {
