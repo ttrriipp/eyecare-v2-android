@@ -1,16 +1,17 @@
 package com.eyecare.app.data.remote
 
 /**
- * V15 route governance — exact 53-route contract.
+ * V16 route governance — 55-route contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
- * 2. Account-only routes (24) — authenticated, no patient link required
- * 3. Active-link routes (20) — require active patient link
+ * 2. Account-only routes (26) — authenticated, no patient link required
+ * 3. Active-link routes (20) — require active patient link (canonical)
  * 4. Legacy alias routes (1) — exists server-side, must not be called by this client
  *
- * The API contract's active-link section lists 21 routes (20 canonical + 1 legacy alias).
- * Total contract routes: 8 + 24 + 21 = 53.
+ * Total registered callable routes: 8 + 26 + 20 + 1 = 55.
+ * Canonical routes (production Android may call): 8 + 26 + 20 = 54.
+ * The legacy alias exists for backward compatibility only.
  *
  * Retired routes (eyewear, job-orders, billing-records) are explicitly rejected.
  */
@@ -29,7 +30,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/auth/policies",
     )
 
-    /** Account-only routes — authenticated, no patient link required. (24) */
+    /** Account-only routes — authenticated, no patient link required. (26) */
     val accountOnlyRoutes: Set<String> = setOf(
         "POST $BASE/logout",
         "POST $BASE/logout-all",
@@ -48,6 +49,8 @@ internal object ApprovedApiRoutes {
         "GET $BASE/patient-link-requests/current",
         "POST $BASE/patient-invitations/acceptance/otp",
         "POST $BASE/patient-invitations/accept",
+        "GET $BASE/appointment-types",
+        "GET $BASE/appointment-optometrists",
         "GET $BASE/appointment-request-availability",
         "GET $BASE/appointment-requests",
         "POST $BASE/appointment-requests",
@@ -95,8 +98,6 @@ internal object ApprovedApiRoutes {
         // Billing records (retired)
         "GET $BASE/billing-records",
         "GET $BASE/billing-records/{billingRecord}",
-        // Appointment types (retired)
-        "GET $BASE/appointment-types",
         // Appointment intake (retired)
         "GET $BASE/appointments/{appointment}/intake",
         "PUT $BASE/appointments/{appointment}/intake",

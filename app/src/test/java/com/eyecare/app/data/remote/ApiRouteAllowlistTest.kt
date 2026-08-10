@@ -14,7 +14,7 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `account-only routes match expected count`() {
-        assertEquals(24, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
+        assertEquals(26, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
     }
 
     @Test
@@ -24,10 +24,10 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
-    fun `total approved routes is exactly 53`() {
-        // 8 public + 24 account-only + 20 active-link = 52 callable
-        // + 1 legacy alias (in contract's active-link section but not callable) = 53 total
-        assertEquals(52, ApprovedApiRoutes.allApproved.size, "Total callable approved routes")
+    fun `total approved routes is exactly 55`() {
+        // 8 public + 26 account-only + 20 active-link = 54 canonical callable
+        // + 1 legacy alias = 55 registered callable
+        assertEquals(54, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test
@@ -56,6 +56,26 @@ class ApiRouteAllowlistTest {
         assertTrue(
             "POST /api/v1/job-order-items/{item}/rating" !in ApprovedApiRoutes.rejectedRoutes,
             "Legacy alias must not be in rejectedRoutes (backend keeps it intentionally)",
+        )
+    }
+
+    @Test
+    fun `appointment types is approved and no longer rejected`() {
+        assertTrue(
+            "GET /api/v1/appointment-types" in ApprovedApiRoutes.accountOnlyRoutes,
+            "appointment-types must be an approved account-only route",
+        )
+        assertTrue(
+            "GET /api/v1/appointment-types" !in ApprovedApiRoutes.rejectedRoutes,
+            "appointment-types must not be in rejected routes",
+        )
+    }
+
+    @Test
+    fun `appointment optometrists is approved account-only`() {
+        assertTrue(
+            "GET /api/v1/appointment-optometrists" in ApprovedApiRoutes.accountOnlyRoutes,
+            "appointment-optometrists must be an approved account-only route",
         )
     }
 
