@@ -56,6 +56,7 @@ import java.time.LocalDate
 fun ProfileAndReasonContent(
     state: RequestStep.Details,
     onReasonChange: (String) -> Unit,
+    onReferringSourceChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onFirstNameChange: (String) -> Unit,
     onMiddleNameChange: (String) -> Unit,
@@ -95,8 +96,8 @@ fun ProfileAndReasonContent(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             WizardStepIndicator(
-                currentStep = 1,
-                steps = listOf("Schedule", "Details", "Review"),
+                currentStep = 2,
+                steps = listOf("Type", "Schedule", "Details", "Review"),
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
 
@@ -124,6 +125,22 @@ fun ProfileAndReasonContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+
+                if (state.selectedType.requiresReferral) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SectionLabel("Referral source")
+                        OutlinedTextField(
+                            value = state.referringSource,
+                            onValueChange = onReferringSourceChange,
+                            label = { Text("Who referred you?") },
+                            placeholder = { Text("e.g., Dr. Smith") },
+                            modifier = Modifier.fillMaxWidth(),
+                            isError = state.referringSourceError != null,
+                            supportingText = state.referringSourceError?.let { { Text(it) } },
+                            singleLine = true,
+                        )
+                    }
                 }
 
                 if (state.identityRequired) {

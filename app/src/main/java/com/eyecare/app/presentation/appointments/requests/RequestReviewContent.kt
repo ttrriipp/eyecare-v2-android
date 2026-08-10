@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -66,8 +67,8 @@ fun RequestReviewContent(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             Column(modifier = Modifier.fillMaxSize()) {
                 WizardStepIndicator(
-                    currentStep = 2,
-                    steps = listOf("Schedule", "Details", "Review"),
+                    currentStep = 3,
+                    steps = listOf("Type", "Schedule", "Details", "Review"),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                 )
 
@@ -109,9 +110,32 @@ fun RequestReviewContent(
                                         "Time",
                                         formatTimeSlot(state.primarySlot.startsAt, state.primarySlot.endsAt),
                                     )
+                                    ReviewMetadataRow(
+                                        Icons.Outlined.EventAvailable,
+                                        "Type",
+                                        "${state.selectedType.name} (${state.selectedType.durationMinutes} min)",
+                                    )
+                                }
+                            }
+                            if (state.alternativeSlots.isNotEmpty()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = "Alternative times",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    state.alternativeSlots.forEachIndexed { index, slot ->
+                                        Text(
+                                            text = "${index + 1}. ${formatTimeSlot(slot.startsAt, slot.endsAt)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
                                 }
                             }
                             ReviewRow(label = "Reason for visit", value = state.reason)
+                            state.referringSource?.let {
+                                ReviewRow(label = "Referral source", value = it)
+                            }
                         }
                     }
 

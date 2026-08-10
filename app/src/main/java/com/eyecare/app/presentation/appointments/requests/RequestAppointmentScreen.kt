@@ -71,7 +71,7 @@ import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
-private val wizardSteps = listOf("Schedule", "Details", "Review")
+private val wizardSteps = listOf("Type", "Schedule", "Details", "Review")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,6 +108,7 @@ fun RequestAppointmentScreen(
         is RequestStep.Details -> ProfileAndReasonContent(
             state = s,
             onReasonChange = { viewModel.updateReason(it) },
+            onReferringSourceChange = { viewModel.updateReferringSource(it) },
             onEmailChange = { viewModel.updateIdentity(email = it) },
             onFirstNameChange = { viewModel.updateIdentity(firstName = it) },
             onMiddleNameChange = { viewModel.updateIdentity(middleName = it) },
@@ -171,7 +172,7 @@ private fun ScheduleContent(
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
                 val date = Instant.ofEpochMilli(utcTimeMillis).atZone(CLINIC_TIME_ZONE).toLocalDate()
-                return !date.isBefore(today) && date.dayOfWeek != java.time.DayOfWeek.SUNDAY
+                return !date.isBefore(today)
             }
         },
     )
@@ -189,7 +190,7 @@ private fun ScheduleContent(
         ) {
             // Wizard step indicator
             WizardStepIndicator(
-                currentStep = 0,
+                currentStep = 1,
                 steps = wizardSteps,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
             )
@@ -229,9 +230,7 @@ private fun ScheduleContent(
                                 LoadingContent(modifier = Modifier.fillMaxWidth().weight(1f))
                             }
                             else -> {
-                                // Use real slots if available, otherwise show placeholder slots for UI preview
-                                val realSlots = state.availability?.slots?.filter { it.available } ?: emptyList()
-                                val availableSlots = realSlots.ifEmpty { placeholderSlots() }
+                                val availableSlots = state.availability?.slots?.filter { it.available } ?: emptyList()
                                 val morningSlots = availableSlots.filter { slot ->
                                     val time = parseSlotTime(slot.startsAt)
                                     time != null && time.hour < 12
