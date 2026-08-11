@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.eyecare.app.data.remote.api.ConversationApiService
 import com.eyecare.app.data.remote.dto.MessageDtos
+import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.ConversationAccessLevel
 import com.eyecare.app.domain.model.ConversationCapabilities
@@ -25,15 +26,15 @@ class ChatRepositoryImpl @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) : ChatRepository {
 
-    override suspend fun getConversation(): Result<Conversation> = runCatching {
+    override suspend fun getConversation(): Result<Conversation> = safeApiCall {
         api.getConversation().data.toDomain()
     }
 
-    override suspend fun getMessages(): Result<List<Message>> = runCatching {
+    override suspend fun getMessages(): Result<List<Message>> = safeApiCall {
         api.getMessages().data.map { it.toDomain() }
     }
 
-    override suspend fun sendMessage(body: String): Result<Message> = runCatching {
+    override suspend fun sendMessage(body: String): Result<Message> = safeApiCall {
         api.sendMessage(MessageDtos.SendMessageRequest(body)).data.toDomain()
     }
 
@@ -41,7 +42,7 @@ class ChatRepositoryImpl @Inject constructor(
         uri: Uri,
         mimeType: String,
         fileName: String,
-    ): Result<Message> = runCatching {
+    ): Result<Message> = safeApiCall {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: error("Cannot open file")
         val tempFile = File.createTempFile("upload_", null, context.cacheDir)
@@ -58,8 +59,18 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun downloadAttachment(attachmentId: Int): Result<AttachmentDownload> = runCatching {
+    override suspend fun downloadAttachment(attachmentId: Int): Result<AttachmentDownload> = safeApiCall {
         val response = api.downloadAttachment(attachmentId)
+        if (!response.isSuccessful) {
+            val body = response.errorBody()?.string()
+            val error = com.eyecare.app.data.remote.ApiErrorDecoder.decode(response.code(), body)
+            throw ApiDomainError(
+                httpStatus = error.httpStatus,
+                code = error.code,
+                message = error.message,
+                fieldErrors = error.fieldErrors,
+            )
+        }
         val body = response.body() ?: error("Empty attachment response")
         val bytes = body.byteStream().readBytes()
         val fileName = response.headers()["Content-Disposition"]
