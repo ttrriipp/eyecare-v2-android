@@ -53,6 +53,85 @@ class RequestAppointmentScheduleScreenTest {
         composeRule.runOnIdle { check(alternatives == listOf(slotTwo)) }
     }
 
+    @Test
+    fun availabilityError_showsRetryAction() {
+        var retryCount by mutableStateOf(0)
+
+        composeRule.setContent {
+            EyecareTheme {
+                ScheduleContent(
+                    state = scheduleState(emptyList()).copy(
+                        availability = null,
+                        availabilityError = "We couldn't load availability. Please try again.",
+                    ),
+                    onDateSelected = {},
+                    onSelectSlot = {},
+                    onAddAlternative = {},
+                    onRemoveAlternative = {},
+                    onRetry = { retryCount++ },
+                    onConfirm = {},
+                    onBack = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("We couldn't load availability. Please try again.")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Retry").performClick()
+        composeRule.runOnIdle { check(retryCount == 1) }
+    }
+
+    @Test
+    fun closedDay_showsClosedState() {
+        composeRule.setContent {
+            EyecareTheme {
+                ScheduleContent(
+                    state = scheduleState(emptyList()).copy(
+                        availability = scheduleState(emptyList()).availability?.copy(
+                            dayStatus = "closed",
+                            slots = emptyList(),
+                        ),
+                    ),
+                    onDateSelected = {},
+                    onSelectSlot = {},
+                    onAddAlternative = {},
+                    onRemoveAlternative = {},
+                    onRetry = {},
+                    onConfirm = {},
+                    onBack = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("The clinic is closed on this date.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun openDayWithNoAvailableSlots_showsEmptyState() {
+        composeRule.setContent {
+            EyecareTheme {
+                ScheduleContent(
+                    state = scheduleState(emptyList()).copy(
+                        availability = scheduleState(emptyList()).availability?.copy(
+                            slots = emptyList(),
+                        ),
+                    ),
+                    onDateSelected = {},
+                    onSelectSlot = {},
+                    onAddAlternative = {},
+                    onRemoveAlternative = {},
+                    onRetry = {},
+                    onConfirm = {},
+                    onBack = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("No appointment times are available on this date.")
+            .assertIsDisplayed()
+    }
+
     private fun scheduleState(alternatives: List<AvailabilitySlot>) = RequestStep.Schedule(
         selectedType = appointmentType,
         date = "2026-08-10",

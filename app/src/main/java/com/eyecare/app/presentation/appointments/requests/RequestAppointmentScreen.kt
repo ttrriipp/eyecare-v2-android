@@ -62,6 +62,7 @@ import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.appointments.components.WizardStepIndicator
+import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
 import com.eyecare.app.ui.theme.EyecareColors
@@ -242,71 +243,95 @@ internal fun ScheduleContent(
                             state.isLoadingAvailability -> {
                                 LoadingContent(modifier = Modifier.fillMaxWidth().weight(1f))
                             }
+                            state.availabilityError != null -> {
+                                ErrorContent(
+                                    message = state.availabilityError,
+                                    onRetry = onRetry,
+                                    modifier = Modifier.fillMaxWidth().weight(1f),
+                                )
+                            }
                             else -> {
                                 val availableSlots = state.availability?.slots?.filter { it.available } ?: emptyList()
-                                val morningSlots = availableSlots.filter { slot ->
-                                    val time = parseSlotTime(slot.startsAt)
-                                    time != null && time.hour < 12
-                                }
-                                val afternoonSlots = availableSlots.filter { slot ->
-                                    val time = parseSlotTime(slot.startsAt)
-                                    time != null && time.hour >= 12
-                                }
-
-                                LazyColumn(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                                    contentPadding = PaddingValues(bottom = 16.dp),
-                                ) {
-                                    if (morningSlots.isNotEmpty()) {
-                                        item {
-                                            TimePeriodHeader(
-                                                icon = Icons.Outlined.WbSunny,
-                                                label = "Morning",
-                                                count = morningSlots.size,
-                                            )
-                                        }
-                                        items(morningSlots) { slot ->
-                                            val alternativeOrder = state.alternativeSlots
-                                                .indexOfFirst { it.startsAt == slot.startsAt }
-                                                .takeIf { it >= 0 }
-                                                ?.plus(1)
-                                            SlotCard(
-                                                slot = slot,
-                                                isSelected = slot == state.primarySlot,
-                                                alternativeOrder = alternativeOrder,
-                                                canAddAlternative = state.primarySlot != null &&
-                                                    alternativeOrder == null &&
-                                                    state.alternativeSlots.size < maxAlternativeSlots,
-                                                onClick = { onSelectSlot(slot) },
-                                                onAddAlternative = { onAddAlternative(slot) },
-                                            )
-                                        }
+                                val dayStatus = state.availability?.dayStatus?.lowercase()
+                                when {
+                                    dayStatus != null && dayStatus != "open" -> {
+                                        EmptyContent(
+                                            message = availabilityUnavailableMessage(dayStatus),
+                                            modifier = Modifier.fillMaxWidth().weight(1f),
+                                        )
                                     }
-
-                                    if (afternoonSlots.isNotEmpty()) {
-                                        item {
-                                            TimePeriodHeader(
-                                                icon = Icons.Outlined.DarkMode,
-                                                label = "Afternoon",
-                                                count = afternoonSlots.size,
-                                            )
+                                    availableSlots.isEmpty() -> {
+                                        EmptyContent(
+                                            message = "No appointment times are available on this date.",
+                                            modifier = Modifier.fillMaxWidth().weight(1f),
+                                        )
+                                    }
+                                    else -> {
+                                        val morningSlots = availableSlots.filter { slot ->
+                                            val time = parseSlotTime(slot.startsAt)
+                                            time != null && time.hour < 12
                                         }
-                                        items(afternoonSlots) { slot ->
-                                            val alternativeOrder = state.alternativeSlots
-                                                .indexOfFirst { it.startsAt == slot.startsAt }
-                                                .takeIf { it >= 0 }
-                                                ?.plus(1)
-                                            SlotCard(
-                                                slot = slot,
-                                                isSelected = slot == state.primarySlot,
-                                                alternativeOrder = alternativeOrder,
-                                                canAddAlternative = state.primarySlot != null &&
-                                                    alternativeOrder == null &&
-                                                    state.alternativeSlots.size < maxAlternativeSlots,
-                                                onClick = { onSelectSlot(slot) },
-                                                onAddAlternative = { onAddAlternative(slot) },
-                                            )
+                                        val afternoonSlots = availableSlots.filter { slot ->
+                                            val time = parseSlotTime(slot.startsAt)
+                                            time != null && time.hour >= 12
+                                        }
+
+                                        LazyColumn(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                                            contentPadding = PaddingValues(bottom = 16.dp),
+                                        ) {
+                                            if (morningSlots.isNotEmpty()) {
+                                                item {
+                                                    TimePeriodHeader(
+                                                        icon = Icons.Outlined.WbSunny,
+                                                        label = "Morning",
+                                                        count = morningSlots.size,
+                                                    )
+                                                }
+                                                items(morningSlots) { slot ->
+                                                    val alternativeOrder = state.alternativeSlots
+                                                        .indexOfFirst { it.startsAt == slot.startsAt }
+                                                        .takeIf { it >= 0 }
+                                                        ?.plus(1)
+                                                    SlotCard(
+                                                        slot = slot,
+                                                        isSelected = slot == state.primarySlot,
+                                                        alternativeOrder = alternativeOrder,
+                                                        canAddAlternative = state.primarySlot != null &&
+                                                            alternativeOrder == null &&
+                                                            state.alternativeSlots.size < maxAlternativeSlots,
+                                                        onClick = { onSelectSlot(slot) },
+                                                        onAddAlternative = { onAddAlternative(slot) },
+                                                    )
+                                                }
+                                            }
+
+                                            if (afternoonSlots.isNotEmpty()) {
+                                                item {
+                                                    TimePeriodHeader(
+                                                        icon = Icons.Outlined.DarkMode,
+                                                        label = "Afternoon",
+                                                        count = afternoonSlots.size,
+                                                    )
+                                                }
+                                                items(afternoonSlots) { slot ->
+                                                    val alternativeOrder = state.alternativeSlots
+                                                        .indexOfFirst { it.startsAt == slot.startsAt }
+                                                        .takeIf { it >= 0 }
+                                                        ?.plus(1)
+                                                    SlotCard(
+                                                        slot = slot,
+                                                        isSelected = slot == state.primarySlot,
+                                                        alternativeOrder = alternativeOrder,
+                                                        canAddAlternative = state.primarySlot != null &&
+                                                            alternativeOrder == null &&
+                                                            state.alternativeSlots.size < maxAlternativeSlots,
+                                                        onClick = { onSelectSlot(slot) },
+                                                        onAddAlternative = { onAddAlternative(slot) },
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -631,6 +656,13 @@ private fun parseSlotTime(startsAt: String): LocalTime? {
         Instant.parse(startsAt).atZone(CLINIC_TIME_ZONE).toLocalTime()
     } catch (_: Exception) {
         null
+    }
+}
+
+private fun availabilityUnavailableMessage(dayStatus: String): String {
+    return when (dayStatus) {
+        "closed", "holiday" -> "The clinic is closed on this date."
+        else -> "No appointment times are available on this date."
     }
 }
 
