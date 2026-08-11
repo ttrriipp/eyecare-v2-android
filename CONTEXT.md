@@ -146,6 +146,11 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   invalid/expired invitation, invalid OTP, too many attempts, OTP rate limits, already-linked
   conflicts, and pending clinic-link requests. Unknown failures retain a safe server message or use
   a generic fallback.
+- Invitation OTP requests and acceptance verification are single-flight on mobile; their controls
+  disable while the request is in progress so rapid taps cannot create duplicate challenges or
+  acceptance calls. A 429 is shown as a retry-later message rather than a session-expired error.
+- After invitation acceptance, the app fetches the linked account once, hands that account directly
+  to `SessionViewModel`, and navigates without issuing a second session-resolution `GET /me`.
 
 ### Implementation rationale and scope
 
@@ -160,7 +165,8 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 ### Verification
 
 - Focused auth/linking unit tests cover route intent restoration, linking errors, OTP expiry
-  presentation, and password-recovery normalization.
+  presentation, single-flight invitation actions, 429 recovery copy, linked-session handoff, and
+  password-recovery normalization.
 - `./gradlew testDebugUnitTest` and `./gradlew assembleDebug` pass for the current implementation.
 
 ## Booking Wizard — Date & Time Selection

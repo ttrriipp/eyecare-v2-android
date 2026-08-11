@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -29,6 +30,7 @@ sealed interface LimitedAccountState {
         val account: PatientAccount,
         val code: String = "",
         val error: String? = null,
+        val isRequesting: Boolean = false,
     ) : LimitedAccountState
     data class VerifyInvitationOtp(
         val account: PatientAccount,
@@ -38,6 +40,7 @@ sealed interface LimitedAccountState {
         val code: String = "",
         val error: String? = null,
         val isResending: Boolean = false,
+        val isVerifying: Boolean = false,
     ) : LimitedAccountState
     data class Linked(val account: PatientAccount) : LimitedAccountState
     data class Error(val message: String) : LimitedAccountState
@@ -58,7 +61,12 @@ class LimitedAccountViewModel @Inject constructor(
     ))
     val state: StateFlow<LimitedAccountState> = _state.asStateFlow()
 
+    private var linkStateRefreshJob: Job? = null
+    private var linkRequestRefreshJob: Job? = null
+    private var linkedAccountRefreshJob: Job? = null
+
     fun load(account: PatientAccount) {
+        cancelRefreshJobs()
         _state.value = LimitedAccountState.Overview(account = account)
         refreshLinkState()
         refreshCurrentLinkRequest()
@@ -113,48 +121,63 @@ class LimitedAccountViewModel @Inject constructor(
 
     fun updateInvitationCode(code: String) {
         val current = _state.value
-        if (current is LimitedAccountState.EnterInvitationCode) {
+        if (current is LimitedAccountState.EnterInvitationCode && !current.isRequesting) {
             _state.value = current.copy(code = code, error = null)
         }
     }
 
     fun requestInvitationOtp() {
         val current = _state.value
-        if (current !is LimitedAccountState.EnterInvitationCode || current.code.isBlank()) return
+        if (
+            current !is LimitedAccountState.EnterInvitationCode ||
+            current.code.isBlank() ||
+            current.isRequesting
+        ) return
 
         viewModelScope.launch {
-            _state.value = current.copy(error = null)
+            _state.value = current.copy(error = null, isRequesting = true)
             val invitationCode = current.code.trim()
             accountRepository.requestInvitationOtp(invitationCode)
                 .onSuccess { challenge ->
-                    _state.value = LimitedAccountState.VerifyInvitationOtp(
-                        account = current.account,
-                        invitationCode = invitationCode,
-                        challengeId = challenge.challengeId,
-                        expiresAt = challenge.expiresAt,
-                    )
+                    val latest = _state.value
+                    if (latest is LimitedAccountState.EnterInvitationCode && latest.isRequesting) {
+                        _state.value = LimitedAccountState.VerifyInvitationOtp(
+                            account = latest.account,
+                            invitationCode = invitationCode,
+                            challengeId = challenge.challengeId,
+                            expiresAt = challenge.expiresAt,
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(
-                        error = linkingErrorMessage(
-                            error,
-                            fallback = "Could not check that invitation code.",
-                        ),
-                    )
+                    val latest = _state.value
+                    if (latest is LimitedAccountState.EnterInvitationCode && latest.isRequesting) {
+                        _state.value = latest.copy(
+                            isRequesting = false,
+                            error = linkingErrorMessage(
+                                error,
+                                fallback = "Could not check that invitation code.",
+                            ),
+                        )
+                    }
                 }
         }
     }
 
     fun resendInvitationOtp() {
         val current = _state.value
-        if (current !is LimitedAccountState.VerifyInvitationOtp || current.isResending) return
+        if (
+            current !is LimitedAccountState.VerifyInvitationOtp ||
+            current.isResending ||
+            current.isVerifying
+        ) return
 
         viewModelScope.launch {
             _state.value = current.copy(isResending = true, error = null, code = "")
             accountRepository.requestInvitationOtp(current.invitationCode)
                 .onSuccess { challenge ->
                     val latest = _state.value
-                    if (latest is LimitedAccountState.VerifyInvitationOtp) {
+                    if (latest is LimitedAccountState.VerifyInvitationOtp && latest.isResending) {
                         _state.value = latest.copy(
                             challengeId = challenge.challengeId,
                             expiresAt = challenge.expiresAt,
@@ -166,7 +189,7 @@ class LimitedAccountViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     val latest = _state.value
-                    if (latest is LimitedAccountState.VerifyInvitationOtp) {
+                    if (latest is LimitedAccountState.VerifyInvitationOtp && latest.isResending) {
                         _state.value = latest.copy(
                             isResending = false,
                             error = linkingErrorMessage(
@@ -181,7 +204,11 @@ class LimitedAccountViewModel @Inject constructor(
 
     fun updateOtpCode(code: String) {
         val current = _state.value
-        if (current is LimitedAccountState.VerifyInvitationOtp) {
+        if (
+            current is LimitedAccountState.VerifyInvitationOtp &&
+            !current.isResending &&
+            !current.isVerifying
+        ) {
             _state.value = current.copy(code = code, error = null)
         }
     }
@@ -191,31 +218,40 @@ class LimitedAccountViewModel @Inject constructor(
         if (
             current !is LimitedAccountState.VerifyInvitationOtp ||
             current.isResending ||
+            current.isVerifying ||
             current.code.length != 6
         ) return
 
         viewModelScope.launch {
-            _state.value = current.copy(error = null)
+            cancelRefreshJobs()
+            _state.value = current.copy(error = null, isVerifying = true)
             accountRepository.acceptInvitation(
                 invitationCode = current.invitationCode,
                 challengeId = current.challengeId,
                 code = current.code,
             ).onSuccess { linkState ->
+                val latest = _state.value
+                if (latest !is LimitedAccountState.VerifyInvitationOtp || !latest.isVerifying) return@onSuccess
+
                 if (linkState is LinkState.Linked) {
                     refreshMeForLinked()
                 } else {
                     _state.value = LimitedAccountState.Overview(
-                        account = current.account,
+                        account = latest.account,
                         linkState = linkState,
                     )
                 }
             }.onFailure { error ->
-                _state.value = current.copy(
-                    error = linkingErrorMessage(
-                        error,
-                        fallback = "Could not verify the invitation code.",
-                    ),
-                )
+                val latest = _state.value
+                if (latest is LimitedAccountState.VerifyInvitationOtp && latest.isVerifying) {
+                    _state.value = latest.copy(
+                        isVerifying = false,
+                        error = linkingErrorMessage(
+                            error,
+                            fallback = "Could not verify the invitation code.",
+                        ),
+                    )
+                }
             }
         }
     }
@@ -223,11 +259,13 @@ class LimitedAccountViewModel @Inject constructor(
     fun back() {
         when (val current = _state.value) {
             is LimitedAccountState.EnterInvitationCode -> {
+                if (current.isRequesting) return
                 _state.value = LimitedAccountState.Overview(current.account)
                 refreshLinkState()
                 refreshCurrentLinkRequest()
             }
             is LimitedAccountState.VerifyInvitationOtp -> {
+                if (current.isResending || current.isVerifying) return
                 _state.value = LimitedAccountState.EnterInvitationCode(current.account, current.invitationCode)
             }
             else -> Unit
@@ -235,7 +273,8 @@ class LimitedAccountViewModel @Inject constructor(
     }
 
     private fun refreshMeForLinked() {
-        viewModelScope.launch {
+        linkedAccountRefreshJob?.cancel()
+        linkedAccountRefreshJob = viewModelScope.launch {
             authRepository.getMe()
                 .onSuccess { account ->
                     if (account.linkStatus == PatientLinkStatus.LINKED) {
@@ -244,14 +283,20 @@ class LimitedAccountViewModel @Inject constructor(
                         _state.value = LimitedAccountState.Overview(account = account)
                     }
                 }
-                .onFailure {
-                    _state.value = LimitedAccountState.Error("Could not verify link status")
+                .onFailure { error ->
+                    _state.value = LimitedAccountState.Error(
+                        linkingErrorMessage(
+                            error,
+                            fallback = "Could not verify link status. Please try again.",
+                        ),
+                    )
                 }
         }
     }
 
     private fun refreshLinkState() {
-        viewModelScope.launch {
+        linkStateRefreshJob?.cancel()
+        linkStateRefreshJob = viewModelScope.launch {
             accountRepository.getLinkState()
                 .onSuccess { linkState ->
                     if (linkState is LinkState.Linked) {
@@ -267,7 +312,8 @@ class LimitedAccountViewModel @Inject constructor(
     }
 
     private fun refreshCurrentLinkRequest() {
-        viewModelScope.launch {
+        linkRequestRefreshJob?.cancel()
+        linkRequestRefreshJob = viewModelScope.launch {
             accountRepository.getCurrentPatientLinkRequest()
                 .onSuccess { request ->
                     val current = _state.value
@@ -287,6 +333,9 @@ class LimitedAccountViewModel @Inject constructor(
 
     private fun linkingErrorMessage(error: Throwable, fallback: String): String {
         val apiError = error as? ApiDomainError
+        if (apiError?.httpStatus == 429 || apiError?.code == AuthApiCodes.OTP_RATE_LIMIT_REACHED) {
+            return "Too many requests. Please wait before trying again."
+        }
         return when (apiError?.code) {
             AuthApiCodes.INVITATION_INVALID ->
                 "That invitation code is invalid or expired. Check it and try again."
@@ -310,5 +359,11 @@ class LimitedAccountViewModel @Inject constructor(
                 ?: error.message?.takeIf(String::isNotBlank)
                 ?: fallback
         }
+    }
+
+    private fun cancelRefreshJobs() {
+        linkStateRefreshJob?.cancel()
+        linkRequestRefreshJob?.cancel()
+        linkedAccountRefreshJob?.cancel()
     }
 }

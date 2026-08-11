@@ -11,11 +11,15 @@ import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.repository.AccountRepository
 import com.eyecare.app.domain.repository.AuthRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -84,6 +88,28 @@ class LimitedAccountViewModelTest {
     }
 
     @Test
+    fun `requesting invitation otp is single flight`() = runTest {
+        coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
+        val response = CompletableDeferred<Result<OtpChallenge>>()
+        coEvery { accountRepo.requestInvitationOtp("INV-123") } coAnswers { response.await() }
+
+        vm.load(unlinkedAccount)
+        vm.startInvitationEntry()
+        vm.updateInvitationCode("INV-123")
+        vm.requestInvitationOtp()
+        vm.requestInvitationOtp()
+
+        assertTrue((vm.state.value as LimitedAccountState.EnterInvitationCode).isRequesting)
+        coVerify(exactly = 1) { accountRepo.requestInvitationOtp("INV-123") }
+
+        response.complete(Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00")))
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value is LimitedAccountState.VerifyInvitationOtp)
+    }
+
+    @Test
     fun `requestInvitationOtp failure shows error`() {
         coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
         coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
@@ -124,6 +150,28 @@ class LimitedAccountViewModelTest {
     }
 
     @Test
+    fun `invitation rate limit uses retry-later copy`() {
+        coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
+        coEvery { accountRepo.requestInvitationOtp("INV-123") } returns Result.failure(
+            ApiDomainError(
+                httpStatus = 429,
+                code = "UNKNOWN_ERROR",
+                message = "Too Many Attempts.",
+            ),
+        )
+
+        vm.load(unlinkedAccount)
+        vm.startInvitationEntry()
+        vm.updateInvitationCode("INV-123")
+        vm.requestInvitationOtp()
+
+        val state = vm.state.value as LimitedAccountState.EnterInvitationCode
+        assertEquals("Too many requests. Please wait before trying again.", state.error)
+        assertEquals(false, state.isRequesting)
+    }
+
+    @Test
     fun `resending invitation otp replaces the challenge`() {
         coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
         coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
@@ -142,6 +190,38 @@ class LimitedAccountViewModelTest {
         assertEquals("ch-2", state.challengeId)
         assertEquals("2026-08-01T10:15:00", state.expiresAt)
         assertEquals(false, state.isResending)
+    }
+
+    @Test
+    fun `verifying invitation is single flight`() = runTest {
+        val linkedAccount = unlinkedAccount.copy(
+            linkStatus = PatientLinkStatus.LINKED,
+        )
+        coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
+        coEvery { accountRepo.requestInvitationOtp("INV-123") } returns
+            Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
+        val response = CompletableDeferred<Result<LinkState>>()
+        coEvery {
+            accountRepo.acceptInvitation("INV-123", "ch-1", "123456")
+        } coAnswers { response.await() }
+        coEvery { authRepo.getMe() } returns Result.success(linkedAccount)
+
+        vm.load(unlinkedAccount)
+        vm.startInvitationEntry()
+        vm.updateInvitationCode("INV-123")
+        vm.requestInvitationOtp()
+        vm.updateOtpCode("123456")
+        vm.verifyInvitationOtp()
+        vm.verifyInvitationOtp()
+
+        assertTrue((vm.state.value as LimitedAccountState.VerifyInvitationOtp).isVerifying)
+        coVerify(exactly = 1) { accountRepo.acceptInvitation("INV-123", "ch-1", "123456") }
+
+        response.complete(Result.success(LinkState.Linked))
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value is LimitedAccountState.Linked)
     }
 
     @Test

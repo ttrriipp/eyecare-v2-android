@@ -236,10 +236,10 @@ fun EyecareNavGraph(
                                 pendingPatientFeature = null
                                 navController.popBackStack()
                             },
-                            onLinkComplete = {
+                            onLinkComplete = { linkedAccount ->
                                 val destination = pendingPatientFeature
                                 pendingPatientFeature = null
-                                sessionViewModel.resolveSession()
+                                sessionViewModel.setLinkedAccount(linkedAccount)
                                 navController.popBackStack()
                                 destination?.let { navController.navigate(it.toRoute()) }
                             }

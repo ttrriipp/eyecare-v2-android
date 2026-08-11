@@ -53,7 +53,7 @@ import com.eyecare.app.ui.theme.EyecareColors
 fun LimitedAccountScreen(
     account: PatientAccount,
     onBack: () -> Unit,
-    onLinkComplete: () -> Unit,
+    onLinkComplete: (PatientAccount) -> Unit,
     requestedFeatureLabel: String? = null,
     viewModel: LimitedAccountViewModel = hiltViewModel(),
 ) {
@@ -78,7 +78,7 @@ fun LimitedAccountScreen(
         is LimitedAccountState.VerifyInvitationOtp -> LimitedInviteOtpStep(s, viewModel)
         is LimitedAccountState.Linked -> {
             LaunchedEffect(s.account.id) {
-                onLinkComplete()
+                onLinkComplete(s.account)
             }
         }
         is LimitedAccountState.Error -> {
@@ -260,6 +260,7 @@ private fun LimitedInviteCodeStep(
             onValueChange = { viewModel.updateInvitationCode(it) },
             label = { Text("Invitation code") },
             singleLine = true,
+            enabled = !state.isRequesting,
             isError = !state.error.isNullOrBlank(),
             modifier = Modifier.fillMaxWidth(),
         )
@@ -268,7 +269,8 @@ private fun LimitedInviteCodeStep(
         AuthPrimaryButton(
             text = "Continue",
             onClick = viewModel::requestInvitationOtp,
-            enabled = state.code.isNotBlank(),
+            enabled = state.code.isNotBlank() && !state.isRequesting,
+            loading = state.isRequesting,
         )
     }
 }
@@ -285,11 +287,11 @@ private fun LimitedInviteOtpStep(
             value = state.code,
             onValueChange = { viewModel.updateOtpCode(it) },
             error = state.error,
-            enabled = !state.isResending,
+            enabled = !state.isResending && !state.isVerifying,
         )
         OtpExpiryRow(
             expiresAt = state.expiresAt,
-            canResend = !state.isResending,
+            canResend = !state.isResending && !state.isVerifying,
             onResend = viewModel::resendInvitationOtp,
         )
         if (state.isResending) {
@@ -310,8 +312,8 @@ private fun LimitedInviteOtpStep(
         AuthPrimaryButton(
             text = "Verify code",
             onClick = viewModel::verifyInvitationOtp,
-            enabled = state.code.length == 6 && !state.isResending,
-            loading = state.isResending,
+            enabled = state.code.length == 6 && !state.isResending && !state.isVerifying,
+            loading = state.isResending || state.isVerifying,
         )
     }
 }

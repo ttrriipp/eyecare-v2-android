@@ -3,6 +3,8 @@ package com.eyecare.app.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.data.local.TokenManager
+import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.SessionState
 import com.eyecare.app.domain.repository.AuthRepository
@@ -45,14 +47,25 @@ class SessionViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    val message = error.message ?: "Something went wrong"
-                    if (message.contains("401") || error is com.eyecare.app.domain.model.ApiDomainError && error.httpStatus == 401) {
+                    val apiError = error as? ApiDomainError
+                    val message = if (apiError?.httpStatus == 429) {
+                        "Too many requests. Please wait before trying again."
+                    } else {
+                        error.message ?: "Something went wrong"
+                    }
+                    if (message.contains("401") || apiError?.httpStatus == 401) {
                         tokenManager.clearToken()
                         _state.value = SessionState.Unauthenticated
                     } else {
                         _state.value = SessionState.TransientFailure(message)
                     }
                 }
+        }
+    }
+
+    fun setLinkedAccount(account: PatientAccount) {
+        if (account.linkStatus == PatientLinkStatus.LINKED) {
+            _state.value = SessionState.Linked(account)
         }
     }
 
