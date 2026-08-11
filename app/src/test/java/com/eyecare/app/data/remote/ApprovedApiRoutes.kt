@@ -1,18 +1,19 @@
 package com.eyecare.app.data.remote
 
 /**
- * V16 route governance — 55-route contract.
+ * V17 route governance — 55-route contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
- * 2. Account-only routes (26) — authenticated, no patient link required
- * 3. Active-link routes (20) — require active patient link (canonical)
+ * 2. Account-only routes (29) — authenticated, no patient link required
+ * 3. Active-link routes (17 canonical + 1 legacy alias = 18 registered) — require active patient link
  * 4. Legacy alias routes (1) — exists server-side, must not be called by this client
  *
- * Total registered callable routes: 8 + 26 + 20 + 1 = 55.
- * Canonical routes (production Android may call): 8 + 26 + 20 = 54.
+ * Total registered callable routes: 8 + 29 + 18 = 55.
+ * Canonical routes (production Android may call): 8 + 29 + 17 = 54.
  * The legacy alias exists for backward compatibility only.
  *
+ * Conversation read/list/send are account-only; attachment download remains active-link.
  * Retired routes (eyewear, job-orders, billing-records) are explicitly rejected.
  */
 internal object ApprovedApiRoutes {
@@ -30,7 +31,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/auth/policies",
     )
 
-    /** Account-only routes — authenticated, no patient link required. (26) */
+    /** Account-only routes — authenticated, no patient link required. (29) */
     val accountOnlyRoutes: Set<String> = setOf(
         "POST $BASE/logout",
         "POST $BASE/logout-all",
@@ -58,9 +59,13 @@ internal object ApprovedApiRoutes {
         "POST $BASE/appointment-requests/{appointmentRequest}/cancel",
         "GET $BASE/frames",
         "GET $BASE/frames/{frame}",
+        // Conversation — account-owned text messaging
+        "GET $BASE/conversation",
+        "GET $BASE/conversation/messages",
+        "POST $BASE/conversation/messages",
     )
 
-    /** Active-link routes — require active patient link. (20 canonical) */
+    /** Active-link routes — require active patient link. (17 canonical) */
     val activeLinkRoutes: Set<String> = setOf(
         "GET $BASE/appointment-availability",
         "GET $BASE/appointments",
@@ -77,9 +82,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/quotations/{quotation}",
         "GET $BASE/optical-orders",
         "GET $BASE/optical-orders/{opticalOrder}",
-        "GET $BASE/conversation",
-        "GET $BASE/conversation/messages",
-        "POST $BASE/conversation/messages",
+        // Conversation attachment download remains active-link protected
         "GET $BASE/conversation/attachments/{attachment}",
         "POST $BASE/optical-order-items/{item}/rating",
     )

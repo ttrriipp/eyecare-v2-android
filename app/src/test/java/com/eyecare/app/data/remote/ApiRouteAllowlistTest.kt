@@ -14,18 +14,18 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `account-only routes match expected count`() {
-        assertEquals(26, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
+        assertEquals(29, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
     }
 
     @Test
     fun `active-link routes match expected count`() {
-        // 20 canonical active-link routes + 1 legacy alias = 21 in the contract's active-link section
-        assertEquals(20, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes (canonical)")
+        // 17 canonical active-link routes + 1 legacy alias = 18 in the contract's active-link section
+        assertEquals(17, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes (canonical)")
     }
 
     @Test
     fun `total approved routes is exactly 55`() {
-        // 8 public + 26 account-only + 20 active-link = 54 canonical callable
+        // 8 public + 29 account-only + 17 active-link = 54 canonical callable
         // + 1 legacy alias = 55 registered callable
         assertEquals(54, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
@@ -76,6 +76,30 @@ class ApiRouteAllowlistTest {
         assertTrue(
             "GET /api/v1/appointment-optometrists" in ApprovedApiRoutes.accountOnlyRoutes,
             "appointment-optometrists must be an approved account-only route",
+        )
+    }
+
+    @Test
+    fun `conversation read and send are account-only`() {
+        assertTrue(
+            "GET /api/v1/conversation" in ApprovedApiRoutes.accountOnlyRoutes,
+            "conversation read must be account-only",
+        )
+        assertTrue(
+            "GET /api/v1/conversation/messages" in ApprovedApiRoutes.accountOnlyRoutes,
+            "conversation message list must be account-only",
+        )
+        assertTrue(
+            "POST /api/v1/conversation/messages" in ApprovedApiRoutes.accountOnlyRoutes,
+            "conversation send must be account-only",
+        )
+    }
+
+    @Test
+    fun `conversation attachment download remains active-link`() {
+        assertTrue(
+            "GET /api/v1/conversation/attachments/{attachment}" in ApprovedApiRoutes.activeLinkRoutes,
+            "attachment download must remain active-link protected",
         )
     }
 
