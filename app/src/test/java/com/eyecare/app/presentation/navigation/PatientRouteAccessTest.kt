@@ -28,7 +28,11 @@ class PatientRouteAccessTest {
         assertEquals(PatientRouteAccess.ActiveLinkRequired, classifyRouteAccess("PrescriptionList"))
         assertEquals(PatientRouteAccess.ActiveLinkRequired, classifyRouteAccess("EyewearList"))
         assertEquals(PatientRouteAccess.ActiveLinkRequired, classifyRouteAccess("FrameReservationList"))
-        assertEquals(PatientRouteAccess.ActiveLinkRequired, classifyRouteAccess("Chat"))
+    }
+
+    @Test
+    fun `chat is account-only`() {
+        assertEquals(PatientRouteAccess.AccountOnly, classifyRouteAccess("Chat"))
     }
 
     @Test
@@ -69,14 +73,14 @@ class PatientRouteAccessTest {
     }
 
     @Test
-    fun `unlinked account cannot access clinical records or reservations`() {
+    fun `unlinked account can access chat but not clinical records`() {
         val linkStatus = PatientLinkStatus.UNLINKED
 
         assertFalse(canAccessRoute(PatientProfile, linkStatus))
         assertFalse(canAccessRoute(AppointmentDetail(42), linkStatus))
         assertFalse(canAccessRoute(PrescriptionList, linkStatus))
         assertFalse(canAccessRoute(CreateFrameReservation(frameId = 7, variantId = 3), linkStatus))
-        assertFalse(canAccessRoute(Chat, linkStatus))
+        assertTrue(canAccessRoute(Chat, linkStatus))
     }
 
     @Test
@@ -84,8 +88,13 @@ class PatientRouteAccessTest {
         val sessionState = SessionState.Limited(testAccount())
 
         assertTrue(shouldRedirectToLimitedAccount("PrescriptionList", sessionState))
-        assertTrue(shouldRedirectToLimitedAccount("Chat", sessionState))
         assertTrue(shouldRedirectToLimitedAccount("MyEyewear", sessionState))
+    }
+
+    @Test
+    fun `limited session does not redirect chat`() {
+        val sessionState = SessionState.Limited(testAccount())
+        assertFalse(shouldRedirectToLimitedAccount("Chat", sessionState))
     }
 
     @Test

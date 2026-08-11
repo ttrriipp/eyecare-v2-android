@@ -26,20 +26,20 @@ private val accountSafeDestinationNames = setOf(
 )
 
 fun classifyRouteAccess(route: String): PatientRouteAccess = when {
-    // Account-only: browse catalog and request creation/list/detail
+    // Account-only: browse catalog, request creation/list/detail, and chat
     route.contains("Frames") ||
         route.contains("FrameDetail") ||
         route.contains("ArTryOn") -> PatientRouteAccess.AccountOnly
     route.contains("Appointments") -> PatientRouteAccess.AccountOnly
     route.contains("RequestAppointment") -> PatientRouteAccess.AccountOnly
     route.contains("AppointmentRequest") -> PatientRouteAccess.AccountOnly
+    route.contains("Chat") -> PatientRouteAccess.AccountOnly
     // Active-link required: confirmed appointments, clinical resources
     route.contains("AppointmentDetail") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("PatientProfile") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Prescription") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Eyewear") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("FrameReservation") -> PatientRouteAccess.ActiveLinkRequired
-    route.contains("Chat") -> PatientRouteAccess.ActiveLinkRequired
     // Default: fail closed
     else -> PatientRouteAccess.ActiveLinkRequired
 }

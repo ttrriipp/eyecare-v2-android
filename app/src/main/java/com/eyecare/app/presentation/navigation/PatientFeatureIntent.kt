@@ -13,7 +13,6 @@ sealed interface PatientFeatureIntent {
     data object FrameReservationList : PatientFeatureIntent
     data object PrescriptionList : PatientFeatureIntent
     data object MyEyewear : PatientFeatureIntent
-    data object Chat : PatientFeatureIntent
     data class AppointmentDetail(val appointmentId: Int) : PatientFeatureIntent
     data class FrameDetail(val frameId: Int) : PatientFeatureIntent
     data class CreateFrameReservation(val frameId: Int, val variantId: Int) : PatientFeatureIntent
@@ -30,7 +29,6 @@ fun PatientFeatureIntent.toRoute(): Any = when (this) {
     PatientFeatureIntent.FrameReservationList -> FrameReservationList
     PatientFeatureIntent.PrescriptionList -> PrescriptionList
     PatientFeatureIntent.MyEyewear -> MyEyewear
-    PatientFeatureIntent.Chat -> Chat
     is PatientFeatureIntent.AppointmentDetail -> AppointmentDetail(appointmentId)
     is PatientFeatureIntent.FrameDetail -> FrameDetail(frameId)
     is PatientFeatureIntent.CreateFrameReservation -> CreateFrameReservation(frameId, variantId)
@@ -47,7 +45,6 @@ fun patientFeatureIntentFrom(route: Any): PatientFeatureIntent? = when (route) {
     FrameReservationList -> PatientFeatureIntent.FrameReservationList
     PrescriptionList -> PatientFeatureIntent.PrescriptionList
     MyEyewear -> PatientFeatureIntent.MyEyewear
-    Chat -> PatientFeatureIntent.Chat
     is AppointmentDetail -> PatientFeatureIntent.AppointmentDetail(route.appointmentId)
     is FrameDetail -> PatientFeatureIntent.FrameDetail(route.frameId)
     is CreateFrameReservation -> PatientFeatureIntent.CreateFrameReservation(route.frameId, route.variantId)
@@ -73,5 +70,4 @@ val PatientFeatureIntent.label: String
         PatientFeatureIntent.MyEyewear,
         is PatientFeatureIntent.EstimateDetail,
         is PatientFeatureIntent.OpticalOrderDetail -> "eyewear"
-        PatientFeatureIntent.Chat -> "messages"
     }

@@ -17,7 +17,6 @@ class PatientFeatureIntentTest {
             PatientFeatureIntent.CreateFrameReservation(7, 3) to CreateFrameReservation(7, 3),
             PatientFeatureIntent.ArTryOn(7, 3) to ArTryOn(7, 3),
             PatientFeatureIntent.PrescriptionDetail(9) to PrescriptionDetail(9),
-            PatientFeatureIntent.Chat to Chat,
         )
 
         intents.forEach { (intent, route) ->
