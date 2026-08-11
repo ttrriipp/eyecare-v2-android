@@ -74,6 +74,7 @@ fun ProfileScreen(
     onNavigateToInviteCode: () -> Unit = {},
     unreadMessageCount: Int = 0,
     account: PatientAccount? = null,
+    onLinkedAccountResolved: (PatientAccount) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -91,6 +92,13 @@ fun ProfileScreen(
 
     LaunchedEffect(account) {
         account?.let(viewModel::adoptAccount)
+    }
+
+    val resolvedAccount = (uiState as? ProfileUiState.Success)?.account
+    LaunchedEffect(resolvedAccount) {
+        if (resolvedAccount?.linkStatus == PatientLinkStatus.LINKED) {
+            onLinkedAccountResolved(resolvedAccount)
+        }
     }
 
     LaunchedEffect(loggedOut) {

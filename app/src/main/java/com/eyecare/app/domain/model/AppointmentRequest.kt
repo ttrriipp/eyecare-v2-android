@@ -97,6 +97,13 @@ fun PatientAccount.toAppointmentRequestIdentityOrNull(): AppointmentRequestIdent
     }
 }
 
+/**
+ * The session variant is an access-policy detail; the account's link status is the source of
+ * truth for whether the appointment-request identity step is needed.
+ */
+fun PatientAccount.requiresAppointmentRequestIdentity(): Boolean =
+    linkStatus != PatientLinkStatus.LINKED
+
 data class AppointmentRequestAvailability(
     val date: String,
     val timezone: String,

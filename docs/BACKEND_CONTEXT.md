@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-10.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-11.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -37,6 +37,56 @@
 > delivery was removed) so the invitation-acceptance trust anchor matches
 > the verified login contact.
 >
+> **Shipped (2026-08-11): resilient patient invitation linking.** Invitation
+> acceptance is bound to the authenticated account's verified invited contact,
+> verifies the OTP challenge and request IP inside the same transaction, and
+> locks the invitation, challenge, patient, contact, and account rows before
+> linking. The operation is idempotent for retries from the same account after
+> a successful link, so the original Sanctum token remains usable for
+> `GET /api/v1/me` and reports `link_status: linked`. Rate-limit responses are
+> JSON-safe and machine-readable (`OTP_RATE_LIMIT_REACHED`,
+> `INVITATION_RATE_LIMIT_REACHED`, or `API_RATE_LIMIT_REACHED`) with a
+> `Retry-After` header; rate-limit events record route, account, IP, and retry
+> metadata without logging bearer tokens or OTP values.
+
+**Shipped (2026-08-11): admin workflow surfaces aligned with the workflow specs.**
+The Filament entry points now expose the operational context required by the
+appointment scheduling, encounter, and optical commerce workflows while
+keeping the domain actions as the server-side source of truth:
+
+- **Appointment requests and scheduling.** Request review shows the patient
+  and internal appointment-type labels, provisional duration, referral
+  context, all submitted time alternatives, request age, and overdue state.
+  Acceptance and staff-created or edited appointments revalidate active
+  appointment types, 5-minute duration bounds, referral requirements, and
+  schedule-grid availability. A final accepted time outside the submitted
+  preferences requires a contact note. Provider assignment and consultation
+  start use the actor/self-claim rules; rescheduling controls use the
+  15-minute start grid.
+- **Encounters and prescriptions.** Encounter list and edit actions enforce
+  planned/in-progress ownership and role boundaries through the assignment
+  and start actions. Optometrists can reach the quotation flow and add
+  post-completion supplements where permitted. Prescription creation and
+  amendment pages show read-only patient/appointment context, preserve
+  server-derived ownership, and render finalized remarks on the read-only
+  view.
+- **Quotations, Optical Orders, and billing.** Quotation review shows the
+  corrective-eyewear configuration and prescription/version context; the
+  discount control is visibly admin-only. Optical Order pages show immutable
+  product and lens-option snapshots, eyewear-specification state, prescription
+  attribution, billing totals, amount paid, balance, and due date. Dispensing
+  exposes the administrator-only outstanding-balance override with a reason
+  and due date. The first payment requires explicit review of the current
+  immutable charge set, and service-charge entry supports either a catalog
+  Service or a custom line.
+- **Patient and reservation entry points.** Patient records expose a direct
+  Create Quotation action, and appointment/frame-reservation actions use the
+  same policy abilities as their underlying domain operations.
+
+These UI safeguards are additive to the action-level validation and do not
+replace it; hidden or tampered Filament fields remain subject to the same
+server-side rules.
+
 > **Shipped (2026-08-10): practical optical commerce and dispensing.**
 > The implemented commercial workflow now supports real small-clinic optical
 > operations. Key additions:
@@ -102,10 +152,13 @@
 > 15-minute start grid. Pending requests are non-binding and never consume
 > capacity. Acceptance atomically creates one conflict-free appointment
 > with a final provider, start time, type, and duration snapshot. Six
-> canonical types are seeded: New Patient (45m), Follow-up (15m), Routine
-> Check-up (30m), Problem/Urgent Visit (30m), Contact Lens Consultation
-> (45m), Referral (45m, requires referral source). The API contract
-> includes 55 routes (8 public, 26 account-only, 21 active-link). New
+> canonical types are seeded; the API exposes patient-facing labels: New Patient
+> → First eye examination (45m), Follow-up → Follow-up requested by the
+> optometrist (15m), Routine Check-up → Regular eye examination (30m),
+> Problem/Urgent Visit → New or worsening eye concern (30m), Contact Lens
+> Consultation → Contact lens consultation (45m), and Referral → Referral
+> (45m, requires referral source). The API contract includes 55 routes (8
+> public, 29 account-only, 18 active-link). New
 > endpoints: `GET /appointment-types` (restored, patient-visible catalog),
 > `GET /appointment-optometrists` (patient-safe provider catalog). Modified
 > endpoints: `GET /appointment-request-availability` (now requires
@@ -337,11 +390,12 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `encounters` | `patient_id`, `appointment_id`, `patient_intake_id` (nullable, legacy), `optometrist_id`, `status` (planned/in_progress/completed/cancelled), encrypted `findings`/`remarks`/`assessment`/`supporting_test_results`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `prescription_draft` (JSON), `completed_by`. Check-in no longer attaches PatientIntake. Assigned provider is synchronized with Appointment. |
 | `encounter_addenda` | Append-only post-completion notes. `encounter_id` (FK, restrict delete), `sequence_number` (unique per encounter), `type` (correction/supplement), encrypted `reason`/`content`, `authored_by` (FK, restrict delete), `authored_at`. No `updated_at`, no soft deletes, no edit/delete actions. |
 | `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
+| `products` | Stocked physical catalog entries. New Products use only `product_type` values `frame`, `contact_lens`, or `accessory`; variants own price, dimensions, SKU, and stock. Historical `lens` Products are retained but deactivated by `2026_08_10_193536_deactivate_legacy_lens_products.php`. `lens_category_id` remains temporarily for historical compatibility. |
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`, `subtotal`, `discount_amount`, `total`, `presented_by`, `presented_at`, `confirmed_by`, `confirmed_at`, `notes`, `eyewear_key` (unique, `eyw_{ULID}`). |
-| `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `service_id`, `item_type` (product/service), `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product/service), `item_snapshot` (nullable JSON snapshot of catalog data). |
+| `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `service_id`, `item_type` (product/service), `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product/service), `item_snapshot` (nullable JSON snapshot of catalog data). |
 | `services` | Service/exam charge catalog. `name` (unique), `description` (nullable), `price`, `is_active`. Referenced by `quotation_items.service_id` and `billing_record_items.service_id`; inactive services are rejected wherever an item references one. |
 | `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_id` (unique, nullable), `frame_reservation_id` (unique, nullable), `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `fulfillment_mode` (immediate/prepared), `uses_external_supplier`, `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
-| `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `item_type` (product only for new records), `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product), `item_snapshot` (nullable JSON snapshot of catalog data). |
+| `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `item_type` (product only for new records), `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product), `item_snapshot` (nullable JSON snapshot of catalog data). |
 | `job_order_eyewear_specifications` | One-to-one with `job_orders`. `job_order_id` (unique), `prescription_id`, `frame_job_order_item_id` (nullable), `lens_package_job_order_item_id`, `frame_source` (catalog/patient_supplied), lens construction snapshots (`lens_design_snapshot`, `lens_material_snapshot`, `refractive_index_snapshot`, `lens_options_snapshot` JSON), encrypted dispensing measurements (`distance_pd_mode`, `distance_pd_binocular`/`od`/`os`, `near_pd_*`, `fitting_height_*`, `segment_height_*`), encrypted `lab_instructions`, `approved_by` (nullable FK users), `approved_at`, `verified_by` (nullable FK users), `verified_at`, encrypted `verification_notes`. |
 | `billing_records` | `patient_id`, `job_order_id` (nullable), `encounter_id` (nullable), `quotation_id` (nullable), `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `subtotal_amount`, `discount_amount`, `total_amount`, `amount_paid`, `balance_due`, `payment_due_date`, `recorded_by`, `recorded_at`. |
 | `billing_record_items` | `billing_record_id`, `item_type` (product/service), `source_kind` (optical_order/quotation/encounter/direct_service), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id` (nullable), `quotation_item_id` (nullable), `service_id` (nullable), `encounter_id` (nullable). |
@@ -355,7 +409,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `visit_ratings` | `patient_id`, `appointment_id` (unique — one rating per visit), `encounter_id`, `optometrist_id`, `rating` (1-5), `comment`, `service_ids` (JSON snapshot), `current_revision_id`, `is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`. |
 | `visit_rating_revisions` | `visit_rating_id`, `revision_number`, `rating`, `comment`, `revised_by`, `revised_at`. |
 | `complaints` | `patient_id`, `original_job_order_id`, `status`, `patient_description`, `resolution_notes`, `new_appointment_id`, `new_encounter_id`. |
-| `conversations` | `patient_id` — one per patient. |
+| `conversations` | `account_user_id` (nullable FK users, unique when set), `patient_id` (nullable FK patients, indexed, no longer unique). At least one of `account_user_id` or `patient_id` must be non-null. States: unlinked (`account_user_id` set, `patient_id` null), current linked (both set), historical after unlink (`account_user_id` null, `patient_id` set). `account_user_id` is the mobile authorization boundary. |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
 | `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON), `ip_address`, `user_agent`. |
 | `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_lot_id` (nullable FK inventory_lots), `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
@@ -399,7 +453,7 @@ Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::
 - Clinical — Encounters (4-step wizard, provider-owned), Prescriptions
 - Optical — Quotations, Optical Orders, Frame Reservations, Frame Ratings
 - Billing — Billing & Payments, Appointments Report
-- Catalog — Products, Inventory History, Reorder Report, Brands, Lens Categories, Product Categories, Services
+- Catalog — Products, Inventory History, Reorder Report, Brands, Lens Categories, Lens Options, Product Categories, Services
 - Admin — Team Accounts, SMS Log, Audit Logs
 
 Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group order, item order per group, no orphaned/singleton groups, unique outlined icons).
@@ -470,6 +524,8 @@ POST   /api/v1/patient-link-requests
 GET    /api/v1/patient-link-requests/current
 POST   /api/v1/patient-invitations/acceptance/otp
 POST   /api/v1/patient-invitations/accept
+GET    /api/v1/appointment-types              List patient-visible appointment types
+GET    /api/v1/appointment-optometrists       List active optometrists
 GET    /api/v1/frames
 GET    /api/v1/frames/{id}
 GET    /api/v1/appointment-request-availability
@@ -504,12 +560,23 @@ POST   /api/v1/optical-order-items/{id}/rating
 POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above (same controller)
 ```
 
-**Route count:** 8 public + 26 account-only + 21 active-link = **55 routes total.**
+**Route count:** 8 public + 29 account-only + 18 active-link = **55 routes total.**
 
-> **Updated 2026-08-09 (was 53).** Added `GET /appointment-types` (restored
-> patient-visible catalog) and `GET /appointment-optometrists` (patient-safe
-> provider catalog) to the account-only tier. Both are account-only, no
-> active link required.
+Conversation routes moved from active-link to account-only tier (no patient
+link required for read/send; attachment download remains active-link).
+
+Authenticated API throttles use separate per-account buckets so a mobile
+bootstrap burst cannot consume the profile and clinical budgets together:
+`GET /me` allows 300 requests per minute, account-only routes allow 120 per
+minute, active-link routes allow 120 per minute, invitation OTP requests allow
+5 per minute, and invitation acceptance allows 120 per minute. Rate-limited
+responses include `Retry-After`; middleware-backed limits also include the
+standard `X-RateLimit-*` headers.
+
+> **Appointment catalog update (2026-08-09).** Added `GET /appointment-types`
+> (restored patient-visible catalog) and `GET /appointment-optometrists`
+> (patient-safe provider catalog) to the account-only tier. Both are
+> account-only, require authentication, and do not require an active link.
 
 > **Corrected 2026-08-07 (was 51).** `routes/api.php` registers the frame-rating
 > endpoint twice — under both `optical-order-items/{item}/rating` and
@@ -518,8 +585,9 @@ POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above (s
 > predating the `JobOrder` → Optical Order rename; it was previously undocumented in
 > both this file and `API_CONTRACT.md`, which is why the count read 51.
 > **Decision: keep the alias**, since removing it breaks any un-migrated client.
-> `RouteContractTest` asserts the exact route list; it now counts 53, including
-> the `appointments/{id}/rating` route visit feedback added the same day.
+> The historical 2026-08-07 inventory counted 53 after the
+> `appointments/{id}/rating` route added visit feedback. The current inventory
+> is 55 after the two account-only appointment catalog routes were added.
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)
@@ -550,7 +618,7 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `ReviewPatientLinkRequest` | `app/Actions/PatientAccounts/` | Approve (with row-lock recheck) or reject link request |
 | `UnlinkPatientAccount` | `app/Actions/PatientAccounts/` | Revokes tokens, removes link, creates audit log |
 | `IssuePatientInvitation` | `app/Actions/PatientAccounts/` | Creates single-use expiring invitation |
-| `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Verifies OTP, creates/reuses account, activates link |
+| `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Atomically verifies the account-bound OTP, locks and activates the patient link, and safely returns the existing link on a same-account retry |
 | `SearchPatientDuplicates` | `app/Actions/Patients/` | Searches by email hash, phone hash, name+DOB |
 | `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with type-based duration snapshot, validates all time preferences for availability, persists alternatives, encrypted referral source, and latest-preference expiry; does NOT create capacity holds |
 | `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
@@ -615,9 +683,11 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Appointment source values:** `mobile` (patient books via Android app), `walk_in` (patient physically at clinic), `manual` (staff creates in admin panel). Set automatically — not a user-facing dropdown.
 - **Appointment create form:** Patient mode toggle (new/existing). New patient shows full demographic fields. Walk-in toggle hides date/time and auto-sets source/status/checked_in_at. Appointment type select applies default duration reactively; duration is editable in 5-minute increments (5–240) for scheduled appointments. Referring source appears when the selected type `requires_referral`. Notes is a single staff_notes field. Walk-ins remain exempt from grid and future-time validation.
 - **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (scheduled/checked_in): appointment type (applies default duration on change), duration (editable in 5-minute increments), date/time, referring source (conditional on type), notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment. Changing type, duration, time, or provider before check-in must revalidate availability under the schedule lock.
-- **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. Patient, appointment, encounter, and author linkage are locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time. The view page uses a two-column layout: left shows Prescription and ADD sections with placeholders, right shows prescription number, patient info, encounter, optometrist, and date. **Create Quotation** on the view page opens `CreateQuotation` directly against the current-version prescription (`?prescription=` query param), independent of whether its originating encounter is still in progress or already completed — this path has no one-per-prescription cap, unlike the one-per-encounter limit on the encounter-linked creation path.
-- **Service catalog:** `Service` (admin-only Filament resource, Catalog group) holds priced, active/inactive clinical or service charges (e.g. exam fees) that aren't tied to a product variant or lens category. Quotation items, the Quotation creation form, the Encounter charge form, and the direct Billing Record charge form all offer a Service picker alongside the existing product/lens-category pickers; an item may reference at most one of the three, and inactive services are rejected at validation time.
-- **Edit pages:** Quotations, Billing Records, and Optical Orders have full form schemas showing related items, financial summaries, and timelines. Billing Record items are the record's own immutable `items` snapshot (`BillingRecordItem`, tagged with `source_kind`), not values resolved live from `jobOrder.items`.
+- **Appointment request review:** Staff review the patient-visible and internal appointment-type labels, provisional duration, referral context, submitted alternatives, request age, and overdue state before accepting or rejecting. Acceptance requires an active type, a valid duration, an assigned provider, a conflict-free 15-minute grid slot, and a contact note when the final time is outside all submitted preferences.
+- **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. The create/amend pages display patient and appointment context as read-only fields, while patient, appointment, encounter, and author linkage remain locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time. The view page uses a two-column layout: left shows Prescription and ADD sections with placeholders, right shows prescription number, patient info, encounter, optometrist, date, and remarks. **Create Quotation** on the view page opens `CreateQuotation` directly against the current-version prescription (`?prescription=` query param), independent of whether its originating encounter is still in progress or already completed — this path has no one-per-prescription cap, unlike the one-per-encounter limit on the encounter-linked creation path.
+- **Service catalog:** `Service` (admin-only Filament resource, Catalog group) holds priced, active/inactive clinical or service charges (e.g. exam fees) that aren't tied to a product variant, lens category, or lens option. Quotation items, the Quotation creation form, the Encounter charge form, and the direct Billing Record charge form all offer a Service picker alongside the existing product/lens-category/lens-option pickers; an item may reference at most one of the four catalog references (`product_variant_id`, `lens_category_id`, `lens_option_id`, or `service_id`), and inactive services are rejected at validation time.
+- **Lens option catalog:** `LensOption` is a separately billed enhancement catalog, not a Product, Service, or inventory item. New transactions can select only active options; an option requires exactly one lens package in the same optical build, duplicate selections are rejected, and the transaction stores `item_kind = lens_option` with an immutable name/description/price snapshot. Renaming or deactivating an option does not rewrite confirmed quotation or Optical Order snapshots.
+- **Edit pages:** Quotations, Billing Records, and Optical Orders have full form schemas showing related items, financial summaries, and timelines. Quotation confirmation surfaces corrective configuration and prescription version/author context. Optical Order pages show immutable item and lens-option snapshots plus eyewear-specification state. Billing Record items are the record's own immutable `items` snapshot (`BillingRecordItem`, tagged with `source_kind`), not values resolved live from `jobOrder.items`.
 - **Encounter "Create Quotation":** The in-progress/completed Encounter edit page also offers **Create Quotation**, opening `CreateQuotation` with `?encounter=` — distinct from the Prescription-page path: it requires the encounter's current prescription to be finalized, and is capped at one quotation per encounter (hidden once one exists). The Prescription-page path has no such cap.
 - **Encounter workflow:** Four-step autosaving wizard (History, Examination, Assessment & Plan, Review & Complete). Check-in creates a planned Encounter without attaching PatientIntake, copies assigned provider, and prefills chief complaint from appointment reason. Start uses self-claim pattern — the actor becomes the provider when unassigned; only the assigned optometrist can start otherwise. Draft saves via `SaveEncounterDraft` trim and cap narrative at 10,000 characters. Completion requires `chief_complaint`, `findings`, `assessment`, and `plan`; only the assigned active optometrist can complete. Optional prescription finalizes atomically in the same transaction. Completed encounters are immutable; corrections (original author only) and supplements (any active optometrist) use append-only `encounter_addenda` records.
 - **Encounter provider assignment:** Staff, optometrists, and admins can assign an active optometrist to a planned Encounter. In-progress transfer requires the current provider or admin. Encounter and Appointment provider IDs are always synchronized.
@@ -625,6 +695,7 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Encounter billing:** The Encounter edit page offers **Add Service Charge** (posts service-line charges via `AddEncounterChargesToBilling`) and **View Billing Record**, both resolving to the single open Billing Record for that patient visit via `ResolveOpenCheckoutBillingRecord` — charges added after a Quotation sale is confirmed land on the same record instead of opening a second one.
 - **Reserve Frames:** The Appointment edit page offers a staff-initiated **Reserve Frames** action for any scheduled, not-yet-elapsed appointment without an active reservation, regardless of `source` (mobile/walk-in/manual) — reuses `CreateFrameReservation`, the same action the mobile API uses.
 - **Patient app invitations:** "Send App Invitation" is phone/SMS only; email is not an invitation delivery channel, since the verified phone is also the account's login contact. In `local`/`testing`, invitation codes are logged for `sail artisan pail` visibility, mirroring OTP delivery.
+- **Invitation acceptance:** The mobile API requires the authenticated account to own the verified invited contact. Acceptance is atomic and idempotent for that same account; it never revokes the existing Sanctum token, creates inventory activity, or relinks an already-linked account. Duplicate mobile requests may safely reuse the consumed challenge after the invitation has already been accepted by that account.
 - **Supplier invoice reference:** `job_orders.supplier_invoice_number` records the supplier's external invoice number only. Staff may enter it while the Job Order is active, and the Mark Ready action requires it. It is clinic-internal, is not part of Billing Records, and is hidden from patient APIs.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only structured name + phone.
 - **Patient address:** Single nullable free-text field. Read-only via mobile API; editable by staff via Patients edit form.

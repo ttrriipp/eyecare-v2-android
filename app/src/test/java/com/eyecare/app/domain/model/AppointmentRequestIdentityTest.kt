@@ -33,6 +33,31 @@ class AppointmentRequestIdentityTest {
     }
 
     @Test
+    fun `linked account does not require appointment request identity`() {
+        assertEquals(
+            false,
+            account(linkStatus = PatientLinkStatus.LINKED)
+                .requiresAppointmentRequestIdentity(),
+        )
+    }
+
+    @Test
+    fun `limited account requires appointment request identity even without a seed`() {
+        assertEquals(
+            true,
+            account(
+                firstName = null,
+                middleName = null,
+                lastName = null,
+                dateOfBirth = null,
+                email = null,
+                phone = null,
+                linkStatus = PatientLinkStatus.UNLINKED,
+            ).requiresAppointmentRequestIdentity(),
+        )
+    }
+
+    @Test
     fun `account without structured identity omits optional payload`() {
         assertNull(
             account(

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.domain.model.PatientAccount
+import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,11 +47,13 @@ class ProfileViewModel @Inject constructor(
     fun retry() = load()
 
     /**
-     * Uses the account already resolved by the session flow while the profile request catches up.
-     * This matters immediately after invitation linking, when Profile can resume before a fresh
-     * GET /me response is available.
+     * Uses an actively linked account already resolved by the session flow while the profile
+     * request catches up. Limited-session snapshots are not authoritative for link status: the
+     * profile's own GET /me must be allowed to discover a link that was activated elsewhere.
      */
     fun adoptAccount(account: PatientAccount) {
+        if (account.linkStatus != PatientLinkStatus.LINKED) return
+
         val current = _uiState.value
         if (current is ProfileUiState.Success && current.account == account) return
 

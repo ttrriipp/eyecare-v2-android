@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,21 +25,27 @@ class SessionViewModel @Inject constructor(
     private val _state = MutableStateFlow<SessionState>(SessionState.Checking)
     val state: StateFlow<SessionState> = _state.asStateFlow()
 
+    private var sessionJob: Job? = null
+    private var sessionGeneration = 0L
+
     init {
         resolveSession()
     }
 
     fun resolveSession() {
+        val generation = ++sessionGeneration
+        sessionJob?.cancel()
         val token = tokenManager.getToken()
         if (token == null) {
             _state.value = SessionState.Unauthenticated
             return
         }
 
-        viewModelScope.launch {
+        sessionJob = viewModelScope.launch {
             _state.value = SessionState.Checking
             authRepository.getMe()
                 .onSuccess { account ->
+                    if (generation != sessionGeneration) return@onSuccess
                     _state.value = when (account.linkStatus) {
                         PatientLinkStatus.LINKED -> SessionState.Linked(account)
                         PatientLinkStatus.UNLINKED,
@@ -47,6 +54,7 @@ class SessionViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
+                    if (generation != sessionGeneration) return@onFailure
                     val apiError = error as? ApiDomainError
                     val message = if (apiError?.httpStatus == 429) {
                         "Too many requests. Please wait before trying again."
@@ -65,11 +73,17 @@ class SessionViewModel @Inject constructor(
 
     fun setLinkedAccount(account: PatientAccount) {
         if (account.linkStatus == PatientLinkStatus.LINKED) {
+            sessionGeneration++
+            sessionJob?.cancel()
+            sessionJob = null
             _state.value = SessionState.Linked(account)
         }
     }
 
     fun signOut() {
+        sessionGeneration++
+        sessionJob?.cancel()
+        sessionJob = null
         tokenManager.clearToken()
         _state.value = SessionState.Unauthenticated
     }

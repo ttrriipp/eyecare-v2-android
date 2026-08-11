@@ -795,7 +795,9 @@ class RequestAppointmentViewModel @Inject constructor(
     fun submit(isFrameReservationOrigin: Boolean = false) {
         val current = _step.value as? RequestStep.Review ?: return
         if (current.isSubmitting) return
-        _step.value = current.copy(isSubmitting = true)
+        // A stale/restored review state must never smuggle identity into a linked request.
+        val identity = current.identity.takeIf { current.identityRequired }
+        _step.value = current.copy(isSubmitting = true, identity = identity)
         viewModelScope.launch {
             repository.createRequest(
                 appointmentTypeId = current.selectedType.id,
@@ -805,7 +807,7 @@ class RequestAppointmentViewModel @Inject constructor(
                     .map { it.startsAt }
                     .ifEmpty { null },
                 referringSource = current.referringSource,
-                identity = current.identity,
+                identity = identity,
             ).onSuccess { request ->
                 draft = RequestDraft()
                 _step.value = RequestStep.Success(
@@ -823,7 +825,7 @@ class RequestAppointmentViewModel @Inject constructor(
                     alternativeSlots = current.alternativeSlots,
                     reason = current.reason,
                     referringSource = current.referringSource,
-                    identity = current.identity,
+                    identity = identity,
                     errorCode = code,
                     errorMessage = patientSafeAppointmentRequestError(
                         error = error,
@@ -865,6 +867,16 @@ class RequestAppointmentViewModel @Inject constructor(
             return
         }
         when (current.errorCode) {
+            "IDENTITY_NOT_ALLOWED" -> _step.value = RequestStep.Review(
+                selectedType = current.selectedType,
+                identityRequired = false,
+                date = current.date,
+                primarySlot = current.primarySlot,
+                alternativeSlots = current.alternativeSlots,
+                reason = current.reason,
+                referringSource = current.referringSource,
+                identity = null,
+            )
             "SLOT_UNAVAILABLE" -> restoreSchedule(
                 selectedType = current.selectedType,
                 identityRequired = current.identityRequired,

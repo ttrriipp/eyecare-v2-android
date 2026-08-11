@@ -771,6 +771,36 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
+    fun `linked account identity rejection explains that the request must be restarted`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(ApiDomainError(422, "IDENTITY_NOT_ALLOWED", "Identity is not allowed."))
+        enterReview()
+
+        vm.submit()
+
+        assertEquals(
+            "Your account is already linked. Please start the appointment request again.",
+            (vm.step.value as RequestStep.SubmissionError).errorMessage,
+        )
+    }
+
+    @Test
+    fun `identity rejection drops identity before retrying the linked request`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(ApiDomainError(422, "IDENTITY_NOT_ALLOWED", "Identity is not allowed."))
+        enterIdentity()
+        fillValidIdentity()
+        vm.confirmIdentity()
+
+        vm.submit()
+        vm.handleSubmissionError()
+
+        val review = vm.step.value as RequestStep.Review
+        assertFalse(review.identityRequired)
+        assertNull(review.identity)
+    }
+
+    @Test
     fun `backFromSubmissionError returns to Review with everything intact`() {
         coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
             Result.failure(ApiDomainError(422, "ACTIVE_REQUEST_LIMIT_REACHED", "Limit reached."))

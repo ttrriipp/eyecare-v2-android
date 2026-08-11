@@ -97,6 +97,32 @@ class ProfileViewModelTest {
     }
 
     @Test
+    fun `limited session snapshot does not cancel fresh profile resolution`() = runTest {
+        val profileResponse = CompletableDeferred<Result<PatientAccount>>()
+        val limitedSnapshot = testAccount().copy(linkStatus = PatientLinkStatus.UNLINKED)
+        val linkedAccount = testAccount().copy(
+            linkedPatient = LinkedPatient(
+                patientNumber = "PAT-2026-000001",
+                fullName = "Alex Rivera",
+                dateOfBirth = "1990-05-15",
+                gender = null,
+                occupation = null,
+                address = null,
+                phone = "09171234567",
+                contactEmail = "alex@example.com",
+            ),
+        )
+        coEvery { authRepo.getMe() } coAnswers { profileResponse.await() }
+
+        val vm = ProfileViewModel(authRepo, tokenManager)
+        vm.adoptAccount(limitedSnapshot)
+        profileResponse.complete(Result.success(linkedAccount))
+        advanceUntilIdle()
+
+        assertEquals(linkedAccount, (vm.uiState.value as ProfileUiState.Success).account)
+    }
+
+    @Test
     fun `logout clears token and signals event`() = runTest {
         coEvery { authRepo.getMe() } returns Result.success(testAccount())
         coEvery { authRepo.logoutCurrent() } returns Result.success(Unit)

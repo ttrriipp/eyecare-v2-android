@@ -11,6 +11,15 @@ internal fun patientSafeAppointmentRequestError(
         "ACTIVE_REQUEST_LIMIT_REACHED" -> {
             "You already have pending requests. Please wait for them to be resolved or cancel one."
         }
+        "IDENTITY_NOT_ALLOWED" -> {
+            "Your account is already linked. Please start the appointment request again."
+        }
+        "PATIENT_RESOLUTION_REQUIRED" -> {
+            "Your clinic link needs to be refreshed. Please sign in again and retry."
+        }
+        "ACTIVE_PATIENT_LINK_REQUIRED" -> {
+            "Your clinic link is no longer active. Please refresh your session and retry."
+        }
         else -> fallback
     }
 }

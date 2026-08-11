@@ -10,11 +10,14 @@ import io.mockk.coVerify
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -62,6 +65,35 @@ class SessionViewModelTest {
 
         assertEquals(SessionState.Linked(linkedAccount), viewModel.state.value)
         coVerify(exactly = 0) { authRepository.getMe() }
+    }
+
+    @Test
+    fun `stale session lookup cannot replace linked handoff`() = runTest {
+        every { tokenManager.getToken() } returns "session-token"
+        val staleResponse = CompletableDeferred<Result<PatientAccount>>()
+        val linkedAccount = PatientAccount(
+            id = 1,
+            name = "Test User",
+            firstName = "Test",
+            middleName = null,
+            lastName = "User",
+            email = "test@example.com",
+            phone = "09171234567",
+            role = "patient",
+            dateOfBirth = null,
+            linkStatus = PatientLinkStatus.LINKED,
+            privacyPolicyVersion = null,
+            privacyAcceptedAt = null,
+            linkedPatient = null,
+        )
+        coEvery { authRepository.getMe() } coAnswers { staleResponse.await() }
+
+        val viewModel = SessionViewModel(authRepository, tokenManager)
+        viewModel.setLinkedAccount(linkedAccount)
+        staleResponse.complete(Result.success(linkedAccount.copy(linkStatus = PatientLinkStatus.UNLINKED)))
+        advanceUntilIdle()
+
+        assertEquals(SessionState.Linked(linkedAccount), viewModel.state.value)
     }
 
     @Test
