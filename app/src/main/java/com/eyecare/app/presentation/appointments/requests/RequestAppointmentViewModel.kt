@@ -19,8 +19,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
 private val appointmentRequestZone = ZoneId.of("Asia/Manila")
@@ -269,16 +271,19 @@ class RequestAppointmentViewModel @Inject constructor(
         val type = current.selectedType ?: return
         val saved = draft
         draft = saved.copy(appointmentTypeId = type.id)
-        val weekStart = LocalDate.now(appointmentRequestZone).toString()
+        val today = LocalDate.now(appointmentRequestZone)
+        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toString()
         _step.value = RequestStep.Schedule(
             selectedType = type,
             identityRequired = identityRequired,
             weekStart = weekStart,
+            date = today.toString(),
             reasonDraft = saved.reason,
             referringSourceDraft = saved.referringSource,
             identityDraft = saved.toIdentityOrNull() ?: initialIdentity,
         )
         loadWeekAvailability(weekStart, type.id)
+        selectDate(today.toString())
     }
 
     // ------------------------------------------------------------ schedule step
@@ -910,7 +915,9 @@ class RequestAppointmentViewModel @Inject constructor(
         referringSourceDraft: String?,
         identityDraft: AppointmentRequestIdentity?,
     ) {
-        val weekStart = date ?: LocalDate.now(appointmentRequestZone).toString()
+        val weekStart = (date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            ?: LocalDate.now(appointmentRequestZone))
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toString()
         _step.value = RequestStep.Schedule(
             selectedType = selectedType,
             identityRequired = identityRequired,

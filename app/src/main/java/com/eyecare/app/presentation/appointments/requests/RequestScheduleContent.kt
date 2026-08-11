@@ -64,8 +64,10 @@ import com.eyecare.app.presentation.appointments.components.RequestStepScaffold
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
 import com.eyecare.app.ui.theme.EyecareColors
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
 private val weekdayInitialFormat = DateTimeFormatter.ofPattern("EEEEE", Locale.US)
@@ -190,8 +192,9 @@ private fun WeekStrip(
     onDateSelected: (String) -> Unit,
 ) {
     val today = remember { LocalDate.now(CLINIC_TIME_ZONE) }
+    val currentWeekStart = remember { today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
     val start = runCatching { LocalDate.parse(weekStart) }.getOrDefault(today)
-    val canGoBack = start.isAfter(today)
+    val canGoBack = start.isAfter(currentWeekStart)
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
