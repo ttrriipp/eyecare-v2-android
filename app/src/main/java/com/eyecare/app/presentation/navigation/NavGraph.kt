@@ -341,8 +341,10 @@ fun EyecareNavGraph(
                                     popUpTo<RequestAppointment> { inclusive = true }
                                 }
                             },
+                            onViewRequests = { navController.popBackStack() },
                             requestIdentity = requestIdentity,
                             identityDetailsRequired = identityDetailsRequired,
+                            isFrameReservationOrigin = route.isFrameReservationOrigin,
                         )
                     }
                     composable<FrameReservationList> {

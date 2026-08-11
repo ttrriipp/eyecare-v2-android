@@ -199,8 +199,9 @@ fun AppointmentListScreen(
                 )
             },
             text = {
+                // "Book" promised a confirmed slot the clinic has not agreed to yet.
                 Text(
-                    "Book appointment",
+                    "Request appointment",
                     fontWeight = FontWeight.SemiBold,
                 )
             },

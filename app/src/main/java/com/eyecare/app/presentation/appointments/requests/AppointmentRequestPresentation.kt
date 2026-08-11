@@ -55,20 +55,22 @@ fun requestStatusPresentation(status: AppointmentRequestStatus): RequestStatusPr
     )
     AppointmentRequestStatus.ACCEPTED -> RequestStatusPresentation(
         label = "Confirmed",
-        description = "Staff accepted the request and created an appointment.",
+        description = "The clinic confirmed this request and booked your appointment.",
         showViewConfirmed = true,
     )
     AppointmentRequestStatus.REJECTED -> RequestStatusPresentation(
         label = "Not approved",
-        description = "The clinic could not approve this request.",
+        description = "The clinic couldn't approve this request. " +
+            "Message them if you'd like to know why, or send a new request.",
     )
     AppointmentRequestStatus.CANCELLED -> RequestStatusPresentation(
         label = "Cancelled",
-        description = "The patient cancelled the request.",
+        description = "You cancelled this request. You can send a new one any time.",
     )
     AppointmentRequestStatus.EXPIRED -> RequestStatusPresentation(
         label = "Expired",
-        description = "The request was not resolved.",
+        description = "The requested times have passed without a decision. " +
+            "Send a new request to pick another time.",
     )
     AppointmentRequestStatus.UNKNOWN -> RequestStatusPresentation(
         label = "Status unavailable",

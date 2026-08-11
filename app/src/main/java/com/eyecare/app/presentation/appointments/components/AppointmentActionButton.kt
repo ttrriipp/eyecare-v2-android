@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.eyecare.app.ui.theme.EyecareColors
 
 /**
  * The app's established 52dp pill action button (see AppointmentDetailScreen's
@@ -69,10 +70,13 @@ fun AppointmentOutlinedButton(
         enabled = enabled && !loading,
         modifier = modifier.fillMaxWidth().height(52.dp),
         shape = RoundedCornerShape(50),
+        // Material's default outlined `contentColor` is `primary`, which is Lens Cyan — it
+        // measures ~2.1:1 as label text on a white surface. `accentText` is the deeper same-hue
+        // token DESIGN.md reserves for cyan content on light surfaces.
         colors = if (isDestructive) {
             ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
         } else {
-            ButtonDefaults.outlinedButtonColors()
+            ButtonDefaults.outlinedButtonColors(contentColor = EyecareColors.current.accentText)
         },
     ) {
         if (loading) {

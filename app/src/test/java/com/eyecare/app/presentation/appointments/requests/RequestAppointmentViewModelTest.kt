@@ -1,9 +1,10 @@
 package com.eyecare.app.presentation.appointments.requests
 
+import androidx.lifecycle.SavedStateHandle
 import com.eyecare.app.domain.model.ApiDomainError
-import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
+import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestTypeSummary
@@ -23,6 +24,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -95,12 +98,17 @@ class RequestAppointmentViewModelTest {
         createdAt = "2026-08-09T10:00:00+08:00", appointmentId = null,
     )
 
+    private fun newViewModel() = RequestAppointmentViewModel(repo, SavedStateHandle())
+
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
         coEvery { repo.getAppointmentTypes() } returns Result.success(listOf(normalType, referralType))
-        vm = RequestAppointmentViewModel(repo)
+        // The schedule step prefetches a whole week around today, so every date must answer.
+        // Individual tests override the specific dates they assert on.
+        coEvery { repo.getAvailability(any(), any()) } returns Result.success(fakeAvailability())
+        vm = newViewModel()
     }
 
     @AfterEach
@@ -112,13 +120,13 @@ class RequestAppointmentViewModelTest {
     fun `initial step is Type and loads types`() {
         val step = vm.step.value as RequestStep.Type
         assertEquals(2, step.types.size)
-        assertTrue(!step.isLoading)
+        assertFalse(step.isLoading)
     }
 
     @Test
     fun `type load failure shows retry`() {
         coEvery { repo.getAppointmentTypes() } returns Result.failure(Exception("Network"))
-        vm = RequestAppointmentViewModel(repo)
+        vm = newViewModel()
         val step = vm.step.value as RequestStep.Type
         assertEquals("We couldn't load appointment types. Please try again.", step.error)
         assertTrue(step.types.isEmpty())
@@ -130,7 +138,7 @@ class RequestAppointmentViewModelTest {
             ApiDomainError(500, "INTERNAL_ERROR", "SQL exception with private details"),
         )
 
-        vm = RequestAppointmentViewModel(repo)
+        vm = newViewModel()
 
         val step = vm.step.value as RequestStep.Type
         assertEquals("We couldn't load appointment types. Please try again.", step.error)
@@ -147,7 +155,7 @@ class RequestAppointmentViewModelTest {
             withContext(NonCancellable) { response.await() }
         }
 
-        vm = RequestAppointmentViewModel(repo)
+        vm = newViewModel()
         vm.retryTypes()
 
         latestResponse.complete(Result.success(listOf(referralType)))
@@ -160,30 +168,58 @@ class RequestAppointmentViewModelTest {
     @Test
     fun `selectType sets selection`() {
         vm.selectType(normalType)
-        val step = vm.step.value as RequestStep.Type
-        assertEquals(normalType, step.selectedType)
+        assertEquals(normalType, (vm.step.value as RequestStep.Type).selectedType)
     }
 
     @Test
     fun `confirmType advances to Schedule`() {
         vm.selectType(normalType)
-        vm.confirmType()
-        assertTrue(vm.step.value is RequestStep.Schedule)
-        assertEquals(normalType, (vm.step.value as RequestStep.Schedule).selectedType)
+        vm.confirmType(identityRequired = false)
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertEquals(normalType, schedule.selectedType)
+        assertFalse(schedule.identityRequired)
     }
 
     @Test
     fun `confirmType without selection does nothing`() {
-        vm.confirmType()
+        vm.confirmType(identityRequired = false)
         assertTrue(vm.step.value is RequestStep.Type)
+    }
+
+    @Test
+    fun `confirmType carries identityRequired into the flow`() {
+        vm.selectType(normalType)
+        vm.confirmType(identityRequired = true)
+        assertTrue((vm.step.value as RequestStep.Schedule).identityRequired)
+    }
+
+    // ── Step labelling ──
+
+    @Test
+    fun `linked patients get four steps and unlinked get five`() {
+        assertEquals(listOf("Type", "Schedule", "Reason", "Review"), requestStepLabels(false))
+        assertEquals(
+            listOf("Type", "Schedule", "Reason", "Details", "Review"),
+            requestStepLabels(true),
+        )
+    }
+
+    @Test
+    fun `review is the last step in both variants`() {
+        assertEquals(3, requestStepIndex(RequestStepId.REVIEW, identityRequired = false))
+        assertEquals(4, requestStepIndex(RequestStepId.REVIEW, identityRequired = true))
     }
 
     // ── Schedule step ──
 
-    private fun enterSchedule(): RequestStep.Schedule {
-        vm.selectType(normalType)
-        vm.confirmType()
-        coEvery { repo.getAvailability("2026-08-10", 1) } returns Result.success(fakeAvailability())
+    private fun enterSchedule(
+        identityRequired: Boolean = false,
+        type: AppointmentType = normalType,
+    ): RequestStep.Schedule {
+        vm.selectType(type)
+        vm.confirmType(identityRequired = identityRequired)
+        coEvery { repo.getAvailability("2026-08-10", type.id) } returns
+            Result.success(fakeAvailability(type.id))
         vm.selectDate("2026-08-10")
         return vm.step.value as RequestStep.Schedule
     }
@@ -204,25 +240,12 @@ class RequestAppointmentViewModelTest {
 
     @Test
     fun `selectDate failure shows error`() {
-        coEvery { repo.getAvailability(any(), any()) } returns Result.failure(Exception("Network"))
         vm.selectType(normalType)
-        vm.confirmType()
+        vm.confirmType(identityRequired = false)
+        coEvery { repo.getAvailability("2026-08-10", 1) } returns Result.failure(Exception("Network"))
         vm.selectDate("2026-08-10")
         val step = vm.step.value as RequestStep.Schedule
-        assertEquals("We couldn't load availability. Please try again.", step.availabilityError)
-    }
-
-    @Test
-    fun `stale availability response for different type is ignored`() {
-        vm.selectType(normalType)
-        vm.confirmType()
-        coEvery { repo.getAvailability("2026-08-10", 1) } returns Result.success(fakeAvailability(1))
-        coEvery { repo.getAvailability("2026-08-10", 4) } returns Result.success(fakeAvailability(4))
-        vm.selectDate("2026-08-10")
-        // Change type before response arrives would require coroutine control;
-        // this test verifies the type-check guard is present
-        val schedule = vm.step.value as RequestStep.Schedule
-        assertEquals(1, schedule.selectedType.id)
+        assertEquals("We couldn't load times for this day. Please try again.", step.availabilityError)
     }
 
     @Test
@@ -230,6 +253,9 @@ class RequestAppointmentViewModelTest {
         val firstResponse = CompletableDeferred<Result<AppointmentRequestAvailability>>()
         val latestResponse = CompletableDeferred<Result<AppointmentRequestAvailability>>()
         var requestCount = 0
+
+        vm.selectType(normalType)
+        vm.confirmType(identityRequired = false)
 
         coEvery { repo.getAvailability("2026-08-10", 1) } coAnswers {
             val response = if (requestCount++ == 0) firstResponse else latestResponse
@@ -243,29 +269,46 @@ class RequestAppointmentViewModelTest {
             ),
         )
 
-        vm.selectType(normalType)
-        vm.confirmType()
         vm.selectDate("2026-08-10")
         vm.selectDate("2026-08-11")
         vm.selectDate("2026-08-10")
 
-        latestResponse.complete(
-            Result.success(fakeAvailability().copy(generatedAt = "latest")),
+        latestResponse.complete(Result.success(fakeAvailability().copy(generatedAt = "latest")))
+        firstResponse.complete(Result.success(fakeAvailability().copy(generatedAt = "stale")))
+
+        assertEquals("latest", (vm.step.value as RequestStep.Schedule).availability?.generatedAt)
+    }
+
+    @Test
+    fun `week prefetch classifies open closed and full days`() {
+        vm.selectType(normalType)
+        coEvery { repo.getAvailability(any(), 1) } returns Result.success(
+            fakeAvailability().copy(dayStatus = "closed", slots = emptyList()),
         )
-        firstResponse.complete(
-            Result.success(fakeAvailability().copy(generatedAt = "stale")),
-        )
+        vm.confirmType(identityRequired = false)
 
         val schedule = vm.step.value as RequestStep.Schedule
-        assertEquals("latest", schedule.availability?.generatedAt)
+        assertTrue(schedule.dayAvailability.values.isNotEmpty())
+        assertTrue(schedule.dayAvailability.values.all { it == DayAvailability.CLOSED })
+    }
+
+    @Test
+    fun `week prefetch marks a day with no free slots as full`() {
+        vm.selectType(normalType)
+        coEvery { repo.getAvailability(any(), 1) } returns Result.success(
+            fakeAvailability().copy(dayStatus = "open", slots = listOf(unavailableSlot)),
+        )
+        vm.confirmType(identityRequired = false)
+
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertTrue(schedule.dayAvailability.values.all { it == DayAvailability.FULL })
     }
 
     @Test
     fun `selectPrimarySlot selects available slot`() {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
-        val step = vm.step.value as RequestStep.Schedule
-        assertEquals(fakeSlot1, step.primarySlot)
+        assertEquals(fakeSlot1, (vm.step.value as RequestStep.Schedule).primarySlot)
     }
 
     @Test
@@ -278,53 +321,87 @@ class RequestAppointmentViewModelTest {
     @Test
     fun `selectPrimarySlot removes duplicate from alternatives`() {
         enterSchedule()
-        vm.addAlternative(fakeSlot1)
-        vm.addAlternative(fakeSlot2)
+        vm.selectPrimarySlot(fakeSlot2)
+        vm.toggleAlternative(fakeSlot1)
         vm.selectPrimarySlot(fakeSlot1)
         val step = vm.step.value as RequestStep.Schedule
         assertEquals(fakeSlot1, step.primarySlot)
         assertTrue(step.alternativeSlots.none { it.startsAt == fakeSlot1.startsAt })
     }
 
+    // ── Two-phase alternatives ──
+
     @Test
-    fun `addAlternative adds distinct slots`() {
-        enterSchedule()
-        vm.selectPrimarySlot(fakeSlot1)
-        vm.addAlternative(fakeSlot2)
-        val step = vm.step.value as RequestStep.Schedule
-        assertEquals(1, step.alternativeSlots.size)
-        assertEquals(fakeSlot2, step.alternativeSlots[0])
+    fun `schedule starts in preferred phase`() {
+        assertEquals(SchedulePhase.PREFERRED, enterSchedule().phase)
     }
 
     @Test
-    fun `addAlternative rejects duplicate of primary`() {
+    fun `alternatives phase requires a preferred slot first`() {
+        enterSchedule()
+        vm.startAddingAlternatives()
+        assertEquals(SchedulePhase.PREFERRED, (vm.step.value as RequestStep.Schedule).phase)
+
+        vm.selectPrimarySlot(fakeSlot1)
+        vm.startAddingAlternatives()
+        assertEquals(SchedulePhase.ALTERNATIVES, (vm.step.value as RequestStep.Schedule).phase)
+    }
+
+    @Test
+    fun `finishAddingAlternatives returns to preferred phase`() {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
-        vm.addAlternative(fakeSlot1)
+        vm.startAddingAlternatives()
+        vm.finishAddingAlternatives()
+        assertEquals(SchedulePhase.PREFERRED, (vm.step.value as RequestStep.Schedule).phase)
+    }
+
+    @Test
+    fun `toggleAlternative adds distinct slots`() {
+        enterSchedule()
+        vm.selectPrimarySlot(fakeSlot1)
+        vm.toggleAlternative(fakeSlot2)
+        val step = vm.step.value as RequestStep.Schedule
+        assertEquals(listOf(fakeSlot2), step.alternativeSlots)
+    }
+
+    @Test
+    fun `toggleAlternative removes an already chosen slot`() {
+        enterSchedule()
+        vm.selectPrimarySlot(fakeSlot1)
+        vm.toggleAlternative(fakeSlot2)
+        vm.toggleAlternative(fakeSlot2)
         assertTrue((vm.step.value as RequestStep.Schedule).alternativeSlots.isEmpty())
     }
 
     @Test
-    fun `addAlternative rejects duplicate of existing alternative`() {
+    fun `toggleAlternative rejects the preferred slot`() {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
-        vm.addAlternative(fakeSlot2)
-        vm.addAlternative(fakeSlot2)
-        assertEquals(1, (vm.step.value as RequestStep.Schedule).alternativeSlots.size)
+        vm.toggleAlternative(fakeSlot1)
+        assertTrue((vm.step.value as RequestStep.Schedule).alternativeSlots.isEmpty())
     }
 
     @Test
-    fun `addAlternative caps at two`() {
+    fun `toggleAlternative rejects unavailable slot`() {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
-        vm.addAlternative(fakeSlot2)
-        vm.addAlternative(fakeSlot3)
+        vm.toggleAlternative(unavailableSlot)
+        assertTrue((vm.step.value as RequestStep.Schedule).alternativeSlots.isEmpty())
+    }
+
+    @Test
+    fun `toggleAlternative caps at two`() {
+        enterSchedule()
+        vm.selectPrimarySlot(fakeSlot1)
+        vm.toggleAlternative(fakeSlot2)
+        vm.toggleAlternative(fakeSlot3)
         val extraSlot = AvailabilitySlot(
             startsAt = "2026-08-10T13:00:00+08:00",
             endsAt = "2026-08-10T13:45:00+08:00",
             available = true, reason = null,
         )
-        vm.addAlternative(extraSlot)
+        vm.toggleAlternative(extraSlot)
         assertEquals(2, (vm.step.value as RequestStep.Schedule).alternativeSlots.size)
     }
 
@@ -333,14 +410,11 @@ class RequestAppointmentViewModelTest {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
         coEvery { repo.getAvailability("2026-08-11", 1) } returns Result.success(
-            fakeAvailability().copy(
-                date = "2026-08-11",
-                slots = listOf(fakeSlotOtherDate),
-            ),
+            fakeAvailability().copy(date = "2026-08-11", slots = listOf(fakeSlotOtherDate)),
         )
 
         vm.selectDate("2026-08-11")
-        vm.addAlternative(fakeSlotOtherDate)
+        vm.toggleAlternative(fakeSlotOtherDate)
 
         val schedule = vm.step.value as RequestStep.Schedule
         assertEquals(fakeSlot1, schedule.primarySlot)
@@ -351,50 +425,63 @@ class RequestAppointmentViewModelTest {
     fun `removeAlternative removes by startsAt`() {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
-        vm.addAlternative(fakeSlot2)
-        vm.addAlternative(fakeSlot3)
+        vm.toggleAlternative(fakeSlot2)
+        vm.toggleAlternative(fakeSlot3)
         vm.removeAlternative(fakeSlot2)
         val step = vm.step.value as RequestStep.Schedule
-        assertEquals(1, step.alternativeSlots.size)
-        assertEquals(fakeSlot3.startsAt, step.alternativeSlots[0].startsAt)
+        assertEquals(listOf(fakeSlot3.startsAt), step.alternativeSlots.map { it.startsAt })
+    }
+
+    @Test
+    fun `backToType keeps the chosen type highlighted`() {
+        enterSchedule()
+        vm.backToType()
+        val step = vm.step.value as RequestStep.Type
+        assertEquals(normalType, step.selectedType)
+        assertEquals(2, step.types.size)
+    }
+
+    @Test
+    fun `backToType drops a selection the catalog no longer offers`() {
+        enterSchedule()
+        coEvery { repo.getAppointmentTypes() } returns Result.success(listOf(referralType))
+        vm.backToType()
+        assertNull((vm.step.value as RequestStep.Type).selectedType)
     }
 
     @Test
     fun `changing type clears slots and availability`() {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
-        vm.addAlternative(fakeSlot2)
+        vm.toggleAlternative(fakeSlot2)
         vm.backToType()
         vm.selectType(referralType)
-        vm.confirmType()
+        vm.confirmType(identityRequired = false)
         val schedule = vm.step.value as RequestStep.Schedule
         assertNull(schedule.primarySlot)
         assertTrue(schedule.alternativeSlots.isEmpty())
         assertNull(schedule.availability)
     }
 
-    // ── Details step ──
+    // ── Reason step ──
 
-    private fun enterDetails(
+    private fun enterReason(
         identityRequired: Boolean = false,
         type: AppointmentType = normalType,
-    ): RequestStep.Details {
-        vm.selectType(type)
-        vm.confirmType()
-        coEvery { repo.getAvailability("2026-08-10", type.id) } returns Result.success(fakeAvailability(type.id))
-        vm.selectDate("2026-08-10")
+    ): RequestStep.Reason {
+        enterSchedule(identityRequired = identityRequired, type = type)
         vm.selectPrimarySlot(fakeSlot1)
-        vm.addAlternative(fakeSlot2)
-        vm.confirmSchedule(identityDetailsRequired = identityRequired)
-        return vm.step.value as RequestStep.Details
+        vm.toggleAlternative(fakeSlot2)
+        vm.confirmSchedule()
+        return vm.step.value as RequestStep.Reason
     }
 
     @Test
-    fun `confirmSchedule moves to Details`() {
-        val details = enterDetails()
-        assertEquals("2026-08-10", details.date)
-        assertEquals(fakeSlot1, details.primarySlot)
-        assertEquals(1, details.alternativeSlots.size)
+    fun `confirmSchedule moves to Reason`() {
+        val reason = enterReason()
+        assertEquals("2026-08-10", reason.date)
+        assertEquals(fakeSlot1, reason.primarySlot)
+        assertEquals(1, reason.alternativeSlots.size)
     }
 
     @Test
@@ -405,94 +492,177 @@ class RequestAppointmentViewModelTest {
             fakeAvailability().copy(date = "2026-08-11", slots = listOf(fakeSlotOtherDate)),
         )
         vm.selectDate("2026-08-11")
-        vm.addAlternative(fakeSlotOtherDate)
+        vm.toggleAlternative(fakeSlotOtherDate)
 
         vm.confirmSchedule()
 
-        val details = vm.step.value as RequestStep.Details
-        assertEquals("2026-08-10", details.date)
+        assertEquals("2026-08-10", (vm.step.value as RequestStep.Reason).date)
+    }
+
+    @Test
+    fun `confirmSchedule without a preferred slot does nothing`() {
+        enterSchedule()
+        vm.confirmSchedule()
+        assertTrue(vm.step.value is RequestStep.Schedule)
     }
 
     @Test
     fun `empty reason shows validation error`() {
-        val details = enterDetails()
-        vm.confirmDetails()
-        val step = vm.step.value as RequestStep.Details
-        assertEquals("Reason for visit is required", step.reasonError)
+        enterReason()
+        vm.confirmReason()
+        assertEquals(
+            "Tell the clinic what you'd like to be seen for.",
+            (vm.step.value as RequestStep.Reason).reasonError,
+        )
     }
 
     @Test
     fun `referral type requires referring source`() {
-        val details = enterDetails(type = referralType)
+        enterReason(type = referralType)
         vm.updateReason("Blurred vision")
-        vm.confirmDetails()
-        val step = vm.step.value as RequestStep.Details
-        assertEquals("Referral source is required for this appointment type", step.referringSourceError)
+        vm.confirmReason()
+        assertEquals(
+            "Referral needs a referral. Add who referred you.",
+            (vm.step.value as RequestStep.Reason).referringSourceError,
+        )
     }
 
     @Test
-    fun `non-referral type sends null referring source`() {
-        enterDetails()
+    fun `linked patient skips the identity step`() {
+        enterReason(identityRequired = false)
         vm.updateReason("Blurred vision")
-        vm.confirmDetails()
+        vm.confirmReason()
         val review = vm.step.value as RequestStep.Review
         assertNull(review.referringSource)
+        assertNull(review.identity)
+        assertFalse(review.identityRequired)
     }
 
     @Test
-    fun `referral type with valid source proceeds to Review`() {
-        enterDetails(type = referralType)
+    fun `unlinked patient goes to the identity step`() {
+        enterReason(identityRequired = true)
+        vm.updateReason("Blurred vision")
+        vm.confirmReason()
+        assertTrue(vm.step.value is RequestStep.Identity)
+    }
+
+    @Test
+    fun `referral type with valid source proceeds`() {
+        enterReason(type = referralType)
         vm.updateReason("Blurred vision")
         vm.updateReferringSource("Dr. Smith")
-        vm.confirmDetails()
-        val review = vm.step.value as RequestStep.Review
-        assertEquals("Dr. Smith", review.referringSource)
+        vm.confirmReason()
+        assertEquals("Dr. Smith", (vm.step.value as RequestStep.Review).referringSource)
     }
 
     @Test
     fun `stale referral cleared when switching to non-referral type`() {
-        enterDetails(type = referralType)
+        enterReason(type = referralType)
         vm.updateReason("Test")
         vm.updateReferringSource("Dr. Smith")
         vm.backToSchedule()
         vm.backToType()
         vm.selectType(normalType)
-        vm.confirmType()
+        vm.confirmType(identityRequired = false)
         coEvery { repo.getAvailability("2026-08-10", 1) } returns Result.success(fakeAvailability(1))
         vm.selectDate("2026-08-10")
         vm.selectPrimarySlot(fakeSlot1)
         vm.confirmSchedule()
-        val details = vm.step.value as RequestStep.Details
-        assertEquals("", details.referringSource)
+        assertEquals("", (vm.step.value as RequestStep.Reason).referringSource)
     }
 
-    @Test
-    fun `identity validation errors for linked-unlinked boundary`() {
-        enterDetails(identityRequired = true)
-        vm.updateReason("Test")
-        vm.confirmDetails()
-        val step = vm.step.value as RequestStep.Details
-        assertEquals("First name is required", step.errors["firstName"])
-        assertEquals("Last name is required", step.errors["lastName"])
-        assertEquals("Date of birth is required", step.errors["dateOfBirth"])
-        assertEquals("A verified phone number is required", step.errors["phone"])
-        assertEquals("Gender is required", step.errors["gender"])
-        assertEquals("Occupation is required", step.errors["occupation"])
-        assertEquals("Address is required", step.errors["address"])
-    }
+    // ── Identity step ──
 
-    @Test
-    fun `confirmDetails moves to Review with normalized identity`() {
-        enterDetails(identityRequired = true)
+    /** The verified phone always arrives from the account; it is never typed on this step. */
+    private val accountIdentity = AppointmentRequestIdentity(
+        phone = "+639171234567", email = null, firstName = null, middleName = null,
+        lastName = null, dateOfBirth = null, gender = null, occupation = null, address = null,
+    )
+
+    private fun enterIdentity(): RequestStep.Identity {
+        enterReason(identityRequired = true)
         vm.updateReason("Blurred vision")
+        vm.confirmReason(initialIdentity = accountIdentity)
+        return vm.step.value as RequestStep.Identity
+    }
+
+    @Test
+    fun `identity validation names every missing field`() {
+        enterIdentity()
+        vm.confirmIdentity()
+        val step = vm.step.value as RequestStep.Identity
+        assertEquals("Enter your first name.", step.errors["firstName"])
+        assertEquals("Enter your last name.", step.errors["lastName"])
+        assertEquals("Choose your date of birth.", step.errors["dateOfBirth"])
+        assertEquals("Choose an option.", step.errors["gender"])
+        assertEquals("Enter your occupation.", step.errors["occupation"])
+        assertEquals("Enter your home address.", step.errors["address"])
+    }
+
+    @Test
+    fun `identity validation points at the first invalid field`() {
+        enterIdentity()
+        vm.confirmIdentity()
+        assertNotNull((vm.step.value as RequestStep.Identity).focusField)
+    }
+
+    @Test
+    fun `editing one field clears only that field's error`() {
+        enterIdentity()
+        vm.confirmIdentity()
+        val before = vm.step.value as RequestStep.Identity
+        assertTrue(before.errors.containsKey("firstName"))
+        assertTrue(before.errors.containsKey("lastName"))
+
+        vm.updateIdentity(firstName = "Alex")
+
+        val after = vm.step.value as RequestStep.Identity
+        assertFalse(after.errors.containsKey("firstName"))
+        assertTrue(after.errors.containsKey("lastName"))
+    }
+
+    @Test
+    fun `invalid email is rejected but a blank one is allowed`() {
+        enterIdentity()
+        vm.updateIdentity(email = "not-an-email")
+        vm.confirmIdentity()
+        assertEquals(
+            "Enter an email like name@example.com, or leave this empty.",
+            (vm.step.value as RequestStep.Identity).errors["email"],
+        )
+    }
+
+    @Test
+    fun `future date of birth is rejected`() {
+        enterIdentity()
+        vm.updateIdentity(dateOfBirth = "2099-01-01")
+        vm.confirmIdentity()
+        assertEquals(
+            "Date of birth must be in the past.",
+            (vm.step.value as RequestStep.Identity).errors["dateOfBirth"],
+        )
+    }
+
+    private fun fillValidIdentity() {
         vm.updateIdentity(
-            phone = "+639171234567", email = "alex@example.com",
+            email = "alex@example.com",
             firstName = "  Alex ", middleName = " ", lastName = " Rivera ",
             dateOfBirth = "1990-05-15", gender = AppointmentRequestGender.FEMALE,
             occupation = " Teacher ", address = " 123 Main St, Manila ",
         )
-        vm.confirmDetails()
-        val review = vm.step.value as RequestStep.Review
+    }
+
+    @Test
+    fun `identity step seeds the verified phone from the account`() {
+        assertEquals("+639171234567", enterIdentity().phone)
+    }
+
+    @Test
+    fun `confirmIdentity moves to Review with normalized identity`() {
+        enterIdentity()
+        fillValidIdentity()
+        vm.confirmIdentity()
+
         assertEquals(
             AppointmentRequestIdentity(
                 phone = "+639171234567", email = "alex@example.com",
@@ -500,34 +670,58 @@ class RequestAppointmentViewModelTest {
                 dateOfBirth = "1990-05-15", gender = AppointmentRequestGender.FEMALE,
                 occupation = "Teacher", address = "123 Main St, Manila",
             ),
-            review.identity,
+            (vm.step.value as RequestStep.Review).identity,
         )
+    }
+
+    @Test
+    fun `backFromReview returns to Identity for an unlinked patient`() {
+        enterIdentity()
+        fillValidIdentity()
+        vm.confirmIdentity()
+        vm.backFromReview()
+        assertEquals("Alex", (vm.step.value as RequestStep.Identity).firstName)
+    }
+
+    @Test
+    fun `backToReason keeps identity as a draft`() {
+        enterIdentity()
+        vm.updateIdentity(firstName = "Alex")
+        vm.backToReason()
+        val reason = vm.step.value as RequestStep.Reason
+        assertEquals("Alex", reason.identityDraft?.firstName)
     }
 
     // ── Review and submit ──
 
+    private fun enterReview(type: AppointmentType = normalType): RequestStep.Review {
+        enterReason(type = type)
+        vm.updateReason("Blurred vision")
+        if (type.requiresReferral) vm.updateReferringSource("Dr. Smith")
+        vm.confirmReason()
+        return vm.step.value as RequestStep.Review
+    }
+
     @Test
     fun `submit sends type ID, primary, alternatives, reason, and referral`() {
-        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.success(fakeRequest)
-        enterDetails(type = referralType)
-        vm.updateReason("Blurred vision")
-        vm.updateReferringSource("Dr. Smith")
-        vm.confirmDetails()
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.success(fakeRequest)
+        enterReview(type = referralType)
         vm.submit()
-        val success = vm.step.value as RequestStep.Success
-        assertEquals(1, success.request.id)
+        assertEquals(1, (vm.step.value as RequestStep.Success).request.id)
     }
 
     @Test
     fun `submit preserves submitted alternative preference order`() {
-        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.success(fakeRequest)
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.success(fakeRequest)
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
-        vm.addAlternative(fakeSlot3)
-        vm.addAlternative(fakeSlot2)
+        vm.toggleAlternative(fakeSlot3)
+        vm.toggleAlternative(fakeSlot2)
         vm.confirmSchedule()
         vm.updateReason("Blurred vision")
-        vm.confirmDetails()
+        vm.confirmReason()
 
         vm.submit()
 
@@ -544,31 +738,49 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `submit SLOT_UNAVAILABLE returns to Schedule`() {
-        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
-            ApiDomainError(422, "SLOT_UNAVAILABLE", "Slot taken.")
-        )
-        enterDetails()
-        vm.updateReason("Test")
-        vm.confirmDetails()
+    fun `submit SLOT_UNAVAILABLE returns to Schedule and drops the taken slot`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(ApiDomainError(422, "SLOT_UNAVAILABLE", "Slot taken."))
+        enterReview()
         vm.submit()
         vm.handleSubmissionError()
-        assertTrue(vm.step.value is RequestStep.Schedule)
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertNull(schedule.primarySlot)
+        assertEquals("Blurred vision", schedule.reasonDraft)
     }
 
     @Test
-    fun `submit ACTIVE_REQUEST_LIMIT_REACHED preserves draft`() {
-        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
-            ApiDomainError(422, "ACTIVE_REQUEST_LIMIT_REACHED", "Limit reached.")
-        )
-        enterDetails()
-        vm.updateReason("Test")
-        vm.confirmDetails()
+    fun `ACTIVE_REQUEST_LIMIT_REACHED is not retryable and keeps the draft`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(ApiDomainError(422, "ACTIVE_REQUEST_LIMIT_REACHED", "Limit reached."))
+        enterReview()
         vm.submit()
-        vm.handleSubmissionError()
         val step = vm.step.value as RequestStep.SubmissionError
         assertEquals("ACTIVE_REQUEST_LIMIT_REACHED", step.errorCode)
-        assertEquals("Test", step.reason)
+        assertFalse(step.canRetry)
+        assertEquals("Blurred vision", step.reason)
+    }
+
+    @Test
+    fun `an ordinary failure stays retryable`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(ApiDomainError(500, "INTERNAL_ERROR", "Database stack trace"))
+        enterReview()
+        vm.submit()
+        assertTrue((vm.step.value as RequestStep.SubmissionError).canRetry)
+    }
+
+    @Test
+    fun `backFromSubmissionError returns to Review with everything intact`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(ApiDomainError(422, "ACTIVE_REQUEST_LIMIT_REACHED", "Limit reached."))
+        enterReview()
+        vm.submit()
+        vm.backFromSubmissionError()
+        val review = vm.step.value as RequestStep.Review
+        assertEquals("Blurred vision", review.reason)
+        assertEquals(fakeSlot1, review.primarySlot)
+        assertFalse(review.isSubmitting)
     }
 
     @Test
@@ -582,20 +794,18 @@ class RequestAppointmentViewModelTest {
             ),
         )
 
-        enterDetails()
-        vm.updateReason("Blurred vision")
-        vm.confirmDetails()
+        enterReview()
         vm.submit()
         vm.handleSubmissionError()
 
         val step = vm.step.value as RequestStep.Type
-        assertEquals("That appointment type is no longer available. Please choose another.", step.notice)
+        assertEquals("That appointment type is no longer offered. Please choose another.", step.notice)
         assertEquals(2, step.types.size)
         assertNull(step.selectedType)
     }
 
     @Test
-    fun `referral validation failure returns to details with field feedback`() {
+    fun `referral validation failure returns to reason with field feedback`() {
         coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
             ApiDomainError(
                 httpStatus = 422,
@@ -605,39 +815,38 @@ class RequestAppointmentViewModelTest {
             ),
         )
 
-        enterDetails(type = referralType)
-        vm.updateReason("Blurred vision")
-        vm.updateReferringSource("Dr. Smith")
-        vm.confirmDetails()
+        enterReview(type = referralType)
         vm.submit()
         vm.handleSubmissionError()
 
-        val step = vm.step.value as RequestStep.Details
+        val step = vm.step.value as RequestStep.Reason
         assertEquals("Blurred vision", step.reason)
         assertEquals("Dr. Smith", step.referringSource)
-        assertEquals("Please check the referral source.", step.referringSourceError)
+        assertEquals(
+            "The clinic couldn't verify this referral. Please check it.",
+            step.referringSourceError,
+        )
     }
 
     @Test
     fun `unknown submission error uses patient safe copy`() {
-        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
-            ApiDomainError(500, "INTERNAL_ERROR", "Database stack trace"),
-        )
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(ApiDomainError(500, "INTERNAL_ERROR", "Database stack trace"))
 
-        enterDetails()
-        vm.updateReason("Blurred vision")
-        vm.confirmDetails()
+        enterReview()
         vm.submit()
 
-        val step = vm.step.value as RequestStep.SubmissionError
-        assertEquals("We couldn't submit your request. Please try again.", step.errorMessage)
+        assertEquals(
+            "We couldn't send your request. Please try again.",
+            (vm.step.value as RequestStep.SubmissionError).errorMessage,
+        )
     }
 
     // ── Back navigation ──
 
     @Test
     fun `backToSchedule preserves draft`() {
-        enterDetails()
+        enterReason()
         vm.updateReason("My reason")
         vm.backToSchedule()
         val schedule = vm.step.value as RequestStep.Schedule
@@ -646,19 +855,33 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `backFromReview returns to Details with identity`() {
-        enterDetails(identityRequired = true)
-        vm.updateReason("Test")
-        vm.updateIdentity(
-            phone = "+639171234567", firstName = "Alex",
-            lastName = "Rivera", dateOfBirth = "1990-05-15",
-            gender = AppointmentRequestGender.FEMALE,
-            occupation = "Teacher", address = "123 Main St, Manila",
-        )
-        vm.confirmDetails()
+    fun `backFromReview returns to Reason for a linked patient`() {
+        enterReview()
         vm.backFromReview()
-        val details = vm.step.value as RequestStep.Details
-        assertEquals("+639171234567", details.phone)
-        assertEquals("Alex", details.firstName)
+        assertEquals("Blurred vision", (vm.step.value as RequestStep.Reason).reason)
+    }
+
+    @Test
+    fun `editFromReview jumps straight to the schedule step`() {
+        enterReview()
+        vm.editFromReview(RequestStepId.SCHEDULE)
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertEquals(fakeSlot1, schedule.primarySlot)
+        assertEquals("Blurred vision", schedule.reasonDraft)
+    }
+
+    @Test
+    fun `editFromReview jumps straight to the reason step`() {
+        enterReview()
+        vm.editFromReview(RequestStepId.REASON)
+        assertEquals("Blurred vision", (vm.step.value as RequestStep.Reason).reason)
+    }
+
+    @Test
+    fun `steps holding typed work report unsaved input`() {
+        val reason = enterReason()
+        assertFalse(reason.hasUnsavedInput)
+        vm.updateReason("Something")
+        assertTrue((vm.step.value as RequestStep.Reason).hasUnsavedInput)
     }
 }
