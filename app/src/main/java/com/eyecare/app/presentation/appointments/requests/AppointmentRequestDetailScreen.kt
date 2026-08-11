@@ -180,7 +180,7 @@ private fun RequestDetailDataContent(
                             )
                             DetailMetadataRow(
                                 Icons.Outlined.AccessTime,
-                                "Time",
+                                "Preferred time",
                                 formatDetailTime(state.request.scheduledAt),
                             )
                             state.request.appointmentType?.let { type ->
@@ -201,10 +201,17 @@ private fun RequestDetailDataContent(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             state.request.alternativeScheduledTimes.forEachIndexed { index, time ->
-                                Text(
-                                    text = "${index + 1}. ${formatDetailTime(time)}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "Alternative ${index + 1}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = formatDetailDateTime(time),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                }
                             }
                         }
                     }

@@ -107,8 +107,8 @@ fun RequestReviewContent(
                                     ReviewMetadataRow(Icons.Outlined.CalendarMonth, "Date", formatDate(state.date))
                                     ReviewMetadataRow(
                                         Icons.Outlined.AccessTime,
-                                        "Time",
-                                        formatTimeSlot(state.primarySlot.startsAt, state.primarySlot.endsAt),
+                                        "Preferred time",
+                                        formatReviewSlot(state.primarySlot.startsAt, state.primarySlot.endsAt),
                                     )
                                     ReviewMetadataRow(
                                         Icons.Outlined.EventAvailable,
@@ -125,10 +125,17 @@ fun RequestReviewContent(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     state.alternativeSlots.forEachIndexed { index, slot ->
-                                        Text(
-                                            text = "${index + 1}. ${formatTimeSlot(slot.startsAt, slot.endsAt)}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                        )
+                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(
+                                                text = "Alternative ${index + 1}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Text(
+                                                text = formatReviewSlot(slot.startsAt, slot.endsAt),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -309,6 +316,18 @@ private fun formatDate(dateStr: String): String {
         java.time.LocalDate.parse(dateStr).format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
     } catch (_: Exception) {
         dateStr
+    }
+}
+
+private fun formatReviewSlot(startsAt: String, endsAt: String): String {
+    return try {
+        val start = Instant.parse(startsAt).atZone(CLINIC_TIME_ZONE)
+        val end = Instant.parse(endsAt).atZone(CLINIC_TIME_ZONE)
+        val dateFormat = DateTimeFormatter.ofPattern("MMM d, yyyy")
+        val timeFormat = DateTimeFormatter.ofPattern("h:mm a")
+        "${start.format(dateFormat)} · ${start.format(timeFormat)} â€“ ${end.format(timeFormat)}"
+    } catch (_: Exception) {
+        formatTimeSlot(startsAt, endsAt)
     }
 }
 

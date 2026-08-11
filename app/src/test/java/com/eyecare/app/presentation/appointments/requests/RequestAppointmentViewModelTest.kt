@@ -60,6 +60,12 @@ class RequestAppointmentViewModelTest {
         available = true, reason = null,
     )
 
+    private val fakeSlotOtherDate = AvailabilitySlot(
+        startsAt = "2026-08-11T09:00:00+08:00",
+        endsAt = "2026-08-11T09:45:00+08:00",
+        available = true, reason = null,
+    )
+
     private val unavailableSlot = AvailabilitySlot(
         startsAt = "2026-08-10T14:00:00+08:00",
         endsAt = "2026-08-10T14:45:00+08:00",
@@ -252,6 +258,25 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
+    fun `changing date preserves primary and allows an alternative from the new date`() {
+        enterSchedule()
+        vm.selectPrimarySlot(fakeSlot1)
+        coEvery { repo.getAvailability("2026-08-11", 1) } returns Result.success(
+            fakeAvailability().copy(
+                date = "2026-08-11",
+                slots = listOf(fakeSlotOtherDate),
+            ),
+        )
+
+        vm.selectDate("2026-08-11")
+        vm.addAlternative(fakeSlotOtherDate)
+
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertEquals(fakeSlot1, schedule.primarySlot)
+        assertEquals(listOf(fakeSlotOtherDate), schedule.alternativeSlots)
+    }
+
+    @Test
     fun `removeAlternative removes by startsAt`() {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
@@ -299,6 +324,22 @@ class RequestAppointmentViewModelTest {
         assertEquals("2026-08-10", details.date)
         assertEquals(fakeSlot1, details.primarySlot)
         assertEquals(1, details.alternativeSlots.size)
+    }
+
+    @Test
+    fun `confirmSchedule uses primary date after browsing another date`() {
+        enterSchedule()
+        vm.selectPrimarySlot(fakeSlot1)
+        coEvery { repo.getAvailability("2026-08-11", 1) } returns Result.success(
+            fakeAvailability().copy(date = "2026-08-11", slots = listOf(fakeSlotOtherDate)),
+        )
+        vm.selectDate("2026-08-11")
+        vm.addAlternative(fakeSlotOtherDate)
+
+        vm.confirmSchedule()
+
+        val details = vm.step.value as RequestStep.Details
+        assertEquals("2026-08-10", details.date)
     }
 
     @Test

@@ -72,6 +72,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 private val wizardSteps = listOf("Type", "Schedule", "Details", "Review")
+private const val maxAlternativeSlots = 2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +97,8 @@ fun RequestAppointmentScreen(
             state = s,
             onDateSelected = { viewModel.selectDate(it) },
             onSelectSlot = { viewModel.selectPrimarySlot(it) },
+            onAddAlternative = { viewModel.addAlternative(it) },
+            onRemoveAlternative = { viewModel.removeAlternative(it) },
             onRetry = { viewModel.retryAvailability() },
             onConfirm = {
                 viewModel.confirmSchedule(
@@ -157,10 +160,12 @@ private fun SectionLabel(text: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ScheduleContent(
+internal fun ScheduleContent(
     state: RequestStep.Schedule,
     onDateSelected: (String) -> Unit,
     onSelectSlot: (AvailabilitySlot) -> Unit,
+    onAddAlternative: (AvailabilitySlot) -> Unit,
+    onRemoveAlternative: (AvailabilitySlot) -> Unit,
     onRetry: () -> Unit,
     onConfirm: () -> Unit,
     onBack: () -> Unit,
@@ -203,7 +208,7 @@ private fun ScheduleContent(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 Text(
-                    text = "Choose a date and time for your appointment.",
+                    text = "Choose your preferred time, then add up to two alternatives.",
                     style = MaterialTheme.typography.bodyLarge,
                 )
 
@@ -214,6 +219,14 @@ private fun ScheduleContent(
                         text = state.date?.let { formatDate(it) } ?: "Select date",
                         onClick = { showDatePicker = true },
                         icon = Icons.Outlined.CalendarMonth,
+                    )
+                }
+
+                state.primarySlot?.let { primarySlot ->
+                    SelectedPreferences(
+                        primarySlot = primarySlot,
+                        alternativeSlots = state.alternativeSlots,
+                        onRemoveAlternative = onRemoveAlternative,
                     )
                 }
 
@@ -254,10 +267,19 @@ private fun ScheduleContent(
                                             )
                                         }
                                         items(morningSlots) { slot ->
+                                            val alternativeOrder = state.alternativeSlots
+                                                .indexOfFirst { it.startsAt == slot.startsAt }
+                                                .takeIf { it >= 0 }
+                                                ?.plus(1)
                                             SlotCard(
                                                 slot = slot,
                                                 isSelected = slot == state.primarySlot,
+                                                alternativeOrder = alternativeOrder,
+                                                canAddAlternative = state.primarySlot != null &&
+                                                    alternativeOrder == null &&
+                                                    state.alternativeSlots.size < maxAlternativeSlots,
                                                 onClick = { onSelectSlot(slot) },
+                                                onAddAlternative = { onAddAlternative(slot) },
                                             )
                                         }
                                     }
@@ -271,10 +293,19 @@ private fun ScheduleContent(
                                             )
                                         }
                                         items(afternoonSlots) { slot ->
+                                            val alternativeOrder = state.alternativeSlots
+                                                .indexOfFirst { it.startsAt == slot.startsAt }
+                                                .takeIf { it >= 0 }
+                                                ?.plus(1)
                                             SlotCard(
                                                 slot = slot,
                                                 isSelected = slot == state.primarySlot,
+                                                alternativeOrder = alternativeOrder,
+                                                canAddAlternative = state.primarySlot != null &&
+                                                    alternativeOrder == null &&
+                                                    state.alternativeSlots.size < maxAlternativeSlots,
                                                 onClick = { onSelectSlot(slot) },
+                                                onAddAlternative = { onAddAlternative(slot) },
                                             )
                                         }
                                     }
@@ -315,6 +346,85 @@ private fun ScheduleContent(
 }
 
 @Composable
+private fun SelectedPreferences(
+    primarySlot: AvailabilitySlot,
+    alternativeSlots: List<AvailabilitySlot>,
+    onRemoveAlternative: (AvailabilitySlot) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Selected preferences",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "${alternativeSlots.size}/$maxAlternativeSlots alternatives",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = "Alternatives are submitted in the order you add them.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            PreferenceTimeRow(label = "Preferred time", slot = primarySlot)
+            alternativeSlots.forEachIndexed { index, slot ->
+                PreferenceTimeRow(
+                    label = "Alternative ${index + 1}",
+                    slot = slot,
+                    onRemove = { onRemoveAlternative(slot) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PreferenceTimeRow(
+    label: String,
+    slot: AvailabilitySlot,
+    onRemove: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = EyecareColors.current.accentText,
+            )
+            Text(
+                text = formatPreferenceSlot(slot),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        onRemove?.let {
+            TextButton(onClick = it) {
+                Text("Remove ${label.lowercase()}")
+            }
+        }
+    }
+}
+
+@Composable
 private fun TimePeriodHeader(
     icon: ImageVector,
     label: String,
@@ -349,10 +459,13 @@ private fun TimePeriodHeader(
 private fun SlotCard(
     slot: AvailabilitySlot,
     isSelected: Boolean,
+    alternativeOrder: Int?,
+    canAddAlternative: Boolean,
     onClick: () -> Unit,
+    onAddAlternative: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = slot.available, onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         shadowElevation = if (isSelected) 0.dp else 1.dp,
         border = if (isSelected) {
@@ -370,7 +483,18 @@ private fun SlotCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(enabled = slot.available, onClick = onClick),
+            ) {
+                when {
+                    isSelected -> Text(
+                        text = "Preferred time",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = EyecareColors.current.accentText,
+                    )
+                }
                 Text(
                     text = formatTimeRange(slot.startsAt, slot.endsAt),
                     style = MaterialTheme.typography.bodyLarge,
@@ -385,22 +509,33 @@ private fun SlotCard(
                 )
             }
 
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.EventAvailable,
-                        contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(16.dp),
-                    )
+            when {
+                canAddAlternative -> TextButton(onClick = onAddAlternative) {
+                    Text("Add as alternative")
                 }
+                isSelected -> SelectedSlotIndicator(contentDescription = "Preferred time selected")
+                alternativeOrder != null -> SelectedSlotIndicator(
+                    contentDescription = "Alternative $alternativeOrder selected",
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun SelectedSlotIndicator(contentDescription: String) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .background(MaterialTheme.colorScheme.primary, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.EventAvailable,
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(16.dp),
+        )
     }
 }
 
@@ -478,6 +613,16 @@ private fun formatSlotDuration(startsAt: String, endsAt: String): String {
         "${minutes}min"
     } catch (_: Exception) {
         ""
+    }
+}
+
+private fun formatPreferenceSlot(slot: AvailabilitySlot): String {
+    return try {
+        val start = Instant.parse(slot.startsAt).atZone(CLINIC_TIME_ZONE)
+        "${start.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))} · " +
+            formatTimeRange(slot.startsAt, slot.endsAt)
+    } catch (_: Exception) {
+        formatTimeRange(slot.startsAt, slot.endsAt)
     }
 }
 

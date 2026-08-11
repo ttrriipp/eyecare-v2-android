@@ -41,6 +41,7 @@ sealed interface RequestStep {
     data class Schedule(
         val selectedType: AppointmentType,
         val date: String? = null,
+        val primaryDate: String? = null,
         val availability: AppointmentRequestAvailability? = null,
         val isLoadingAvailability: Boolean = false,
         val availabilityError: String? = null,
@@ -163,7 +164,6 @@ class RequestAppointmentViewModel @Inject constructor(
 
     fun selectDate(date: String) {
         val current = _step.value as? RequestStep.Schedule ?: return
-        val preservePrimary = current.date == date
         availabilityJob?.cancel()
         val loadKey = Pair(current.selectedType.id, date)
         currentLoadKey = loadKey
@@ -172,8 +172,8 @@ class RequestAppointmentViewModel @Inject constructor(
             availability = null,
             isLoadingAvailability = true,
             availabilityError = null,
-            primarySlot = if (preservePrimary) current.primarySlot else null,
-            alternativeSlots = if (preservePrimary) current.alternativeSlots else emptyList(),
+            primarySlot = current.primarySlot,
+            alternativeSlots = current.alternativeSlots,
         )
         availabilityJob = viewModelScope.launch {
             repository.getAvailability(date, current.selectedType.id)
@@ -207,6 +207,7 @@ class RequestAppointmentViewModel @Inject constructor(
         if (!slot.available) return
         _step.value = current.copy(
             primarySlot = slot,
+            primaryDate = current.date,
             alternativeSlots = current.alternativeSlots.filter { it.startsAt != slot.startsAt },
         )
     }
@@ -240,7 +241,7 @@ class RequestAppointmentViewModel @Inject constructor(
         initialIdentity: AppointmentRequestIdentity? = null,
     ) {
         val current = _step.value as? RequestStep.Schedule ?: return
-        val date = current.date ?: return
+        val date = current.primaryDate ?: current.date ?: return
         val primarySlot = current.primarySlot ?: return
         val identitySeed = current.identityDraft ?: initialIdentity
 
@@ -286,6 +287,7 @@ class RequestAppointmentViewModel @Inject constructor(
         _step.value = RequestStep.Schedule(
             selectedType = current.selectedType,
             date = current.date,
+            primaryDate = current.date,
             primarySlot = current.primarySlot,
             alternativeSlots = current.alternativeSlots,
             reasonDraft = current.reason,
