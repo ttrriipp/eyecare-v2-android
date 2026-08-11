@@ -407,6 +407,31 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
+    fun `submit preserves submitted alternative preference order`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.success(fakeRequest)
+        enterSchedule()
+        vm.selectPrimarySlot(fakeSlot1)
+        vm.addAlternative(fakeSlot3)
+        vm.addAlternative(fakeSlot2)
+        vm.confirmSchedule()
+        vm.updateReason("Blurred vision")
+        vm.confirmDetails()
+
+        vm.submit()
+
+        coVerify {
+            repo.createRequest(
+                appointmentTypeId = normalType.id,
+                scheduledAt = fakeSlot1.startsAt,
+                reasonForVisit = "Blurred vision",
+                alternativeScheduledTimes = listOf(fakeSlot3.startsAt, fakeSlot2.startsAt),
+                referringSource = null,
+                identity = null,
+            )
+        }
+    }
+
+    @Test
     fun `submit SLOT_UNAVAILABLE returns to Schedule`() {
         coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
             ApiDomainError(422, "SLOT_UNAVAILABLE", "Slot taken.")

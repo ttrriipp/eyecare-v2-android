@@ -477,7 +477,6 @@ class RequestAppointmentViewModel @Inject constructor(
         )
         viewModelScope.launch {
             val alternativeTimes = current.alternativeSlots
-                .sortedBy { it.startsAt }
                 .map { it.startsAt }
 
             repository.createRequest(
