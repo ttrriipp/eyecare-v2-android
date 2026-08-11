@@ -65,7 +65,8 @@ class AppointmentRequestListViewModelTest {
     fun `initial load error shows error state`() {
         coEvery { repo.getRequests(1, 15) } returns Result.failure(Exception("Network"))
         vm = AppointmentRequestListViewModel(repo)
-        assertTrue(vm.state.value is RequestListState.Error)
+        val state = vm.state.value as RequestListState.Error
+        assertEquals("We couldn't load your requests. Please try again.", state.message)
     }
 
     @Test
@@ -109,6 +110,6 @@ class AppointmentRequestListViewModelTest {
         vm.loadMore()
         val state = vm.state.value as RequestListState.Data
         assertEquals(1, state.requests.size)
-        assertEquals("Network", state.appendError)
+        assertEquals("We couldn't load more requests. Please try again.", state.appendError)
     }
 }

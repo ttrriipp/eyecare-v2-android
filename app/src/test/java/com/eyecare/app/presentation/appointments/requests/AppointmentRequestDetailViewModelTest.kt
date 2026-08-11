@@ -90,6 +90,18 @@ class AppointmentRequestDetailViewModelTest {
     }
 
     @Test
+    fun `unknown load error uses patient safe copy`() {
+        coEvery { repo.getRequest(1) } returns Result.failure(
+            ApiDomainError(500, "INTERNAL_ERROR", "Database stack trace"),
+        )
+
+        vm.load(1)
+
+        val state = vm.state.value as RequestDetailState.Error
+        assertEquals("We couldn't load this request. Please try again.", state.message)
+    }
+
+    @Test
     fun `cancel success updates state`() {
         coEvery { repo.getRequest(1) } returns Result.success(pendingRequest)
         coEvery { repo.cancelRequest(1) } returns Result.success(cancelledRequest)
@@ -123,6 +135,20 @@ class AppointmentRequestDetailViewModelTest {
         vm.cancel()
         val state = vm.state.value as RequestDetailState.Data
         assertEquals(AppointmentRequestStatus.ACCEPTED, state.request.status)
+    }
+
+    @Test
+    fun `unknown cancel error uses patient safe copy`() {
+        coEvery { repo.getRequest(1) } returns Result.success(pendingRequest)
+        coEvery { repo.cancelRequest(1) } returns Result.failure(
+            ApiDomainError(500, "INTERNAL_ERROR", "Database stack trace"),
+        )
+
+        vm.load(1)
+        vm.cancel()
+
+        val state = vm.state.value as RequestDetailState.Data
+        assertEquals("We couldn't cancel this request. Please try again.", state.cancelError)
     }
 
     @Test

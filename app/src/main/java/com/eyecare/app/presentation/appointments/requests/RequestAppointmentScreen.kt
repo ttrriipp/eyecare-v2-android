@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -672,7 +674,7 @@ private fun String.toDatePickerMillis(): Long? = runCatching {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TypePlaceholderContent(
+internal fun TypePlaceholderContent(
     state: RequestStep.Type,
     onSelectType: (AppointmentType) -> Unit,
     onConfirm: () -> Unit,
@@ -704,33 +706,55 @@ private fun TypePlaceholderContent(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                 )
                 else -> {
-                    Text("Select appointment type", style = MaterialTheme.typography.bodyLarge)
-                    state.types.forEach { type ->
-                        val isSelected = type == state.selectedType
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().clickable { onSelectType(type) },
-                            shape = RoundedCornerShape(12.dp),
-                            border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface,
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(type.name, style = MaterialTheme.typography.titleMedium)
-                                type.description?.let {
-                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                Text("${type.durationMinutes} min", style = MaterialTheme.typography.bodySmall)
-                                if (type.requiresReferral) {
-                                    Text("Requires referral", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text("Select appointment type", style = MaterialTheme.typography.bodyLarge)
+                        state.notice?.let { notice ->
+                            Text(
+                                text = notice,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        state.types.forEach { type ->
+                            val isSelected = type == state.selectedType
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().clickable { onSelectType(type) },
+                                shape = RoundedCornerShape(12.dp),
+                                border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface,
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(type.name, style = MaterialTheme.typography.titleMedium)
+                                    type.description?.let {
+                                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Text("${type.durationMinutes} min", style = MaterialTheme.typography.bodySmall)
+                                    if (type.requiresReferral) {
+                                        Text("Requires referral", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                    }
                                 }
                             }
                         }
+                        if (state.types.isEmpty()) {
+                            Text(
+                                text = "No appointment types are currently available.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        AppointmentPrimaryButton(
+                            text = "Continue",
+                            onClick = onConfirm,
+                            enabled = state.selectedType != null,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                    Spacer(modifier = Modifier.weight(1f))
-                    AppointmentPrimaryButton(
-                        text = "Continue",
-                        onClick = onConfirm,
-                        enabled = state.selectedType != null,
-                    )
                 }
             }
         }

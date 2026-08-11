@@ -52,7 +52,10 @@ class AppointmentRequestDetailViewModel @Inject constructor(
                     when (apiError?.code) {
                         "REQUEST_NOT_OWNED" -> _state.value = RequestDetailState.NotFound
                         else -> _state.value = RequestDetailState.Error(
-                            apiError?.message ?: "Failed to load request"
+                            patientSafeAppointmentRequestError(
+                                error = error,
+                                fallback = "We couldn't load this request. Please try again.",
+                            ),
                         )
                     }
                 }
@@ -81,7 +84,10 @@ class AppointmentRequestDetailViewModel @Inject constructor(
                         else -> {
                             _state.value = current.copy(
                                 isCancelling = false,
-                                cancelError = apiError?.message ?: "Failed to cancel request",
+                                cancelError = patientSafeAppointmentRequestError(
+                                    error = error,
+                                    fallback = "We couldn't cancel this request. Please try again.",
+                                ),
                             )
                         }
                     }

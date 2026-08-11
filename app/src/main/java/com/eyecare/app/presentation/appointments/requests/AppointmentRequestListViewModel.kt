@@ -53,7 +53,12 @@ class AppointmentRequestListViewModel @Inject constructor(
                     )
                 }
                 .onFailure { error ->
-                    _state.value = RequestListState.Error(error.message ?: "Failed to load requests")
+                    _state.value = RequestListState.Error(
+                        patientSafeAppointmentRequestError(
+                            error = error,
+                            fallback = "We couldn't load your requests. Please try again.",
+                        ),
+                    )
                 }
         }
     }
@@ -77,7 +82,10 @@ class AppointmentRequestListViewModel @Inject constructor(
                 .onFailure { error ->
                     _state.value = current.copy(
                         isLoadingMore = false,
-                        appendError = error.message ?: "Failed to load more",
+                        appendError = patientSafeAppointmentRequestError(
+                            error = error,
+                            fallback = "We couldn't load more requests. Please try again.",
+                        ),
                     )
                 }
         }
