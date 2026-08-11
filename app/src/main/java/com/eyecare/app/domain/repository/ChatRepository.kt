@@ -3,15 +3,11 @@ package com.eyecare.app.domain.repository
 import android.net.Uri
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
-import com.eyecare.app.domain.model.MessageContext
 
 interface ChatRepository {
     suspend fun getConversation(): Result<Conversation>
     suspend fun getMessages(): Result<List<Message>>
-    suspend fun sendMessage(
-        body: String,
-        contexts: List<MessageContext>? = null,
-    ): Result<Message>
+    suspend fun sendMessage(body: String): Result<Message>
     suspend fun sendFileMessage(uri: Uri, mimeType: String, fileName: String): Result<Message>
     suspend fun downloadAttachment(attachmentId: Int): Result<AttachmentDownload>
 }

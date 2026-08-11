@@ -5,13 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
-import com.eyecare.app.domain.model.MessageContext
-import com.eyecare.app.domain.model.OpticalOrder
-import com.eyecare.app.domain.model.Quotation
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
-import com.eyecare.app.domain.repository.OpticalOrderRepository
-import com.eyecare.app.domain.repository.QuotationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -30,11 +25,6 @@ data class PendingAttachment(
     val fileSize: Long,
 )
 
-sealed interface PendingContext {
-    data class Estimate(val quotation: Quotation) : PendingContext
-    data class Order(val order: OpticalOrder) : PendingContext
-}
-
 sealed interface ChatUiState {
     data object Loading : ChatUiState
     data class Success(
@@ -43,11 +33,8 @@ sealed interface ChatUiState {
         val currentUserId: Int? = null,
         val isSending: Boolean = false,
         val pendingAttachment: PendingAttachment? = null,
-        val pendingContext: PendingContext? = null,
         val attachmentError: String? = null,
-        val quotations: List<Quotation> = emptyList(),
-        val orders: List<OpticalOrder> = emptyList(),
-        val pickerError: String? = null,
+        val sendError: String? = null,
     ) : ChatUiState
     data class Error(val message: String) : ChatUiState
 }
@@ -55,8 +42,6 @@ sealed interface ChatUiState {
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    private val quotationRepository: QuotationRepository,
-    private val opticalOrderRepository: OpticalOrderRepository,
     private val authRepository: AuthRepository,
 ) : ViewModel() {
 
@@ -99,7 +84,7 @@ class ChatViewModel @Inject constructor(
         val trimmed = body.trim()
         if (trimmed.isBlank()) return
         val current = _uiState.value as? ChatUiState.Success ?: return
-        _uiState.value = current.copy(isSending = true)
+        _uiState.value = current.copy(isSending = true, sendError = null)
         viewModelScope.launch {
             chatRepository.sendMessage(trimmed).fold(
                 onSuccess = { msg ->
@@ -108,7 +93,7 @@ class ChatViewModel @Inject constructor(
                 },
                 onFailure = {
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
-                    _uiState.value = latest.copy(isSending = false)
+                    _uiState.value = latest.copy(isSending = false, sendError = it.message ?: "Failed to send message")
                 },
             )
         }
@@ -120,11 +105,6 @@ class ChatViewModel @Inject constructor(
             AttachmentValidator.validate(it.mimeType, it.fileSize).exceptionOrNull()?.message
         }
         _uiState.value = current.copy(pendingAttachment = attachment, attachmentError = error)
-    }
-
-    fun setPendingContext(context: PendingContext?) {
-        val current = _uiState.value as? ChatUiState.Success ?: return
-        _uiState.value = current.copy(pendingContext = context)
     }
 
     fun sendPendingAttachment() {
@@ -147,38 +127,9 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun sendContextMessage() {
+    fun clearSendError() {
         val current = _uiState.value as? ChatUiState.Success ?: return
-        val ctx = current.pendingContext ?: return
-        val (body, messageContext) = when (ctx) {
-            is PendingContext.Estimate -> {
-                val q = ctx.quotation
-                "Estimate: ${q.quotationNumber}" to MessageContext.Quotation(q.id)
-            }
-            is PendingContext.Order -> {
-                val o = ctx.order
-                "Eyewear order: ${o.orderNumber}" to MessageContext.OpticalOrder(o.id)
-            }
-        }
-        _uiState.value = current.copy(isSending = true, pendingContext = null)
-        viewModelScope.launch {
-            chatRepository.sendMessage(body, listOf(messageContext)).fold(
-                onSuccess = { msg ->
-                    _uiState.value = current.copy(messages = current.messages + msg, isSending = false, pendingContext = null)
-                },
-                onFailure = { _uiState.value = current.copy(isSending = false, pendingContext = ctx) },
-            )
-        }
-    }
-
-    fun loadPickerData() {
-        val current = _uiState.value as? ChatUiState.Success ?: return
-        if (current.quotations.isNotEmpty() || current.orders.isNotEmpty()) return
-        viewModelScope.launch {
-            val quotations = quotationRepository.getQuotations(filter = "current").getOrNull()?.data ?: emptyList()
-            val orders = opticalOrderRepository.getOpticalOrders(filter = "current").getOrNull()?.data ?: emptyList()
-            _uiState.value = current.copy(quotations = quotations, orders = orders)
-        }
+        _uiState.value = current.copy(sendError = null)
     }
 
     private fun load() {

@@ -1,34 +1,77 @@
 package com.eyecare.app.data.repository
 
 import com.eyecare.app.data.remote.dto.MessageDtos
-import com.eyecare.app.domain.model.MessageContext
+import com.eyecare.app.domain.model.ConversationAccessLevel
 import com.eyecare.app.domain.model.SenderType
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ChatRepositoryMappingsTest {
 
     @Test
-    fun `message contexts map to typed domain variants`() {
-        val message = MessageDtos.MessageDto(
-            id = 10,
-            senderId = 2,
-            senderType = "patient",
-            body = "Linked records",
-            createdAt = "2026-07-23T10:00:00Z",
-            contexts = listOf(
-                MessageDtos.ContextLinkDto("quotation", 7),
-                MessageDtos.ContextLinkDto("optical_order", 12),
-                MessageDtos.ContextLinkDto("product", 20),
-            ),
-        ).toDomain()
+    fun `conversation maps linked_patient access level`() {
+        val dto = MessageDtos.ConversationDto(
+            id = 1,
+            patientId = 42,
+            unreadCount = 0,
+            createdAt = "2026-08-01T00:00:00Z",
+            accessLevel = "linked_patient",
+            capabilities = MessageDtos.ConversationCapabilitiesDto(canUploadAttachments = true),
+        )
 
-        assertInstanceOf(MessageContext.Quotation::class.java, message.contexts[0])
-        assertEquals(7, message.contexts[0].id)
-        assertInstanceOf(MessageContext.OpticalOrder::class.java, message.contexts[1])
-        assertEquals(12, message.contexts[1].id)
-        assertEquals(MessageContext.Unsupported("product", 20), message.contexts[2])
+        val domain = dto.toDomain()
+        assertEquals(ConversationAccessLevel.LINKED_PATIENT, domain.accessLevel)
+        assertTrue(domain.capabilities.canUploadAttachments)
+    }
+
+    @Test
+    fun `conversation maps general_inquiry access level`() {
+        val dto = MessageDtos.ConversationDto(
+            id = 2,
+            patientId = null,
+            unreadCount = 0,
+            createdAt = "2026-08-01T00:00:00Z",
+            accessLevel = "general_inquiry",
+            capabilities = MessageDtos.ConversationCapabilitiesDto(canUploadAttachments = false),
+        )
+
+        val domain = dto.toDomain()
+        assertEquals(ConversationAccessLevel.GENERAL_INQUIRY, domain.accessLevel)
+        assertFalse(domain.capabilities.canUploadAttachments)
+    }
+
+    @Test
+    fun `conversation with null access_level fails closed to UNKNOWN`() {
+        val dto = MessageDtos.ConversationDto(
+            id = 3,
+            patientId = null,
+            unreadCount = 0,
+            createdAt = "2026-08-01T00:00:00Z",
+            accessLevel = null,
+            capabilities = null,
+        )
+
+        val domain = dto.toDomain()
+        assertEquals(ConversationAccessLevel.UNKNOWN, domain.accessLevel)
+        assertFalse(domain.capabilities.canUploadAttachments)
+    }
+
+    @Test
+    fun `conversation with unknown access_level fails closed to UNKNOWN`() {
+        val dto = MessageDtos.ConversationDto(
+            id = 4,
+            patientId = null,
+            unreadCount = 0,
+            createdAt = "2026-08-01T00:00:00Z",
+            accessLevel = "new_future_type",
+            capabilities = MessageDtos.ConversationCapabilitiesDto(canUploadAttachments = true),
+        )
+
+        val domain = dto.toDomain()
+        assertEquals(ConversationAccessLevel.UNKNOWN, domain.accessLevel)
+        assertTrue(domain.capabilities.canUploadAttachments)
     }
 
     @Test
@@ -58,3 +101,14 @@ class ChatRepositoryMappingsTest {
         assertEquals("https://example.com/photo.jpg", message.attachments[0].downloadUrl)
     }
 }
+
+private fun MessageDtos.ConversationDto.toDomain() = com.eyecare.app.domain.model.Conversation(
+    id = id,
+    patientId = patientId,
+    unreadCount = unreadCount,
+    createdAt = createdAt,
+    accessLevel = com.eyecare.app.domain.model.ConversationAccessLevel.from(accessLevel),
+    capabilities = capabilities?.let {
+        com.eyecare.app.domain.model.ConversationCapabilities(canUploadAttachments = it.canUploadAttachments)
+    } ?: com.eyecare.app.domain.model.ConversationCapabilities.SAFE_DEFAULT,
+)

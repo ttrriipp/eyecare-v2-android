@@ -11,6 +11,13 @@ object MessageDtos {
         @SerialName("patient_id") val patientId: Int? = null,
         @SerialName("unread_count") val unreadCount: Int = 0,
         @SerialName("created_at") val createdAt: String,
+        @SerialName("access_level") val accessLevel: String? = null,
+        val capabilities: ConversationCapabilitiesDto? = null,
+    )
+
+    @Serializable
+    data class ConversationCapabilitiesDto(
+        @SerialName("can_upload_attachments") val canUploadAttachments: Boolean = false,
     )
 
     @Serializable
@@ -22,7 +29,6 @@ object MessageDtos {
         @SerialName("read_at") val readAt: String? = null,
         @SerialName("created_at") val createdAt: String,
         val attachments: List<AttachmentDto> = emptyList(),
-        val contexts: List<ContextLinkDto> = emptyList(),
     )
 
     @Serializable
@@ -39,14 +45,7 @@ object MessageDtos {
     @Serializable data class MessageResponse(val data: MessageDto)
 
     @Serializable
-    data class ContextLinkDto(
-        val type: String,
-        val id: Int,
-    )
-
-    @Serializable
     data class SendMessageRequest(
         val body: String,
-        val contexts: List<ContextLinkDto>? = null,
     )
 }

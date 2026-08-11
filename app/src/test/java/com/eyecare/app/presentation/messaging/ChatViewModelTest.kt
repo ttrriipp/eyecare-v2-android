@@ -3,14 +3,14 @@ package com.eyecare.app.presentation.messaging
 import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.eyecare.app.domain.model.Conversation
+import com.eyecare.app.domain.model.ConversationAccessLevel
+import com.eyecare.app.domain.model.ConversationCapabilities
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.SenderType
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
-import com.eyecare.app.domain.repository.OpticalOrderRepository
-import com.eyecare.app.domain.repository.QuotationRepository
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.cancel
@@ -31,11 +31,16 @@ class ChatViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repo: ChatRepository
-    private lateinit var quotationRepo: QuotationRepository
-    private lateinit var opticalOrderRepo: OpticalOrderRepository
     private lateinit var authRepo: AuthRepository
 
-    private val fakeConversation = Conversation(1, null, 0, "2026-10-24T10:00:00Z")
+    private val fakeConversation = Conversation(
+        id = 1,
+        patientId = null,
+        unreadCount = 0,
+        createdAt = "2026-10-24T10:00:00Z",
+        accessLevel = ConversationAccessLevel.LINKED_PATIENT,
+        capabilities = ConversationCapabilities(canUploadAttachments = true),
+    )
     private val fakeMessage = Message(1, 42, SenderType.PATIENT, "Hello", null, "2026-10-24T10:00:00Z", emptyList())
     private val fakeAccount = PatientAccount(
         id = 42,
@@ -57,8 +62,6 @@ class ChatViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
-        quotationRepo = mockk()
-        opticalOrderRepo = mockk()
         authRepo = mockk()
         coEvery { authRepo.getMe() } returns Result.success(fakeAccount)
     }
@@ -66,7 +69,7 @@ class ChatViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = ChatViewModel(repo, quotationRepo, opticalOrderRepo, authRepo)
+    private fun vm() = ChatViewModel(repo, authRepo)
 
     @Test
     fun `initial state is Loading then loads conversation and messages`() = runTest {
@@ -183,6 +186,26 @@ class ChatViewModelTest {
                 assertInstanceOf(ChatUiState.Error::class.java, awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `conversation access level is preserved in state`() = runTest {
+        val generalInquiryConversation = fakeConversation.copy(
+            accessLevel = ConversationAccessLevel.GENERAL_INQUIRY,
+            capabilities = ConversationCapabilities(canUploadAttachments = false),
+        )
+        coEvery { repo.getConversation() } returns Result.success(generalInquiryConversation)
+        coEvery { repo.getMessages() } returns Result.success(emptyList())
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            val state = vm.uiState.value as ChatUiState.Success
+            assertEquals(ConversationAccessLevel.GENERAL_INQUIRY, state.conversation.accessLevel)
+            assertEquals(false, state.conversation.capabilities.canUploadAttachments)
         } finally {
             vm.viewModelScope.cancel()
         }

@@ -28,17 +28,16 @@ import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.eyecare.app.BuildConfig
+import com.eyecare.app.domain.model.ConversationAccessLevel
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
-import com.eyecare.app.domain.model.MessageContext
 import com.eyecare.app.domain.model.SenderType
 
 @Composable
 fun MessageBubble(
     message: Message,
     isOwn: Boolean,
-    onEstimateClick: (Int) -> Unit = {},
-    onOrderClick: (Int) -> Unit = {},
+    conversationAccessLevel: ConversationAccessLevel = ConversationAccessLevel.UNKNOWN,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
@@ -65,32 +64,10 @@ fun MessageBubble(
                     )
                 }
 
-                // Attachments
+                // Attachments - only render image previews for linked_patient conversations
                 message.attachments.forEach { attachment ->
                     Spacer(Modifier.height(4.dp))
-                    AttachmentContent(attachment, isOwn)
-                }
-
-                message.contexts.forEach { context ->
-                    when (context) {
-                        is MessageContext.Quotation -> {
-                            Spacer(Modifier.height(6.dp))
-                            MessageContextCard(
-                                context = context,
-                                isOwn = isOwn,
-                                onClick = { onEstimateClick(context.id) },
-                            )
-                        }
-                        is MessageContext.OpticalOrder -> {
-                            Spacer(Modifier.height(6.dp))
-                            MessageContextCard(
-                                context = context,
-                                isOwn = isOwn,
-                                onClick = { onOrderClick(context.id) },
-                            )
-                        }
-                        is MessageContext.Unsupported -> Unit
-                    }
+                    AttachmentContent(attachment, isOwn, conversationAccessLevel)
                 }
 
                 Text(
@@ -105,8 +82,13 @@ fun MessageBubble(
 }
 
 @Composable
-private fun AttachmentContent(attachment: MessageAttachment, isOwn: Boolean) {
-    if (attachment.mimeType.startsWith("image/")) {
+private fun AttachmentContent(attachment: MessageAttachment, isOwn: Boolean, accessLevel: ConversationAccessLevel) {
+    // Only attempt image rendering for linked_patient conversations
+    val canLoadImage = accessLevel == ConversationAccessLevel.LINKED_PATIENT &&
+        attachment.mimeType.startsWith("image/") &&
+        attachment.downloadUrl != null
+
+    if (canLoadImage) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data("${BuildConfig.API_BASE_URL}/conversation/attachments/${attachment.id}")
@@ -120,6 +102,7 @@ private fun AttachmentContent(attachment: MessageAttachment, isOwn: Boolean) {
             imageLoader = SingletonImageLoader.get(LocalContext.current),
         )
     } else {
+        // Show safe metadata without requesting the protected route
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 Icons.Default.Description,

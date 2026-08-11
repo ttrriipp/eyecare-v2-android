@@ -5,9 +5,10 @@ import android.net.Uri
 import com.eyecare.app.data.remote.api.ConversationApiService
 import com.eyecare.app.data.remote.dto.MessageDtos
 import com.eyecare.app.domain.model.Conversation
+import com.eyecare.app.domain.model.ConversationAccessLevel
+import com.eyecare.app.domain.model.ConversationCapabilities
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
-import com.eyecare.app.domain.model.MessageContext
 import com.eyecare.app.domain.model.SenderType
 import com.eyecare.app.domain.repository.AttachmentDownload
 import com.eyecare.app.domain.repository.ChatRepository
@@ -32,12 +33,8 @@ class ChatRepositoryImpl @Inject constructor(
         api.getMessages().data.map { it.toDomain() }
     }
 
-    override suspend fun sendMessage(
-        body: String,
-        contexts: List<MessageContext>?,
-    ): Result<Message> = runCatching {
-        val dtos = contexts?.map { it.toDto() }
-        api.sendMessage(MessageDtos.SendMessageRequest(body, dtos)).data.toDomain()
+    override suspend fun sendMessage(body: String): Result<Message> = runCatching {
+        api.sendMessage(MessageDtos.SendMessageRequest(body)).data.toDomain()
     }
 
     override suspend fun sendFileMessage(
@@ -72,14 +69,17 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     private fun MessageDtos.ConversationDto.toDomain() = Conversation(
-        id = id, patientId = patientId, unreadCount = unreadCount, createdAt = createdAt,
+        id = id,
+        patientId = patientId,
+        unreadCount = unreadCount,
+        createdAt = createdAt,
+        accessLevel = ConversationAccessLevel.from(accessLevel),
+        capabilities = capabilities?.toDomain() ?: ConversationCapabilities.SAFE_DEFAULT,
     )
 
-    private fun MessageContext.toDto(): MessageDtos.ContextLinkDto = when (this) {
-        is MessageContext.Quotation -> MessageDtos.ContextLinkDto(type = "quotation", id = id)
-        is MessageContext.OpticalOrder -> MessageDtos.ContextLinkDto(type = "optical_order", id = id)
-        is MessageContext.Unsupported -> MessageDtos.ContextLinkDto(type = type, id = id)
-    }
+    private fun MessageDtos.ConversationCapabilitiesDto.toDomain() = ConversationCapabilities(
+        canUploadAttachments = canUploadAttachments,
+    )
 }
 
 internal fun MessageDtos.MessageDto.toDomain() = Message(
@@ -97,12 +97,5 @@ internal fun MessageDtos.MessageDto.toDomain() = Message(
             fileSize = attachment.fileSize,
             downloadUrl = attachment.downloadUrl,
         )
-    },
-    contexts = contexts.map { context ->
-        when (context.type.lowercase()) {
-            "quotation" -> MessageContext.Quotation(context.id)
-            "optical_order" -> MessageContext.OpticalOrder(context.id)
-            else -> MessageContext.Unsupported(context.type, context.id)
-        }
     },
 )

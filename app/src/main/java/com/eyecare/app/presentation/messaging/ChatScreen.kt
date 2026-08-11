@@ -34,14 +34,12 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,29 +50,23 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.eyecare.app.domain.model.ConversationAccessLevel
+import com.eyecare.app.domain.model.SenderType
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.messaging.components.AttachmentPreview
-import com.eyecare.app.presentation.messaging.components.AttachmentSheet
-import com.eyecare.app.presentation.messaging.components.ContextCard
 import com.eyecare.app.presentation.messaging.components.MessageBubble
 import com.eyecare.app.ui.theme.EyecareColors
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     onBack: () -> Unit,
-    onEstimateClick: (Int) -> Unit = {},
-    onOrderClick: (Int) -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
-    var showSheet by remember { mutableStateOf(false) }
 
     // Lifecycle-aware polling
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -119,19 +111,6 @@ fun ChatScreen(
         if (size > 0) listState.animateScrollToItem(size - 1)
     }
 
-    if (showSheet) {
-        val state = uiState as? ChatUiState.Success
-        AttachmentSheet(
-            sheetState = sheetState,
-            quotations = state?.quotations ?: emptyList(),
-            orders = state?.orders ?: emptyList(),
-            onAttachFile = { filePicker.launch(arrayOf("image/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
-            onLinkEstimate = { viewModel.setPendingContext(PendingContext.Estimate(it)) },
-            onLinkOrder = { viewModel.setPendingContext(PendingContext.Order(it)) },
-            onDismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { showSheet = false } },
-        )
-    }
-
     Column(
         Modifier
             .fillMaxSize()
@@ -170,12 +149,11 @@ fun ChatScreen(
                         ) {
                             items(state.messages, key = { it.id }) { msg ->
                                 val isOwn = state.currentUserId?.let { it == msg.senderId }
-                                    ?: (msg.senderType == com.eyecare.app.domain.model.SenderType.PATIENT)
+                                    ?: (msg.senderType == SenderType.PATIENT)
                                 MessageBubble(
                                     message = msg,
                                     isOwn = isOwn,
-                                    onEstimateClick = onEstimateClick,
-                                    onOrderClick = onOrderClick,
+                                    conversationAccessLevel = state.conversation.accessLevel,
                                 )
                             }
                         }
@@ -184,7 +162,7 @@ fun ChatScreen(
             }
         }
 
-        // Pending attachment / context previews
+        // Pending attachment preview
         val successState = uiState as? ChatUiState.Success
         successState?.pendingAttachment?.let { attachment ->
             AttachmentPreview(
@@ -194,35 +172,44 @@ fun ChatScreen(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             )
         }
-        successState?.pendingContext?.let { ctx ->
-            ContextCard(
-                context = ctx,
-                onRemove = { viewModel.setPendingContext(null) },
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+
+        // Send error message
+        successState?.sendError?.let { error ->
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
             )
         }
 
         // Input bar
         val isSending = successState?.isSending == true
+        val canUpload = successState?.conversation?.let {
+            it.accessLevel == ConversationAccessLevel.LINKED_PATIENT && it.capabilities.canUploadAttachments
+        } == true
+
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // "+" attachment button
-            Surface(
-                onClick = {
-                    viewModel.loadPickerData()
-                    showSheet = true
-                },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(44.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Add, contentDescription = "Add attachment", tint = EyecareColors.current.accentText)
+            // "+" attachment button — only shown when upload is allowed
+            if (canUpload) {
+                Surface(
+                    onClick = {
+                        filePicker.launch(arrayOf("image/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                    },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Add, contentDescription = "Add attachment", tint = EyecareColors.current.accentText)
+                    }
                 }
+                Spacer(Modifier.width(8.dp))
             }
-            Spacer(Modifier.width(8.dp))
+
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { inputText = it },
@@ -237,14 +224,14 @@ fun ChatScreen(
                 enabled = !isSending,
             )
             Spacer(Modifier.width(8.dp))
+
             val hasPendingAttachment = successState?.pendingAttachment != null && successState.attachmentError == null
-            val hasPendingContext = successState?.pendingContext != null
-            val canSend = (inputText.isNotBlank() || hasPendingAttachment || hasPendingContext) && !isSending
+            val canSend = (inputText.isNotBlank() || hasPendingAttachment) && !isSending
+
             Surface(
                 onClick = {
                     when {
                         hasPendingAttachment -> viewModel.sendPendingAttachment()
-                        hasPendingContext -> viewModel.sendContextMessage()
                         else -> {
                             viewModel.sendMessage(inputText)
                             inputText = ""
@@ -271,5 +258,3 @@ fun ChatScreen(
         }
     }
 }
-
-

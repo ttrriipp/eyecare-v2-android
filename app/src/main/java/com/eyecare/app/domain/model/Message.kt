@@ -5,7 +5,31 @@ data class Conversation(
     val patientId: Int?,
     val unreadCount: Int,
     val createdAt: String,
+    val accessLevel: ConversationAccessLevel,
+    val capabilities: ConversationCapabilities,
 )
+
+enum class ConversationAccessLevel {
+    LINKED_PATIENT,
+    GENERAL_INQUIRY,
+    UNKNOWN;
+
+    companion object {
+        fun from(value: String?): ConversationAccessLevel = when (value?.lowercase()) {
+            "linked_patient" -> LINKED_PATIENT
+            "general_inquiry" -> GENERAL_INQUIRY
+            else -> UNKNOWN
+        }
+    }
+}
+
+data class ConversationCapabilities(
+    val canUploadAttachments: Boolean,
+) {
+    companion object {
+        val SAFE_DEFAULT = ConversationCapabilities(canUploadAttachments = false)
+    }
+}
 
 data class Message(
     val id: Int,
@@ -15,7 +39,6 @@ data class Message(
     val readAt: String?,
     val createdAt: String,
     val attachments: List<MessageAttachment>,
-    val contexts: List<MessageContext> = emptyList(),
 )
 
 enum class SenderType {
@@ -28,14 +51,6 @@ enum class SenderType {
             else -> UNKNOWN
         }
     }
-}
-
-sealed interface MessageContext {
-    val id: Int
-
-    data class Quotation(override val id: Int) : MessageContext
-    data class OpticalOrder(override val id: Int) : MessageContext
-    data class Unsupported(val type: String, override val id: Int) : MessageContext
 }
 
 data class MessageAttachment(

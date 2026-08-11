@@ -32,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.domain.model.SessionState
+import com.eyecare.app.domain.model.requiresAppointmentRequestIdentity
 import com.eyecare.app.domain.model.toAppointmentRequestIdentityOrNull
 import com.eyecare.app.domain.model.canAccessPatientFeatures
 import com.eyecare.app.domain.repository.ChatRepository
@@ -328,12 +329,14 @@ fun EyecareNavGraph(
                     }
                     composable<RequestAppointment> { backStackEntry ->
                         val route = backStackEntry.toRoute<RequestAppointment>()
-                        val requestIdentity = when (val state = sessionState) {
-                            is SessionState.Linked -> null
-                            is SessionState.Limited -> state.account.toAppointmentRequestIdentityOrNull()
+                        val requestAccount = when (val state = sessionState) {
+                            is SessionState.Linked -> state.account
+                            is SessionState.Limited -> state.account
                             else -> null
                         }
-                        val identityDetailsRequired = sessionState is SessionState.Limited
+                        val requestIdentity = requestAccount?.toAppointmentRequestIdentityOrNull()
+                        val identityDetailsRequired = requestAccount
+                            ?.requiresAppointmentRequestIdentity() == true
                         RequestAppointmentScreen(
                             onBack = { navController.popBackStack() },
                             onRequestCreated = { requestId ->
@@ -433,6 +436,7 @@ fun EyecareNavGraph(
                         }
                         ProfileScreen(
                             account = account,
+                            onLinkedAccountResolved = sessionViewModel::setLinkedAccount,
                             onLogout = {
                                 tokenManager.clearToken()
                                 sessionViewModel.signOut()
@@ -466,8 +470,6 @@ fun EyecareNavGraph(
                     composable<Chat> {
                         ChatScreen(
                             onBack = { navController.popBackStack() },
-                            onEstimateClick = { navigatePatientFeature(EstimateDetail(it)) },
-                            onOrderClick = { navigatePatientFeature(OpticalOrderDetail(it)) },
                         )
                     }
                 }
