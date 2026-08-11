@@ -13,8 +13,11 @@ import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -187,6 +190,41 @@ class RequestAppointmentViewModelTest {
         // this test verifies the type-check guard is present
         val schedule = vm.step.value as RequestStep.Schedule
         assertEquals(1, schedule.selectedType.id)
+    }
+
+    @Test
+    fun `stale response for repeated date is ignored`() {
+        val firstResponse = CompletableDeferred<Result<AppointmentRequestAvailability>>()
+        val latestResponse = CompletableDeferred<Result<AppointmentRequestAvailability>>()
+        var requestCount = 0
+
+        coEvery { repo.getAvailability("2026-08-10", 1) } coAnswers {
+            val response = if (requestCount++ == 0) firstResponse else latestResponse
+            withContext(NonCancellable) { response.await() }
+        }
+        coEvery { repo.getAvailability("2026-08-11", 1) } returns Result.success(
+            fakeAvailability().copy(
+                date = "2026-08-11",
+                generatedAt = "2026-08-09T11:00:00+08:00",
+                slots = listOf(fakeSlotOtherDate),
+            ),
+        )
+
+        vm.selectType(normalType)
+        vm.confirmType()
+        vm.selectDate("2026-08-10")
+        vm.selectDate("2026-08-11")
+        vm.selectDate("2026-08-10")
+
+        latestResponse.complete(
+            Result.success(fakeAvailability().copy(generatedAt = "latest")),
+        )
+        firstResponse.complete(
+            Result.success(fakeAvailability().copy(generatedAt = "stale")),
+        )
+
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertEquals("latest", schedule.availability?.generatedAt)
     }
 
     @Test

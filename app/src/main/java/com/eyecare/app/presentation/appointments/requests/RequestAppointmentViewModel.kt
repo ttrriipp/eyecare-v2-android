@@ -121,7 +121,7 @@ class RequestAppointmentViewModel @Inject constructor(
     val step: StateFlow<RequestStep> = _step.asStateFlow()
 
     private var availabilityJob: Job? = null
-    private var currentLoadKey: Pair<Int, String>? = null // (typeId, date)
+    private var availabilityGeneration = 0L
 
     init {
         loadTypes()
@@ -165,8 +165,7 @@ class RequestAppointmentViewModel @Inject constructor(
     fun selectDate(date: String) {
         val current = _step.value as? RequestStep.Schedule ?: return
         availabilityJob?.cancel()
-        val loadKey = Pair(current.selectedType.id, date)
-        currentLoadKey = loadKey
+        val generation = ++availabilityGeneration
         _step.value = current.copy(
             date = date,
             availability = null,
@@ -178,7 +177,7 @@ class RequestAppointmentViewModel @Inject constructor(
         availabilityJob = viewModelScope.launch {
             repository.getAvailability(date, current.selectedType.id)
                 .onSuccess { availability ->
-                    if (currentLoadKey == loadKey) {
+                    if (availabilityGeneration == generation) {
                         val schedule = _step.value as? RequestStep.Schedule ?: return@onSuccess
                         if (availability.appointmentTypeId != null &&
                             availability.appointmentTypeId != schedule.selectedType.id
@@ -191,7 +190,7 @@ class RequestAppointmentViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    if (currentLoadKey == loadKey) {
+                    if (availabilityGeneration == generation) {
                         val schedule = _step.value as? RequestStep.Schedule ?: return@onFailure
                         _step.value = schedule.copy(
                             isLoadingAvailability = false,
@@ -271,6 +270,8 @@ class RequestAppointmentViewModel @Inject constructor(
 
     fun backToType() {
         val current = _step.value as? RequestStep.Schedule ?: return
+        availabilityJob?.cancel()
+        availabilityGeneration++
         val types = _step.value.let {
             (it as? RequestStep.Schedule)?.let { emptyList<AppointmentType>() } ?: emptyList()
         }
