@@ -126,16 +126,19 @@ class RequestAppointmentViewModel @Inject constructor(
 
     private var availabilityJob: Job? = null
     private var availabilityGeneration = 0L
+    private var typeCatalogGeneration = 0L
 
     init {
         loadTypes()
     }
 
     fun loadTypes(notice: String? = null) {
+        val generation = ++typeCatalogGeneration
         _step.value = RequestStep.Type(isLoading = true, notice = notice)
         viewModelScope.launch {
             repository.getAppointmentTypes()
                 .onSuccess { types ->
+                    if (typeCatalogGeneration != generation) return@onSuccess
                     val current = _step.value as? RequestStep.Type ?: return@onSuccess
                     _step.value = current.copy(
                         types = types,
@@ -145,6 +148,7 @@ class RequestAppointmentViewModel @Inject constructor(
                     )
                 }
                 .onFailure { error ->
+                    if (typeCatalogGeneration != generation) return@onFailure
                     val current = _step.value as? RequestStep.Type ?: return@onFailure
                     _step.value = current.copy(
                         isLoading = false,

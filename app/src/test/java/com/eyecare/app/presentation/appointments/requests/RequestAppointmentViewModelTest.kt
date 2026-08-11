@@ -137,6 +137,27 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
+    fun `stale type catalog response is ignored`() {
+        val firstResponse = CompletableDeferred<Result<List<AppointmentType>>>()
+        val latestResponse = CompletableDeferred<Result<List<AppointmentType>>>()
+        var requestCount = 0
+
+        coEvery { repo.getAppointmentTypes() } coAnswers {
+            val response = if (requestCount++ == 0) firstResponse else latestResponse
+            withContext(NonCancellable) { response.await() }
+        }
+
+        vm = RequestAppointmentViewModel(repo)
+        vm.retryTypes()
+
+        latestResponse.complete(Result.success(listOf(referralType)))
+        firstResponse.complete(Result.success(listOf(normalType)))
+
+        val step = vm.step.value as RequestStep.Type
+        assertEquals(listOf(referralType), step.types)
+    }
+
+    @Test
     fun `selectType sets selection`() {
         vm.selectType(normalType)
         val step = vm.step.value as RequestStep.Type
