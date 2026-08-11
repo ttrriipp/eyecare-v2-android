@@ -1,6 +1,6 @@
 # Implementation Plan: Backend Alignment v17 — Account-Owned Conversation
 
-Status: Draft — Phase 3 (Tasks), ready for review
+Status: Complete — 2026-08-11
 Date: 2026-08-11
 Spec: `docs/specs/backend-alignment-v17-2026-08-11-spec.md`
 Technical plan: `docs/specs/backend-alignment-v17-2026-08-11-plan.md`
