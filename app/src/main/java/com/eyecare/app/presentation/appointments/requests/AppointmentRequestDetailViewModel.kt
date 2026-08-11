@@ -33,12 +33,19 @@ class AppointmentRequestDetailViewModel @Inject constructor(
     private val _state = MutableStateFlow<RequestDetailState>(RequestDetailState.Loading)
     val state: StateFlow<RequestDetailState> = _state.asStateFlow()
 
+    private var linkedContext = false
+    private var lastRequestId: Int? = null
+
     fun load(id: Int) {
+        lastRequestId = id
         viewModelScope.launch {
             _state.value = RequestDetailState.Loading
             repository.getRequest(id)
                 .onSuccess { request ->
-                    _state.value = RequestDetailState.Data(request = request)
+                    _state.value = RequestDetailState.Data(
+                        request = request,
+                        isLinked = linkedContext,
+                    )
                 }
                 .onFailure { error ->
                     val apiError = error as? ApiDomainError
@@ -60,7 +67,10 @@ class AppointmentRequestDetailViewModel @Inject constructor(
         viewModelScope.launch {
             repository.cancelRequest(current.request.id)
                 .onSuccess { request ->
-                    _state.value = RequestDetailState.Data(request = request)
+                    _state.value = RequestDetailState.Data(
+                        request = request,
+                        isLinked = linkedContext,
+                    )
                 }
                 .onFailure { error ->
                     val apiError = error as? ApiDomainError
@@ -80,6 +90,7 @@ class AppointmentRequestDetailViewModel @Inject constructor(
     }
 
     fun setLinked(linked: Boolean) {
+        linkedContext = linked
         val current = _state.value
         if (current is RequestDetailState.Data) {
             _state.value = current.copy(isLinked = linked)
@@ -87,9 +98,6 @@ class AppointmentRequestDetailViewModel @Inject constructor(
     }
 
     fun retry() {
-        val current = _state.value
-        if (current is RequestDetailState.Data) {
-            load(current.request.id)
-        }
+        lastRequestId?.let(::load)
     }
 }

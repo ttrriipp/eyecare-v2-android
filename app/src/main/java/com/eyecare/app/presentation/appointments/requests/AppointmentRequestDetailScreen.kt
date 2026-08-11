@@ -55,9 +55,9 @@ fun AppointmentRequestDetailScreen(
     onViewConfirmedAppointment: (Int) -> Unit = {},
     viewModel: AppointmentRequestDetailViewModel = hiltViewModel(),
 ) {
-    LaunchedEffect(requestId) {
-        viewModel.load(requestId)
+    LaunchedEffect(requestId, isLinked) {
         viewModel.setLinked(isLinked)
+        viewModel.load(requestId)
     }
 
     val state by viewModel.state.collectAsState()

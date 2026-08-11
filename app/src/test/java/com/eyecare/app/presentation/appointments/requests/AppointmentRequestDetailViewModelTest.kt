@@ -56,6 +56,33 @@ class AppointmentRequestDetailViewModelTest {
     }
 
     @Test
+    fun `linked context is retained when load completes asynchronously`() {
+        coEvery { repo.getRequest(1) } returns Result.success(pendingRequest)
+
+        vm.setLinked(true)
+        vm.load(1)
+
+        val state = vm.state.value as RequestDetailState.Data
+        assertTrue(state.isLinked)
+    }
+
+    @Test
+    fun `retry reloads after the initial load fails`() {
+        coEvery { repo.getRequest(1) } returnsMany listOf(
+            Result.failure(Exception("Network")),
+            Result.success(pendingRequest),
+        )
+
+        vm.load(1)
+        assertTrue(vm.state.value is RequestDetailState.Error)
+
+        vm.retry()
+
+        val state = vm.state.value as RequestDetailState.Data
+        assertEquals(pendingRequest.id, state.request.id)
+    }
+
+    @Test
     fun `load REQUEST_NOT_OWNED shows NotFound`() {
         coEvery { repo.getRequest(1) } returns Result.failure(ApiDomainError(404, "REQUEST_NOT_OWNED", "Not found"))
         vm.load(1)
@@ -71,6 +98,19 @@ class AppointmentRequestDetailViewModelTest {
         val state = vm.state.value as RequestDetailState.Data
         assertEquals(AppointmentRequestStatus.CANCELLED, state.request.status)
         assertFalse(state.request.status.isCancellable)
+    }
+
+    @Test
+    fun `cancel success preserves linked context`() {
+        coEvery { repo.getRequest(1) } returns Result.success(pendingRequest)
+        coEvery { repo.cancelRequest(1) } returns Result.success(cancelledRequest)
+
+        vm.setLinked(true)
+        vm.load(1)
+        vm.cancel()
+
+        val state = vm.state.value as RequestDetailState.Data
+        assertTrue(state.isLinked)
     }
 
     @Test
