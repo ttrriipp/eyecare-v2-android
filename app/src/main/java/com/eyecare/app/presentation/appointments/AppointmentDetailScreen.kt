@@ -83,7 +83,6 @@ import com.eyecare.app.ui.theme.EyecareColors
 @Composable
 fun AppointmentDetailScreen(
     onBack: () -> Unit,
-    onNavigateToIntake: (Int) -> Unit = {},
     onNavigateToReservations: () -> Unit = {},
     viewModel: AppointmentDetailViewModel = hiltViewModel(),
 ) {
@@ -161,13 +160,6 @@ fun AppointmentDetailScreen(
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            },
-            actions = {
-                if (uiState is AppointmentDetailUiState.Success) {
-                    TextButton(onClick = { onNavigateToIntake((uiState as AppointmentDetailUiState.Success).appointment.id) }) {
-                        Text("View Intake", fontWeight = FontWeight.SemiBold)
-                    }
                 }
             },
         )
