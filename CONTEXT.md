@@ -151,6 +151,8 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   acceptance calls. A 429 is shown as a retry-later message rather than a session-expired error.
 - After invitation acceptance, the app fetches the linked account once, hands that account directly
   to `SessionViewModel`, and navigates without issuing a second session-resolution `GET /me`.
+- The Profile screen also adopts the account from the session handoff immediately, so returning from
+  invitation linking cannot render an empty or stale profile while its background `GET /me` refresh runs.
 
 ### Implementation rationale and scope
 

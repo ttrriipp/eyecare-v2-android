@@ -426,7 +426,13 @@ fun EyecareNavGraph(
                         )
                     }
                     composable<Profile> {
+                        val account = when (val state = sessionState) {
+                            is SessionState.Linked -> state.account
+                            is SessionState.Limited -> state.account
+                            else -> null
+                        }
                         ProfileScreen(
+                            account = account,
                             onLogout = {
                                 tokenManager.clearToken()
                                 sessionViewModel.signOut()

@@ -73,6 +73,7 @@ fun ProfileScreen(
     onNavigateToAccountSecurity: () -> Unit = {},
     onNavigateToInviteCode: () -> Unit = {},
     unreadMessageCount: Int = 0,
+    account: PatientAccount? = null,
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -86,6 +87,10 @@ fun ProfileScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(account) {
+        account?.let(viewModel::adoptAccount)
     }
 
     LaunchedEffect(loggedOut) {

@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -38,9 +39,24 @@ class ProfileViewModel @Inject constructor(
     private val _loggedOut = MutableStateFlow(false)
     val loggedOut: StateFlow<Boolean> = _loggedOut.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init { load() }
 
     fun retry() = load()
+
+    /**
+     * Uses the account already resolved by the session flow while the profile request catches up.
+     * This matters immediately after invitation linking, when Profile can resume before a fresh
+     * GET /me response is available.
+     */
+    fun adoptAccount(account: PatientAccount) {
+        val current = _uiState.value
+        if (current is ProfileUiState.Success && current.account == account) return
+
+        loadJob?.cancel()
+        _uiState.value = ProfileUiState.Success(account = account)
+    }
 
     fun startEditing() {
         val current = _uiState.value
@@ -112,7 +128,8 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             // Only show the loading placeholder when there's nothing on screen yet —
             // a resume-triggered refresh should update in place, not blink back to Loading.
             if (_uiState.value !is ProfileUiState.Success) {
