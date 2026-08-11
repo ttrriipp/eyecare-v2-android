@@ -284,19 +284,22 @@ Source of truth: `docs/API_CONTRACT.md`.
 
 ## Appointment Requests — Variable-Duration Scheduling (v16)
 
-`presentation/appointments/requests/RequestAppointmentViewModel.kt`, `RequestAppointmentScreen.kt`:
+`presentation/appointments/requests/RequestAppointmentViewModel.kt`,
+`RequestAppointmentScreen.kt`, `AppointmentRequestDetailViewModel.kt`, and
+`AppointmentRequestListViewModel.kt`:
 
 - **4-step wizard:** Type → Schedule → Details → Review. The patient selects an appointment type first, then date/time, then enters reason/referral/identity, then reviews and submits.
-- **Appointment types:** loaded from `GET /appointment-types` on flow entry. Shows patient label, optional description, duration, and referral indicator. No hardcoded types or IDs. Failure shows retry, no fallback.
-- **Availability:** `GET /appointment-request-availability` sends both `date` and `appointment_type_id`. Response includes `visit_duration_minutes`, `appointment_type_id`, and 15-minute cadence slots. Only server-returned `available = true` slots are selectable. No fabricated or placeholder slots. No hardcoded Sunday restriction (server-authoritative).
+- **Appointment types:** loaded from `GET /appointment-types` on flow entry. Shows patient label, optional description, duration, and referral indicator. No hardcoded types or IDs. The catalog is vertically scrollable so all returned types and Continue remain reachable on small screens. Failure blocks the flow with retry and no fallback. If a submitted type becomes inactive or hidden, the flow returns to Type, refreshes the catalog, clears the invalid selection, and explains what happened.
+- **Availability:** `GET /appointment-request-availability` sends both `date` and `appointment_type_id`. Response includes `visit_duration_minutes`, `appointment_type_id`, and 15-minute cadence slots. Only server-returned `available = true` slots are selectable. No fabricated or placeholder slots. No hardcoded Sunday restriction (server-authoritative). Each request renders loading, retryable error, closed/non-open day, and no-times states. Type-catalog and availability responses use latest-response-wins generations, so an older response cannot overwrite a newer selection, including when the same date is selected again.
 - **Time preferences:** one required primary slot plus up to two optional ordered alternatives. Alternatives are distinct from primary and each other, capped at two. Changing type clears all selections and availability.
 - **Referral:** if type `requires_referral` is true, `referring_source` is required (1–255 chars). Non-referral types clear and send `null`.
 - **Identity:** linked accounts omit identity; unlinked/pending-review accounts retain existing identity collection with verified-phone behavior.
 - **Submission:** sends `appointment_type_id`, `scheduled_at` (primary), `alternative_scheduled_times` (ordered), `reason_for_visit`, conditional `referring_source`, and optional `identity`.
 - **Non-binding semantics:** pending requests never reserve capacity. `time_preferences_are_reserved = false` is in the model. UI copy never claims a time is held, reserved, or released. `expires_at` is mapped but omitted from UI.
-- **Request detail/list:** shows appointment type, duration, ordered alternatives, referral source when present. Legacy records without new fields render safely (nullable).
-- **Error handling:** `SLOT_UNAVAILABLE` clears affected selections and refreshes availability. `ACTIVE_REQUEST_LIMIT_REACHED` preserves draft. Type catalog failure blocks at Type with retry.
-- **Tests:** `RequestAppointmentViewModelTest` covers type loading/selection/retry, alternative max-two/uniqueness, referral validation, stale-response handling, and submission.
+- **Request detail/list:** shows appointment type, duration, ordered alternatives, referral source when present. Legacy records without new fields render safely (nullable). Request detail preserves linked-account context through asynchronous loading and cancellation refreshes; retry works after an initial load failure. Patient request access remains ownership-scoped; `REQUEST_NOT_OWNED` renders neutral not-found handling rather than another account’s data.
+- **Error handling:** `SLOT_UNAVAILABLE` clears affected selections and refreshes availability. `ACTIVE_REQUEST_LIMIT_REACHED` preserves draft. Type-unavailable field/code errors return to Type and refresh the catalog. Referral validation errors return to Details with the entered draft and field-level feedback. Unknown request-flow failures use patient-safe retryable copy; raw server messages are not shown.
+- **Staff boundary:** reviewer queue fields, reviewer preference selection, and the contact-note requirement when accepting outside submitted preferences are backend/staff-surface behavior. Patient mobile only submits ordered preferences and consumes the resulting request state.
+- **Tests:** ViewModel tests cover type loading/selection/retry, catalog and availability latest-response-wins behavior, alternative max-two/uniqueness, referral and type validation recovery, safe error copy, request detail linking/retry, and submission. Compose tests cover ordered alternatives, availability states, review content, and scrollable type catalog behavior.
 
 ## Root Navigation
 
