@@ -120,8 +120,20 @@ class RequestAppointmentViewModelTest {
         coEvery { repo.getAppointmentTypes() } returns Result.failure(Exception("Network"))
         vm = RequestAppointmentViewModel(repo)
         val step = vm.step.value as RequestStep.Type
-        assertEquals("Network", step.error)
+        assertEquals("We couldn't load appointment types. Please try again.", step.error)
         assertTrue(step.types.isEmpty())
+    }
+
+    @Test
+    fun `unknown type load error uses patient safe copy`() {
+        coEvery { repo.getAppointmentTypes() } returns Result.failure(
+            ApiDomainError(500, "INTERNAL_ERROR", "SQL exception with private details"),
+        )
+
+        vm = RequestAppointmentViewModel(repo)
+
+        val step = vm.step.value as RequestStep.Type
+        assertEquals("We couldn't load appointment types. Please try again.", step.error)
     }
 
     @Test
@@ -176,7 +188,7 @@ class RequestAppointmentViewModelTest {
         vm.confirmType()
         vm.selectDate("2026-08-10")
         val step = vm.step.value as RequestStep.Schedule
-        assertEquals("Network", step.availabilityError)
+        assertEquals("We couldn't load availability. Please try again.", step.availabilityError)
     }
 
     @Test
@@ -536,6 +548,68 @@ class RequestAppointmentViewModelTest {
         val step = vm.step.value as RequestStep.SubmissionError
         assertEquals("ACTIVE_REQUEST_LIMIT_REACHED", step.errorCode)
         assertEquals("Test", step.reason)
+    }
+
+    @Test
+    fun `type validation failure refreshes catalog and explains selection is unavailable`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
+            ApiDomainError(
+                httpStatus = 422,
+                code = "VALIDATION",
+                message = "Invalid appointment type.",
+                fieldErrors = mapOf("appointment_type_id" to listOf("The selected type is unavailable.")),
+            ),
+        )
+
+        enterDetails()
+        vm.updateReason("Blurred vision")
+        vm.confirmDetails()
+        vm.submit()
+        vm.handleSubmissionError()
+
+        val step = vm.step.value as RequestStep.Type
+        assertEquals("That appointment type is no longer available. Please choose another.", step.notice)
+        assertEquals(2, step.types.size)
+        assertNull(step.selectedType)
+    }
+
+    @Test
+    fun `referral validation failure returns to details with field feedback`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
+            ApiDomainError(
+                httpStatus = 422,
+                code = "VALIDATION",
+                message = "Invalid referral source.",
+                fieldErrors = mapOf("referring_source" to listOf("The referral source is invalid.")),
+            ),
+        )
+
+        enterDetails(type = referralType)
+        vm.updateReason("Blurred vision")
+        vm.updateReferringSource("Dr. Smith")
+        vm.confirmDetails()
+        vm.submit()
+        vm.handleSubmissionError()
+
+        val step = vm.step.value as RequestStep.Details
+        assertEquals("Blurred vision", step.reason)
+        assertEquals("Dr. Smith", step.referringSource)
+        assertEquals("Please check the referral source.", step.referringSourceError)
+    }
+
+    @Test
+    fun `unknown submission error uses patient safe copy`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns Result.failure(
+            ApiDomainError(500, "INTERNAL_ERROR", "Database stack trace"),
+        )
+
+        enterDetails()
+        vm.updateReason("Blurred vision")
+        vm.confirmDetails()
+        vm.submit()
+
+        val step = vm.step.value as RequestStep.SubmissionError
+        assertEquals("We couldn't submit your request. Please try again.", step.errorMessage)
     }
 
     // ── Back navigation ──

@@ -36,6 +36,7 @@ sealed interface RequestStep {
         val isLoading: Boolean = true,
         val error: String? = null,
         val selectedType: AppointmentType? = null,
+        val notice: String? = null,
     ) : RequestStep
 
     data class Schedule(
@@ -109,6 +110,9 @@ sealed interface RequestStep {
         val identity: AppointmentRequestIdentity? = null,
         val errorCode: String?,
         val errorMessage: String,
+        val fieldErrors: Map<String, List<String>> = emptyMap(),
+        val typeUnavailable: Boolean = false,
+        val referralValidationFailure: Boolean = false,
     ) : RequestStep
 }
 
@@ -127,8 +131,8 @@ class RequestAppointmentViewModel @Inject constructor(
         loadTypes()
     }
 
-    fun loadTypes() {
-        _step.value = RequestStep.Type(isLoading = true)
+    fun loadTypes(notice: String? = null) {
+        _step.value = RequestStep.Type(isLoading = true, notice = notice)
         viewModelScope.launch {
             repository.getAppointmentTypes()
                 .onSuccess { types ->
@@ -137,13 +141,17 @@ class RequestAppointmentViewModel @Inject constructor(
                         types = types,
                         isLoading = false,
                         error = null,
+                        notice = current.notice,
                     )
                 }
                 .onFailure { error ->
                     val current = _step.value as? RequestStep.Type ?: return@onFailure
                     _step.value = current.copy(
                         isLoading = false,
-                        error = error.message ?: "Failed to load appointment types",
+                        error = patientSafeAppointmentRequestError(
+                            error = error,
+                            fallback = "We couldn't load appointment types. Please try again.",
+                        ),
                     )
                 }
         }
@@ -194,7 +202,10 @@ class RequestAppointmentViewModel @Inject constructor(
                         val schedule = _step.value as? RequestStep.Schedule ?: return@onFailure
                         _step.value = schedule.copy(
                             isLoadingAvailability = false,
-                            availabilityError = error.message ?: "Failed to load availability",
+                            availabilityError = patientSafeAppointmentRequestError(
+                                error = error,
+                                fallback = "We couldn't load availability. Please try again.",
+                            ),
                         )
                     }
                 }
@@ -506,7 +517,13 @@ class RequestAppointmentViewModel @Inject constructor(
                     referringSource = submitting.referringSource,
                     identity = submitting.identity,
                     errorCode = apiError?.code,
-                    errorMessage = apiError?.message ?: "Failed to submit request",
+                    errorMessage = patientSafeAppointmentRequestError(
+                        error = error,
+                        fallback = "We couldn't submit your request. Please try again.",
+                    ),
+                    fieldErrors = apiError?.fieldErrors.orEmpty(),
+                    typeUnavailable = apiError?.isAppointmentTypeUnavailable() == true,
+                    referralValidationFailure = apiError?.isReferralValidationFailure() == true,
                 )
             }
         }
@@ -514,6 +531,14 @@ class RequestAppointmentViewModel @Inject constructor(
 
     fun handleSubmissionError() {
         val current = _step.value as? RequestStep.SubmissionError ?: return
+        if (current.typeUnavailable) {
+            loadTypes(notice = "That appointment type is no longer available. Please choose another.")
+            return
+        }
+        if (current.referralValidationFailure) {
+            _step.value = current.toDetailsAfterReferralValidation()
+            return
+        }
         when (current.errorCode) {
             "SLOT_UNAVAILABLE" -> {
                 _step.value = RequestStep.Schedule(
@@ -556,6 +581,29 @@ class RequestAppointmentViewModel @Inject constructor(
             gender = gender,
             occupation = occupation.ifBlank { null },
             address = address.ifBlank { null },
+        )
+    }
+
+    private fun RequestStep.SubmissionError.toDetailsAfterReferralValidation(): RequestStep.Details {
+        val identity = identity
+        return RequestStep.Details(
+            selectedType = selectedType,
+            date = date,
+            primarySlot = primarySlot,
+            alternativeSlots = alternativeSlots,
+            identityRequired = identity != null,
+            reason = reason,
+            referringSource = referringSource.orEmpty(),
+            referringSourceError = "Please check the referral source.",
+            phone = identity?.phone.orEmpty(),
+            email = identity?.email.orEmpty(),
+            firstName = identity?.firstName.orEmpty(),
+            middleName = identity?.middleName.orEmpty(),
+            lastName = identity?.lastName.orEmpty(),
+            dateOfBirth = identity?.dateOfBirth.orEmpty(),
+            gender = identity?.gender,
+            occupation = identity?.occupation.orEmpty(),
+            address = identity?.address.orEmpty(),
         )
     }
 }
