@@ -151,8 +151,17 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   acceptance calls. A 429 is shown as a retry-later message rather than a session-expired error.
 - After invitation acceptance, the app fetches the linked account once, hands that account directly
   to `SessionViewModel`, and navigates without issuing a second session-resolution `GET /me`.
+- The session handoff cancels and generation-guards older `GET /me` work, so a pre-link response
+  cannot replace the linked state with a limited state while the user enters an appointment request.
 - The Profile screen also adopts the account from the session handoff immediately, so returning from
   invitation linking cannot render an empty or stale profile while its background `GET /me` refresh runs.
+- If Profile's fresh `GET /me` discovers an active link while the navigation session still has a
+  limited snapshot, it promotes that linked account into `SessionViewModel`; limited snapshots do
+  not cancel the refresh that can discover the link.
+- If the appointment API rejects a submitted identity with `IDENTITY_NOT_ALLOWED`, the request flow
+  removes the forbidden identity from the saved review state and lets the linked request be retried.
+- The appointment-request identity step and outbound identity payload use the account's link status,
+  not only the `SessionState` variant, so a stale limited wrapper cannot add Details to a linked flow.
 
 ### Implementation rationale and scope
 
@@ -269,21 +278,22 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - The refresh is presentation-only: no backend endpoint, DTO, domain `User`, repository signature, navigation route, dependency, or global theme token changed. Backend-supported address editing remains out of scope because the current Android user/update contract does not expose it.
 - Stateless `ProfileContent`, `ProfileLoadingContent`, and `EditProfileContent` composables provide deterministic Compose UI-test seams. `ProfileViewModelTest` covers dirty comparison, initials fallback, and save-failure draft preservation; `ProfileScreenTest` covers the visible hierarchy, callbacks, optional phone, unread semantics, loading semantics, supported edit fields, direct save, and saving/error states.
 
-## Messaging — Tappable Context Cards
+## Messaging — Account-Owned Conversation (v17)
 
 `data/remote/dto/MessageDtos.kt`, `data/repository/ChatRepositoryImpl.kt`,
-`domain/model/Message.kt`, `presentation/messaging/components/MessageBubble.kt`,
-and `presentation/navigation/NavGraph.kt`:
+`domain/model/Message.kt`, `presentation/messaging/ChatViewModel.kt`,
+`presentation/messaging/ChatScreen.kt`, `presentation/messaging/components/MessageBubble.kt`:
 
-- Inbound message `contexts` are preserved and mapped at the repository boundary to typed appointment, order, or unsupported domain variants. Missing contexts default to an empty list, so ordinary messages remain backward-compatible.
-- Mapping accepts both request aliases (`appointment`, `order`) and the backend's current polymorphic response values (`App\Models\Appointment`, `App\Models\Order`).
-- Appointment and order links render as distinct nested cards inside the existing message bubble. Each card has its own 56dp minimum tap target, icon, reference ID, directional affordance, and accessibility label; the surrounding bubble remains non-clickable.
-- Cards navigate through the existing type-safe `AppointmentDetail` and `OrderDetail` routes. Unknown/product contexts remain non-interactive rather than creating misleading navigation.
-- DTO and repository unit tests cover decoding, defaults, typed mapping, and unsupported values. `MessageBubbleTest` covers card rendering and callback IDs; it compiles in the Android test source set. Live device verification confirmed appointment 5 and order 1 cards open their corresponding detail screens.
+- **Conversation access:** Chat and text messaging are account-only. Linked and unlinked accounts can read and send text messages. `GET /conversation`, `GET /conversation/messages`, and `POST /conversation/messages` are account-only routes. Attachment download remains active-link-only.
+- **Access levels:** Conversation response includes `access_level` (`linked_patient` or `general_inquiry`) and `capabilities` (`can_upload_attachments`). Missing or unknown values fail closed for upload/download while text remains account-available.
+- **No structured contexts:** `contexts[]` is retired and never sent. No context picker, context cards, or context navigation exists. Legacy server messages with `contexts` fields are safely ignored by `ignoreUnknownKeys`.
+- **Attachment gating:** Upload controls appear only when `access_level == linked_patient` AND `capabilities.can_upload_attachments == true`. Image preview rendering only attempts the protected download route for `linked_patient` conversations. General-inquiry messages show safe metadata without fetching protected images.
+- **Error handling:** All conversation operations use `safeApiCall` to preserve `ApiDomainError` details. Send failures preserve the draft text and show patient-safe copy. Single-flight sends with no automatic retry.
+- **Route governance:** 8 public, 29 account-only, 17 canonical active-link routes. 54 canonical callable + 1 legacy alias = 55 registered total. Conversation read/list/send moved from active-link to account-only.
 
 ## Backend API (base: `/api/v1`)
 
-55 approved patient-mobile routes (8 public, 26 account-only, 21 active-link).
+55 approved patient-mobile routes (8 public, 29 account-only, 18 active-link including 1 legacy alias).
 Source of truth: `docs/API_CONTRACT.md`.
 
 **Auth:** V13 two-stage OTP registration, hybrid login (trusted skips OTP), password recovery, Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). Installation identity via `DeviceIdentityProvider`. 401 → bearer-aware logout via `AuthEventBus`. Session resolution via `GET /me` before routing.
@@ -347,34 +357,15 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 - `PatientFeatureIntent` preserves typed Estimate/Order intents through the
   active-link gate.
 
-## Messaging — Quotation and Optical Order Contexts
-
-`data/remote/dto/MessageDtos.kt`, `data/repository/ChatRepositoryImpl.kt`,
-`domain/model/Message.kt`, `presentation/messaging/ChatViewModel.kt`:
-
-- Messages expose `sender_type` (patient/staff/unknown) and zero-or-one attachment
-  with `download_url`. No `conversation_id` in response DTO.
-- Valid context types: `quotation:{id}` and `optical_order:{id}`. Old `appointment`
-  and `order` contexts are removed.
-- Context picker loads Estimates and Optical Orders independently. Picker failures
-  are scoped per source.
-- Incoming context cards navigate to typed Estimate/Order detail by type and ID.
-  Unknown types render as non-clickable references.
-- Bubble ownership compares `message.senderId` to the authenticated account's own id
-  (loaded via `GET /me` alongside the conversation), falling back to
-  `sender_type == patient` only if that id is unavailable. This backend is known to
-  leak raw Eloquent polymorphic class names for other polymorphic fields instead of
-  its documented `patient`/`staff` aliases, and patient accounts are `App\Models\User`
-  rows just like staff, so `sender_type` alone is not a reliable ownership signal.
-
 ## Route Governance — 55 Routes
 
 `test/.../ApprovedApiRoutes.kt`, `test/.../ApiRouteAllowlistTest.kt`:
 
-- 8 public, 26 account-only, 20 active-link (canonical) = 54 canonical callable.
+- 8 public, 29 account-only, 17 active-link (canonical) = 54 canonical callable.
 - 1 legacy alias (`POST /job-order-items/{id}/rating`) — exists server-side for backward compatibility, not callable by this client.
 - Total registered callable routes: 55 (54 canonical + 1 legacy alias).
-- Account-only includes `GET /appointment-types` (restored patient-visible catalog) and `GET /appointment-optometrists` (governance-only, no Android consumer).
+- Account-only includes `GET /appointment-types`, `GET /appointment-optometrists`, and conversation read/list/send.
+- Attachment download (`GET /conversation/attachments/{id}`) remains active-link-only.
 - Retired routes explicitly rejected: `/eyewear`, `/job-orders`, `/billing-records`,
   legacy `/login`, `/register`, appointment intake routes.
 - Discovery test fails if any rejected route appears in production Retrofit annotations.
@@ -423,6 +414,9 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 
 ## Active Specs
 
+- `docs/specs/backend-alignment-v17-2026-08-11-spec.md` — Complete: Account-Owned Conversation
+- `docs/specs/backend-alignment-v17-2026-08-11-plan.md` — Complete: implementation plan (5 stages)
+- `docs/specs/backend-alignment-v17-2026-08-11-tasks.md` — Complete: 12 tasks + 4 checkpoints
 - `docs/specs/backend-alignment-v16-variable-duration-appointment-requests-spec.md` — Complete: Variable-Duration Appointment Requests
 - `docs/specs/backend-alignment-v16-variable-duration-appointment-requests-plan.md` — Complete: implementation plan (5 stages)
 - `docs/specs/backend-alignment-v16-variable-duration-appointment-requests-tasks.md` — Complete: 12 tasks + 4 checkpoints
