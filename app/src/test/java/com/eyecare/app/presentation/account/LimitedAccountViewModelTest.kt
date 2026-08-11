@@ -225,6 +225,35 @@ class LimitedAccountViewModelTest {
     }
 
     @Test
+    fun `reloading the linked account during navigation does not reset the completed handoff`() = runTest {
+        val linkedAccount = unlinkedAccount.copy(
+            linkStatus = PatientLinkStatus.LINKED,
+        )
+        coEvery { accountRepo.getLinkState() } returns Result.success(LinkState.Unlinked)
+        coEvery { accountRepo.getCurrentPatientLinkRequest() } returns Result.success(null)
+        coEvery { accountRepo.requestInvitationOtp("INV-123") } returns
+            Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
+        coEvery { accountRepo.acceptInvitation("INV-123", "ch-1", "123456") } returns
+            Result.success(LinkState.Linked)
+        coEvery { authRepo.getMe() } returns Result.success(linkedAccount)
+
+        vm.load(unlinkedAccount)
+        vm.startInvitationEntry()
+        vm.updateInvitationCode("INV-123")
+        vm.requestInvitationOtp()
+        vm.updateOtpCode("123456")
+        vm.verifyInvitationOtp()
+        advanceUntilIdle()
+
+        assertEquals(LimitedAccountState.Linked(linkedAccount), vm.state.value)
+
+        // The parent session account changes to LINKED before the navigation pop finishes.
+        vm.load(linkedAccount)
+
+        assertEquals(LimitedAccountState.Linked(linkedAccount), vm.state.value)
+    }
+
+    @Test
     fun `submit clinic link request marks account as pending review`() {
         val request = PatientLinkRequest(
             requestNumber = "PLR-2026-000001",

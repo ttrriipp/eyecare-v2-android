@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.appointments
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -84,6 +85,7 @@ import com.eyecare.app.ui.theme.EyecareColors
 fun AppointmentDetailScreen(
     onBack: () -> Unit,
     onNavigateToReservations: () -> Unit = {},
+    onOpenReservation: (Int) -> Unit = {},
     viewModel: AppointmentDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -175,6 +177,7 @@ fun AppointmentDetailScreen(
                     onReschedule = viewModel::showRescheduleSheet,
                     onCancel = { showCancelDialog = true },
                     onNavigateToReservations = onNavigateToReservations,
+                    onOpenReservation = onOpenReservation,
                     onRateVisit = viewModel::showRatingDialog,
                 )
             }
@@ -188,6 +191,7 @@ private fun AppointmentDetailContent(
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
     onNavigateToReservations: () -> Unit,
+    onOpenReservation: (Int) -> Unit = {},
     onRateVisit: () -> Unit = {},
 ) {
     val appointment = state.appointment
@@ -284,6 +288,7 @@ private fun AppointmentDetailContent(
                 ReservedFramesSection(
                     reservations = state.frameReservations,
                     onViewDetails = onNavigateToReservations,
+                    onOpenReservation = onOpenReservation,
                 )
             }
 
@@ -534,6 +539,7 @@ private fun AppointmentStatusGuidance(status: AppointmentStatus) {
 private fun ReservedFramesSection(
     reservations: List<FrameReservation>,
     onViewDetails: () -> Unit,
+    onOpenReservation: (Int) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -581,7 +587,13 @@ private fun ReservedFramesSection(
                 if (index > 0) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenReservation(reservation.id) }
+                        .padding(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,

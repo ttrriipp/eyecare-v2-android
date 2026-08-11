@@ -66,6 +66,14 @@ class LimitedAccountViewModel @Inject constructor(
     private var linkedAccountRefreshJob: Job? = null
 
     fun load(account: PatientAccount) {
+        // The navigation handoff updates the parent session to LINKED before the
+        // LimitedAccount destination finishes popping. Its account-keyed load effect
+        // can therefore call back with the linked snapshot; never replace the terminal
+        // state that is waiting to dispatch onLinkComplete.
+        if (account.linkStatus == PatientLinkStatus.LINKED && _state.value is LimitedAccountState.Linked) {
+            return
+        }
+
         cancelRefreshJobs()
         _state.value = LimitedAccountState.Overview(account = account)
         refreshLinkState()

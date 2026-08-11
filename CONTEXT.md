@@ -265,6 +265,40 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - Each Home shelf preserves source order and is capped at four products. The Home request currently reads only the first product page, so products outside that page are not candidates for a shelf.
 - Home grouping behavior is covered by `HomeViewModelTest`, including disallowed product types and category-name normalization.
 
+## Frame Reservations — List and Detail
+
+`presentation/reservations/FrameReservationListScreen.kt`,
+`FrameReservationDetailScreen.kt`, `FrameReservationDetailViewModel.kt`,
+`ReservationPresentation.kt`:
+
+- Typed route `FrameReservationDetail(reservationId)`, active-link protected like the rest of
+  `FrameReservation*`. `PatientFeatureIntent.FrameReservationDetail` preserves the destination
+  through the limited-account link gate under the `reservations` label.
+- **No `GET /frame-reservations/{id}` exists.** Detail resolves the reservation from the patient's
+  own unpaginated `GET /frame-reservations` list and renders `NotFound` when the ID is absent — no
+  new route was added and another patient's record can never be shown.
+- Detail shows: reservation number/status/requested date with a patient-readable explanation of what
+  the clinic is doing, a Requested → Prepared → Tried on tracker (terminal notice instead for
+  converted/released/cancelled), the `expires_at` hold notice, a tappable appointment card, a card
+  per reserved frame, and a total-value card that states reserving holds stock and charges nothing.
+- Frame cards carry the data the list response already returns: image pager (with **Photo coming
+  soon** fallback), brand, name, price with strikethrough `compare_at_price`, option, SKU, category,
+  HTML-cleaned description as **About**, variant `attributes` as **Specifications**, and a **View
+  frame details** link into `FrameDetail`.
+- `FrameReservationItem` was widened to carry `frameId`, `frameCategory`, `frameDescription`,
+  `compareAtPrice`, and `attributes` (JSON object flattened to `Map<String, String>` at the
+  repository boundary, same treatment as `FrameRepositoryImpl`).
+- **Cancel moved to detail.** The list card is now a navigation target; cancelling lives on detail
+  with the shared `AppConfirmationDialog`, single-flight submission, and inline failure copy (the
+  list's previous cancel silently swallowed failures). The list refreshes on `ON_RESUME` so a
+  cancellation performed on detail is reflected on return.
+- List cards show frame thumbnails, per-frame prices, and a frame-count/total footer.
+- Entry points into detail: the reservations list, each reservation block on appointment detail, and
+  the create-reservation flow's terminal success (which now pops the wizard and opens the new
+  reservation instead of the list).
+- Status labels, colors, explanations, peso, and schedule formatting live in `ReservationPresentation.kt`
+  and are shared by both screens.
+
 ## Profile — Patient Account Hub
 
 `presentation/profile/ProfileScreen.kt`, `EditProfileScreen.kt`, and `ProfileViewModel.kt`:

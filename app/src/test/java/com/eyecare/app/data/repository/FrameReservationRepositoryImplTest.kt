@@ -132,6 +132,49 @@ class FrameReservationRepositoryImplTest {
     }
 
     @Test
+    fun `getReservations maps frame detail fields for the detail screen`() = runTest {
+        val variant = createVariantDto().copy(
+            compareAtPrice = BigDecimal("5000.00"),
+            attributes = Json.parseToJsonElement("""{"color":"black","size":52}"""),
+            images = listOf("frames/classic-1.jpg", "frames/classic-2.jpg"),
+            product = FrameReservationDtos.ReservationProductDto(
+                id = 7,
+                name = "Classic Rectangle",
+                slug = "classic-rectangle",
+                description = "Timeless frame design",
+                brand = "Ray-Ban",
+                category = "Full Rim",
+            ),
+        )
+        val dto = createReservationDto().copy(
+            items = listOf(
+                FrameReservationDtos.ReservationItemDto(id = 1, productVariantId = 42, variant = variant),
+            ),
+        )
+        coEvery { api.getReservations() } returns FrameReservationDtos.ReservationListResponse(listOf(dto))
+
+        val item = repository.getReservations().getOrThrow().first().items.first()
+        assertEquals(7, item.frameId)
+        assertEquals("Full Rim", item.frameCategory)
+        assertEquals("Timeless frame design", item.frameDescription)
+        assertEquals(BigDecimal("5000.00"), item.compareAtPrice)
+        assertEquals(mapOf("color" to "black", "size" to "52"), item.attributes)
+        assertEquals(2, item.images.size)
+    }
+
+    @Test
+    fun `null category and attributes map to safe defaults`() = runTest {
+        val dto = createReservationDto()
+        coEvery { api.getReservations() } returns FrameReservationDtos.ReservationListResponse(listOf(dto))
+
+        val item = repository.getReservations().getOrThrow().first().items.first()
+        assertEquals("", item.frameCategory)
+        assertEquals(null, item.frameDescription)
+        assertEquals(null, item.attributes)
+        assertEquals(null, item.compareAtPrice)
+    }
+
+    @Test
     fun `unknown embedded status maps through AppointmentStatus`() = runTest {
         val dto = createReservationDto(
             appointmentDto = createAppointmentDto(status = "some_unknown_status"),

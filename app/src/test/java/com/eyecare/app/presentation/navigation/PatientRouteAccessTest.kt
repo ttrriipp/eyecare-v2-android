@@ -31,6 +31,18 @@ class PatientRouteAccessTest {
     }
 
     @Test
+    fun `reservation detail requires active link and is not mistaken for frame detail`() {
+        assertEquals(
+            PatientRouteAccess.ActiveLinkRequired,
+            classifyRouteAccess("com.eyecare.app.presentation.navigation.FrameReservationDetail/{reservationId}"),
+        )
+        assertEquals(
+            PatientRouteAccess.AccountOnly,
+            classifyRouteAccess("com.eyecare.app.presentation.navigation.FrameDetail/{frameId}"),
+        )
+    }
+
+    @Test
     fun `chat is account-only`() {
         assertEquals(PatientRouteAccess.AccountOnly, classifyRouteAccess("Chat"))
     }

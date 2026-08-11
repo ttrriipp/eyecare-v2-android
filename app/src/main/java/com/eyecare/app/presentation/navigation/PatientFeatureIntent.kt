@@ -13,6 +13,7 @@ sealed interface PatientFeatureIntent {
     data object FrameReservationList : PatientFeatureIntent
     data object PrescriptionList : PatientFeatureIntent
     data object MyEyewear : PatientFeatureIntent
+    data class FrameReservationDetail(val reservationId: Int) : PatientFeatureIntent
     data class AppointmentDetail(val appointmentId: Int) : PatientFeatureIntent
     data class FrameDetail(val frameId: Int) : PatientFeatureIntent
     data class CreateFrameReservation(val frameId: Int, val variantId: Int) : PatientFeatureIntent
@@ -29,6 +30,7 @@ fun PatientFeatureIntent.toRoute(): Any = when (this) {
     PatientFeatureIntent.FrameReservationList -> FrameReservationList
     PatientFeatureIntent.PrescriptionList -> PrescriptionList
     PatientFeatureIntent.MyEyewear -> MyEyewear
+    is PatientFeatureIntent.FrameReservationDetail -> FrameReservationDetail(reservationId)
     is PatientFeatureIntent.AppointmentDetail -> AppointmentDetail(appointmentId)
     is PatientFeatureIntent.FrameDetail -> FrameDetail(frameId)
     is PatientFeatureIntent.CreateFrameReservation -> CreateFrameReservation(frameId, variantId)
@@ -45,6 +47,7 @@ fun patientFeatureIntentFrom(route: Any): PatientFeatureIntent? = when (route) {
     FrameReservationList -> PatientFeatureIntent.FrameReservationList
     PrescriptionList -> PatientFeatureIntent.PrescriptionList
     MyEyewear -> PatientFeatureIntent.MyEyewear
+    is FrameReservationDetail -> PatientFeatureIntent.FrameReservationDetail(route.reservationId)
     is AppointmentDetail -> PatientFeatureIntent.AppointmentDetail(route.appointmentId)
     is FrameDetail -> PatientFeatureIntent.FrameDetail(route.frameId)
     is CreateFrameReservation -> PatientFeatureIntent.CreateFrameReservation(route.frameId, route.variantId)
@@ -64,7 +67,8 @@ val PatientFeatureIntent.label: String
         PatientFeatureIntent.AppointmentsTab,
         PatientFeatureIntent.RequestAppointment,
         is PatientFeatureIntent.AppointmentDetail -> "appointments"
-        PatientFeatureIntent.FrameReservationList -> "reservations"
+        PatientFeatureIntent.FrameReservationList,
+        is PatientFeatureIntent.FrameReservationDetail -> "reservations"
         PatientFeatureIntent.PrescriptionList,
         is PatientFeatureIntent.PrescriptionDetail -> "prescriptions"
         PatientFeatureIntent.MyEyewear,

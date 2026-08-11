@@ -29,17 +29,6 @@ class FrameReservationListViewModel @Inject constructor(
 
     fun refresh() = load()
 
-    fun cancelReservation(reservationId: Int) {
-        val current = _uiState.value as? ReservationListUiState.Success ?: return
-        viewModelScope.launch {
-            repository.cancelReservation(reservationId).onSuccess { cancelled ->
-                _uiState.value = ReservationListUiState.Success(
-                    current.reservations.map { if (it.id == reservationId) cancelled else it }
-                )
-            }
-        }
-    }
-
     private fun load() {
         _uiState.value = ReservationListUiState.Loading
         viewModelScope.launch {

@@ -57,6 +57,7 @@ import com.eyecare.app.presentation.eyewear.OpticalOrderDetailScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
 import com.eyecare.app.presentation.frames.FrameListScreen
 import com.eyecare.app.presentation.reservations.CreateFrameReservationScreen
+import com.eyecare.app.presentation.reservations.FrameReservationDetailScreen
 import com.eyecare.app.presentation.reservations.FrameReservationListScreen
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.profile.EditProfileScreen
@@ -319,8 +320,8 @@ fun EyecareNavGraph(
                             frameId = route.frameId,
                             variantId = route.variantId,
                             onBack = { navController.popBackStack() },
-                            onSuccess = {
-                                navigatePatientFeature(FrameReservationList) {
+                            onSuccess = { reservationId ->
+                                navigatePatientFeature(FrameReservationDetail(reservationId)) {
                                     popUpTo<CreateFrameReservation> { inclusive = true }
                                 }
                             },
@@ -353,6 +354,14 @@ fun EyecareNavGraph(
                     composable<FrameReservationList> {
                         FrameReservationListScreen(
                             onBack = { navController.popBackStack() },
+                            onOpenReservation = { id -> navigatePatientFeature(FrameReservationDetail(id)) },
+                        )
+                    }
+                    composable<FrameReservationDetail> {
+                        FrameReservationDetailScreen(
+                            onBack = { navController.popBackStack() },
+                            onViewAppointment = { id -> navigatePatientFeature(AppointmentDetail(id)) },
+                            onViewFrame = { id -> navigatePatientFeature(FrameDetail(id)) },
                         )
                     }
                     composable<ArTryOn> { backStackEntry ->
@@ -415,6 +424,7 @@ fun EyecareNavGraph(
                         AppointmentDetailScreen(
                             onBack = { navController.popBackStack() },
                             onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
+                            onOpenReservation = { id -> navigatePatientFeature(FrameReservationDetail(id)) },
                         )
                     }
                     composable<AppointmentRequestDetail> { backStackEntry ->

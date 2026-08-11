@@ -25,8 +25,13 @@ data class FrameReservationItem(
     val variantName: String,
     val variantSku: String,
     val price: BigDecimal,
+    val compareAtPrice: BigDecimal?,
+    val frameId: Int,
     val frameName: String,
     val frameBrand: String,
+    val frameCategory: String,
+    val frameDescription: String?,
+    val attributes: Map<String, String>?,
     val images: List<String>,
 )
 
@@ -48,3 +53,10 @@ enum class ReservationStatus {
 
 val FrameReservation.isCancellable: Boolean
     get() = status == ReservationStatus.REQUESTED || status == ReservationStatus.PREPARED
+
+/**
+ * Combined list price of the reserved frames. This is an indicative value only —
+ * a reservation holds stock, it never charges the patient.
+ */
+val FrameReservation.totalValue: BigDecimal
+    get() = items.fold(BigDecimal.ZERO) { total, item -> total + item.price }

@@ -11,6 +11,9 @@ import com.eyecare.app.domain.model.ReservationAppointment
 import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.domain.repository.FrameReservationRepository
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import retrofit2.HttpException
 import javax.inject.Inject
 
@@ -76,8 +79,20 @@ class FrameReservationRepositoryImpl @Inject constructor(
         variantName = variant.name,
         variantSku = variant.sku,
         price = variant.price,
+        compareAtPrice = variant.compareAtPrice,
+        frameId = variant.product.id,
         frameName = variant.product.name,
         frameBrand = variant.product.brand ?: "",
+        frameCategory = variant.product.category ?: "",
+        frameDescription = variant.product.description,
+        attributes = variant.attributes?.toStringMap(),
         images = variant.images,
     )
+
+    private fun JsonElement.toStringMap(): Map<String, String>? =
+        runCatching {
+            (this as? JsonObject)?.mapValues { (_, value) ->
+                (value as? JsonPrimitive)?.content ?: value.toString()
+            }
+        }.getOrNull()
 }

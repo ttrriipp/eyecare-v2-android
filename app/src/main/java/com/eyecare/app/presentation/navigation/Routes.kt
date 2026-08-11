@@ -34,6 +34,7 @@ import kotlinx.serialization.Serializable
 
 // Reservation destinations
 @Serializable object FrameReservationList
+@Serializable data class FrameReservationDetail(val reservationId: Int)
 
 // Prescriptions
 @Serializable object PrescriptionList
