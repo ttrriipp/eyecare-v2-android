@@ -286,10 +286,10 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - **Item editing:** `POST .../items` adds a frame and `DELETE .../items/{item}` removes one.
   Removing the last item returns 204 and deletes the reservation entirely.
 - **Merge uses one `addItem` call** — no cancel-then-recreate cycle.
-- Detail shows: reservation number/status/requested date with a patient-readable explanation of what
-  the clinic is doing, a Requested → Prepared → Tried on tracker (terminal notice instead for
-  converted/released/cancelled), the `expires_at` hold notice, a tappable appointment card, a card
-  per reserved frame, and a total-value card that states reserving holds stock and charges nothing.
+- Detail shows: reservation number, requested date, the `expires_at` hold notice when held,
+  a patient-readable explanation of the current state, a tappable appointment card, a card
+  per reserved frame with remove affordances when unheld, and a total-value card that states
+  reserving holds stock and charges nothing.
 - Frame cards carry the data the list response already returns: image pager (with **Photo coming
   soon** fallback), brand, name, price with strikethrough `compare_at_price`, option, SKU, category,
   HTML-cleaned description as **About**, variant `attributes` as **Specifications**, and a **View

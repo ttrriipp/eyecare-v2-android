@@ -1,6 +1,6 @@
 # Spec: Backend Alignment v18 — Commerce Simplification & Simplified Frame Reservations
 
-> Status: **Draft — awaiting review**
+> Status: **Complete**
 > Date: 2026-08-13
 > Sources: `docs/API_CONTRACT.md` (2026-08-13, 54 routes), `docs/BACKEND_CONTEXT.md` (2026-08-13)
 > Supersedes the Android assumptions recorded in `CONTEXT.md` §Frame Reservations, §My Eyewear,
