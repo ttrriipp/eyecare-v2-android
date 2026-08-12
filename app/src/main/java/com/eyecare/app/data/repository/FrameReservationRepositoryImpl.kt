@@ -49,6 +49,35 @@ class FrameReservationRepositoryImpl @Inject constructor(
         if (!response.isSuccessful) throw HttpException(response)
     }
 
+    override suspend fun addItem(reservationId: Int, variantId: Int): Result<FrameReservation> = runCatching {
+        api.addItem(reservationId, FrameReservationDtos.AddItemRequest(variantId)).data.toDomain()
+    }.recoverCatching { throwable ->
+        if (throwable is HttpException && throwable.code() == 422) {
+            val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
+            val parsed = json.decodeFromString<ApiErrorBody>(body)
+            throw FrameReservationError.ValidationError(parsed.errors ?: emptyMap())
+        }
+        throw throwable
+    }
+
+    override suspend fun removeItem(reservationId: Int, itemId: Int): Result<FrameReservation?> = runCatching {
+        val response = api.removeItem(reservationId, itemId)
+        if (response.isSuccessful) {
+            response.body()?.data?.toDomain()
+        } else if (response.code() == 204) {
+            null // Last item removed — reservation deleted.
+        } else {
+            throw HttpException(response)
+        }
+    }.recoverCatching { throwable ->
+        if (throwable is HttpException && throwable.code() == 422) {
+            val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
+            val parsed = json.decodeFromString<ApiErrorBody>(body)
+            throw FrameReservationError.ValidationError(parsed.errors ?: emptyMap())
+        }
+        throw throwable
+    }
+
     private fun FrameReservationDtos.ReservationDto.toDomain() = FrameReservation(
         id = id,
         appointment = appointment?.toDomain()

@@ -76,6 +76,8 @@ internal object ApprovedApiRoutes {
         "GET $BASE/frame-reservations",
         "POST $BASE/frame-reservations",
         "DELETE $BASE/frame-reservations/{reservation}",
+        "POST $BASE/frame-reservations/{reservation}/items",
+        "DELETE $BASE/frame-reservations/{reservation}/items/{item}",
         "GET $BASE/prescriptions",
         "GET $BASE/prescriptions/{prescription}",
         "GET $BASE/quotations",

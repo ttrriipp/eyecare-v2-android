@@ -15,6 +15,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import retrofit2.HttpException
@@ -113,6 +114,66 @@ class FrameReservationRepositoryImplTest {
 
         val result = repository.deleteReservation(1)
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `addItem returns updated reservation`() = runTest {
+        val dto = createReservationDto()
+        coEvery { api.addItem(1, any()) } returns FrameReservationDtos.ReservationResponse(data = dto)
+
+        val result = repository.addItem(1, 42)
+        assertTrue(result.isSuccess)
+        assertEquals(1, result.getOrThrow().items.size)
+    }
+
+    @Test
+    fun `addItem 422 maps to ValidationError`() = runTest {
+        coEvery { api.addItem(1, any()) } throws HttpException(
+            Response.error<FrameReservationDtos.ReservationResponse>(
+                422,
+                """{"message":"Validation failed","errors":{"product_variant_id":["Invalid."]}}""".toResponseBody("application/json".toMediaType()),
+            )
+        )
+
+        val result = repository.addItem(1, 999)
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is FrameReservationError.ValidationError)
+    }
+
+    @Test
+    fun `removeItem returns updated reservation when items remain`() = runTest {
+        val dto = createReservationDto()
+        coEvery { api.removeItem(1, 1) } returns Response.success(
+            FrameReservationDtos.ReservationResponse(data = dto),
+        )
+
+        val result = repository.removeItem(1, 1)
+        assertTrue(result.isSuccess)
+        assertNotNull(result.getOrThrow())
+    }
+
+    @Test
+    fun `removeItem returns null on 204 when last item removed`() = runTest {
+        val emptyBody: FrameReservationDtos.ReservationResponse? = null
+        coEvery { api.removeItem(1, 1) } returns Response.success(204, emptyBody)
+
+        val result = repository.removeItem(1, 1)
+        assertTrue(result.isSuccess)
+        assertNull(result.getOrThrow())
+    }
+
+    @Test
+    fun `removeItem 422 maps to ValidationError`() = runTest {
+        coEvery { api.removeItem(1, 1) } throws HttpException(
+            Response.error<FrameReservationDtos.ReservationResponse>(
+                422,
+                """{"message":"Validation failed","errors":{"item":["Invalid."]}}""".toResponseBody("application/json".toMediaType()),
+            )
+        )
+
+        val result = repository.removeItem(1, 1)
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is FrameReservationError.ValidationError)
     }
 
     @Test

@@ -18,4 +18,16 @@ interface FrameReservationApiService {
 
     @DELETE("frame-reservations/{id}")
     suspend fun deleteReservation(@Path("id") reservationId: Int): Response<Unit>
+
+    @POST("frame-reservations/{id}/items")
+    suspend fun addItem(
+        @Path("id") reservationId: Int,
+        @Body request: FrameReservationDtos.AddItemRequest,
+    ): FrameReservationDtos.ReservationResponse
+
+    @DELETE("frame-reservations/{id}/items/{itemId}")
+    suspend fun removeItem(
+        @Path("id") reservationId: Int,
+        @Path("itemId") itemId: Int,
+    ): Response<FrameReservationDtos.ReservationResponse>
 }

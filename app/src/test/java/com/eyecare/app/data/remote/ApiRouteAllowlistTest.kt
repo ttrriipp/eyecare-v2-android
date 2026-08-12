@@ -19,15 +19,15 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `active-link routes match expected count`() {
-        // 17 canonical active-link routes + 1 legacy alias = 18 in the contract's active-link section
-        assertEquals(17, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes (canonical)")
+        // V18: 17 canonical + 2 new item routes = 19 (quotation routes still present until Phase 3)
+        assertEquals(19, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes (canonical)")
     }
 
     @Test
-    fun `total approved routes is exactly 55`() {
-        // 8 public + 29 account-only + 17 active-link = 54 canonical callable
-        // + 1 legacy alias = 55 registered callable
-        assertEquals(54, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
+    fun `total approved routes is exactly 57`() {
+        // 8 public + 29 account-only + 19 active-link = 56 canonical callable
+        // Quotation routes removed in Phase 3 brings this to 54
+        assertEquals(56, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test
@@ -161,8 +161,9 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""appointments/\{id\}/reschedule"""), "appointments/{appointment}/reschedule")
             .replace(Regex("""appointments/\{id\}/rating"""), "appointments/{appointment}/rating")
             .replace(Regex("""frames/\{id\}"""), "frames/{frame}")
-            .replace(Regex("""frame-reservations/\{id\}"""), "frame-reservations/{reservation}")
             .replace(Regex("""frame-reservations/\{id\}/cancel"""), "frame-reservations/{reservation}/cancel")
+            .replace(Regex("""frame-reservations/\{id\}/items/\{itemId\}"""), "frame-reservations/{reservation}/items/{item}")
+            .replace(Regex("""frame-reservations/\{id\}"""), "frame-reservations/{reservation}")
             .replace(Regex("""prescriptions/\{id\}"""), "prescriptions/{prescription}")
             .replace(Regex("""quotations/\{id\}"""), "quotations/{quotation}")
             .replace(Regex("""optical-orders/\{id\}"""), "optical-orders/{opticalOrder}")

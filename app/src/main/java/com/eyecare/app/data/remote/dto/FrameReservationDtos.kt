@@ -76,4 +76,9 @@ object FrameReservationDtos {
         @SerialName("appointment_id") val appointmentId: Int,
         val items: List<CreateReservationItemRequest>,
     )
+
+    @Serializable
+    data class AddItemRequest(
+        @SerialName("product_variant_id") val productVariantId: Int,
+    )
 }
