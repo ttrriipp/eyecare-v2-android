@@ -30,7 +30,6 @@ class OpticalOrderDtosTest {
                 "dispensed_at": null,
                 "cancelled_at": null,
                 "created_at": "2026-08-01T10:00:00Z",
-                "source_quotation": {"id": 1, "quotation_number": "Q-001"},
                 "items": [{
                     "id": 10,
                     "description": "Progressive lens",
@@ -67,7 +66,6 @@ class OpticalOrderDtosTest {
         assertNull(o.dispensedAt)
         assertNull(o.cancelledAt)
         assertEquals("2026-08-01T10:00:00Z", o.createdAt)
-        assertEquals(1, o.sourceQuotation?.id)
         assertEquals(1, o.items.size)
         assertEquals(5, o.items[0].productVariantId)
         assertFalse(o.items[0].isRateable)
@@ -112,7 +110,6 @@ class OpticalOrderDtosTest {
         val o = json.decodeFromString<OpticalOrderListResponse>(fixture).data[0]
         assertEquals("dispensed", o.status)
         assertEquals("2026-08-04T10:00:00Z", o.dispensedAt)
-        assertNull(o.sourceQuotation)
         assertTrue(o.items[0].isRateable)
         assertEquals(5, o.items[0].rating?.rating)
         assertEquals("Great!", o.items[0].rating?.comment)

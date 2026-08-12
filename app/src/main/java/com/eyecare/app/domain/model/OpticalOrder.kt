@@ -13,7 +13,6 @@ data class OpticalOrder(
     val dispensedAt: String?,
     val cancelledAt: String?,
     val createdAt: String,
-    val sourceQuotation: QuotationReference?,
     val items: List<OpticalOrderItem>,
     val paymentSummary: PaymentSummary?,
 )
@@ -34,11 +33,6 @@ data class RatingSummary(
     val comment: String?,
     val revisionNumber: Int?,
     val createdAt: String?,
-)
-
-data class QuotationReference(
-    val id: Int,
-    val quotationNumber: String,
 )
 
 data class PaymentSummary(

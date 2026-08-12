@@ -39,7 +39,6 @@ class OpticalOrderListViewModelTest {
         dispensedAt = null,
         cancelledAt = null,
         createdAt = "2026-08-01T10:00:00Z",
-        sourceQuotation = null,
         items = listOf(OpticalOrderItem(10, "Lens", 1, BigDecimal("5000.00"), BigDecimal("5000.00"), null, false, null)),
         paymentSummary = null,
     )

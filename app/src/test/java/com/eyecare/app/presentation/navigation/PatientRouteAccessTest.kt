@@ -100,7 +100,7 @@ class PatientRouteAccessTest {
         val sessionState = SessionState.Limited(testAccount())
 
         assertTrue(shouldRedirectToLimitedAccount("PrescriptionList", sessionState))
-        assertTrue(shouldRedirectToLimitedAccount("MyEyewear", sessionState))
+        assertTrue(shouldRedirectToLimitedAccount("MyOrders", sessionState))
     }
 
     @Test

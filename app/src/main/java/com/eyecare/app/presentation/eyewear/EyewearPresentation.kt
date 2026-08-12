@@ -7,8 +7,6 @@ import com.eyecare.app.domain.model.FulfillmentMode
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentStatus
-import com.eyecare.app.domain.model.Quotation
-import com.eyecare.app.domain.model.QuotationStatus
 import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -37,40 +35,6 @@ data class TrackerState(
     val terminalMessage: String?,
 )
 
-// ── Estimate presentation ──────────────────────────────────────────────
-
-fun estimateStatusLabel(status: QuotationStatus): String = when (status) {
-    QuotationStatus.PRESENTED -> "Awaiting confirmation"
-    QuotationStatus.ACCEPTED -> "Confirmed"
-    QuotationStatus.DECLINED -> "Declined"
-    QuotationStatus.EXPIRED -> "Expired"
-    QuotationStatus.UNKNOWN -> "Status unavailable"
-}
-
-@Composable
-fun estimateStatusColor(status: QuotationStatus): Color = when (status) {
-    QuotationStatus.PRESENTED -> EyecareColors.current.statusInfo
-    QuotationStatus.ACCEPTED -> MaterialTheme.colorScheme.tertiary
-    QuotationStatus.DECLINED, QuotationStatus.EXPIRED -> MaterialTheme.colorScheme.error
-    // Distinct from a resolved neutral state: unknown needs attention.
-    QuotationStatus.UNKNOWN -> EyecareColors.current.statusCancelled
-}
-
-fun estimateCardTitle(quotation: Quotation): String {
-    val items = quotation.items
-    if (items.isEmpty()) return "Estimate"
-    val first = items[0].description
-    return if (items.size == 1) first else "$first and ${items.size - 1} more"
-}
-
-fun estimateDateLabel(quotation: Quotation): Pair<String, String> {
-    return if (!quotation.presentedAt.isNullOrBlank()) {
-        "Presented" to formatTimestamp(quotation.presentedAt)
-    } else {
-        "Created" to formatTimestamp(quotation.createdAt)
-    }
-}
-
 // ── Order presentation ──────────────────────────────────────────────────
 
 fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
@@ -85,7 +49,6 @@ fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
 @Composable
 fun orderStatusColor(status: OpticalOrderStatus): Color = when (status) {
     OpticalOrderStatus.QUEUED, OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
-    // Ready needs action (come pick up); Dispensed is already resolved — distinct colors.
     OpticalOrderStatus.READY_FOR_DISPENSING -> EyecareColors.current.statusPending
     OpticalOrderStatus.DISPENSED -> MaterialTheme.colorScheme.tertiary
     OpticalOrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
@@ -104,12 +67,10 @@ fun paymentStatusLabel(status: PaymentStatus): String = when (status) {
 fun paymentStatusColor(status: PaymentStatus): Color = when (status) {
     PaymentStatus.PAID -> MaterialTheme.colorScheme.tertiary
     PaymentStatus.UNPAID, PaymentStatus.PARTIALLY_PAID -> MaterialTheme.colorScheme.error
-    // Voided is a resolved neutral outcome; unknown needs attention — distinct colors.
     PaymentStatus.VOIDED -> MaterialTheme.colorScheme.onSurfaceVariant
     PaymentStatus.UNKNOWN -> EyecareColors.current.statusCancelled
 }
 
-/** Returns true only when revisionNumber > 1. Null and 1 → false. */
 fun isEdited(revisionNumber: Int?): Boolean = (revisionNumber ?: 1) > 1
 
 fun orderCardTitle(order: OpticalOrder): String {

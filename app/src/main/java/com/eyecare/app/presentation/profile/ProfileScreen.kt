@@ -210,7 +210,7 @@ fun ProfileContent(
                     ProfileDivider()
                     ProfileNavRow(
                         icon = Icons.Outlined.Receipt,
-                        label = "My Eyewear",
+                        label = "My Orders",
                         onClick = onNavigateToEyewear,
                     )
                 }

@@ -31,12 +31,6 @@ object OpticalOrderDtos {
     )
 
     @Serializable
-    data class QuotationReferenceDto(
-        val id: Int,
-        @SerialName("quotation_number") val quotationNumber: String,
-    )
-
-    @Serializable
     data class PaymentSummaryDto(
         val status: String,
         @Serializable(with = MoneyValueSerializer::class)
@@ -62,7 +56,6 @@ object OpticalOrderDtos {
         @SerialName("dispensed_at") val dispensedAt: String? = null,
         @SerialName("cancelled_at") val cancelledAt: String? = null,
         @SerialName("created_at") val createdAt: String,
-        @SerialName("source_quotation") val sourceQuotation: QuotationReferenceDto? = null,
         val items: List<OpticalOrderItemDto> = emptyList(),
         @SerialName("payment_summary") val paymentSummary: PaymentSummaryDto? = null,
     )

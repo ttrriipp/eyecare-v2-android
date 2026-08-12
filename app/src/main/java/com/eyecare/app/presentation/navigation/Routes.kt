@@ -40,9 +40,8 @@ import kotlinx.serialization.Serializable
 @Serializable object PrescriptionList
 @Serializable data class PrescriptionDetail(val prescriptionId: Int)
 
-// My Eyewear (V14)
-@Serializable object MyEyewear
-@Serializable data class EstimateDetail(val quotationId: Int)
+// My Orders (V14)
+@Serializable object MyOrders
 @Serializable data class OpticalOrderDetail(val orderId: Int)
 
 // Profile sub-destinations

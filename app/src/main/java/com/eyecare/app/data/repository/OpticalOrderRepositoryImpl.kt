@@ -8,7 +8,6 @@ import com.eyecare.app.domain.model.OpticalOrderItem
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentStatus
 import com.eyecare.app.domain.model.PaymentSummary
-import com.eyecare.app.domain.model.QuotationReference
 import com.eyecare.app.domain.model.RatingResult
 import com.eyecare.app.domain.model.RatingSummary
 import com.eyecare.app.domain.repository.OpticalOrderRepository
@@ -55,9 +54,6 @@ class OpticalOrderRepositoryImpl @Inject constructor(
         dispensedAt = dispensedAt,
         cancelledAt = cancelledAt,
         createdAt = createdAt,
-        sourceQuotation = sourceQuotation?.let {
-            QuotationReference(id = it.id, quotationNumber = it.quotationNumber)
-        },
         items = items.map { it.toDomain() },
         paymentSummary = paymentSummary?.let {
             PaymentSummary(

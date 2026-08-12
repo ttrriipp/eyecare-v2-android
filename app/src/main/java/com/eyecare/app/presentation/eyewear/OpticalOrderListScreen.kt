@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -43,7 +42,6 @@ fun OpticalOrderListContent(
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onNavigateToOrder: (Int) -> Unit,
-    onNavigateToEstimate: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxSize()) {
@@ -91,7 +89,6 @@ fun OpticalOrderListContent(
                         OrderCard(
                             order = item,
                             onClick = { onNavigateToOrder(item.id) },
-                            onViewEstimate = item.sourceQuotation?.let { ref -> { onNavigateToEstimate(ref.id) } },
                         )
                     }
                     if (state.isLoadingMore) {
@@ -121,7 +118,6 @@ fun OpticalOrderListContent(
 private fun OrderCard(
     order: OpticalOrder,
     onClick: () -> Unit,
-    onViewEstimate: (() -> Unit)?,
 ) {
     Surface(
         onClick = onClick,
@@ -190,12 +186,6 @@ private fun OrderCard(
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-
-            if (onViewEstimate != null) {
-                TextButton(onClick = onViewEstimate) {
-                    Text("View original estimate")
-                }
-            }
         }
     }
 }

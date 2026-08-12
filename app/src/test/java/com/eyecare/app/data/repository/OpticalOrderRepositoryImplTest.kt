@@ -48,13 +48,11 @@ class OpticalOrderRepositoryImplTest {
         status: String = "in_progress",
         fulfillmentMode: String = "prepared",
         total: String = "5000.00",
-        sourceQuotation: String? = """{"id":1,"quotation_number":"Q-001"}""",
         paymentSummary: String? = null,
         items: String = """[{"id":10,"description":"Lens","quantity":1,"unit_price":"4500.00","amount":"4500.00","is_rateable":false}]""",
     ): String {
-        val sq = sourceQuotation ?: "null"
         val ps = paymentSummary ?: "null"
-        return """{"id":$id,"order_number":"OO-$id","status":"$status","fulfillment_mode":"$fulfillmentMode","total_amount":"$total","created_at":"2026-08-01T10:00:00Z","source_quotation":$sq,"items":$items,"payment_summary":$ps}"""
+        return """{"id":$id,"order_number":"OO-$id","status":"$status","fulfillment_mode":"$fulfillmentMode","total_amount":"$total","created_at":"2026-08-01T10:00:00Z","items":$items,"payment_summary":$ps}"""
     }
 
     private fun enqueueList(vararg orders: String, lastPage: Int = 1, total: Int = orders.size) {
@@ -118,21 +116,6 @@ class OpticalOrderRepositoryImplTest {
         enqueueSingle(orderJson(status = "future_status"))
         val o = repository.getOpticalOrder(1).getOrThrow()
         assertEquals(OpticalOrderStatus.UNKNOWN, o.status)
-    }
-
-    @Test
-    fun `source quotation maps to domain reference`() = runTest {
-        enqueueSingle(orderJson())
-        val o = repository.getOpticalOrder(1).getOrThrow()
-        assertEquals(1, o.sourceQuotation?.id)
-        assertEquals("Q-001", o.sourceQuotation?.quotationNumber)
-    }
-
-    @Test
-    fun `null source quotation maps to null`() = runTest {
-        enqueueSingle(orderJson(sourceQuotation = "null"))
-        val o = repository.getOpticalOrder(1).getOrThrow()
-        assertNull(o.sourceQuotation)
     }
 
     @Test

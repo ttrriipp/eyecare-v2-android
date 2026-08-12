@@ -51,8 +51,7 @@ import com.eyecare.app.presentation.account.AccountSecurityScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
-import com.eyecare.app.presentation.eyewear.MyEyewearScreen
-import com.eyecare.app.presentation.eyewear.EstimateDetailScreen
+import com.eyecare.app.presentation.eyewear.MyOrdersScreen
 import com.eyecare.app.presentation.eyewear.OpticalOrderDetailScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
 import com.eyecare.app.presentation.frames.FrameListScreen
@@ -110,7 +109,7 @@ fun EyecareNavGraph(
             !route.contains("EditProfile") &&
             !route.contains("PatientProfile") &&
             !route.contains("PatientIntake") && !route.contains("Quotation") &&
-            !route.contains("JobOrder") && !route.contains("Eyewear")
+            !route.contains("JobOrder") && !route.contains("MyOrders")
     } ?: false
 
     val currentRoute = if (showBottomNav) when {
@@ -387,16 +386,8 @@ fun EyecareNavGraph(
                             },
                         )
                     }
-                    composable<MyEyewear> {
-                        MyEyewearScreen(
-                            onBack = { navController.popBackStack() },
-                            onNavigateToEstimate = { id -> navigatePatientFeature(EstimateDetail(id)) },
-                            onNavigateToOrder = { id -> navigatePatientFeature(OpticalOrderDetail(id)) },
-                        )
-                    }
-                    composable<EstimateDetail> { back ->
-                        val route = back.toRoute<EstimateDetail>()
-                        EstimateDetailScreen(
+                    composable<MyOrders> {
+                        MyOrdersScreen(
                             onBack = { navController.popBackStack() },
                             onNavigateToOrder = { id -> navigatePatientFeature(OpticalOrderDetail(id)) },
                         )
@@ -405,7 +396,6 @@ fun EyecareNavGraph(
                         val route = back.toRoute<OpticalOrderDetail>()
                         OpticalOrderDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToEstimate = { id -> navigatePatientFeature(EstimateDetail(id)) },
                             onRateItem = { /* Rating handled within screen via dialog */ },
                         )
                     }
@@ -456,7 +446,7 @@ fun EyecareNavGraph(
                             },
                             onNavigateToPrescriptions = { navigatePatientFeature(PrescriptionList) },
                             onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
-                            onNavigateToEyewear = { navigatePatientFeature(MyEyewear) },
+                            onNavigateToEyewear = { navigatePatientFeature(MyOrders) },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
                             onNavigateToPatientProfile = { navigatePatientFeature(PatientProfile) },
                             onNavigateToAccountSecurity = { navController.navigate(AccountSecurity) },

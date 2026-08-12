@@ -8,7 +8,6 @@ import com.eyecare.app.domain.model.OpticalOrderItem
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentStatus
 import com.eyecare.app.domain.model.PaymentSummary
-import com.eyecare.app.domain.model.QuotationReference
 import com.eyecare.app.domain.model.RatingResult
 import com.eyecare.app.domain.model.RatingSummary
 import com.eyecare.app.domain.repository.OpticalOrderRepository
@@ -22,7 +21,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -37,7 +35,6 @@ class OpticalOrderDetailViewModelTest {
     private fun createOrder(
         id: Int = 1,
         status: OpticalOrderStatus = OpticalOrderStatus.IN_PROGRESS,
-        sourceQuotation: QuotationReference? = null,
         items: List<OpticalOrderItem> = listOf(
             OpticalOrderItem(10, "Lens", 1, BigDecimal("4500.00"), BigDecimal("4500.00"), null, false, null),
         ),
@@ -53,7 +50,6 @@ class OpticalOrderDetailViewModelTest {
         dispensedAt = null,
         cancelledAt = null,
         createdAt = "2026-08-01T10:00:00Z",
-        sourceQuotation = sourceQuotation,
         items = items,
         paymentSummary = paymentSummary,
     )
@@ -100,28 +96,6 @@ class OpticalOrderDetailViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(vm.uiState.value is OpticalOrderDetailUiState.Success)
-    }
-
-    @Test
-    fun `source quotation is present when linked`() = runTest {
-        coEvery { repository.getOpticalOrder(1) } returns Result.success(
-            createOrder(sourceQuotation = QuotationReference(1, "Q-001"))
-        )
-        val vm = createVm()
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val state = vm.uiState.value as OpticalOrderDetailUiState.Success
-        assertEquals(1, state.order.sourceQuotation?.id)
-    }
-
-    @Test
-    fun `source quotation is null when direct order`() = runTest {
-        coEvery { repository.getOpticalOrder(1) } returns Result.success(createOrder(sourceQuotation = null))
-        val vm = createVm()
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val state = vm.uiState.value as OpticalOrderDetailUiState.Success
-        assertNull(state.order.sourceQuotation)
     }
 
     @Test

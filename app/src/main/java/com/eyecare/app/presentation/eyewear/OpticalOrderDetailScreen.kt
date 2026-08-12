@@ -47,7 +47,6 @@ import java.math.BigDecimal
 @Composable
 fun OpticalOrderDetailScreen(
     onBack: () -> Unit,
-    onNavigateToEstimate: (Int) -> Unit,
     onRateItem: (Int) -> Unit,
     viewModel: OpticalOrderDetailViewModel = hiltViewModel(),
 ) {
@@ -78,7 +77,6 @@ fun OpticalOrderDetailScreen(
 
             is OpticalOrderDetailUiState.Success -> OrderDetailContent(
                 order = state.order,
-                onNavigateToEstimate = onNavigateToEstimate,
                 onRateItem = onRateItem,
                 modifier = Modifier.padding(padding),
             )
@@ -89,7 +87,6 @@ fun OpticalOrderDetailScreen(
 @Composable
 private fun OrderDetailContent(
     order: OpticalOrder,
-    onNavigateToEstimate: (Int) -> Unit,
     onRateItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -220,13 +217,6 @@ private fun OrderDetailContent(
                         Text("Overdue", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                     }
                 }
-            }
-        }
-
-        // Source estimate link
-        if (order.sourceQuotation != null) {
-            TextButton(onClick = { onNavigateToEstimate(order.sourceQuotation.id) }) {
-                Text("View original estimate")
             }
         }
 
