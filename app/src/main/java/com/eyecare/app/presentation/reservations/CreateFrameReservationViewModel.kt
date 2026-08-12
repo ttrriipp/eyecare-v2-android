@@ -134,10 +134,8 @@ class CreateFrameReservationViewModel @AssistedInject constructor(
     }
 
     /**
-     * Only requested/prepared reservations are cancellable, so a merge is a cancel-then-recreate
-     * with the combined item list — there's no "add item" endpoint. If cancel succeeds but the
-     * recreate then fails, the old hold is already gone; that failure gets its own message
-     * rather than the generic one, and reloads so the picker reflects the now-freed appointment.
+     * One add-item call replaces the old cancel-then-recreate dance. If the clinic has
+     * already pulled the frames (isHeld), mergeOutcome returns Blocked and this is never reached.
      */
     private fun mergeIntoExisting(
         current: CreateReservationUiState.Ready,
@@ -146,32 +144,9 @@ class CreateFrameReservationViewModel @AssistedInject constructor(
     ) {
         _uiState.value = current.copy(isSubmitting = true, appointmentFieldError = null, itemFieldError = null, genericError = null)
         viewModelScope.launch {
-            reservationRepository.deleteReservation(existingReservation.id).fold(
-                onSuccess = {
-                    val combinedVariantIds = existingReservation.items.map { it.productVariantId } + variantId
-                    reservationRepository.createReservation(
-                        variantIds = combinedVariantIds,
-                        appointmentId = appointmentId,
-                    ).fold(
-                        onSuccess = { _uiState.value = CreateReservationUiState.Success(it) },
-                        onFailure = { error ->
-                            _uiState.value = current.copy(
-                                isSubmitting = false,
-                                selectedAppointmentId = null,
-                                genericError = "We released your previous hold on this appointment, but " +
-                                    "couldn't add the new frame (${error.message ?: "unknown error"}). " +
-                                    "Please try reserving again.",
-                            )
-                            loadEligibleAppointments()
-                        },
-                    )
-                },
-                onFailure = { error ->
-                    _uiState.value = current.copy(
-                        isSubmitting = false,
-                        genericError = error.message ?: "Couldn't update this reservation. Please try again.",
-                    )
-                },
+            reservationRepository.addItem(existingReservation.id, variantId).fold(
+                onSuccess = { _uiState.value = CreateReservationUiState.Success(it) },
+                onFailure = { error -> handleCreateFailure(current, error) },
             )
         }
     }

@@ -220,10 +220,9 @@ class CreateFrameReservationViewModelTest {
     // ── submit(): merging into an existing reservation ────────────────────
 
     @Test
-    fun `submit on a mergeable appointment cancels then recreates with combined items`() = runTest {
+    fun `submit on a mergeable appointment issues one addItem call and zero deletes`() = runTest {
         val existing = createReservation(isHeld = false, items = listOf(reservationItem(99)))
-        coEvery { reservationRepo.deleteReservation(1) } returns Result.success(Unit)
-        coEvery { reservationRepo.createReservation(listOf(99, 42), 1) } returns Result.success(
+        coEvery { reservationRepo.addItem(1, 42) } returns Result.success(
             createReservation(items = listOf(reservationItem(99), reservationItem(42))),
         )
         val vm = vm(existingReservations = listOf(existing))
@@ -234,8 +233,11 @@ class CreateFrameReservationViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(vm.uiState.value is CreateReservationUiState.Success)
-        coVerify(exactly = 1) { reservationRepo.deleteReservation(1) }
-        coVerify(exactly = 1) { reservationRepo.createReservation(listOf(99, 42), 1) }
+        // Permanent guard: merge must never delete-then-recreate. One add-item call is the
+        // correct behavior — the old cancel-then-recreate could destroy a patient's hold
+        // if the recreate failed.
+        coVerify(exactly = 0) { reservationRepo.deleteReservation(any()) }
+        coVerify(exactly = 1) { reservationRepo.addItem(1, 42) }
     }
 
     @Test
