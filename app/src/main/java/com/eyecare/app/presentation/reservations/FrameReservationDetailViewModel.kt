@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.FrameReservation
+import com.eyecare.app.domain.model.canRemoveItems
 import com.eyecare.app.domain.model.isCancellable
 import com.eyecare.app.domain.repository.FrameReservationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,8 +18,10 @@ sealed interface ReservationDetailUiState {
     data object Loading : ReservationDetailUiState
     data class Success(
         val reservation: FrameReservation,
-        val isCancelling: Boolean = false,
-        val cancelError: String? = null,
+        val isDeleting: Boolean = false,
+        val deleteError: String? = null,
+        val removingItemId: Int? = null,
+        val removeItemError: String? = null,
     ) : ReservationDetailUiState
 
     /** The reservation is not in the patient's own list — never another patient's record. */
@@ -48,16 +51,21 @@ class FrameReservationDetailViewModel @Inject constructor(
 
     fun retry() = load()
 
-    fun dismissCancelError() {
+    fun dismissDeleteError() {
         val current = _uiState.value as? ReservationDetailUiState.Success ?: return
-        _uiState.value = current.copy(cancelError = null)
+        _uiState.value = current.copy(deleteError = null)
+    }
+
+    fun dismissRemoveItemError() {
+        val current = _uiState.value as? ReservationDetailUiState.Success ?: return
+        _uiState.value = current.copy(removeItemError = null)
     }
 
     fun deleteReservation() {
         val current = _uiState.value as? ReservationDetailUiState.Success ?: return
-        if (current.isCancelling || !current.reservation.isCancellable) return
+        if (current.isDeleting || !current.reservation.isCancellable) return
 
-        _uiState.value = current.copy(isCancelling = true, cancelError = null)
+        _uiState.value = current.copy(isDeleting = true, deleteError = null)
         viewModelScope.launch {
             repository.deleteReservation(current.reservation.id).fold(
                 onSuccess = {
@@ -65,8 +73,33 @@ class FrameReservationDetailViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     _uiState.value = current.copy(
-                        isCancelling = false,
-                        cancelError = error.message ?: "Couldn't cancel this reservation. Please try again.",
+                        isDeleting = false,
+                        deleteError = error.message ?: "Couldn't cancel this reservation. Please try again.",
+                    )
+                },
+            )
+        }
+    }
+
+    fun removeItem(itemId: Int) {
+        val current = _uiState.value as? ReservationDetailUiState.Success ?: return
+        if (current.removingItemId != null || !current.reservation.canRemoveItems) return
+
+        _uiState.value = current.copy(removingItemId = itemId, removeItemError = null)
+        viewModelScope.launch {
+            repository.removeItem(current.reservation.id, itemId).fold(
+                onSuccess = { result ->
+                    if (result == null) {
+                        // Last item removed — reservation deleted.
+                        _uiState.value = ReservationDetailUiState.Deleted
+                    } else {
+                        _uiState.value = ReservationDetailUiState.Success(reservation = result)
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.value = current.copy(
+                        removingItemId = null,
+                        removeItemError = error.message ?: "Couldn't remove this frame. Please try again.",
                     )
                 },
             )

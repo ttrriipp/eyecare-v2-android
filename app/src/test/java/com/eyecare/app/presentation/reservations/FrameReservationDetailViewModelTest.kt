@@ -143,11 +143,11 @@ class FrameReservationDetailViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as ReservationDetailUiState.Success
-        assertFalse(state.isCancelling)
-        assertNotNull(state.cancelError)
+        assertFalse(state.isDeleting)
+        assertNotNull(state.deleteError)
 
-        viewModel.dismissCancelError()
-        assertEquals(null, (viewModel.uiState.value as ReservationDetailUiState.Success).cancelError)
+        viewModel.dismissDeleteError()
+        assertEquals(null, (viewModel.uiState.value as ReservationDetailUiState.Success).deleteError)
     }
 
     @Test
@@ -177,5 +177,65 @@ class FrameReservationDetailViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { repository.deleteReservation(1) }
+    }
+
+    @Test
+    fun `removeItem success updates the reservation`() = runTest(dispatcher) {
+        val item = item()
+        coEvery { repository.getReservations() } returns Result.success(listOf(reservation(items = listOf(item))))
+        coEvery { repository.removeItem(1, item.id) } returns Result.success(reservation(items = emptyList()))
+
+        val viewModel = vm()
+        advanceUntilIdle()
+        viewModel.removeItem(item.id)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ReservationDetailUiState.Success
+        assertTrue(state.reservation.items.isEmpty())
+    }
+
+    @Test
+    fun `removeItem last item transitions to Deleted`() = runTest(dispatcher) {
+        val item = item()
+        coEvery { repository.getReservations() } returns Result.success(listOf(reservation(items = listOf(item))))
+        coEvery { repository.removeItem(1, item.id) } returns Result.success(null)
+
+        val viewModel = vm()
+        advanceUntilIdle()
+        viewModel.removeItem(item.id)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is ReservationDetailUiState.Deleted)
+    }
+
+    @Test
+    fun `removeItem double-tap issues one request`() = runTest(dispatcher) {
+        val item = item()
+        coEvery { repository.getReservations() } returns Result.success(listOf(reservation(items = listOf(item))))
+        coEvery { repository.removeItem(1, item.id) } returns Result.success(null)
+
+        val viewModel = vm()
+        advanceUntilIdle()
+        viewModel.removeItem(item.id)
+        viewModel.removeItem(item.id)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.removeItem(1, item.id) }
+    }
+
+    @Test
+    fun `removeItem failure preserves the reservation`() = runTest(dispatcher) {
+        val item = item()
+        coEvery { repository.getReservations() } returns Result.success(listOf(reservation(items = listOf(item))))
+        coEvery { repository.removeItem(1, item.id) } returns Result.failure(RuntimeException("Cannot remove"))
+
+        val viewModel = vm()
+        advanceUntilIdle()
+        viewModel.removeItem(item.id)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as ReservationDetailUiState.Success
+        assertEquals(1, state.reservation.items.size)
+        assertNotNull(state.removeItemError)
     }
 }

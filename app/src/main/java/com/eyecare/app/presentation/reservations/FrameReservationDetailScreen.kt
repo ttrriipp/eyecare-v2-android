@@ -120,7 +120,7 @@ fun FrameReservationDetailScreen(
                 onViewAppointment = onViewAppointment,
                 onViewFrame = onViewFrame,
                 onDelete = viewModel::deleteReservation,
-                onDismissDeleteError = viewModel::dismissCancelError,
+                onDismissDeleteError = viewModel::dismissDeleteError,
                 modifier = Modifier.padding(padding),
             )
 
@@ -191,7 +191,7 @@ fun ReservationDetailContent(
             }
         }
 
-        state.cancelError?.let { error ->
+        state.deleteError?.let { error ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -210,13 +210,13 @@ fun ReservationDetailContent(
         if (reservation.isCancellable) {
             OutlinedButton(
                 onClick = { showDeleteDialog = true },
-                enabled = !state.isCancelling,
+                enabled = !state.isDeleting,
                 modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
             ) {
-                if (state.isCancelling) {
+                if (state.isDeleting) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         color = MaterialTheme.colorScheme.error,
