@@ -5,7 +5,6 @@ import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.FrameReservationItem
 import com.eyecare.app.domain.model.ReservationAppointment
-import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.domain.repository.FrameReservationRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -62,7 +61,6 @@ class FrameReservationDetailViewModelTest {
             durationMinutes = 30,
         ),
         isHeld = isHeld,
-        status = if (isHeld) ReservationStatus.PREPARED else ReservationStatus.REQUESTED,
         expiresAt = null,
         createdAt = "2026-07-27T10:00:00+08:00",
         items = items,

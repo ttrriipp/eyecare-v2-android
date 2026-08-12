@@ -13,12 +13,8 @@ data class ReservationAppointment(
 data class FrameReservation(
     val id: Int,
     val appointment: ReservationAppointment,
-    /**
-     * False while the clinic only has the request; true once the frames are pulled and
-     * held for the visit. Replaces the retired six-state [ReservationStatus].
-     */
+    /** False while the clinic only has the request; true once the frames are pulled and held. */
     val isHeld: Boolean,
-    val status: ReservationStatus,
     val expiresAt: String?,
     val createdAt: String,
     val items: List<FrameReservationItem>,
@@ -43,24 +39,17 @@ data class FrameReservationItem(
     val images: List<String>,
 )
 
-enum class ReservationStatus {
-    REQUESTED,
-    PREPARED,
-    TRIED_ON,
-    CONVERTED,
-    RELEASED,
-    CANCELLED,
-    UNKNOWN;
-
-    companion object {
-        fun fromApi(value: String): ReservationStatus = entries.firstOrNull {
-            it != UNKNOWN && it.name.equals(value, ignoreCase = true)
-        } ?: UNKNOWN
-    }
-}
-
+/** DELETE succeeds for the owner in either state, so cancelling is always offered. */
 val FrameReservation.isCancellable: Boolean
-    get() = status == ReservationStatus.REQUESTED || status == ReservationStatus.PREPARED
+    get() = true
+
+/** Contract: adding is rejected once the clinic has pulled the frames. */
+val FrameReservation.canAddItems: Boolean
+    get() = !isHeld && items.size < MAX_RESERVATION_ITEMS
+
+/** Removing items is also gated on !isHeld (conservative — can be relaxed later). */
+val FrameReservation.canRemoveItems: Boolean
+    get() = !isHeld
 
 /**
  * Combined list price of the reserved frames. This is an indicative value only —

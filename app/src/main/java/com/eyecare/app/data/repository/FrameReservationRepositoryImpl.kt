@@ -8,7 +8,6 @@ import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.FrameReservationError
 import com.eyecare.app.domain.model.FrameReservationItem
 import com.eyecare.app.domain.model.ReservationAppointment
-import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.domain.repository.FrameReservationRepository
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -60,7 +59,6 @@ class FrameReservationRepositoryImpl @Inject constructor(
                 durationMinutes = 0,
             ),
         isHeld = isHeld,
-        status = status?.let { ReservationStatus.fromApi(it) } ?: ReservationStatus.UNKNOWN,
         expiresAt = expiresAt,
         createdAt = createdAt,
         items = items.map { it.toDomain() },

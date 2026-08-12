@@ -6,7 +6,6 @@ import com.eyecare.app.data.remote.dto.FrameReservationDtos
 import com.eyecare.app.data.remote.dto.PaginationMeta
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.FrameReservationError
-import com.eyecare.app.domain.model.ReservationStatus
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -55,13 +54,13 @@ class FrameReservationRepositoryImplTest {
 
     private fun createReservationDto(
         id: Int = 1,
-        status: String = "requested",
+        isHeld: Boolean = false,
         appointmentDto: FrameReservationDtos.ReservationAppointmentDto = createAppointmentDto(),
     ) = FrameReservationDtos.ReservationDto(
         id = id,
         appointmentId = appointmentDto.id,
         appointment = appointmentDto,
-        status = status,
+        isHeld = isHeld,
         createdAt = "2026-07-27T10:00:00+08:00",
         items = listOf(
             FrameReservationDtos.ReservationItemDto(
@@ -102,12 +101,11 @@ class FrameReservationRepositoryImplTest {
 
     @Test
     fun `cancelReservation maps embedded appointment`() = runTest {
-        val dto = createReservationDto(status = "cancelled")
+        val dto = createReservationDto()
         val response = FrameReservationDtos.ReservationResponse(data = dto)
         coEvery { api.cancelReservation(1) } returns response
 
         val result = repository.cancelReservation(1).getOrThrow()
-        assertEquals(ReservationStatus.CANCELLED, result.status)
         assertNotNull(result.appointment)
     }
 

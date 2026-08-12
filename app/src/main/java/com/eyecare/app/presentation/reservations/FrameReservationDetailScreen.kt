@@ -1,8 +1,5 @@
 package com.eyecare.app.presentation.reservations
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +22,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Cancel
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Schedule
@@ -45,7 +41,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,7 +60,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.FrameReservationItem
-import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.domain.model.isCancellable
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
@@ -73,7 +67,6 @@ import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
 import com.eyecare.app.ui.theme.EyecareColors
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,19 +133,6 @@ fun ReservationDetailContent(
     val reservation = state.reservation
     var showCancelDialog by remember { mutableStateOf(false) }
 
-    // Fires once, only on a genuine REQUESTED/PREPARED -> CANCELLED transition during this
-    // session — not when the screen simply loads an already-cancelled reservation.
-    val previousStatus = remember { mutableStateOf(reservation.status) }
-    var showCancelledBanner by remember { mutableStateOf(false) }
-    LaunchedEffect(reservation.status) {
-        if (previousStatus.value != ReservationStatus.CANCELLED && reservation.status == ReservationStatus.CANCELLED) {
-            showCancelledBanner = true
-            delay(3000)
-            showCancelledBanner = false
-        }
-        previousStatus.value = reservation.status
-    }
-
     if (showCancelDialog) {
         AppConfirmationDialog(
             icon = Icons.Outlined.Cancel,
@@ -178,10 +158,6 @@ fun ReservationDetailContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        AnimatedVisibility(visible = showCancelledBanner, enter = fadeIn(), exit = fadeOut()) {
-            CancelledConfirmationBanner()
-        }
-
         ReservationSummaryCard(reservation)
 
         reservation.expiresAt?.let { expiresAt ->
@@ -277,34 +253,6 @@ private fun ReservationSummaryCard(reservation: FrameReservation) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@Composable
-private fun CancelledConfirmationBanner() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.errorContainer,
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Outlined.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.size(20.dp),
-            )
-            Text(
-                text = "Reservation cancelled",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-        }
     }
 }
 

@@ -65,7 +65,6 @@ class FrameReservationDtosTest {
         val dto = json.decodeFromString<FrameReservationDtos.ReservationDto>(payload)
 
         assertFalse(dto.isHeld)
-        assertNull(dto.status)
         assertEquals("2026-07-30T18:00:00+08:00", dto.expiresAt)
         assertEquals(1, dto.items.size)
         assertEquals(42, dto.items.first().productVariantId)

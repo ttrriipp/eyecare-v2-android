@@ -6,7 +6,6 @@ import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.FrameReservationError
 import com.eyecare.app.domain.model.FrameReservationItem
 import com.eyecare.app.domain.model.MAX_RESERVATION_ITEMS
-import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.domain.model.ReservationAppointment
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.repository.AppointmentV1Repository
@@ -54,7 +53,6 @@ class CreateFrameReservationViewModelTest {
         id = 1,
         appointment = ReservationAppointment(1, "APT-001", AppointmentStatus.SCHEDULED, "2030-08-01T10:00:00+08:00", 30),
         isHeld = isHeld,
-        status = if (isHeld) ReservationStatus.PREPARED else ReservationStatus.REQUESTED,
         expiresAt = null,
         createdAt = "2026-07-28T10:00:00+08:00",
         items = items,
