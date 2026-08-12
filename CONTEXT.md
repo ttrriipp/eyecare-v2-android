@@ -277,6 +277,15 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - **No `GET /frame-reservations/{id}` exists.** Detail resolves the reservation from the patient's
   own unpaginated `GET /frame-reservations` list and renders `NotFound` when the ID is absent — no
   new route was added and another patient's record can never be shown.
+- **Two states only:** `is_held: false` (request sent, frames not yet set aside) and
+  `is_held: true` (clinic has set frames aside). `isCancellable` is always true;
+  `canAddItems` and `canRemoveItems` are gated on `!isHeld`.
+- **Delete replaces cancel:** `DELETE /frame-reservations/{id}` replaces the old
+  `POST .../cancel`. The detail screen uses the shared `AppConfirmationDialog` for the
+  delete action with single-flight submission and inline failure copy.
+- **Item editing:** `POST .../items` adds a frame and `DELETE .../items/{item}` removes one.
+  Removing the last item returns 204 and deletes the reservation entirely.
+- **Merge uses one `addItem` call** — no cancel-then-recreate cycle.
 - Detail shows: reservation number/status/requested date with a patient-readable explanation of what
   the clinic is doing, a Requested → Prepared → Tried on tracker (terminal notice instead for
   converted/released/cancelled), the `expires_at` hold notice, a tappable appointment card, a card
@@ -288,10 +297,6 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - `FrameReservationItem` was widened to carry `frameId`, `frameCategory`, `frameDescription`,
   `compareAtPrice`, and `attributes` (JSON object flattened to `Map<String, String>` at the
   repository boundary, same treatment as `FrameRepositoryImpl`).
-- **Cancel moved to detail.** The list card is now a navigation target; cancelling lives on detail
-  with the shared `AppConfirmationDialog`, single-flight submission, and inline failure copy (the
-  list's previous cancel silently swallowed failures). The list refreshes on `ON_RESUME` so a
-  cancellation performed on detail is reflected on return.
 - List cards show frame thumbnails, per-frame prices, and a frame-count/total footer.
 - Entry points into detail: the reservations list, each reservation block on appointment detail, and
   the create-reservation flow's terminal success (which now pops the wizard and opens the new
@@ -327,7 +332,7 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 
 ## Backend API (base: `/api/v1`)
 
-55 approved patient-mobile routes (8 public, 29 account-only, 18 active-link including 1 legacy alias).
+54 approved patient-mobile routes (8 public, 29 account-only, 17 active-link).
 Source of truth: `docs/API_CONTRACT.md`.
 
 **Auth:** V13 two-stage OTP registration, hybrid login (trusted skips OTP), password recovery, Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). Installation identity via `DeviceIdentityProvider`. 401 → bearer-aware logout via `AuthEventBus`. Session resolution via `GET /me` before routing.
@@ -403,44 +408,40 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 - Home: next appointment, current prescription summary, featured frames preview
 - Frames: searchable/paged catalog, detail, AR, reservation entry
 - Appointments: list, detail, booking, reschedule, cancel, intake
-- Profile: hub for Messages, Prescriptions, Reservations, My Eyewear
+- Profile: hub for Messages, Prescriptions, Reservations, My Orders
 
-## My Eyewear — Estimates and Orders
+## My Orders
 
-`presentation/eyewear/MyEyewearScreen.kt`, `EstimateListViewModel.kt`,
-`OpticalOrderListViewModel.kt`, `EstimateDetailScreen.kt`,
-`OpticalOrderDetailScreen.kt`, `FrameRatingViewModel.kt`:
+`presentation/eyewear/MyEyewearScreen.kt`,
+`OpticalOrderListViewModel.kt`, `OpticalOrderDetailScreen.kt`,
+`FrameRatingViewModel.kt`:
 
-- Profile **Care & activity** contains one **My Eyewear** row (active-link protected).
-- The destination has primary **Estimates** and **Orders** tabs, each with
-  **Current** and **History** filters. Initial selection is **Estimates → Current**.
-- Estimates call `GET /quotations`; Orders call `GET /optical-orders`. Each tab
-  owns independent results, pagination, loading, empty, and error states.
-- Current/History membership is backend-owned. Draft quotations are never shown.
-- Estimate cards show patient status (Awaiting confirmation, Confirmed, Declined,
-  Expired), reference, dates, total, and **View order** when `optical_order` exists.
+- Profile **Care & activity** contains one **My Orders** row (active-link protected).
+  The app bar also reads **My Orders**.
+- Orders-only destination — no Estimates tab. Initial selection is **Current** filter.
+- Orders call `GET /optical-orders` with independent results, pagination, loading,
+  empty, and error states.
+- Current/History membership is backend-owned.
 - Order cards show patient status (Preparing, In preparation, Ready for pickup,
   Released to you, Cancelled), reference, dates, total, payment status, and
   remaining balance when > 0.
-- Estimate detail is read-only with items, subtotal, discount, total, notes, and
-  optional Order cross-link.
 - Order detail shows fulfillment tracker (Preparation → Ready → Released),
-  timestamps, Eyewear details, optional Payment Summary, optional source Estimate
-  link, and rating/revision on `is_rateable` items.
+  timestamps, Eyewear details, optional Payment Summary, and rating on
+  `is_rateable` items.
 - Rating is one POST upsert (`POST /optical-order-items/{id}/rating`): 201 for
   first creation, 200 for revision. `is_rateable` is server-authoritative.
-- Typed integer routes: `MyEyewear`, `EstimateDetail(quotationId)`,
-  `OpticalOrderDetail(orderId)`. Cross-links pass ID directly.
-- `PatientFeatureIntent` preserves typed Estimate/Order intents through the
-  active-link gate.
+  Frame ratings (RatingBadge on catalog cards and frame detail, rating action
+  on order items) are hidden behind `FeatureFlags.FRAME_RATINGS_ENABLED = false`.
+  Visit feedback (appointment ratings) stays live.
+- Typed integer routes: `MyEyewear`, `OpticalOrderDetail(orderId)`. Cross-links
+  pass ID directly.
+- `PatientFeatureIntent` preserves typed Order intents through the active-link gate.
 
-## Route Governance — 55 Routes
+## Route Governance — 54 Routes
 
 `test/.../ApprovedApiRoutes.kt`, `test/.../ApiRouteAllowlistTest.kt`:
 
-- 8 public, 29 account-only, 17 active-link (canonical) = 54 canonical callable.
-- 1 legacy alias (`POST /job-order-items/{id}/rating`) — exists server-side for backward compatibility, not callable by this client.
-- Total registered callable routes: 55 (54 canonical + 1 legacy alias).
+- 8 public, 29 account-only, 17 active-link = 54 total.
 - Account-only includes `GET /appointment-types`, `GET /appointment-optometrists`, and conversation read/list/send.
 - Attachment download (`GET /conversation/attachments/{id}`) remains active-link-only.
 - Retired routes explicitly rejected: `/eyewear`, `/job-orders`, `/billing-records`,
@@ -456,7 +457,7 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 - `POST /appointments/{id}/rating` — upsert: 201 creates, 200 revises.
 - `AppointmentDto` decodes `is_rateable` (default false) and `rating` (VisitRatingDto?, default null).
 - **List entry point:** compact **Rate this visit** chip on confirmed-appointment rows where `isRateable && visitRating == null`. No persisted dismissal.
-- **Detail surface:** when rateable and unrated, **Rate your visit** action. When rated, stars + comment + **Update rating** + **Edited** when `revisionNumber > 1`.
+- **Detail surface:** when rateable and unrated, **Rate your visit** action. When rated, stars + comment + **Update rating**.
 - Gated on `isRateable` only — never inferred from `status == fulfilled`.
 - Client-side validation: rating 1–5, comment ≤ 1000.
 - On success, returned rating merges locally — no re-`load()` round trip.
@@ -475,7 +476,6 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 - `RatingBadge` renders `★ 4.5 (12)` for populated values, nothing for null.
   Accessibility: "rated 4.5 out of 5 from 12 ratings".
 - Frame detail shows "No ratings yet" when unrated.
-- **Known backend bug:** aggregate excludes hidden ratings from both average and count (directional upward skew). Being fixed backend-side. Android displays what the server sends — no client-side correction.
 
 ## Branding
 
@@ -491,6 +491,9 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 
 ## Active Specs
 
+- `docs/specs/backend-alignment-v18-2026-08-13-spec.md` — Complete: Frame Reservation Item Editing and My Orders
+- `docs/specs/backend-alignment-v18-2026-08-13-plan.md` — Complete: implementation plan
+- `docs/specs/backend-alignment-v18-2026-08-13-tasks.md` — Complete: tasks + checkpoints
 - `docs/specs/backend-alignment-v17-2026-08-11-spec.md` — Complete: Account-Owned Conversation
 - `docs/specs/backend-alignment-v17-2026-08-11-plan.md` — Complete: implementation plan (5 stages)
 - `docs/specs/backend-alignment-v17-2026-08-11-tasks.md` — Complete: 12 tasks + 4 checkpoints
@@ -510,7 +513,7 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 - `docs/specs/backend-alignment-v8-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v8-tasks.md` — Complete: all acceptance criteria met
 - `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
-- `docs/API_CONTRACT.md` — Authoritative mobile API contract (55 routes)
+- `docs/API_CONTRACT.md` — Authoritative mobile API contract (54 routes)
 
 ## Boundaries
 
