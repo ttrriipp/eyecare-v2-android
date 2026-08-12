@@ -11,21 +11,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class EstimateFilter(val apiValue: String, val label: String) {
-    CURRENT("current", "Current"),
-    HISTORY("history", "History"),
-}
-
 sealed interface EstimateListUiState {
     data object Loading : EstimateListUiState
     data class Success(
         val items: List<Quotation>,
-        val filter: EstimateFilter,
         val isLoadingMore: Boolean = false,
         val hasMorePages: Boolean = false,
         val loadMoreError: String? = null,
     ) : EstimateListUiState
-    data class Empty(val filter: EstimateFilter) : EstimateListUiState
+    data object Empty : EstimateListUiState
     data class Error(val message: String) : EstimateListUiState
 }
 
@@ -37,27 +31,19 @@ class EstimateListViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<EstimateListUiState>(EstimateListUiState.Loading)
     val uiState: StateFlow<EstimateListUiState> = _uiState.asStateFlow()
 
-    private var currentFilter = EstimateFilter.CURRENT
     private var currentPage = 1
     private var loadSequence = 0
 
-    init { load(EstimateFilter.CURRENT) }
-
-    fun selectFilter(filter: EstimateFilter) {
-        if (filter == currentFilter) return
-        currentFilter = filter
-        currentPage = 1
-        load(filter)
-    }
+    init { load() }
 
     fun refresh() {
         currentPage = 1
-        load(currentFilter)
+        load()
     }
 
     fun retry() {
         currentPage = 1
-        load(currentFilter)
+        load()
     }
 
     fun loadMore() {
@@ -68,18 +54,17 @@ class EstimateListViewModel @Inject constructor(
         loadMoreInternal()
     }
 
-    private fun load(filter: EstimateFilter) {
+    private fun load() {
         val seq = ++loadSequence
         _uiState.value = EstimateListUiState.Loading
         viewModelScope.launch {
-            repository.getQuotations(filter = filter.apiValue, page = 1).fold(
+            repository.getQuotations(filter = null, page = 1).fold(
                 onSuccess = { result ->
                     if (seq != loadSequence) return@launch
                     currentPage = result.currentPage
-                    if (result.data.isEmpty()) _uiState.value = EstimateListUiState.Empty(filter)
+                    if (result.data.isEmpty()) _uiState.value = EstimateListUiState.Empty
                     else _uiState.value = EstimateListUiState.Success(
                         items = result.data,
-                        filter = filter,
                         hasMorePages = result.hasMorePages,
                     )
                 },
@@ -96,7 +81,7 @@ class EstimateListViewModel @Inject constructor(
         val seq = loadSequence
         _uiState.value = current.copy(isLoadingMore = true, loadMoreError = null)
         viewModelScope.launch {
-            repository.getQuotations(filter = currentFilter.apiValue, page = currentPage).fold(
+            repository.getQuotations(filter = null, page = currentPage).fold(
                 onSuccess = { result ->
                     if (seq != loadSequence) return@launch
                     currentPage = result.currentPage

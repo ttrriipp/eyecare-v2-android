@@ -1,6 +1,8 @@
 package com.eyecare.app.presentation.appointments.requests
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -54,6 +57,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
@@ -105,10 +109,10 @@ internal fun ScheduleContent(
         bottomBar = {
             if (addingAlternatives) {
                 AppointmentPrimaryButton(
-                    text = if (state.alternativeSlots.isEmpty()) {
-                        "Done"
-                    } else {
-                        "Done · ${state.alternativeSlots.size} added"
+                    text = when (state.alternativeSlots.size) {
+                        0 -> "Done"
+                        1 -> "Done · 1 backup"
+                        else -> "Done · ${state.alternativeSlots.size} backups"
                     },
                     onClick = onFinishAddingAlternatives,
                 )
@@ -118,18 +122,15 @@ internal fun ScheduleContent(
                     onClick = onConfirm,
                     enabled = state.primarySlot != null,
                 )
-                if (state.primarySlot == null) {
-                    Text(
-                        text = "Pick a time to continue.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                    )
-                }
             }
         },
     ) {
+        val chosenDates = remember(state.primarySlot, state.alternativeSlots) {
+            (listOfNotNull(state.primarySlot) + state.alternativeSlots)
+                .mapNotNull { slotClinicDate(it.startsAt) }
+                .toSet()
+        }
+
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -138,27 +139,22 @@ internal fun ScheduleContent(
                 weekStart = state.weekStart,
                 selectedDate = state.date,
                 dayAvailability = state.dayAvailability,
+                chosenDates = chosenDates,
                 onShowWeek = onShowWeek,
                 onDateSelected = onDateSelected,
             )
 
-            if (!addingAlternatives && state.primarySlot != null) {
-                PreferencesPanel(
-                    primarySlot = state.primarySlot,
-                    alternativeSlots = state.alternativeSlots,
-                    canAddMore = !alternativesFull,
-                    onAddAlternatives = onStartAddingAlternatives,
-                    onRemoveAlternative = onRemoveAlternative,
-                    modifier = Modifier.padding(horizontal = RequestStepMargin),
-                )
-            }
-
-            if (addingAlternatives) {
-                AlternativesBanner(
-                    primarySlot = state.primarySlot,
-                    count = state.alternativeSlots.size,
-                    modifier = Modifier.padding(horizontal = RequestStepMargin),
-                )
+            AnimatedVisibility(visible = state.primarySlot != null) {
+                state.primarySlot?.let { primarySlot ->
+                    ChosenTimesCard(
+                        primarySlot = primarySlot,
+                        alternativeSlots = state.alternativeSlots,
+                        addingAlternatives = addingAlternatives,
+                        onAddAlternatives = onStartAddingAlternatives,
+                        onRemoveAlternative = onRemoveAlternative,
+                        modifier = Modifier.padding(horizontal = RequestStepMargin),
+                    )
+                }
             }
 
             SlotList(
@@ -188,6 +184,7 @@ private fun WeekStrip(
     weekStart: String,
     selectedDate: String?,
     dayAvailability: Map<String, DayAvailability>,
+    chosenDates: Set<String>,
     onShowWeek: (String) -> Unit,
     onDateSelected: (String) -> Unit,
 ) {
@@ -240,7 +237,9 @@ private fun WeekStrip(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = RequestStepMargin),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                // Tighter than the 4dp used elsewhere: seven full-width cells need every
+                // spare dp to clear the 48dp touch-target floor on narrow (~360dp) phones.
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 (0 until availabilityWeekLength).forEach { offset ->
                     val date = visibleStart.plusDays(offset.toLong())
@@ -249,6 +248,7 @@ private fun WeekStrip(
                         isPast = date.isBefore(today),
                         isSelected = date.toString() == selectedDate,
                         verdict = dayAvailability[date.toString()] ?: DayAvailability.UNKNOWN,
+                        holdsChosenTime = date.toString() in chosenDates,
                         onClick = { onDateSelected(date.toString()) },
                         modifier = Modifier.weight(1f),
                     )
@@ -271,6 +271,8 @@ private fun WeekStrip(
                 text = caption,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = RequestStepMargin)
@@ -286,19 +288,21 @@ private fun DayCell(
     isPast: Boolean,
     isSelected: Boolean,
     verdict: DayAvailability,
+    holdsChosenTime: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val unavailable = isPast ||
         verdict == DayAvailability.CLOSED ||
         verdict == DayAvailability.FULL
-    val status = when {
+    val baseStatus = when {
         isPast -> "Past"
         verdict == DayAvailability.CLOSED -> "Closed"
         verdict == DayAvailability.FULL -> "Fully booked"
         verdict == DayAvailability.OPEN -> "Times available"
         else -> "Checking availability"
     }
+    val status = if (holdsChosenTime) "$baseStatus, holds a time you chose" else baseStatus
 
     val container = when {
         isSelected -> MaterialTheme.colorScheme.primary
@@ -347,149 +351,213 @@ private fun DayCell(
                 color = content,
                 maxLines = 1,
             )
-            AvailabilityDot(
+            DayMarker(
                 verdict = if (isPast) DayAvailability.CLOSED else verdict,
                 isSelected = isSelected,
+                holdsChosenTime = holdsChosenTime,
             )
         }
     }
 }
 
+/**
+ * One dot carrying two facts: whether the clinic is open that day, and whether one of the
+ * patient's own chosen times sits on it. The second matters because a backup on another week
+ * is otherwise invisible from here.
+ */
 @Composable
-private fun AvailabilityDot(verdict: DayAvailability, isSelected: Boolean) {
+private fun DayMarker(
+    verdict: DayAvailability,
+    isSelected: Boolean,
+    holdsChosenTime: Boolean,
+) {
     val dotColor = when {
         isSelected -> MaterialTheme.colorScheme.onPrimary
+        holdsChosenTime -> EyecareColors.current.accentText
         verdict == DayAvailability.OPEN -> EyecareColors.current.statusConfirmed
         else -> null
     }
-    Box(modifier = Modifier.size(6.dp)) {
+    Box(modifier = Modifier.size(8.dp), contentAlignment = Alignment.Center) {
         if (dotColor != null) {
-            Box(modifier = Modifier.fillMaxSize().background(dotColor, CircleShape))
+            Box(
+                modifier = Modifier
+                    .size(if (holdsChosenTime) 8.dp else 6.dp)
+                    .background(dotColor, CircleShape),
+            )
         }
     }
 }
 
 // ------------------------------------------------------------ preference panel
 
+/**
+ * The running answer to "what have I chosen?", present in both phases.
+ *
+ * Backups can sit on days the strip is not currently showing, so the slot list alone cannot
+ * represent them — and once both backups were taken, the only entry into the backup phase used
+ * to disappear, stranding a patient who picked the wrong one. This card keeps every chosen time
+ * and its day visible, and keeps removal reachable, whatever day the list below is showing.
+ */
 @Composable
-private fun PreferencesPanel(
+private fun ChosenTimesCard(
     primarySlot: AvailabilitySlot,
     alternativeSlots: List<AvailabilitySlot>,
-    canAddMore: Boolean,
+    addingAlternatives: Boolean,
     onAddAlternatives: () -> Unit,
     onRemoveAlternative: (AvailabilitySlot) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val full = alternativeSlots.size >= maxAlternatives
+
+    // Tonal (not white) so this reads as a distinct status summary rather than another slot
+    // row — DESIGN.md's "Light Lens Wash for action-adjacent summaries" card guidance.
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .animateContentSize(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            PreferenceRow(
-                label = "Preferred",
-                value = formatSlotWithDay(primarySlot),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Your times",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                when {
+                    // Adding: the count is the thing that changes, so it is what gets announced.
+                    addingAlternatives || full -> Text(
+                        text = "${alternativeSlots.size} of $maxAlternatives backups",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    // One backup already chosen: a compact action keeps the card short enough
+                    // that the slot list below still shows several rows.
+                    alternativeSlots.isNotEmpty() -> TextButton(onClick = onAddAlternatives) {
+                        Text(
+                            text = "Add another",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = EyecareColors.current.accentText,
+                        )
+                    }
+                }
+            }
+
+            ChosenTimeRow(
+                rank = "Preferred",
+                isPreferred = true,
+                slot = primarySlot,
                 onRemove = null,
             )
+
             alternativeSlots.forEachIndexed { index, slot ->
-                PreferenceRow(
-                    label = "Backup ${index + 1}",
-                    value = formatSlotWithDay(slot),
+                ChosenTimeRow(
+                    rank = "Backup ${index + 1}",
+                    isPreferred = false,
+                    slot = slot,
                     onRemove = { onRemoveAlternative(slot) },
                 )
             }
-            if (canAddMore) {
-                AppointmentOutlinedButton(
-                    text = if (alternativeSlots.isEmpty()) {
-                        "Add backup times (optional)"
-                    } else {
-                        "Add another backup"
-                    },
-                    onClick = onAddAlternatives,
-                )
+
+            val hint = when {
+                addingAlternatives && full ->
+                    "That's both backups. Remove one to pick a different time."
+                addingAlternatives ->
+                    "Tick any other times that would also work for you."
+                full -> "Remove one to swap in a different time."
+                alternativeSlots.isEmpty() ->
+                    "Backup times are optional — offering more than one gives the clinic more " +
+                        "ways to say yes."
+                else -> null
+            }
+            hint?.let {
                 Text(
-                    text = "Backup times give the clinic more ways to fit you in. " +
-                        "They're optional.",
+                    text = it,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+
+            if (!addingAlternatives && alternativeSlots.isEmpty()) {
+                AppointmentOutlinedButton(
+                    text = "Add backup times",
+                    onClick = onAddAlternatives,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
     }
 }
 
+/**
+ * One chosen time. Rank is carried by a labelled pill rather than by colour alone, and the day
+ * is always spelled out because a backup often belongs to a different day than the one on screen.
+ */
 @Composable
-private fun PreferenceRow(
-    label: String,
-    value: String,
+private fun ChosenTimeRow(
+    rank: String,
+    isPreferred: Boolean,
+    slot: AvailabilitySlot,
     onRemove: (() -> Unit)?,
 ) {
+    val label = formatSlotWithDay(slot)
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
+            contentDescription = "$rank: $label"
+        },
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = EyecareColors.current.accentText,
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
+        RankPill(text = rank, isPreferred = isPreferred)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
         if (onRemove != null) {
             IconButton(onClick = onRemove) {
                 Icon(
                     imageVector = Icons.Outlined.Close,
-                    contentDescription = "Remove $label, $value",
-                    tint = EyecareColors.current.accentText,
+                    contentDescription = "Remove $rank, $label",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        } else {
+            // Keeps the preferred row's text column aligned with the removable rows above it.
+            Spacer(Modifier.size(48.dp))
         }
     }
 }
 
+/** Shared with Review so a time keeps the same rank treatment on both screens. */
 @Composable
-private fun AlternativesBanner(
-    primarySlot: AvailabilitySlot?,
-    count: Int,
-    modifier: Modifier = Modifier,
-) {
+internal fun RankPill(text: String, isPreferred: Boolean) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = RoundedCornerShape(50),
+        color = if (isPreferred) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = "Pick up to $maxAlternatives backup times",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            primarySlot?.let {
-                Text(
-                    text = "Your preferred time is ${formatSlotWithDay(it)}.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(
-                text = "$count of $maxAlternatives chosen",
-                style = MaterialTheme.typography.bodySmall,
-                color = EyecareColors.current.accentText,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-        }
+        Text(
+            text = text,
+            modifier = Modifier
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .clearAndSetSemantics { },
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isPreferred) EyecareColors.current.accentText
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

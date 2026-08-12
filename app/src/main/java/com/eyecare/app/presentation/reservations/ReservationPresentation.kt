@@ -47,7 +47,8 @@ fun reservationStatusColor(status: ReservationStatus): Color {
         ReservationStatus.CONVERTED -> colors.statusConfirmed
         ReservationStatus.RELEASED -> MaterialTheme.colorScheme.onSurfaceVariant
         ReservationStatus.CANCELLED -> colors.statusCancelled
-        ReservationStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+        // Distinct from RELEASED's neutral gray: an unknown state needs attention, a released one doesn't.
+        ReservationStatus.UNKNOWN -> colors.statusCancelled
     }
 }
 

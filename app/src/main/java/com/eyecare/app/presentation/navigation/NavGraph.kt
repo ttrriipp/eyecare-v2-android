@@ -296,7 +296,6 @@ fun EyecareNavGraph(
                                 navigateMainTab(Frames)
                             },
                             onNavigateToFrameDetail = { navigatePatientFeature(FrameDetail(it)) },
-                            onNavigateToPrescriptionDetail = { navigatePatientFeature(PrescriptionDetail(it)) },
                             hasActivePatientLink = canAccessPatientFeatures(sessionState),
                         )
                     }

@@ -1,6 +1,8 @@
 package com.eyecare.app.presentation.appointments
 
 import androidx.lifecycle.SavedStateHandle
+import com.eyecare.app.domain.model.AppointmentAvailability
+import com.eyecare.app.domain.model.AppointmentSlot
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.repository.AppointmentV1Repository
@@ -107,7 +109,7 @@ class AppointmentDetailViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
-        assertEquals("Cannot cancel", state.cancelError)
+        assertEquals("We couldn't cancel this appointment. Check your connection and try again.", state.cancelError)
         assertFalse(state.isCancelling)
         assertEquals(AppointmentStatus.SCHEDULED, state.appointment.status)
     }
@@ -123,7 +125,7 @@ class AppointmentDetailViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = vm.uiState.value as AppointmentDetailUiState.Error
-        assertEquals("Network error", state.message)
+        assertEquals("We couldn't load this appointment. Check your connection and try again.", state.message)
     }
 
     @Test
@@ -141,6 +143,22 @@ class AppointmentDetailViewModelTest {
     @Test
     fun `reschedule failure shows error message`() = runTest {
         coEvery {
+            appointments.getAppointmentAvailability("2026-07-14", 4)
+        } returns Result.success(
+            AppointmentAvailability(
+                date = "2026-07-14",
+                timezone = "Asia/Manila",
+                intervalMinutes = 15,
+                visitReasonId = 1,
+                visitDurationMinutes = 15,
+                optometristId = null,
+                appointmentId = 4,
+                dayStatus = "open",
+                generatedAt = "2026-07-13T12:00:00Z",
+                slots = emptyList(),
+            ),
+        )
+        coEvery {
             appointments.rescheduleAppointment(4, any())
         } returns Result.failure(RuntimeException("Slot taken"))
 
@@ -149,7 +167,7 @@ class AppointmentDetailViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
-        assertEquals("Slot taken", state.rescheduleError)
+        assertEquals("We couldn't reschedule this appointment. Try again.", state.rescheduleError)
         assertFalse(state.isRescheduling)
         assertTrue(state.showRescheduleSheet)
     }
@@ -178,5 +196,76 @@ class AppointmentDetailViewModelTest {
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
         assertFalse(state.showRescheduleSuccessDialog)
+    }
+
+    @Test
+    fun cancelErrorUsesPatientSafeRecoveryMessage() = runTest {
+        coEvery { appointments.cancelAppointment(4) } returns
+            Result.failure(RuntimeException("connection reset by peer"))
+
+        viewModel.cancelAppointment()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
+        assertEquals(
+            "We couldn't cancel this appointment. Check your connection and try again.",
+            state.cancelError,
+        )
+    }
+
+    @Test
+    fun openingRescheduleLoadsAuthoritativeSlotsForCurrentClinicDay() = runTest {
+        val availability = AppointmentAvailability(
+            date = "2026-07-14",
+            timezone = "Asia/Manila",
+            intervalMinutes = 15,
+            visitReasonId = 1,
+            visitDurationMinutes = 15,
+            optometristId = null,
+            appointmentId = 4,
+            dayStatus = "open",
+            generatedAt = "2026-07-13T12:00:00Z",
+            slots = listOf(
+                AppointmentSlot(
+                    startsAt = "2026-07-14T02:00:00Z",
+                    endsAt = "2026-07-14T02:15:00Z",
+                    available = true,
+                    reason = null,
+                ),
+            ),
+        )
+        coEvery {
+            appointments.getAppointmentAvailability("2026-07-14", 4)
+        } returns Result.success(availability)
+
+        viewModel.showRescheduleSheet()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
+        assertTrue(state.showRescheduleSheet)
+        assertEquals(
+            RescheduleAvailabilityState.Success(availability),
+            state.rescheduleAvailability,
+        )
+    }
+
+    @Test
+    fun rescheduleAvailabilityFailureKeepsSheetOpenWithRetryableState() = runTest {
+        coEvery {
+            appointments.getAppointmentAvailability("2026-07-14", 4)
+        } returns Result.failure(RuntimeException("timeout"))
+
+        viewModel.showRescheduleSheet()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
+        assertTrue(state.showRescheduleSheet)
+        assertEquals(
+            RescheduleAvailabilityState.Error(
+                date = "2026-07-14",
+                message = "We couldn't load available times. Try again.",
+            ),
+            state.rescheduleAvailability,
+        )
     }
 }

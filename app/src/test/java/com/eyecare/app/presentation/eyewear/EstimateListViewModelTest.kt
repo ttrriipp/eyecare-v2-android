@@ -60,53 +60,31 @@ class EstimateListViewModelTest {
     fun tearDown() { Dispatchers.resetMain() }
 
     @Test
-    fun `initial load requests current filter`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
+    fun `initial load fetches all estimates`() = runTest {
+        coEvery { repository.getQuotations(null, 1) } returns Result.success(
             PaginatedResult(listOf(createQuotation()), 1, 1, 1)
         )
         val vm = EstimateListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = vm.uiState.value as EstimateListUiState.Success
-        assertEquals(EstimateFilter.CURRENT, state.filter)
         assertEquals(1, state.items.size)
     }
 
     @Test
-    fun `switch filter clears old records and loads new`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
-            PaginatedResult(listOf(createQuotation(1)), 1, 1, 1)
-        )
-        coEvery { repository.getQuotations("history", 1) } returns Result.success(
-            PaginatedResult(listOf(createQuotation(2, QuotationStatus.ACCEPTED)), 1, 1, 1)
-        )
-        val vm = EstimateListViewModel(repository)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        vm.selectFilter(EstimateFilter.HISTORY)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val state = vm.uiState.value as EstimateListUiState.Success
-        assertEquals(EstimateFilter.HISTORY, state.filter)
-        assertEquals(1, state.items.size)
-        assertEquals(2, state.items[0].id)
-    }
-
-    @Test
-    fun `empty filter shows empty state`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
+    fun `empty list shows empty state`() = runTest {
+        coEvery { repository.getQuotations(null, 1) } returns Result.success(
             PaginatedResult(emptyList(), 1, 1, 0)
         )
         val vm = EstimateListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(vm.uiState.value is EstimateListUiState.Empty)
-        assertEquals(EstimateFilter.CURRENT, (vm.uiState.value as EstimateListUiState.Empty).filter)
     }
 
     @Test
     fun `error shows error state`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.failure(RuntimeException("offline"))
+        coEvery { repository.getQuotations(null, 1) } returns Result.failure(RuntimeException("offline"))
         val vm = EstimateListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -114,13 +92,13 @@ class EstimateListViewModelTest {
     }
 
     @Test
-    fun `retry reloads current filter`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.failure(RuntimeException("offline"))
+    fun `retry reloads`() = runTest {
+        coEvery { repository.getQuotations(null, 1) } returns Result.failure(RuntimeException("offline"))
         val vm = EstimateListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
         assertTrue(vm.uiState.value is EstimateListUiState.Error)
 
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
+        coEvery { repository.getQuotations(null, 1) } returns Result.success(
             PaginatedResult(listOf(createQuotation()), 1, 1, 1)
         )
         vm.retry()
@@ -131,13 +109,13 @@ class EstimateListViewModelTest {
 
     @Test
     fun `refresh reloads at page 1`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
+        coEvery { repository.getQuotations(null, 1) } returns Result.success(
             PaginatedResult(listOf(createQuotation(1)), 1, 2, 2)
         )
         val vm = EstimateListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
+        coEvery { repository.getQuotations(null, 1) } returns Result.success(
             PaginatedResult(listOf(createQuotation(1)), 1, 1, 1)
         )
         vm.refresh()
@@ -149,10 +127,10 @@ class EstimateListViewModelTest {
 
     @Test
     fun `loadMore appends and guards duplicates`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
+        coEvery { repository.getQuotations(null, 1) } returns Result.success(
             PaginatedResult(listOf(createQuotation(1)), 1, 2, 2)
         )
-        coEvery { repository.getQuotations("current", 2) } returns Result.success(
+        coEvery { repository.getQuotations(null, 2) } returns Result.success(
             PaginatedResult(listOf(createQuotation(2)), 2, 2, 2)
         )
         val vm = EstimateListViewModel(repository)
@@ -171,10 +149,10 @@ class EstimateListViewModelTest {
 
     @Test
     fun `loadMore failure retains already-loaded cards`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
+        coEvery { repository.getQuotations(null, 1) } returns Result.success(
             PaginatedResult(listOf(createQuotation(1)), 1, 2, 2)
         )
-        coEvery { repository.getQuotations("current", 2) } returns Result.failure(RuntimeException("timeout"))
+        coEvery { repository.getQuotations(null, 2) } returns Result.failure(RuntimeException("timeout"))
         val vm = EstimateListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -187,44 +165,8 @@ class EstimateListViewModelTest {
     }
 
     @Test
-    fun `stale filter response is ignored`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
-            PaginatedResult(listOf(createQuotation(1)), 1, 1, 1)
-        )
-        coEvery { repository.getQuotations("history", 1) } coAnswers {
-            kotlinx.coroutines.delay(1000)
-            Result.success(PaginatedResult(listOf(createQuotation(2, QuotationStatus.ACCEPTED)), 1, 1, 1))
-        }
-
-        val vm = EstimateListViewModel(repository)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        vm.selectFilter(EstimateFilter.HISTORY)
-        vm.selectFilter(EstimateFilter.CURRENT)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val state = vm.uiState.value as EstimateListUiState.Success
-        assertEquals(EstimateFilter.CURRENT, state.filter)
-    }
-
-    @Test
-    fun `selectFilter with same filter is no-op`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
-            PaginatedResult(listOf(createQuotation()), 1, 1, 1)
-        )
-        val vm = EstimateListViewModel(repository)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        vm.selectFilter(EstimateFilter.CURRENT)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val state = vm.uiState.value as EstimateListUiState.Success
-        assertEquals(1, state.items.size)
-    }
-
-    @Test
     fun `no optical order repository or aggregate type referenced`() = runTest {
-        coEvery { repository.getQuotations("current", 1) } returns Result.success(
+        coEvery { repository.getQuotations(null, 1) } returns Result.success(
             PaginatedResult(listOf(createQuotation(opticalOrder = OpticalOrderReference(5, "OO-005"))), 1, 1, 1)
         )
         val vm = EstimateListViewModel(repository)

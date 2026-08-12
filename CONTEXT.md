@@ -353,6 +353,49 @@ Source of truth: `docs/API_CONTRACT.md`.
 - **Staff boundary:** reviewer queue fields, reviewer preference selection, and the contact-note requirement when accepting outside submitted preferences are backend/staff-surface behavior. Patient mobile only submits ordered preferences and consumes the resulting request state.
 - **Tests:** ViewModel tests cover type loading/selection/retry, catalog and availability latest-response-wins behavior, alternative max-two/uniqueness, referral and type validation recovery, safe error copy, request detail linking/retry, and submission. Compose tests cover ordered alternatives, availability states, review content, and scrollable type catalog behavior.
 
+### Schedule step — backup times
+
+`presentation/appointments/requests/RequestScheduleContent.kt`:
+
+- The step runs in two phases (`SchedulePhase`): `PREFERRED` collects the one preferred time,
+  `ALTERNATIVES` turns the same rows into checkboxes for up to two numbered backups. One meaning
+  per row, so there is no second hidden action competing for the same thumb.
+- **`ChosenTimesCard` is present in both phases** once a preferred time exists. It lists the
+  preferred time and each ranked backup with its **day**, and carries per-backup removal.
+  Two reasons it must be a card rather than list state: a backup routinely sits on a day the slot
+  list is not showing, and the previous panel disappeared once both backups were chosen — which
+  removed the only entry into the backup phase and left no way to undo a wrong pick.
+- The card's add affordance adapts so its height stays roughly constant: a full-width outlined
+  **Add backup times** while none are chosen (with the reason they help), a compact **Add another**
+  in the header once one exists, and a count plus swap hint when both are taken.
+- Rank is carried by a labelled pill (`RankPill`, shared with Review), not by color alone.
+  Preferred uses `primaryContainer`, backups use `surfaceVariant`.
+- Week-strip day cells mark days holding one of the patient's chosen times (`DayMarker`), so a
+  backup in another week is visible from the strip. The marker also reaches TalkBack as
+  "holds a time you chose" appended to the day's open/closed status.
+- `slotClinicDate` in `RequestFormatting.kt` resolves a slot's clinic-local calendar day for that
+  marking.
+
+### Review step — layout
+
+`presentation/appointments/requests/RequestReviewContent.kt`:
+
+- `ReviewCard` uses the app's standard card chrome (white surface, 16dp radius, 1dp
+  `outlineVariant` border, no elevation) instead of an elevated 20dp variant, and the inner
+  ticket surface stays at 12dp so nested radii stay paired.
+- The **preferred time** is the hero: the appointment card shows visit type, a divider, then day
+  and time with the time at `titleMedium`, rather than three equal-weight metadata rows.
+- Backups appear under **"If that time is taken"** with the same `RankPill` treatment the Schedule
+  step uses, so ranking reads identically on both screens.
+- `editLabel` is applied as the Edit button's `contentDescription`. On screen all three actions
+  read "Edit"; the description is what makes them distinguishable to a screen reader.
+- `ReviewRow` is a label/value pair row (label left, value right) instead of stacked label-above-
+  value, which is what let the seven-field details card fit.
+- Compose tests: `RequestAppointmentScheduleScreenTest` covers the chosen-times card across
+  phases, cross-day backup removal when both are taken, the empty-backup rationale, and blocked
+  Continue; `RequestReviewContentTest` covers the hero time, ranked backups, distinguishable edit
+  actions, and labelled detail pairs.
+
 ## Root Navigation
 
 Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.

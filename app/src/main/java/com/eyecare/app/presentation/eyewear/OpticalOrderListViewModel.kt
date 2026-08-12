@@ -11,21 +11,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class OrderFilter(val apiValue: String, val label: String) {
-    CURRENT("current", "Current"),
-    HISTORY("history", "History"),
-}
-
 sealed interface OrderListUiState {
     data object Loading : OrderListUiState
     data class Success(
         val items: List<OpticalOrder>,
-        val filter: OrderFilter,
         val isLoadingMore: Boolean = false,
         val hasMorePages: Boolean = false,
         val loadMoreError: String? = null,
     ) : OrderListUiState
-    data class Empty(val filter: OrderFilter) : OrderListUiState
+    data object Empty : OrderListUiState
     data class Error(val message: String) : OrderListUiState
 }
 
@@ -37,27 +31,19 @@ class OpticalOrderListViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<OrderListUiState>(OrderListUiState.Loading)
     val uiState: StateFlow<OrderListUiState> = _uiState.asStateFlow()
 
-    private var currentFilter = OrderFilter.CURRENT
     private var currentPage = 1
     private var loadSequence = 0
 
-    init { load(OrderFilter.CURRENT) }
-
-    fun selectFilter(filter: OrderFilter) {
-        if (filter == currentFilter) return
-        currentFilter = filter
-        currentPage = 1
-        load(filter)
-    }
+    init { load() }
 
     fun refresh() {
         currentPage = 1
-        load(currentFilter)
+        load()
     }
 
     fun retry() {
         currentPage = 1
-        load(currentFilter)
+        load()
     }
 
     fun loadMore() {
@@ -68,18 +54,17 @@ class OpticalOrderListViewModel @Inject constructor(
         loadMoreInternal()
     }
 
-    private fun load(filter: OrderFilter) {
+    private fun load() {
         val seq = ++loadSequence
         _uiState.value = OrderListUiState.Loading
         viewModelScope.launch {
-            repository.getOpticalOrders(filter = filter.apiValue, page = 1).fold(
+            repository.getOpticalOrders(filter = null, page = 1).fold(
                 onSuccess = { result ->
                     if (seq != loadSequence) return@launch
                     currentPage = result.currentPage
-                    if (result.data.isEmpty()) _uiState.value = OrderListUiState.Empty(filter)
+                    if (result.data.isEmpty()) _uiState.value = OrderListUiState.Empty
                     else _uiState.value = OrderListUiState.Success(
                         items = result.data,
-                        filter = filter,
                         hasMorePages = result.hasMorePages,
                     )
                 },
@@ -96,7 +81,7 @@ class OpticalOrderListViewModel @Inject constructor(
         val seq = loadSequence
         _uiState.value = current.copy(isLoadingMore = true, loadMoreError = null)
         viewModelScope.launch {
-            repository.getOpticalOrders(filter = currentFilter.apiValue, page = currentPage).fold(
+            repository.getOpticalOrders(filter = null, page = currentPage).fold(
                 onSuccess = { result ->
                     if (seq != loadSequence) return@launch
                     currentPage = result.currentPage

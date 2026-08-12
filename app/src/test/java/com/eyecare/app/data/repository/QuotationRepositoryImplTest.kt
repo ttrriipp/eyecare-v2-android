@@ -73,6 +73,19 @@ class QuotationRepositoryImplTest {
     }
 
     @Test
+    fun `getQuotations derives missing monetary summary from item amounts`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":[{"id":8,"quotation_number":"Q-008","status":"presented","created_at":"2026-08-01T00:00:00Z","items":[{"id":80,"item_type":"product","description":"Frame","quantity":1,"unit_price":"1200.00","amount":"1200.00"},{"id":81,"item_type":"service","description":"Fitting","quantity":1,"unit_price":"300.00","amount":"300.00"}]}],"meta":{"current_page":1,"last_page":1,"per_page":15,"total":1}}""",
+        ))
+
+        val quotation = repository.getQuotations().getOrThrow().data.single()
+
+        assertEquals(BigDecimal("1500.00"), quotation.subtotal)
+        assertEquals(BigDecimal.ZERO, quotation.discountAmount)
+        assertEquals(BigDecimal("1500.00"), quotation.total)
+    }
+
+    @Test
     fun `getQuotations sends current filter`() = runTest {
         enqueueQuotation()
         repository.getQuotations(filter = "current").getOrThrow()

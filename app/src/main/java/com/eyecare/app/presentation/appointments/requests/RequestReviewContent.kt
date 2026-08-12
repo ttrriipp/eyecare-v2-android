@@ -1,6 +1,9 @@
 package com.eyecare.app.presentation.appointments.requests
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,23 +17,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccessTime
-import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -67,25 +78,29 @@ fun RequestReviewContent(
                 modifier = Modifier.fillMaxWidth(),
             )
             AppointmentPrimaryButton(
-                text = "Send request to clinic",
+                text = "Submit request to clinic",
                 onClick = onSubmit,
                 loading = state.isSubmitting,
             )
         },
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = RequestStepMargin),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            ReviewCard(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = RequestStepMargin),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                NonBindingNotice()
+                ReviewCard(
                 title = "Appointment",
                 onEdit = { onEdit(RequestStepId.SCHEDULE) },
                 editLabel = "Change appointment time",
                 enabled = !state.isSubmitting,
             ) {
+                // The time is the single fact the patient is here to confirm, so it gets the
+                // largest role on the screen instead of being one of three equal-weight rows.
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -97,43 +112,85 @@ fun RequestReviewContent(
                     ) {
                         ReviewMetadataRow(
                             icon = Icons.Outlined.EventAvailable,
-                            label = "Type",
+                            label = "Visit type",
                             value = "${state.selectedType.name} · " +
                                 "${state.selectedType.durationMinutes} min",
                         )
-                        ReviewMetadataRow(
-                            icon = Icons.Outlined.CalendarMonth,
-                            label = "Preferred day",
-                            value = "${formatRequestWeekday(state.date)}, " +
-                                formatRequestDate(state.date),
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
                         )
-                        ReviewMetadataRow(
-                            icon = Icons.Outlined.AccessTime,
-                            label = "Preferred time",
-                            value = formatTimeRange(
-                                state.primarySlot.startsAt,
-                                state.primarySlot.endsAt,
-                            ),
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.AccessTime,
+                                contentDescription = null,
+                                tint = EyecareColors.current.accentText,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Column(
+                                modifier = Modifier.semantics(mergeDescendants = true) {
+                                    contentDescription = "Preferred time: " +
+                                        "${formatRequestWeekday(state.date)}, " +
+                                        "${formatRequestDate(state.date)}, " +
+                                        formatTimeRange(
+                                            state.primarySlot.startsAt,
+                                            state.primarySlot.endsAt,
+                                        )
+                                },
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    text = "Preferred time",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = "${formatRequestWeekday(state.date)}, " +
+                                        formatRequestDate(state.date),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text = formatTimeRange(
+                                        state.primarySlot.startsAt,
+                                        state.primarySlot.endsAt,
+                                    ),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
                     }
                 }
+
                 if (state.alternativeSlots.isEmpty()) {
                     Text(
-                        text = "No backup times. The clinic will work with your preferred time.",
+                        text = "No backup times selected. The clinic will confirm your preferred time or contact you.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Backup times",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        state.alternativeSlots.forEachIndexed { index, slot ->
-                            ReviewRow(
-                                label = "Backup ${index + 1}",
-                                value = formatSlotWithDay(slot),
+                    Text(
+                        text = "If that time is taken",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    state.alternativeSlots.forEachIndexed { index, slot ->
+                        val rank = "Backup ${index + 1}"
+                        val value = formatSlotWithDay(slot)
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .semantics(mergeDescendants = true) {
+                                    contentDescription = "$rank: $value"
+                                },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            RankPill(text = rank, isPreferred = false)
+                            Text(
+                                text = value,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }
@@ -148,7 +205,7 @@ fun RequestReviewContent(
             ) {
                 Text(
                     text = state.reason,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
                 state.referringSource?.takeIf { it.isNotBlank() }?.let { referral ->
                     ReviewRow(label = "Referred by", value = referral)
@@ -156,6 +213,13 @@ fun RequestReviewContent(
             }
 
             state.identity?.let { identity ->
+                val hasSecondaryDetails = listOfNotNull(
+                    identity.gender,
+                    identity.occupation?.takeIf(String::isNotBlank),
+                    identity.address?.takeIf(String::isNotBlank),
+                ).isNotEmpty()
+                val detailsExpanded = remember { mutableStateOf(false) }
+
                 ReviewCard(
                     title = "Your details",
                     onEdit = { onEdit(RequestStepId.IDENTITY) },
@@ -170,21 +234,73 @@ fun RequestReviewContent(
                             identity.lastName,
                         ).joinToString(" "),
                     )
-                    ReviewRow(
-                        label = "Date of birth",
-                        value = identity.dateOfBirth?.let { formatRequestDate(it) }.orEmpty(),
-                    )
-                    ReviewRow(label = "Phone", value = identity.phone.orEmpty())
+                    identity.dateOfBirth?.let {
+                        ReviewRow(label = "Date of birth", value = formatRequestDate(it))
+                    }
+                    identity.phone?.takeIf(String::isNotBlank)?.let {
+                        ReviewRow(label = "Phone", value = it)
+                    }
                     identity.email?.takeIf(String::isNotBlank)?.let {
                         ReviewRow(label = "Email", value = it)
                     }
-                    ReviewRow(label = "Gender", value = identity.gender?.label.orEmpty())
-                    ReviewRow(label = "Occupation", value = identity.occupation.orEmpty())
-                    ReviewRow(label = "Home address", value = identity.address.orEmpty())
+                    if (hasSecondaryDetails) {
+                        AnimatedVisibility(visible = detailsExpanded.value) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                identity.gender?.let {
+                                    ReviewRow(label = "Gender", value = it.label)
+                                }
+                                identity.occupation?.takeIf(String::isNotBlank)?.let {
+                                    ReviewRow(label = "Occupation", value = it)
+                                }
+                                identity.address?.takeIf(String::isNotBlank)?.let {
+                                    ReviewRow(label = "Home address", value = it)
+                                }
+                            }
+                        }
+                        TextButton(
+                            onClick = { detailsExpanded.value = !detailsExpanded.value },
+                            modifier = Modifier.clearAndSetSemantics {
+                                contentDescription = if (detailsExpanded.value) {
+                                    "Collapse additional details"
+                                } else {
+                                    "Expand additional details"
+                                }
+                            },
+                        ) {
+                            Text(
+                                text = if (detailsExpanded.value) "Less details" else "More details",
+                                color = EyecareColors.current.accentText,
+                            )
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+            }
+            if (state.isSubmitting) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            CircularProgressIndicator()
+                            Text(
+                                text = "Sending your request to the clinic\u2026",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -255,6 +371,11 @@ fun RequestSubmissionErrorContent(
     }
 }
 
+/**
+ * The app's standard card chrome — white surface, 16dp radius, one-dp `outlineVariant` border —
+ * so Review reads as the same material as every other card in the app rather than as an
+ * elevated variant of it. The inner ticket surface stays at 12dp to keep the nested radii paired.
+ */
 @Composable
 private fun ReviewCard(
     title: String,
@@ -265,13 +386,13 @@ private fun ReviewCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -283,15 +404,32 @@ private fun ReviewCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
-                TextButton(onClick = onEdit, enabled = enabled) {
-                    Text(
-                        text = "Edit",
-                        color = EyecareColors.current.accentText,
-                        modifier = Modifier.semantics { },
+                // Every card's action reads as "Edit" on screen; `editLabel` is what makes the
+                // three of them distinguishable to a screen reader.
+                TextButton(
+                    onClick = onEdit,
+                    enabled = enabled,
+                    modifier = Modifier.clearAndSetSemantics {
+                        contentDescription = editLabel
+                        role = Role.Button
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = null,
+                        tint = EyecareColors.current.accentText,
+                        modifier = Modifier.size(16.dp),
                     )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(text = "Edit", color = EyecareColors.current.accentText)
                 }
             }
-            content()
+            Column(
+                modifier = Modifier.padding(end = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                content()
+            }
         }
     }
 }
@@ -323,17 +461,31 @@ private fun ReviewMetadataRow(icon: ImageVector, label: String, value: String) {
     }
 }
 
+/**
+ * Label left, value right. Seven stacked label-above-value pairs made the details card taller
+ * than the screen; paired columns halve that and let the eye run down one column of answers.
+ */
 @Composable
 private fun ReviewRow(label: String, value: String) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Row(
+        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {
+            contentDescription = "$label: $value"
+        },
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.4f),
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.6f),
         )
     }
 }

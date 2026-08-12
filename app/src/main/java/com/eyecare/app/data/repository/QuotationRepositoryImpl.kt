@@ -9,6 +9,7 @@ import com.eyecare.app.domain.model.QuotationItemType
 import com.eyecare.app.domain.model.QuotationStatus
 import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.domain.repository.QuotationRepository
+import java.math.BigDecimal
 import javax.inject.Inject
 
 class QuotationRepositoryImpl @Inject constructor(
@@ -29,23 +30,29 @@ class QuotationRepositoryImpl @Inject constructor(
         api.getQuotation(id).data.toDomain()
     }
 
-    private fun QuotationDtos.QuotationDto.toDomain() = Quotation(
-        id = id,
-        quotationNumber = quotationNumber,
-        status = QuotationStatus.from(status),
-        validUntil = validUntil,
-        subtotal = subtotal,
-        discountAmount = discountAmount,
-        total = total,
-        notes = notes,
-        createdAt = createdAt,
-        presentedAt = presentedAt,
-        confirmedAt = confirmedAt,
-        opticalOrder = opticalOrder?.let {
-            OpticalOrderReference(id = it.id, orderNumber = it.orderNumber)
-        },
-        items = items.map { it.toDomain() },
-    )
+    private fun QuotationDtos.QuotationDto.toDomain(): Quotation {
+        val resolvedSubtotal = subtotal ?: items.fold(BigDecimal.ZERO) { sum, item -> sum + item.amount }
+        val resolvedDiscountAmount = discountAmount ?: BigDecimal.ZERO
+        val resolvedTotal = total ?: resolvedSubtotal - resolvedDiscountAmount
+
+        return Quotation(
+            id = id,
+            quotationNumber = quotationNumber,
+            status = QuotationStatus.from(status),
+            validUntil = validUntil,
+            subtotal = resolvedSubtotal,
+            discountAmount = resolvedDiscountAmount,
+            total = resolvedTotal,
+            notes = notes,
+            createdAt = createdAt,
+            presentedAt = presentedAt,
+            confirmedAt = confirmedAt,
+            opticalOrder = opticalOrder?.let {
+                OpticalOrderReference(id = it.id, orderNumber = it.orderNumber)
+            },
+            items = items.map { it.toDomain() },
+        )
+    }
 
     private fun QuotationDtos.QuotationItemDto.toDomain() = QuotationItem(
         id = id,

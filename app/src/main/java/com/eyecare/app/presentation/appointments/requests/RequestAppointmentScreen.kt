@@ -190,7 +190,7 @@ fun RequestAppointmentScreen(
 // -------------------------------------------------------------------- type step
 
 @Composable
-private fun TypeContent(
+internal fun TypeContent(
     state: RequestStep.Type,
     identityRequired: Boolean,
     onSelectType: (AppointmentType) -> Unit,
@@ -209,15 +209,6 @@ private fun TypeContent(
                 onClick = onConfirm,
                 enabled = state.selectedType != null,
             )
-            if (state.selectedType == null && state.types.isNotEmpty()) {
-                Text(
-                    text = "Choose a visit type to continue.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                )
-            }
         },
     ) {
         when {

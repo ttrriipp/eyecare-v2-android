@@ -1,5 +1,6 @@
 package com.eyecare.app.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -114,10 +115,8 @@ object EyecareColors {
 
 @Composable
 fun EyecareTheme(content: @Composable () -> Unit) {
-    // Pinned to light mode for now — dark theme is fully implemented below (see
-    // DarkColorScheme / DarkExtendedColors) but intentionally not wired to the system
-    // setting yet. Restore `isSystemInDarkTheme()` here to re-enable it.
-    val darkTheme = false
+    // Keep the Material and extended brand roles in sync with the device theme.
+    val darkTheme = isSystemInDarkTheme()
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
 

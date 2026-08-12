@@ -51,38 +51,20 @@ class OpticalOrderListViewModelTest {
     fun tearDown() { Dispatchers.resetMain() }
 
     @Test
-    fun `initial load requests current filter`() = runTest {
-        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
+    fun `initial load fetches all orders`() = runTest {
+        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
             PaginatedResult(listOf(createOrder()), 1, 1, 1)
         )
         val vm = OpticalOrderListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = vm.uiState.value as OrderListUiState.Success
-        assertEquals(OrderFilter.CURRENT, state.filter)
+        assertEquals(1, state.items.size)
     }
 
     @Test
-    fun `switch filter clears and loads new`() = runTest {
-        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
-            PaginatedResult(listOf(createOrder(1)), 1, 1, 1)
-        )
-        coEvery { repository.getOpticalOrders("history", 1) } returns Result.success(
-            PaginatedResult(listOf(createOrder(2, OpticalOrderStatus.DISPENSED)), 1, 1, 1)
-        )
-        val vm = OpticalOrderListViewModel(repository)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        vm.selectFilter(OrderFilter.HISTORY)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val state = vm.uiState.value as OrderListUiState.Success
-        assertEquals(OrderFilter.HISTORY, state.filter)
-    }
-
-    @Test
-    fun `empty filter shows empty state`() = runTest {
-        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
+    fun `empty list shows empty state`() = runTest {
+        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
             PaginatedResult(emptyList(), 1, 1, 0)
         )
         val vm = OpticalOrderListViewModel(repository)
@@ -93,10 +75,10 @@ class OpticalOrderListViewModelTest {
 
     @Test
     fun `loadMore appends`() = runTest {
-        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
+        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
             PaginatedResult(listOf(createOrder(1)), 1, 2, 2)
         )
-        coEvery { repository.getOpticalOrders("current", 2) } returns Result.success(
+        coEvery { repository.getOpticalOrders(null, 2) } returns Result.success(
             PaginatedResult(listOf(createOrder(2)), 2, 2, 2)
         )
         val vm = OpticalOrderListViewModel(repository)
@@ -108,26 +90,5 @@ class OpticalOrderListViewModelTest {
         val state = vm.uiState.value as OrderListUiState.Success
         assertEquals(2, state.items.size)
         assertFalse(state.hasMorePages)
-    }
-
-    @Test
-    fun `stale response is ignored`() = runTest {
-        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
-            PaginatedResult(listOf(createOrder(1)), 1, 1, 1)
-        )
-        coEvery { repository.getOpticalOrders("history", 1) } coAnswers {
-            kotlinx.coroutines.delay(1000)
-            Result.success(PaginatedResult(listOf(createOrder(2)), 1, 1, 1))
-        }
-
-        val vm = OpticalOrderListViewModel(repository)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        vm.selectFilter(OrderFilter.HISTORY)
-        vm.selectFilter(OrderFilter.CURRENT)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val state = vm.uiState.value as OrderListUiState.Success
-        assertEquals(OrderFilter.CURRENT, state.filter)
     }
 }

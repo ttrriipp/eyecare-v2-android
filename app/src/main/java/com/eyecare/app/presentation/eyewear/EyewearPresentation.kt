@@ -1,11 +1,15 @@
 package com.eyecare.app.presentation.eyewear
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import com.eyecare.app.domain.model.FulfillmentMode
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentStatus
 import com.eyecare.app.domain.model.Quotation
 import com.eyecare.app.domain.model.QuotationStatus
+import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.time.OffsetDateTime
@@ -43,6 +47,15 @@ fun estimateStatusLabel(status: QuotationStatus): String = when (status) {
     QuotationStatus.UNKNOWN -> "Status unavailable"
 }
 
+@Composable
+fun estimateStatusColor(status: QuotationStatus): Color = when (status) {
+    QuotationStatus.PRESENTED -> EyecareColors.current.statusInfo
+    QuotationStatus.ACCEPTED -> MaterialTheme.colorScheme.tertiary
+    QuotationStatus.DECLINED, QuotationStatus.EXPIRED -> MaterialTheme.colorScheme.error
+    // Distinct from a resolved neutral state: unknown needs attention.
+    QuotationStatus.UNKNOWN -> EyecareColors.current.statusCancelled
+}
+
 fun estimateCardTitle(quotation: Quotation): String {
     val items = quotation.items
     if (items.isEmpty()) return "Estimate"
@@ -69,12 +82,31 @@ fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
     OpticalOrderStatus.UNKNOWN -> "Status unavailable"
 }
 
+@Composable
+fun orderStatusColor(status: OpticalOrderStatus): Color = when (status) {
+    OpticalOrderStatus.QUEUED, OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
+    // Ready needs action (come pick up); Dispensed is already resolved — distinct colors.
+    OpticalOrderStatus.READY_FOR_DISPENSING -> EyecareColors.current.statusPending
+    OpticalOrderStatus.DISPENSED -> MaterialTheme.colorScheme.tertiary
+    OpticalOrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
+    OpticalOrderStatus.UNKNOWN -> EyecareColors.current.statusCancelled
+}
+
 fun paymentStatusLabel(status: PaymentStatus): String = when (status) {
     PaymentStatus.UNPAID -> "Payment due"
     PaymentStatus.PARTIALLY_PAID -> "Balance due"
     PaymentStatus.PAID -> "Paid"
     PaymentStatus.VOIDED -> "Payment voided"
     PaymentStatus.UNKNOWN -> "Payment status unavailable"
+}
+
+@Composable
+fun paymentStatusColor(status: PaymentStatus): Color = when (status) {
+    PaymentStatus.PAID -> MaterialTheme.colorScheme.tertiary
+    PaymentStatus.UNPAID, PaymentStatus.PARTIALLY_PAID -> MaterialTheme.colorScheme.error
+    // Voided is a resolved neutral outcome; unknown needs attention — distinct colors.
+    PaymentStatus.VOIDED -> MaterialTheme.colorScheme.onSurfaceVariant
+    PaymentStatus.UNKNOWN -> EyecareColors.current.statusCancelled
 }
 
 /** Returns true only when revisionNumber > 1. Null and 1 → false. */

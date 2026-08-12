@@ -57,6 +57,14 @@ fun parseSlotTime(startsAt: String): LocalTime? = runCatching {
     Instant.parse(startsAt).atZone(CLINIC_TIME_ZONE).toLocalTime()
 }.getOrNull()
 
+/**
+ * The clinic-local calendar day a slot falls on, as an ISO date. Chosen times can sit on days
+ * the schedule step is not currently showing, so the week strip needs this to mark them.
+ */
+fun slotClinicDate(startsAt: String): String? = runCatching {
+    Instant.parse(startsAt).atZone(CLINIC_TIME_ZONE).toLocalDate().toString()
+}.getOrNull()
+
 fun String.toDatePickerMillis(): Long? = runCatching {
     LocalDate.parse(this).atStartOfDay(CLINIC_TIME_ZONE).toInstant().toEpochMilli()
 }.getOrNull()

@@ -31,7 +31,6 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -65,7 +64,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.Frame
-import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.presentation.appointments.formatAppointmentDate
 import com.eyecare.app.presentation.appointments.formatAppointmentTime
 import com.eyecare.app.presentation.appointments.formatAppointmentTitle
@@ -90,7 +88,6 @@ fun HomeScreen(
     onNavigateToBooking: () -> Unit = {},
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
-    onNavigateToPrescriptionDetail: (Int) -> Unit = {},
     hasActivePatientLink: Boolean = true,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -119,7 +116,6 @@ fun HomeScreen(
                 onNavigateToBooking = onNavigateToBooking,
                 onNavigateToFrames = onNavigateToFrames,
                 onNavigateToFrameDetail = onNavigateToFrameDetail,
-                onNavigateToPrescriptionDetail = onNavigateToPrescriptionDetail,
                 hasActivePatientLink = hasActivePatientLink,
             )
         }
@@ -173,7 +169,6 @@ fun HomeContent(
     onNavigateToBooking: () -> Unit = {},
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
-    onNavigateToPrescriptionDetail: (Int) -> Unit = {},
     hasActivePatientLink: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -205,13 +200,6 @@ fun HomeContent(
             state.nextAppointment?.let { appointment ->
                 VisitTicket(appointment = appointment, onClick = onNavigateToAppointments)
             } ?: BookingInvitation(onClick = onNavigateToBooking)
-
-            state.currentPrescription?.let { prescription ->
-                CurrentPrescriptionCard(
-                    prescription = prescription,
-                    onViewDetails = { onNavigateToPrescriptionDetail(prescription.id) },
-                )
-            }
         }
 
         if (state.featuredFrames.isNotEmpty()) {
@@ -502,38 +490,6 @@ private fun BookingInvitation(onClick: () -> Unit) {
                 shape = RoundedCornerShape(24.dp),
             ) {
                 Text("Book an appointment")
-            }
-        }
-    }
-}
-
-@Composable
-private fun CurrentPrescriptionCard(
-    prescription: Prescription,
-    onViewDetails: () -> Unit,
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = "Current prescription",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = prescription.date,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            TextButton(
-                onClick = onViewDetails,
-                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-            ) {
-                Text("View details", style = MaterialTheme.typography.labelMedium)
             }
         }
     }

@@ -217,6 +217,34 @@ class QuotationDtosTest {
     }
 
     @Test
+    fun `decodes quotation when monetary summary is omitted`() {
+        val fixture = """
+        {
+            "id": 8,
+            "quotation_number": "Q-2026-008",
+            "status": "presented",
+            "created_at": "2026-08-01T00:00:00Z",
+            "items": [
+                {
+                    "id": 80,
+                    "item_type": "product",
+                    "description": "Classic frame",
+                    "quantity": 1,
+                    "unit_price": "1200.00",
+                    "amount": "1200.00"
+                }
+            ]
+        }
+        """.trimIndent()
+
+        val dto = json.decodeFromString<QuotationDto>(fixture)
+
+        assertNull(dto.subtotal)
+        assertNull(dto.discountAmount)
+        assertNull(dto.total)
+    }
+
+    @Test
     fun `decodes item catalog references`() {
         val fixture = """
         {

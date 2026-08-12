@@ -36,11 +36,11 @@ object QuotationDtos {
         val status: String,
         @SerialName("valid_until") val validUntil: String? = null,
         @Serializable(with = MoneyValueSerializer::class)
-        val subtotal: BigDecimal,
+        val subtotal: BigDecimal? = null,
         @Serializable(with = MoneyValueSerializer::class)
-        @SerialName("discount_amount") val discountAmount: BigDecimal,
+        @SerialName("discount_amount") val discountAmount: BigDecimal? = null,
         @Serializable(with = MoneyValueSerializer::class)
-        val total: BigDecimal,
+        val total: BigDecimal? = null,
         val notes: String? = null,
         @SerialName("created_at") val createdAt: String,
         @SerialName("presented_at") val presentedAt: String? = null,

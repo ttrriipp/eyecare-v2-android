@@ -92,10 +92,10 @@ fun VisitFeedbackDialog(
                             imageVector = if (isSelected) Icons.Filled.Star else Icons.Outlined.Star,
                             contentDescription = label,
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(48.dp)
                                 .clickable(enabled = !isSubmitting) { selectedRating = star }
                                 .semantics { contentDescription = label },
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary
+                            tint = if (isSelected) EyecareColors.current.accentText
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }

@@ -28,7 +28,8 @@ class RequestAppointmentTypeScreenTest {
 
         composeRule.setContent {
             EyecareTheme {
-                TypePlaceholderContent(
+                TypeContent(
+                    identityRequired = false,
                     state = RequestStep.Type(
                         types = types,
                         isLoading = false,
@@ -50,7 +51,8 @@ class RequestAppointmentTypeScreenTest {
     fun typeCatalog_showsRefreshNotice() {
         composeRule.setContent {
             EyecareTheme {
-                TypePlaceholderContent(
+                TypeContent(
+                    identityRequired = false,
                     state = RequestStep.Type(
                         types = listOf(
                             AppointmentType(

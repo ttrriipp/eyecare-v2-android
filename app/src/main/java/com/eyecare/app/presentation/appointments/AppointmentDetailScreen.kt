@@ -2,7 +2,6 @@ package com.eyecare.app.presentation.appointments
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -59,6 +59,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.DisposableEffect
@@ -74,7 +78,6 @@ import com.eyecare.app.presentation.appointments.components.VisitFeedbackDialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.FrameReservation
-import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.presentation.common.buildImageUrl
 import coil3.compose.AsyncImage
@@ -101,14 +104,19 @@ fun AppointmentDetailScreen(
     }
 
     if (showCancelDialog) {
+        val appointment = (uiState as? AppointmentDetailUiState.Success)?.appointment
         AppConfirmationDialog(
             icon = Icons.Outlined.EventBusy,
             iconTint = MaterialTheme.colorScheme.error,
             isDestructive = true,
             title = "Cancel appointment?",
-            message = "This can't be undone.",
-            confirmLabel = "Cancel",
-            dismissLabel = "Keep",
+            message = appointment?.let { detail ->
+                "Cancel this ${formatAppointmentTitle(detail.appointmentType)} appointment on " +
+                    formatAppointmentDate(detail.scheduledAt) + " at " +
+                    formatAppointmentTime(detail.scheduledAt) + "? This can't be undone."
+            } ?: "This can't be undone.",
+            confirmLabel = "Cancel appointment",
+            dismissLabel = "Keep appointment",
             onConfirm = {
                 showCancelDialog = false
                 viewModel.cancelAppointment()
@@ -122,9 +130,15 @@ fun AppointmentDetailScreen(
         if (state.showRescheduleSheet) {
             RescheduleBottomSheet(
                 currentScheduledAt = state.appointment.scheduledAt,
+                availabilityState = state.rescheduleAvailability,
                 isSubmitting = state.isRescheduling,
                 errorMessage = state.rescheduleError,
-                onSelectionChanged = viewModel::clearRescheduleError,
+                onDateChanged = viewModel::loadRescheduleAvailability,
+                onRetryAvailability = {
+                    (state.rescheduleAvailability as? RescheduleAvailabilityState.Error)
+                        ?.date
+                        ?.let(viewModel::loadRescheduleAvailability)
+                },
                 onDismiss = viewModel::dismissRescheduleSheet,
                 onConfirm = viewModel::rescheduleAppointment,
             )
@@ -176,9 +190,9 @@ fun AppointmentDetailScreen(
                     state = state,
                     onReschedule = viewModel::showRescheduleSheet,
                     onCancel = { showCancelDialog = true },
-                    onNavigateToReservations = onNavigateToReservations,
                     onOpenReservation = onOpenReservation,
                     onRateVisit = viewModel::showRatingDialog,
+                    onRetry = viewModel::refresh,
                 )
             }
         }
@@ -190,9 +204,9 @@ private fun AppointmentDetailContent(
     state: AppointmentDetailUiState.Success,
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
-    onNavigateToReservations: () -> Unit,
     onOpenReservation: (Int) -> Unit = {},
     onRateVisit: () -> Unit = {},
+    onRetry: () -> Unit = {},
 ) {
     val appointment = state.appointment
     val canCancel = appointment.status.canCancel
@@ -213,7 +227,10 @@ private fun AppointmentDetailContent(
                 .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = bottomContentPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            AppointmentStatusGuidance(appointment.status)
+            state.actionMessage?.let { AppointmentActionMessage(it) }
+            state.rescheduleError?.let { AppointmentActionError(it) }
+            state.cancelError?.let { AppointmentActionError(it) }
+            AppointmentStatusGuidance(appointment.status, onRetry)
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -269,6 +286,20 @@ private fun AppointmentDetailContent(
                                 label = "Time",
                                 value = formatAppointmentTime(appointment.scheduledAt),
                             )
+                            AppointmentMetadataRow(
+                                icon = Icons.Outlined.AccessTime,
+                                label = "Duration",
+                                value = "${appointment.durationMinutes} min visit",
+                            )
+                            appointment.reasonForVisit
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { reason ->
+                                    AppointmentMetadataRow(
+                                        icon = Icons.Outlined.Info,
+                                        label = "Reason for visit",
+                                        value = reason,
+                                    )
+                                }
                         }
                     }
 
@@ -287,7 +318,6 @@ private fun AppointmentDetailContent(
             if (state.frameReservations.isNotEmpty()) {
                 ReservedFramesSection(
                     reservations = state.frameReservations,
-                    onViewDetails = onNavigateToReservations,
                     onOpenReservation = onOpenReservation,
                 )
             }
@@ -306,9 +336,6 @@ private fun AppointmentDetailContent(
                     onSave = {},
                 )
             }
-
-            state.rescheduleError?.let { AppointmentActionError(it) }
-            state.cancelError?.let { AppointmentActionError(it) }
 
             // Visit feedback section
             if (appointment.isRateable) {
@@ -430,8 +457,10 @@ private fun VisitFeedbackCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (visitRating != null) {
-                // Show existing rating
                 Row(
+                    modifier = Modifier.semantics(mergeDescendants = true) {
+                        contentDescription = "${visitRating.rating} out of 5 stars"
+                    },
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -440,7 +469,7 @@ private fun VisitFeedbackCard(
                             imageVector = if (star <= visitRating.rating) Icons.Filled.Star else Icons.Outlined.Star,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
-                            tint = if (star <= visitRating.rating) MaterialTheme.colorScheme.primary
+                            tint = if (star <= visitRating.rating) EyecareColors.current.accentText
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -464,7 +493,6 @@ private fun VisitFeedbackCard(
                     Text("Update rating")
                 }
             } else {
-                // Unrated — show prompt
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -473,7 +501,7 @@ private fun VisitFeedbackCard(
                         Icons.Outlined.RateReview,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = EyecareColors.current.accentText,
                     )
                     Text(
                         "Rate your visit",
@@ -493,54 +521,133 @@ private fun VisitFeedbackCard(
 }
 
 @Composable
-private fun AppointmentStatusGuidance(status: AppointmentStatus) {
-    val (title, message) = when (status) {
-        AppointmentStatus.SCHEDULED ->
-            "Appointment Scheduled" to "Please arrive a few minutes before your scheduled time."
-        AppointmentStatus.CHECKED_IN ->
-            "Checked in" to "You're checked in. The clinic will see you shortly."
-        else -> return
-    }
-
+private fun AppointmentActionMessage(message: String) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { liveRegion = LiveRegionMode.Polite },
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = Icons.Outlined.EventAvailable,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
                 tint = EyecareColors.current.accentText,
             )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = EyecareColors.current.accentText,
-                )
-                Text(
-                    message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
         }
     }
 }
 
+private data class AppointmentStatusGuidanceCopy(
+    val title: String,
+    val message: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+)
+
+@Composable
+private fun AppointmentStatusGuidance(
+    status: AppointmentStatus,
+    onRetry: () -> Unit,
+) {
+    val copy = when (status) {
+        AppointmentStatus.SCHEDULED -> AppointmentStatusGuidanceCopy(
+            title = "Appointment scheduled",
+            message = "Arrive a few minutes early. Bring any details the clinic asked for.",
+            icon = Icons.Outlined.EventAvailable,
+        )
+        AppointmentStatus.CHECKED_IN -> AppointmentStatusGuidanceCopy(
+            title = "Checked in",
+            message = "You're checked in. The clinic will see you shortly.",
+            icon = Icons.Outlined.EventAvailable,
+        )
+        AppointmentStatus.FULFILLED -> AppointmentStatusGuidanceCopy(
+            title = "Visit completed",
+            message = "This appointment is complete. You can find the record in History.",
+            icon = Icons.Outlined.EventAvailable,
+        )
+        AppointmentStatus.CANCELLED -> AppointmentStatusGuidanceCopy(
+            title = "Appointment cancelled",
+            message = "This appointment is no longer active. You can book a new visit when you're ready.",
+            icon = Icons.Outlined.EventBusy,
+        )
+        AppointmentStatus.NO_SHOW -> AppointmentStatusGuidanceCopy(
+            title = "Missed appointment",
+            message = "This visit was marked as missed. Contact the clinic if you need help booking again.",
+            icon = Icons.Outlined.EventBusy,
+        )
+        AppointmentStatus.UNKNOWN -> AppointmentStatusGuidanceCopy(
+            title = "Status unavailable",
+            message = "We couldn't confirm the latest status. Refresh to try again.",
+            icon = Icons.Outlined.EventBusy,
+        )
+    }
+    val isActive = status == AppointmentStatus.SCHEDULED || status == AppointmentStatus.CHECKED_IN
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isActive) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                imageVector = copy.icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = EyecareColors.current.accentText,
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = copy.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = copy.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (status == AppointmentStatus.UNKNOWN) {
+                    TextButton(
+                        onClick = onRetry,
+                        modifier = Modifier.padding(start = 0.dp),
+                    ) {
+                        Text("Refresh")
+                    }
+                }
+            }
+        }
+    }
+}
 @Composable
 private fun ReservedFramesSection(
     reservations: List<FrameReservation>,
-    onViewDetails: () -> Unit,
     onOpenReservation: (Int) -> Unit,
 ) {
+    val reservation = reservations.firstOrNull() ?: return
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -569,105 +676,66 @@ private fun ReservedFramesSection(
                         )
                     }
                 }
-                Column {
-                    Text(
-                        text = "Reserved Frames",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = "${reservations.size} reservation${if (reservations.size > 1) "s" else ""}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = "Reserved Frames",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
 
-            reservations.forEachIndexed { index, reservation ->
-                if (index > 0) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onOpenReservation(reservation.id) }
-                        .padding(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+            reservation.items.forEach { item ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                    val imageUrl = item.images.firstOrNull()?.let(::buildImageUrl)
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(56.dp),
                     ) {
-                        Text(
-                            text = "Reservation #${reservation.id}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        val statusLabel = reservation.status.name
-                            .replace("_", " ")
-                            .lowercase()
-                            .replaceFirstChar { it.titlecase() }
-                        val reservationColors = EyecareColors.current
-                        val statusColor = when (reservation.status) {
-                            ReservationStatus.PREPARED, ReservationStatus.TRIED_ON -> reservationColors.statusConfirmed
-                            ReservationStatus.REQUESTED -> reservationColors.statusPending
-                            ReservationStatus.CONVERTED -> reservationColors.statusInfo
-                            ReservationStatus.RELEASED, ReservationStatus.CANCELLED -> reservationColors.statusCancelled
-                            ReservationStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = statusColor.copy(alpha = 0.12f),
-                        ) {
-                            Text(
-                                text = statusLabel,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = statusColor,
+                        if (imageUrl != null) {
+                            AsyncImage(
+                                model = imageUrl,
+                                contentDescription = item.frameName,
+                                modifier = Modifier.padding(6.dp),
+                                contentScale = ContentScale.Fit,
                             )
+                        } else {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Visibility,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = EyecareColors.current.accentText,
+                                )
+                            }
                         }
                     }
-                    reservation.items.forEach { item ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            val imageUrl = item.images.firstOrNull()?.let(::buildImageUrl)
-                            if (imageUrl != null) {
-                                AsyncImage(
-                                    model = imageUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = item.frameName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                                Text(
-                                    text = "${item.frameBrand} · ${item.variantName}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.frameName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            text = "${item.frameBrand} · ${item.variantName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
 
             TextButton(
-                onClick = onViewDetails,
+                onClick = { onOpenReservation(reservation.id) },
                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
             ) {
-                Text("View all reservations", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = "View reservation",
+                    style = MaterialTheme.typography.labelMedium,
+                )
                 Spacer(Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
@@ -865,13 +933,23 @@ private fun AppointmentDetailStatusBadge(status: AppointmentStatus) {
         AppointmentStatus.NO_SHOW -> "No show" to colors.statusCancelled
         AppointmentStatus.UNKNOWN -> "Unknown" to MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.12f)) {
+    val textColor = when (status) {
+        AppointmentStatus.CHECKED_IN -> colors.accentText
+        AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW -> MaterialTheme.colorScheme.error
+        AppointmentStatus.FULFILLED, AppointmentStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+        AppointmentStatus.SCHEDULED -> MaterialTheme.colorScheme.onSurface
+    }
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = color.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.5f)),
+    ) {
         Text(
-            label,
+            text = label,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = color,
+            color = textColor,
         )
     }
 }
@@ -879,21 +957,20 @@ private fun AppointmentDetailStatusBadge(status: AppointmentStatus) {
 @Composable
 private fun AppointmentActionError(message: String) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { liveRegion = LiveRegionMode.Polite },
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.errorContainer,
     ) {
         Text(
-            message,
+            text = message,
             modifier = Modifier.padding(12.dp),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onErrorContainer,
         )
     }
 }
-
-
-
 @Preview(showBackground = true)
 @Composable
 private fun AppointmentDetailPreview() {

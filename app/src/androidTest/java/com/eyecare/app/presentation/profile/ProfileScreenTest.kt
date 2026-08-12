@@ -25,7 +25,6 @@ class ProfileScreenTest {
                 ProfileContent(
                     account = testAccount(),
                     unreadMessageCount = 0,
-                    onEditProfile = { destination = "edit" },
                     onNavigateToMessages = { destination = "messages" },
                     onNavigateToPrescriptions = { destination = "prescriptions" },
                     onNavigateToEyewear = { destination = "eyewear" },
@@ -39,7 +38,6 @@ class ProfileScreenTest {
         composeRule.onNodeWithContentDescription("Profile initials AR").assertIsDisplayed()
 
         listOf(
-            "Edit profile" to "edit",
             "Messages" to "messages",
             "Prescriptions" to "prescriptions",
             "Eyewear" to "eyewear",
