@@ -47,7 +47,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.FrameReservation
-import com.eyecare.app.domain.model.ReservationStatus
+import com.eyecare.app.domain.model.MAX_RESERVATION_ITEMS
 import com.eyecare.app.ui.theme.EyecareColors
 import com.eyecare.app.presentation.common.components.ErrorContent
 import java.time.OffsetDateTime
@@ -271,7 +271,7 @@ private fun mergeOutcomeMessage(outcome: MergeOutcome): String = when (outcome) 
     MergeOutcome.None -> "Each appointment can have one reservation — pick the visit you'd like this frame ready for."
     is MergeOutcome.Mergeable -> "This visit already has a reservation. Adding will fold this frame into it."
     is MergeOutcome.AlreadyReserved -> "This frame is already reserved for this visit."
-    is MergeOutcome.Full -> "This visit's reservation already has the maximum of $maxReservationItems frames."
+    is MergeOutcome.Full -> "This visit's reservation already has the maximum of $MAX_RESERVATION_ITEMS frames."
     is MergeOutcome.Blocked -> "The clinic is already handling this visit's reservation " +
         "(${reservationChipLabel(outcome.reservation.isHeld).lowercase()}) — ask them to add more frames at your visit."
 }
@@ -333,8 +333,7 @@ private fun AppointmentChoiceCard(
 
 @Composable
 private fun ExistingReservationBadge(reservation: FrameReservation) {
-    val cancellable = reservation.status == ReservationStatus.REQUESTED ||
-        reservation.status == ReservationStatus.PREPARED
+    val cancellable = !reservation.isHeld
     val label = if (cancellable) {
         val count = reservation.items.size
         if (count == 1) "Already has 1 frame — will add to it" else "Already has $count frames — will add to it"

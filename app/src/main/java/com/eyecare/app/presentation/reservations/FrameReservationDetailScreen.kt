@@ -185,7 +185,7 @@ fun ReservationDetailContent(
         ReservationSummaryCard(reservation)
 
         reservation.expiresAt?.let { expiresAt ->
-            HoldNotice(expiresAt = expiresAt, status = reservation.status)
+            HoldNotice(expiresAt = expiresAt, isHeld = reservation.isHeld)
         }
 
         ReservationAppointmentCard(
@@ -309,12 +309,11 @@ private fun CancelledConfirmationBanner() {
 }
 
 @Composable
-private fun HoldNotice(expiresAt: String, status: ReservationStatus) {
-    val active = status == ReservationStatus.PREPARED
+private fun HoldNotice(expiresAt: String, isHeld: Boolean) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = EyecareColors.current.statusPending.copy(alpha = 0.10f),
+        color = EyecareColors.current.statusConfirmed.copy(alpha = 0.10f),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -324,22 +323,15 @@ private fun HoldNotice(expiresAt: String, status: ReservationStatus) {
             Icon(
                 Icons.Outlined.Schedule,
                 contentDescription = null,
-                tint = EyecareColors.current.statusPending,
+                tint = EyecareColors.current.statusConfirmed,
                 modifier = Modifier.size(20.dp),
             )
             Column {
                 Text(
-                    text = if (active) "Held until ${formatReservationDateTime(expiresAt)}" else "Hold ended ${formatReservationDateTime(expiresAt)}",
+                    text = reservationExplanation(isHeld, expiresAt),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                 )
-                if (active) {
-                    Text(
-                        text = "Frames go back to the display after this time.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
         }
     }

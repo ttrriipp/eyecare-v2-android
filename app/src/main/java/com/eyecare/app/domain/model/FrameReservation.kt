@@ -24,6 +24,9 @@ data class FrameReservation(
     val items: List<FrameReservationItem>,
 )
 
+/** Maximum number of items allowed in a single reservation. */
+const val MAX_RESERVATION_ITEMS = 5
+
 data class FrameReservationItem(
     val id: Int,
     val productVariantId: Int,

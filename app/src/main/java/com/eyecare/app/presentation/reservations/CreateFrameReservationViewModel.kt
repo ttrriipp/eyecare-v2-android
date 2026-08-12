@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.FrameReservationError
-import com.eyecare.app.domain.model.ReservationStatus
+import com.eyecare.app.domain.model.MAX_RESERVATION_ITEMS
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.FrameReservationRepository
 import dagger.assisted.Assisted
@@ -34,14 +34,7 @@ sealed interface CreateReservationUiState {
     data class Success(val reservation: FrameReservation) : CreateReservationUiState
 }
 
-/** An appointment may have at most one active (requested/prepared/tried_on) reservation. */
-private val activeReservationStatuses = setOf(
-    ReservationStatus.REQUESTED,
-    ReservationStatus.PREPARED,
-    ReservationStatus.TRIED_ON,
-)
-
-internal const val maxReservationItems = 5
+/** An appointment may have at most one active (unheld) reservation. */
 
 /**
  * Whether reserving [variantId] for an appointment that already has [existingReservation]
@@ -60,13 +53,11 @@ internal fun mergeOutcome(existingReservation: FrameReservation?, variantId: Int
     if (existingReservation.items.any { it.productVariantId == variantId }) {
         return MergeOutcome.AlreadyReserved(existingReservation)
     }
-    // Only requested/prepared reservations can be cancelled — tried_on can't be merged into.
-    if (existingReservation.status != ReservationStatus.REQUESTED &&
-        existingReservation.status != ReservationStatus.PREPARED
-    ) {
+    // Once the clinic has pulled frames (isHeld), the app cannot modify the reservation.
+    if (existingReservation.isHeld) {
         return MergeOutcome.Blocked(existingReservation)
     }
-    if (existingReservation.items.size >= maxReservationItems) {
+    if (existingReservation.items.size >= MAX_RESERVATION_ITEMS) {
         return MergeOutcome.Full(existingReservation)
     }
     return MergeOutcome.Mergeable(existingReservation)
@@ -122,7 +113,7 @@ class CreateFrameReservationViewModel @AssistedInject constructor(
                 itemFieldError = "This frame is already part of your reservation for this appointment.",
             )
             is MergeOutcome.Full -> _uiState.value = current.copy(
-                itemFieldError = "This reservation already has the maximum of $maxReservationItems frames.",
+                itemFieldError = "This reservation already has the maximum of $MAX_RESERVATION_ITEMS frames.",
             )
             is MergeOutcome.Mergeable -> mergeIntoExisting(current, outcome.reservation, appointmentId)
             MergeOutcome.None -> createNew(current, appointmentId)
@@ -264,7 +255,7 @@ class CreateFrameReservationViewModel @AssistedInject constructor(
                     // behavior of discovering a conflict only when the create call rejects it.
                     val existingByAppointment = reservationRepository.getReservations()
                         .getOrDefault(emptyList())
-                        .filter { it.status in activeReservationStatuses }
+                        .filter { !it.isHeld }
                         .associateBy { it.appointment.id }
                     _uiState.value = CreateReservationUiState.Ready(
                         eligibleAppointments = eligible,

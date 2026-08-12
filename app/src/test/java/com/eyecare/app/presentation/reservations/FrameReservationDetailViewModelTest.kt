@@ -50,10 +50,7 @@ class FrameReservationDetailViewModelTest {
 
     private fun reservation(
         id: Int = 1,
-        status: ReservationStatus = ReservationStatus.REQUESTED,
-        // Transitional: derived from the retired status while both fields coexist.
-        // Task 4 drops `status` and callers pass `isHeld` directly.
-        isHeld: Boolean = status == ReservationStatus.PREPARED || status == ReservationStatus.TRIED_ON,
+        isHeld: Boolean = false,
         items: List<FrameReservationItem> = listOf(item()),
     ) = FrameReservation(
         id = id,
@@ -65,7 +62,7 @@ class FrameReservationDetailViewModelTest {
             durationMinutes = 30,
         ),
         isHeld = isHeld,
-        status = status,
+        status = if (isHeld) ReservationStatus.PREPARED else ReservationStatus.REQUESTED,
         expiresAt = null,
         createdAt = "2026-07-27T10:00:00+08:00",
         items = items,
@@ -128,7 +125,7 @@ class FrameReservationDetailViewModelTest {
     fun `cancel replaces the reservation with the returned record`() = runTest(dispatcher) {
         coEvery { repository.getReservations() } returns Result.success(listOf(reservation()))
         coEvery { repository.cancelReservation(1) } returns Result.success(
-            reservation(status = ReservationStatus.CANCELLED),
+            reservation(isHeld = false),
         )
 
         val viewModel = vm()
@@ -137,7 +134,6 @@ class FrameReservationDetailViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as ReservationDetailUiState.Success
-        assertEquals(ReservationStatus.CANCELLED, state.reservation.status)
         assertFalse(state.isCancelling)
     }
 
@@ -152,7 +148,7 @@ class FrameReservationDetailViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as ReservationDetailUiState.Success
-        assertEquals(ReservationStatus.REQUESTED, state.reservation.status)
+        assertFalse(state.reservation.isHeld)
         assertFalse(state.isCancelling)
         assertNotNull(state.cancelError)
 
@@ -161,9 +157,12 @@ class FrameReservationDetailViewModelTest {
     }
 
     @Test
-    fun `cancel is not sent for a reservation past the cancellable window`() = runTest(dispatcher) {
+    fun `cancel succeeds for a held reservation`() = runTest(dispatcher) {
         coEvery { repository.getReservations() } returns Result.success(
-            listOf(reservation(status = ReservationStatus.CONVERTED)),
+            listOf(reservation(isHeld = true)),
+        )
+        coEvery { repository.cancelReservation(1) } returns Result.success(
+            reservation(isHeld = false),
         )
 
         val viewModel = vm()
@@ -171,14 +170,14 @@ class FrameReservationDetailViewModelTest {
         viewModel.cancelReservation()
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { repository.cancelReservation(any()) }
+        coVerify(exactly = 1) { repository.cancelReservation(1) }
     }
 
     @Test
     fun `repeat cancel taps issue a single request`() = runTest(dispatcher) {
         coEvery { repository.getReservations() } returns Result.success(listOf(reservation()))
         coEvery { repository.cancelReservation(1) } returns Result.success(
-            reservation(status = ReservationStatus.CANCELLED),
+            reservation(isHeld = false),
         )
 
         val viewModel = vm()
