@@ -61,6 +61,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.FrameReservationItem
+import com.eyecare.app.domain.model.canAddItems
+import com.eyecare.app.domain.model.canRemoveItems
 import com.eyecare.app.domain.model.isCancellable
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
@@ -136,7 +138,10 @@ fun ReservationDetailContent(
     onViewAppointment: (Int) -> Unit,
     onViewFrame: (Int) -> Unit,
     onDelete: () -> Unit,
+    onRemoveItem: (Int) -> Unit = {},
+    onAddFrame: () -> Unit = {},
     onDismissDeleteError: () -> Unit = {},
+    onDismissRemoveItemError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val reservation = state.reservation
@@ -187,7 +192,47 @@ fun ReservationDetailContent(
             )
 
             reservation.items.forEach { item ->
-                ReservedFrameCard(item = item, onViewFrame = { onViewFrame(item.frameId) })
+                ReservedFrameCard(
+                    item = item,
+                    onViewFrame = { onViewFrame(item.frameId) },
+                    showRemove = reservation.canRemoveItems,
+                    isRemoving = state.removingItemId == item.id,
+                    onRemove = { onRemoveItem(item.id) },
+                )
+            }
+        }
+
+        if (reservation.canAddItems) {
+            OutlinedButton(
+                onClick = onAddFrame,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(50),
+            ) {
+                Icon(Icons.Outlined.Inventory2, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Add frame")
+            }
+        } else if (reservation.isHeld) {
+            Text(
+                text = "The clinic has already set these frames aside. Ask at your visit to make changes.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        state.removeItemError?.let { error ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = error,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                TextButton(onClick = onDismissRemoveItemError) { Text("Dismiss") }
             }
         }
 
@@ -347,6 +392,9 @@ private fun ReservationAppointmentCard(
 private fun ReservedFrameCard(
     item: FrameReservationItem,
     onViewFrame: () -> Unit,
+    showRemove: Boolean = false,
+    isRemoving: Boolean = false,
+    onRemove: () -> Unit = {},
 ) {
     DetailCard(contentPadding = 0.dp) {
         Row(
@@ -398,12 +446,26 @@ private fun ReservedFrameCard(
                 }
             }
 
-            IconButton(onClick = onViewFrame) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = "View ${item.frameName} details",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (showRemove) {
+                IconButton(onClick = onRemove, enabled = !isRemoving) {
+                    if (isRemoving) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(
+                            Icons.Outlined.Cancel,
+                            contentDescription = "Remove ${item.frameName}",
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            } else {
+                IconButton(onClick = onViewFrame) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowForward,
+                        contentDescription = "View ${item.frameName} details",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
