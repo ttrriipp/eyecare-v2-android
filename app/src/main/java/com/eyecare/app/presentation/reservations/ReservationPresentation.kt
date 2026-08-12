@@ -1,10 +1,5 @@
 package com.eyecare.app.presentation.reservations
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
-import com.eyecare.app.domain.model.ReservationStatus
-import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 import java.text.DecimalFormat
 import java.time.OffsetDateTime
@@ -14,43 +9,17 @@ private val pesoFormat = DecimalFormat("#,##0.00")
 private val dateFormat = DateTimeFormatter.ofPattern("MMM d, yyyy")
 private val timeFormat = DateTimeFormatter.ofPattern("h:mm a")
 
-fun reservationStatusLabel(status: ReservationStatus): String = when (status) {
-    ReservationStatus.REQUESTED -> "Requested"
-    ReservationStatus.PREPARED -> "Prepared"
-    ReservationStatus.TRIED_ON -> "Tried on"
-    ReservationStatus.CONVERTED -> "Converted"
-    ReservationStatus.RELEASED -> "Released"
-    ReservationStatus.CANCELLED -> "Cancelled"
-    ReservationStatus.UNKNOWN -> "Unknown"
-}
+fun reservationChipLabel(isHeld: Boolean): String =
+    if (isHeld) "Set aside" else "Requested"
 
-/**
- * Patient-facing explanation of what the clinic is doing with the reservation right now.
- */
-fun reservationStatusExplanation(status: ReservationStatus): String = when (status) {
-    ReservationStatus.REQUESTED -> "The clinic has your request and will pull these frames before your visit."
-    ReservationStatus.PREPARED -> "Your frames are set aside and waiting for you at the clinic."
-    ReservationStatus.TRIED_ON -> "You've tried these frames on. The clinic can prepare an estimate whenever you're ready."
-    ReservationStatus.CONVERTED -> "These frames moved into an eyewear order. Track it under My Eyewear."
-    ReservationStatus.RELEASED -> "The hold ended and these frames went back to the display."
-    ReservationStatus.CANCELLED -> "This reservation was cancelled. The frames are no longer held for you."
-    ReservationStatus.UNKNOWN -> "Ask the clinic for the latest status of this reservation."
-}
-
-@Composable
-fun reservationStatusColor(status: ReservationStatus): Color {
-    val colors = EyecareColors.current
-    return when (status) {
-        ReservationStatus.REQUESTED -> colors.statusPending
-        ReservationStatus.PREPARED -> colors.statusConfirmed
-        ReservationStatus.TRIED_ON -> colors.statusInfo
-        ReservationStatus.CONVERTED -> colors.statusConfirmed
-        ReservationStatus.RELEASED -> MaterialTheme.colorScheme.onSurfaceVariant
-        ReservationStatus.CANCELLED -> colors.statusCancelled
-        // Distinct from RELEASED's neutral gray: an unknown state needs attention, a released one doesn't.
-        ReservationStatus.UNKNOWN -> colors.statusCancelled
+fun reservationExplanation(isHeld: Boolean, expiresAt: String?): String =
+    if (isHeld) {
+        val formatted = expiresAt?.let { formatReservationDateTime(it) } ?: ""
+        if (formatted.isNotBlank()) "Set aside for your visit until $formatted."
+        else "Set aside for your visit."
+    } else {
+        "Request sent \u2014 the clinic will set these aside before your visit."
     }
-}
 
 fun formatReservationPrice(amount: BigDecimal): String = "₱${pesoFormat.format(amount)}"
 

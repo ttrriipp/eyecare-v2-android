@@ -269,11 +269,11 @@ private fun ReservationSummaryCard(reservation: FrameReservation) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            StatusPill(reservation.status)
+            StatusPill(reservation.isHeld)
         }
 
         Text(
-            text = reservationStatusExplanation(reservation.status),
+            text = reservationExplanation(reservation.isHeld, reservation.expiresAt),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -489,11 +489,12 @@ private fun FrameThumbnail(item: FrameReservationItem) {
 }
 
 @Composable
-private fun StatusPill(status: ReservationStatus) {
-    val color = reservationStatusColor(status)
+private fun StatusPill(isHeld: Boolean) {
+    val label = reservationChipLabel(isHeld)
+    val color = if (isHeld) EyecareColors.current.statusConfirmed else EyecareColors.current.statusPending
     Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.12f)) {
         Text(
-            text = reservationStatusLabel(status),
+            text = label,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
             color = color,

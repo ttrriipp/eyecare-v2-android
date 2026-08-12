@@ -115,7 +115,7 @@ class CreateFrameReservationViewModel @AssistedInject constructor(
         when (val outcome = mergeOutcome(current.existingReservationsByAppointment[appointmentId], variantId)) {
             is MergeOutcome.Blocked -> _uiState.value = current.copy(
                 appointmentFieldError = "The clinic is already handling this reservation " +
-                    "(${reservationStatusLabel(outcome.reservation.status).lowercase()}) — you can't add " +
+                    "(${reservationChipLabel(outcome.reservation.isHeld).lowercase()}) — you can't add " +
                     "frames to it from the app. Ask the clinic at your visit.",
             )
             is MergeOutcome.AlreadyReserved -> _uiState.value = current.copy(

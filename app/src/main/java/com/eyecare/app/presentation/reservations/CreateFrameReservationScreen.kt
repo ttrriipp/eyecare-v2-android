@@ -273,7 +273,7 @@ private fun mergeOutcomeMessage(outcome: MergeOutcome): String = when (outcome) 
     is MergeOutcome.AlreadyReserved -> "This frame is already reserved for this visit."
     is MergeOutcome.Full -> "This visit's reservation already has the maximum of $maxReservationItems frames."
     is MergeOutcome.Blocked -> "The clinic is already handling this visit's reservation " +
-        "(${reservationStatusLabel(outcome.reservation.status).lowercase()}) — ask them to add more frames at your visit."
+        "(${reservationChipLabel(outcome.reservation.isHeld).lowercase()}) — ask them to add more frames at your visit."
 }
 
 @Composable

@@ -29,9 +29,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -41,7 +38,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,30 +53,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.FrameReservationItem
-import com.eyecare.app.domain.model.ReservationStatus
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.EyecareColors
-
-internal enum class ReservationListTab { ACTIVE, HISTORY }
-
-private val reservationHistoryStatuses = setOf(
-    ReservationStatus.CONVERTED,
-    ReservationStatus.RELEASED,
-    ReservationStatus.CANCELLED,
-)
-
-/** UNKNOWN stays in Active — it needs clinic follow-up, it isn't a resolved outcome. */
-internal fun reservationsForTab(
-    reservations: List<FrameReservation>,
-    tab: ReservationListTab,
-): List<FrameReservation> {
-    val (history, active) = reservations.partition { it.status in reservationHistoryStatuses }
-    return when (tab) {
-        ReservationListTab.ACTIVE -> active
-        ReservationListTab.HISTORY -> history
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,88 +105,20 @@ fun FrameReservationListScreen(
                     if (state.reservations.isEmpty()) {
                         EmptyReservations()
                     } else {
-                        var selectedTab by remember { mutableStateOf(ReservationListTab.ACTIVE) }
-                        val visible = remember(state.reservations, selectedTab) {
-                            reservationsForTab(state.reservations, selectedTab)
-                        }
                         LazyColumn(
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            item {
-                                ReservationListTabs(
-                                    selectedTab = selectedTab,
-                                    onTabSelected = { selectedTab = it },
+                            items(state.reservations, key = { it.id }) { reservation ->
+                                ReservationCard(
+                                    reservation = reservation,
+                                    onClick = { onOpenReservation(reservation.id) },
                                 )
-                            }
-                            if (visible.isEmpty()) {
-                                item { EmptyReservationTab(selectedTab) }
-                            } else {
-                                items(visible, key = { it.id }) { reservation ->
-                                    ReservationCard(
-                                        reservation = reservation,
-                                        onClick = { onOpenReservation(reservation.id) },
-                                    )
-                                }
                             }
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun ReservationListTabs(
-    selectedTab: ReservationListTab,
-    onTabSelected: (ReservationListTab) -> Unit,
-) {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        ReservationListTab.entries.forEach { tab ->
-            SegmentedButton(
-                selected = selectedTab == tab,
-                onClick = { onTabSelected(tab) },
-                shape = SegmentedButtonDefaults.itemShape(index = tab.ordinal, count = ReservationListTab.entries.size),
-                colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                    activeContentColor = EyecareColors.current.accentText,
-                    activeBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                    inactiveContainerColor = MaterialTheme.colorScheme.surface,
-                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                ),
-                label = { Text(if (tab == ReservationListTab.ACTIVE) "Active" else "History") },
-            )
-        }
-    }
-}
-
-@Composable
-private fun EmptyReservationTab(tab: ReservationListTab) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                if (tab == ReservationListTab.ACTIVE) "No active reservations" else "No reservation history yet",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                if (tab == ReservationListTab.ACTIVE) {
-                    "Reserve frames during your visit and they'll appear here."
-                } else {
-                    "Released, converted, and cancelled reservations will appear here."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -305,11 +212,13 @@ private fun ReservationCard(
                         )
                     }
                 }
-                StatusChip(reservation.status)
+                StatusChip(reservation.isHeld)
             }
 
-            if (reservation.status == ReservationStatus.PREPARED) {
+            if (reservation.isHeld) {
                 reservation.expiresAt?.let { expiresAt -> HoldExpiryNotice(expiresAt) }
+            } else {
+                ReservationExplanation()
             }
 
             reservation.items.take(VISIBLE_ITEM_LIMIT).forEach { item ->
@@ -364,16 +273,25 @@ private fun HoldExpiryNotice(expiresAt: String) {
         Icon(
             Icons.Outlined.Schedule,
             contentDescription = null,
-            tint = EyecareColors.current.statusPending,
+            tint = EyecareColors.current.statusConfirmed,
             modifier = Modifier.size(14.dp),
         )
         Text(
-            "Held until ${formatReservationDateTime(expiresAt)}",
+            reservationExplanation(true, expiresAt),
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
-            color = EyecareColors.current.statusPending,
+            color = EyecareColors.current.statusConfirmed,
         )
     }
+}
+
+@Composable
+private fun ReservationExplanation() {
+    Text(
+        reservationExplanation(false, null),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
@@ -405,11 +323,12 @@ private fun FrameThumbnail(item: FrameReservationItem) {
 }
 
 @Composable
-private fun StatusChip(status: ReservationStatus) {
-    val color = reservationStatusColor(status)
+private fun StatusChip(isHeld: Boolean) {
+    val label = reservationChipLabel(isHeld)
+    val color = if (isHeld) EyecareColors.current.statusConfirmed else EyecareColors.current.statusPending
     Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.12f)) {
         Text(
-            text = reservationStatusLabel(status),
+            text = label,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             color = color,
