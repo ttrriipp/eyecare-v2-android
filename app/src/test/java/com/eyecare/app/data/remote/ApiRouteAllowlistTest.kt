@@ -19,15 +19,13 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `active-link routes match expected count`() {
-        // V18: 17 canonical + 2 new item routes = 19 (quotation routes still present until Phase 3)
-        assertEquals(19, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes (canonical)")
+        assertEquals(17, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes")
     }
 
     @Test
-    fun `total approved routes is exactly 57`() {
-        // 8 public + 29 account-only + 19 active-link = 56 canonical callable
-        // Quotation routes removed in Phase 3 brings this to 54
-        assertEquals(56, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
+    fun `total approved routes is exactly 54`() {
+        // 8 public + 29 account-only + 17 active-link = 54 canonical callable
+        assertEquals(54, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test
@@ -41,22 +39,18 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
-    fun `legacy alias routes are not rejected and not callable`() {
-        // The backend keeps job-order-items as a compatibility alias,
-        // so it must not be in rejectedRoutes (that would assert absence from production).
-        // But it must not be in allApproved either (we don't call it).
+    fun `legacy alias is now rejected`() {
+        // V18: The legacy alias POST /job-order-items/{id}/rating was deleted from the server.
         assertTrue(
-            "POST /api/v1/job-order-items/{item}/rating" in ApprovedApiRoutes.legacyAliasRoutes,
-            "job-order-items rating should be in legacyAliasRoutes",
+            "POST /api/v1/job-order-items/{item}/rating" in ApprovedApiRoutes.rejectedRoutes,
+            "Legacy alias must be in rejectedRoutes",
         )
-        assertTrue(
-            "POST /api/v1/job-order-items/{item}/rating" !in ApprovedApiRoutes.allApproved,
-            "Legacy alias must not be in the approved callable set",
-        )
-        assertTrue(
-            "POST /api/v1/job-order-items/{item}/rating" !in ApprovedApiRoutes.rejectedRoutes,
-            "Legacy alias must not be in rejectedRoutes (backend keeps it intentionally)",
-        )
+    }
+
+    @Test
+    fun `quotation routes are rejected`() {
+        assertTrue("GET /api/v1/quotations" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("GET /api/v1/quotations/{quotation}" in ApprovedApiRoutes.rejectedRoutes)
     }
 
     @Test
@@ -126,10 +120,8 @@ class ApiRouteAllowlistTest {
 
         val allApproved = ApprovedApiRoutes.allApproved
         val rejected = ApprovedApiRoutes.rejectedRoutes
-        val legacyAlias = ApprovedApiRoutes.legacyAliasRoutes
         val normalizedApproved = allApproved.map { normalizeRouteVariables(it) }.toSet()
         val normalizedRejected = rejected.map { normalizeRouteVariables(it) }.toSet()
-        val normalizedLegacyAlias = legacyAlias.map { normalizeRouteVariables(it) }.toSet()
         val normalizedDiscovered = discoveredRoutes.map { normalizeRouteVariables(it) }.toSet()
 
         // Every discovered route must be approved (not rejected)
@@ -144,13 +136,6 @@ class ApiRouteAllowlistTest {
         assertTrue(
             rejectedDiscovered.isEmpty(),
             "Rejected routes found in production: $rejectedDiscovered",
-        )
-
-        // Legacy alias routes must not appear in discovered production code
-        val legacyAliasDiscovered = normalizedDiscovered.filter { it in normalizedLegacyAlias }
-        assertTrue(
-            legacyAliasDiscovered.isEmpty(),
-            "Legacy alias routes found in production (use canonical path instead): $legacyAliasDiscovered",
         )
     }
 

@@ -1,20 +1,17 @@
 package com.eyecare.app.data.remote
 
 /**
- * V17 route governance — 55-route contract.
+ * V18 route governance — 54-route contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
  * 2. Account-only routes (29) — authenticated, no patient link required
- * 3. Active-link routes (17 canonical + 1 legacy alias = 18 registered) — require active patient link
- * 4. Legacy alias routes (1) — exists server-side, must not be called by this client
+ * 3. Active-link routes (17) — require active patient link
  *
- * Total registered callable routes: 8 + 29 + 18 = 55.
- * Canonical routes (production Android may call): 8 + 29 + 17 = 54.
- * The legacy alias exists for backward compatibility only.
+ * Total canonical callable routes: 8 + 29 + 17 = 54.
  *
  * Conversation read/list/send are account-only; attachment download remains active-link.
- * Retired routes (eyewear, job-orders, billing-records) are explicitly rejected.
+ * Retired routes (eyewear, job-orders, billing-records, quotations, legacy aliases) are rejected.
  */
 internal object ApprovedApiRoutes {
     private const val BASE = "/api/v1"
@@ -65,7 +62,7 @@ internal object ApprovedApiRoutes {
         "POST $BASE/conversation/messages",
     )
 
-    /** Active-link routes — require active patient link. (17 canonical) */
+    /** Active-link routes — require active patient link. (17) */
     val activeLinkRoutes: Set<String> = setOf(
         "GET $BASE/appointment-availability",
         "GET $BASE/appointments",
@@ -80,11 +77,8 @@ internal object ApprovedApiRoutes {
         "DELETE $BASE/frame-reservations/{reservation}/items/{item}",
         "GET $BASE/prescriptions",
         "GET $BASE/prescriptions/{prescription}",
-        "GET $BASE/quotations",
-        "GET $BASE/quotations/{quotation}",
         "GET $BASE/optical-orders",
         "GET $BASE/optical-orders/{opticalOrder}",
-        // Conversation attachment download remains active-link protected
         "GET $BASE/conversation/attachments/{attachment}",
         "POST $BASE/optical-order-items/{item}/rating",
     )
@@ -109,14 +103,10 @@ internal object ApprovedApiRoutes {
         "POST $BASE/appointments/{appointment}/intake/submit",
         // Reservation cancel (replaced by DELETE /frame-reservations/{id})
         "POST $BASE/frame-reservations/{reservation}/cancel",
-    )
-
-    /**
-     * Legacy alias routes — exist server-side for backward compatibility,
-     * but must not be called by this client. We use the canonical path instead.
-     * Asserted: no production Retrofit annotation references these.
-     */
-    val legacyAliasRoutes: Set<String> = setOf(
+        // Quotations (deleted from server)
+        "GET $BASE/quotations",
+        "GET $BASE/quotations/{quotation}",
+        // Legacy alias for backward compatibility — use canonical path
         "POST $BASE/job-order-items/{item}/rating",
     )
 
