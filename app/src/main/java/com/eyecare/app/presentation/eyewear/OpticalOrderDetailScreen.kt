@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentStatus
+import com.eyecare.app.presentation.common.FeatureFlags
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
@@ -48,6 +49,7 @@ import java.math.BigDecimal
 fun OpticalOrderDetailScreen(
     onBack: () -> Unit,
     onRateItem: (Int) -> Unit,
+    ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
     viewModel: OpticalOrderDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -78,6 +80,7 @@ fun OpticalOrderDetailScreen(
             is OpticalOrderDetailUiState.Success -> OrderDetailContent(
                 order = state.order,
                 onRateItem = onRateItem,
+                ratingsEnabled = ratingsEnabled,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -88,6 +91,7 @@ fun OpticalOrderDetailScreen(
 private fun OrderDetailContent(
     order: OpticalOrder,
     onRateItem: (Int) -> Unit,
+    ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -167,12 +171,12 @@ private fun OrderDetailContent(
                                 fontWeight = FontWeight.SemiBold,
                             )
                         }
-                        if (item.isRateable) {
+                        if (ratingsEnabled && item.isRateable) {
                             TextButton(onClick = { onRateItem(item.id) }) {
                                 Text(if (item.rating != null) "Update rating" else "Rate this item")
                             }
                         }
-                        if (item.rating != null) {
+                        if (ratingsEnabled && item.rating != null) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically,

@@ -60,6 +60,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.isArReady
+import com.eyecare.app.presentation.common.FeatureFlags
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.frames.components.RatingSummary
@@ -72,6 +73,7 @@ fun FrameDetailScreen(
     onBack: () -> Unit,
     onNavigateToAr: (frameId: Int, variantId: Int) -> Unit,
     onNavigateToReserve: (frameId: Int, variantId: Int) -> Unit,
+    ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
 ) {
     val viewModel = hiltViewModel<FrameDetailViewModel, FrameDetailViewModel.Factory> { it.create(frameId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -203,10 +205,12 @@ fun FrameDetailScreen(
                                             style = MaterialTheme.typography.headlineMedium,
                                             fontWeight = FontWeight.SemiBold,
                                         )
-                                        RatingSummary(
-                                            averageRating = frame.averageRating,
-                                            ratingCount = frame.ratingCount,
-                                        )
+                                        if (ratingsEnabled) {
+                                            RatingSummary(
+                                                averageRating = frame.averageRating,
+                                                ratingCount = frame.ratingCount,
+                                            )
+                                        }
                                     }
                                 }
 

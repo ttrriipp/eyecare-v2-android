@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.isArReady
+import com.eyecare.app.presentation.common.FeatureFlags
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.ui.theme.EyecareColors
 
@@ -39,6 +40,7 @@ import com.eyecare.app.ui.theme.EyecareColors
 fun FrameCard(
     frame: Frame,
     onClick: () -> Unit,
+    ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
     modifier: Modifier = Modifier,
 ) {
     val hasAr = frame.variants.any { it.isArReady }
@@ -95,10 +97,12 @@ fun FrameCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                RatingBadge(
-                    averageRating = frame.averageRating,
-                    ratingCount = frame.ratingCount,
-                )
+                if (ratingsEnabled) {
+                    RatingBadge(
+                        averageRating = frame.averageRating,
+                        ratingCount = frame.ratingCount,
+                    )
+                }
                 Text(
                     if (displayPrice != null) "₱${String.format("%.2f", displayPrice)}" else "",
                     style = MaterialTheme.typography.titleSmall,
