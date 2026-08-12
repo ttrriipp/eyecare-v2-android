@@ -1,7 +1,9 @@
 ﻿package com.eyecare.app.data.remote.api
 
 import com.eyecare.app.data.remote.dto.FrameReservationDtos
+import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -14,6 +16,6 @@ interface FrameReservationApiService {
     @POST("frame-reservations")
     suspend fun createReservation(@Body request: FrameReservationDtos.CreateReservationRequest): FrameReservationDtos.ReservationResponse
 
-    @POST("frame-reservations/{id}/cancel")
-    suspend fun cancelReservation(@Path("id") reservationId: Int): FrameReservationDtos.ReservationResponse
+    @DELETE("frame-reservations/{id}")
+    suspend fun deleteReservation(@Path("id") reservationId: Int): Response<Unit>
 }

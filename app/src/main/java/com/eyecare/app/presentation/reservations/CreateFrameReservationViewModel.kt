@@ -146,7 +146,7 @@ class CreateFrameReservationViewModel @AssistedInject constructor(
     ) {
         _uiState.value = current.copy(isSubmitting = true, appointmentFieldError = null, itemFieldError = null, genericError = null)
         viewModelScope.launch {
-            reservationRepository.cancelReservation(existingReservation.id).fold(
+            reservationRepository.deleteReservation(existingReservation.id).fold(
                 onSuccess = {
                     val combinedVariantIds = existingReservation.items.map { it.productVariantId } + variantId
                     reservationRepository.createReservation(

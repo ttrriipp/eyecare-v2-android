@@ -75,7 +75,7 @@ internal object ApprovedApiRoutes {
         "POST $BASE/appointments/{appointment}/rating",
         "GET $BASE/frame-reservations",
         "POST $BASE/frame-reservations",
-        "POST $BASE/frame-reservations/{reservation}/cancel",
+        "DELETE $BASE/frame-reservations/{reservation}",
         "GET $BASE/prescriptions",
         "GET $BASE/prescriptions/{prescription}",
         "GET $BASE/quotations",
@@ -105,6 +105,8 @@ internal object ApprovedApiRoutes {
         "GET $BASE/appointments/{appointment}/intake",
         "PUT $BASE/appointments/{appointment}/intake",
         "POST $BASE/appointments/{appointment}/intake/submit",
+        // Reservation cancel (replaced by DELETE /frame-reservations/{id})
+        "POST $BASE/frame-reservations/{reservation}/cancel",
     )
 
     /**

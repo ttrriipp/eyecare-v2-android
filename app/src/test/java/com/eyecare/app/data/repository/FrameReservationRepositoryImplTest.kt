@@ -100,13 +100,19 @@ class FrameReservationRepositoryImplTest {
     }
 
     @Test
-    fun `cancelReservation maps embedded appointment`() = runTest {
-        val dto = createReservationDto()
-        val response = FrameReservationDtos.ReservationResponse(data = dto)
-        coEvery { api.cancelReservation(1) } returns response
+    fun `deleteReservation succeeds with empty body`() = runTest {
+        coEvery { api.deleteReservation(1) } returns Response.success(Unit)
 
-        val result = repository.cancelReservation(1).getOrThrow()
-        assertNotNull(result.appointment)
+        val result = repository.deleteReservation(1)
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun `deleteReservation failure propagates`() = runTest {
+        coEvery { api.deleteReservation(1) } throws RuntimeException("network error")
+
+        val result = repository.deleteReservation(1)
+        assertTrue(result.isFailure)
     }
 
     @Test

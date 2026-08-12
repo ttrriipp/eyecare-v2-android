@@ -222,9 +222,7 @@ class CreateFrameReservationViewModelTest {
     @Test
     fun `submit on a mergeable appointment cancels then recreates with combined items`() = runTest {
         val existing = createReservation(isHeld = false, items = listOf(reservationItem(99)))
-        coEvery { reservationRepo.cancelReservation(1) } returns Result.success(
-            createReservation(items = listOf(reservationItem(99))),
-        )
+        coEvery { reservationRepo.deleteReservation(1) } returns Result.success(Unit)
         coEvery { reservationRepo.createReservation(listOf(99, 42), 1) } returns Result.success(
             createReservation(items = listOf(reservationItem(99), reservationItem(42))),
         )
@@ -236,7 +234,7 @@ class CreateFrameReservationViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(vm.uiState.value is CreateReservationUiState.Success)
-        coVerify(exactly = 1) { reservationRepo.cancelReservation(1) }
+        coVerify(exactly = 1) { reservationRepo.deleteReservation(1) }
         coVerify(exactly = 1) { reservationRepo.createReservation(listOf(99, 42), 1) }
     }
 
@@ -254,7 +252,7 @@ class CreateFrameReservationViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(vm.uiState.value is CreateReservationUiState.Success)
-        coVerify(exactly = 0) { reservationRepo.cancelReservation(any()) }
+        coVerify(exactly = 0) { reservationRepo.deleteReservation(any()) }
         coVerify(exactly = 1) { reservationRepo.createReservation(listOf(42), 1) }
     }
 
@@ -270,7 +268,7 @@ class CreateFrameReservationViewModelTest {
 
         val state = vm.uiState.value as CreateReservationUiState.Ready
         assertEquals("This frame is already part of your reservation for this appointment.", state.itemFieldError)
-        coVerify(exactly = 0) { reservationRepo.cancelReservation(any()) }
+        coVerify(exactly = 0) { reservationRepo.deleteReservation(any()) }
         coVerify(exactly = 0) { reservationRepo.createReservation(any(), any()) }
     }
 }

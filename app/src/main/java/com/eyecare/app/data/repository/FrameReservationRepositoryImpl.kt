@@ -44,8 +44,9 @@ class FrameReservationRepositoryImpl @Inject constructor(
         throw throwable
     }
 
-    override suspend fun cancelReservation(reservationId: Int): Result<FrameReservation> = runCatching {
-        api.cancelReservation(reservationId).data.toDomain()
+    override suspend fun deleteReservation(reservationId: Int): Result<Unit> = runCatching {
+        val response = api.deleteReservation(reservationId)
+        if (!response.isSuccessful) throw HttpException(response)
     }
 
     private fun FrameReservationDtos.ReservationDto.toDomain() = FrameReservation(

@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +79,11 @@ fun FrameReservationDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Consume the terminal Deleted state exactly once — navigate back.
+    LaunchedEffect(uiState) {
+        if (uiState is ReservationDetailUiState.Deleted) onBack()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -113,10 +119,13 @@ fun FrameReservationDetailScreen(
                 state = state,
                 onViewAppointment = onViewAppointment,
                 onViewFrame = onViewFrame,
-                onCancel = viewModel::cancelReservation,
-                onDismissCancelError = viewModel::dismissCancelError,
+                onDelete = viewModel::deleteReservation,
+                onDismissDeleteError = viewModel::dismissCancelError,
                 modifier = Modifier.padding(padding),
             )
+
+            // Terminal state — LaunchedEffect navigates back; nothing to render.
+            is ReservationDetailUiState.Deleted -> Unit
         }
     }
 }
@@ -126,14 +135,14 @@ fun ReservationDetailContent(
     state: ReservationDetailUiState.Success,
     onViewAppointment: (Int) -> Unit,
     onViewFrame: (Int) -> Unit,
-    onCancel: () -> Unit,
-    onDismissCancelError: () -> Unit = {},
+    onDelete: () -> Unit,
+    onDismissDeleteError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val reservation = state.reservation
-    var showCancelDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
-    if (showCancelDialog) {
+    if (showDeleteDialog) {
         AppConfirmationDialog(
             icon = Icons.Outlined.Cancel,
             iconTint = MaterialTheme.colorScheme.error,
@@ -144,10 +153,10 @@ fun ReservationDetailContent(
             confirmLabel = "Cancel reservation",
             dismissLabel = "Keep reservation",
             onConfirm = {
-                showCancelDialog = false
-                onCancel()
+                showDeleteDialog = false
+                onDelete()
             },
-            onDismissRequest = { showCancelDialog = false },
+            onDismissRequest = { showDeleteDialog = false },
         )
     }
 
@@ -194,13 +203,13 @@ fun ReservationDetailContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
-                TextButton(onClick = onDismissCancelError) { Text("Dismiss") }
+                TextButton(onClick = onDismissDeleteError) { Text("Dismiss") }
             }
         }
 
         if (reservation.isCancellable) {
             OutlinedButton(
-                onClick = { showCancelDialog = true },
+                onClick = { showDeleteDialog = true },
                 enabled = !state.isCancelling,
                 modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
                 shape = RoundedCornerShape(50),

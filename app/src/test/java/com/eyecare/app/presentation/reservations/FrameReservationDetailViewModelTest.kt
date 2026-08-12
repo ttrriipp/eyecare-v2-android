@@ -120,33 +120,29 @@ class FrameReservationDetailViewModelTest {
     }
 
     @Test
-    fun `cancel replaces the reservation with the returned record`() = runTest(dispatcher) {
+    fun `delete success transitions to Deleted terminal state`() = runTest(dispatcher) {
         coEvery { repository.getReservations() } returns Result.success(listOf(reservation()))
-        coEvery { repository.cancelReservation(1) } returns Result.success(
-            reservation(isHeld = false),
-        )
+        coEvery { repository.deleteReservation(1) } returns Result.success(Unit)
 
         val viewModel = vm()
         advanceUntilIdle()
-        viewModel.cancelReservation()
+        viewModel.deleteReservation()
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value as ReservationDetailUiState.Success
-        assertFalse(state.isCancelling)
+        assertTrue(viewModel.uiState.value is ReservationDetailUiState.Deleted)
     }
 
     @Test
-    fun `cancel failure keeps the reservation and surfaces an error`() = runTest(dispatcher) {
+    fun `delete failure keeps the reservation and surfaces an error`() = runTest(dispatcher) {
         coEvery { repository.getReservations() } returns Result.success(listOf(reservation()))
-        coEvery { repository.cancelReservation(1) } returns Result.failure(RuntimeException("Cannot cancel"))
+        coEvery { repository.deleteReservation(1) } returns Result.failure(RuntimeException("Cannot delete"))
 
         val viewModel = vm()
         advanceUntilIdle()
-        viewModel.cancelReservation()
+        viewModel.deleteReservation()
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as ReservationDetailUiState.Success
-        assertFalse(state.reservation.isHeld)
         assertFalse(state.isCancelling)
         assertNotNull(state.cancelError)
 
@@ -155,35 +151,31 @@ class FrameReservationDetailViewModelTest {
     }
 
     @Test
-    fun `cancel succeeds for a held reservation`() = runTest(dispatcher) {
+    fun `delete succeeds for a held reservation`() = runTest(dispatcher) {
         coEvery { repository.getReservations() } returns Result.success(
             listOf(reservation(isHeld = true)),
         )
-        coEvery { repository.cancelReservation(1) } returns Result.success(
-            reservation(isHeld = false),
-        )
+        coEvery { repository.deleteReservation(1) } returns Result.success(Unit)
 
         val viewModel = vm()
         advanceUntilIdle()
-        viewModel.cancelReservation()
+        viewModel.deleteReservation()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { repository.cancelReservation(1) }
+        coVerify(exactly = 1) { repository.deleteReservation(1) }
     }
 
     @Test
-    fun `repeat cancel taps issue a single request`() = runTest(dispatcher) {
+    fun `repeat delete taps issue a single request`() = runTest(dispatcher) {
         coEvery { repository.getReservations() } returns Result.success(listOf(reservation()))
-        coEvery { repository.cancelReservation(1) } returns Result.success(
-            reservation(isHeld = false),
-        )
+        coEvery { repository.deleteReservation(1) } returns Result.success(Unit)
 
         val viewModel = vm()
         advanceUntilIdle()
-        viewModel.cancelReservation()
-        viewModel.cancelReservation()
+        viewModel.deleteReservation()
+        viewModel.deleteReservation()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { repository.cancelReservation(1) }
+        coVerify(exactly = 1) { repository.deleteReservation(1) }
     }
 }

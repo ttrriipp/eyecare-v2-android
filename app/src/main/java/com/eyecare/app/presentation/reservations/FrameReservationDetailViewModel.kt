@@ -24,6 +24,9 @@ sealed interface ReservationDetailUiState {
     /** The reservation is not in the patient's own list — never another patient's record. */
     data object NotFound : ReservationDetailUiState
     data class Error(val message: String) : ReservationDetailUiState
+
+    /** Terminal: the reservation was deleted. Consume once in a LaunchedEffect and navigate back. */
+    data object Deleted : ReservationDetailUiState
 }
 
 /**
@@ -50,15 +53,15 @@ class FrameReservationDetailViewModel @Inject constructor(
         _uiState.value = current.copy(cancelError = null)
     }
 
-    fun cancelReservation() {
+    fun deleteReservation() {
         val current = _uiState.value as? ReservationDetailUiState.Success ?: return
         if (current.isCancelling || !current.reservation.isCancellable) return
 
         _uiState.value = current.copy(isCancelling = true, cancelError = null)
         viewModelScope.launch {
-            repository.cancelReservation(current.reservation.id).fold(
-                onSuccess = { cancelled ->
-                    _uiState.value = ReservationDetailUiState.Success(reservation = cancelled)
+            repository.deleteReservation(current.reservation.id).fold(
+                onSuccess = {
+                    _uiState.value = ReservationDetailUiState.Deleted
                 },
                 onFailure = { error ->
                     _uiState.value = current.copy(
