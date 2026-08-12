@@ -48,10 +48,14 @@ class CreateFrameReservationViewModelTest {
 
     private fun createReservation(
         status: ReservationStatus = ReservationStatus.REQUESTED,
+        // Transitional: derived from the retired status while both fields coexist.
+        // Task 4 drops `status` and callers pass `isHeld` directly.
+        isHeld: Boolean = status == ReservationStatus.PREPARED || status == ReservationStatus.TRIED_ON,
         items: List<FrameReservationItem> = emptyList(),
     ) = FrameReservation(
         id = 1,
         appointment = ReservationAppointment(1, "APT-001", AppointmentStatus.SCHEDULED, "2030-08-01T10:00:00+08:00", 30),
+        isHeld = isHeld,
         status = status,
         expiresAt = null,
         createdAt = "2026-07-28T10:00:00+08:00",

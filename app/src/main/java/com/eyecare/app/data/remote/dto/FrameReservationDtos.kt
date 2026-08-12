@@ -50,7 +50,16 @@ object FrameReservationDtos {
         val id: Int,
         @SerialName("appointment_id") val appointmentId: Int? = null,
         val appointment: ReservationAppointmentDto? = null,
-        val status: String,
+        /**
+         * Derived server-side from `accepted_at`: false = the clinic has the request,
+         * true = the frames are pulled and held. The raw `accepted_at` is never exposed.
+         */
+        @SerialName("is_held") val isHeld: Boolean = false,
+        /**
+         * Retired by the 2026-08-13 contract and no longer sent. Kept nullable for one
+         * migration step only — removed once every consumer reads [isHeld].
+         */
+        val status: String? = null,
         @SerialName("expires_at") val expiresAt: String? = null,
         @SerialName("created_at") val createdAt: String,
         val items: List<ReservationItemDto> = emptyList(),

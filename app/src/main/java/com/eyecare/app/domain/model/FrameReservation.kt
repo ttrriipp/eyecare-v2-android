@@ -13,6 +13,11 @@ data class ReservationAppointment(
 data class FrameReservation(
     val id: Int,
     val appointment: ReservationAppointment,
+    /**
+     * False while the clinic only has the request; true once the frames are pulled and
+     * held for the visit. Replaces the retired six-state [ReservationStatus].
+     */
+    val isHeld: Boolean,
     val status: ReservationStatus,
     val expiresAt: String?,
     val createdAt: String,

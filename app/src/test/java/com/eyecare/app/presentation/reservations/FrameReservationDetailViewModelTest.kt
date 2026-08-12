@@ -51,6 +51,9 @@ class FrameReservationDetailViewModelTest {
     private fun reservation(
         id: Int = 1,
         status: ReservationStatus = ReservationStatus.REQUESTED,
+        // Transitional: derived from the retired status while both fields coexist.
+        // Task 4 drops `status` and callers pass `isHeld` directly.
+        isHeld: Boolean = status == ReservationStatus.PREPARED || status == ReservationStatus.TRIED_ON,
         items: List<FrameReservationItem> = listOf(item()),
     ) = FrameReservation(
         id = id,
@@ -61,6 +64,7 @@ class FrameReservationDetailViewModelTest {
             scheduledAt = "2026-08-30T09:00:00+08:00",
             durationMinutes = 30,
         ),
+        isHeld = isHeld,
         status = status,
         expiresAt = null,
         createdAt = "2026-07-27T10:00:00+08:00",

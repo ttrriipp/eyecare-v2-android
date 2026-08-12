@@ -34,13 +34,15 @@ class ProfileScreenTest {
         }
 
         composeRule.onNodeWithText("Alex Rivera").assertIsDisplayed()
-        composeRule.onNodeWithText("alex@example.com").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Profile initials AR").assertIsDisplayed()
+        // The account-first header shows name + link status only; the email that used to sit
+        // here moved out with the removed patient-details card.
+        composeRule.onNodeWithText("alex@example.com").assertDoesNotExist()
 
         listOf(
             "Messages" to "messages",
             "Prescriptions" to "prescriptions",
-            "Eyewear" to "eyewear",
+            "My Eyewear" to "eyewear",
             "Log out" to "logout",
         ).forEach { (label, expectedDestination) ->
             composeRule.onNodeWithText(label).performClick()
