@@ -71,8 +71,6 @@ fun paymentStatusColor(status: PaymentStatus): Color = when (status) {
     PaymentStatus.UNKNOWN -> EyecareColors.current.statusCancelled
 }
 
-fun isEdited(revisionNumber: Int?): Boolean = (revisionNumber ?: 1) > 1
-
 fun orderCardTitle(order: OpticalOrder): String {
     val items = order.items
     if (items.isEmpty()) return "Eyewear order"

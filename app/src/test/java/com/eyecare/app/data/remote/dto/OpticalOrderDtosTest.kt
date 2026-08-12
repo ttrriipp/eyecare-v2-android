@@ -178,7 +178,6 @@ class OpticalOrderDtosTest {
             "item_id": 5,
             "rating": 5,
             "comment": "Excellent frame quality",
-            "revision_number": 1,
             "created_at": "2026-08-05T10:00:00+08:00"
         }
         """.trimIndent()
@@ -188,7 +187,6 @@ class OpticalOrderDtosTest {
         assertEquals(5, result.itemId)
         assertEquals(5, result.rating)
         assertEquals("Excellent frame quality", result.comment)
-        assertEquals(1, result.revisionNumber)
         assertEquals("2026-08-05T10:00:00+08:00", result.createdAt)
     }
 
@@ -201,7 +199,6 @@ class OpticalOrderDtosTest {
             "item_id": null,
             "rating": 5,
             "comment": "Excellent frame quality",
-            "revision_number": 1,
             "created_at": "2026-08-05T10:00:00+08:00"
         }
         """.trimIndent()
@@ -221,7 +218,6 @@ class OpticalOrderDtosTest {
             "product_variant_id": 42,
             "rating": 4,
             "comment": null,
-            "revision_number": null,
             "created_at": "2026-08-05T10:00:00+08:00"
         }
         """.trimIndent()
@@ -231,7 +227,6 @@ class OpticalOrderDtosTest {
         assertEquals(10, result.itemId)
         assertEquals(42, result.productVariantId)
         assertNull(result.comment)
-        assertNull(result.revisionNumber)
     }
 
     @Test
@@ -242,7 +237,6 @@ class OpticalOrderDtosTest {
             "item_id": null,
             "rating": 3,
             "comment": "OK",
-            "revision_number": 2,
             "created_at": "2026-08-05T10:00:00+08:00"
         }
         """.trimIndent()

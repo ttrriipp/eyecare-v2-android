@@ -46,6 +46,7 @@ data class AppointmentRequest(
     val timePreferencesAreReserved: Boolean,
     val expiresAt: String?,
     val cancelledAt: String?,
+    val rejectionReason: String?,
     val createdAt: String,
     val appointmentId: Int?,
 )

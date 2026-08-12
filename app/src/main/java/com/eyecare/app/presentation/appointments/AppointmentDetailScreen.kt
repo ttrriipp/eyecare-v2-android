@@ -473,14 +473,6 @@ private fun VisitFeedbackCard(
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if ((visitRating.revisionNumber ?: 1) > 1) {
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "Edited",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
                 visitRating.comment?.takeIf { it.isNotBlank() }?.let { comment ->
                     Text(

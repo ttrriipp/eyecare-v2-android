@@ -38,6 +38,7 @@ class AppointmentRequestListViewModelTest {
         timePreferencesAreReserved = false,
         expiresAt = "2026-08-11T10:00:00+08:00",
         cancelledAt = null,
+        rejectionReason = null,
         createdAt = "2026-08-09T10:00:00+08:00",
         appointmentId = null,
     )

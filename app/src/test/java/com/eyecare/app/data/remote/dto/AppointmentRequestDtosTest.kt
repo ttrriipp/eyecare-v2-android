@@ -160,4 +160,19 @@ class AppointmentRequestDtosTest {
         val response = json.decodeFromString<AppointmentRequestResponse>(body)
         assertEquals("something_new", response.data.status)
     }
+
+    @Test
+    fun `decodes rejected request with rejection_reason`() {
+        val body = """{"data":{"id":1,"request_number":"APR-2026-000001","status":"rejected","scheduled_at":"2026-08-10T10:00:00+08:00","reason_for_visit":"Blurred vision","rejection_reason":"No availability on the requested date","created_at":"2026-08-09T10:00:00+08:00","appointment":null}}"""
+        val response = json.decodeFromString<AppointmentRequestResponse>(body)
+        assertEquals("rejected", response.data.status)
+        assertEquals("No availability on the requested date", response.data.rejectionReason)
+    }
+
+    @Test
+    fun `decodes request without rejection_reason defaults to null`() {
+        val body = """{"data":{"id":1,"request_number":"APR-2026-000001","status":"pending","scheduled_at":"2026-08-10T10:00:00+08:00","reason_for_visit":"Blurred vision","created_at":"2026-08-09T10:00:00+08:00","appointment":null}}"""
+        val response = json.decodeFromString<AppointmentRequestResponse>(body)
+        assertNull(response.data.rejectionReason)
+    }
 }

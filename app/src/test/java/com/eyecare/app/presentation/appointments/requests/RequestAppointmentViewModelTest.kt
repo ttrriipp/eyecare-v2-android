@@ -94,7 +94,7 @@ class RequestAppointmentViewModelTest {
         alternativeScheduledTimes = emptyList(), provisionalDurationMinutes = 45,
         reasonForVisit = "Test", referringSource = null,
         timePreferencesAreReserved = false,
-        expiresAt = "2026-08-10T09:00:00+08:00", cancelledAt = null,
+        expiresAt = "2026-08-10T09:00:00+08:00", cancelledAt = null, rejectionReason = null,
         createdAt = "2026-08-09T10:00:00+08:00", appointmentId = null,
     )
 

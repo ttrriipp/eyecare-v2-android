@@ -77,6 +77,7 @@ data class AppointmentRequestDto(
     @SerialName("time_preferences_are_reserved") val timePreferencesAreReserved: Boolean = false,
     @SerialName("expires_at") val expiresAt: String? = null,
     @SerialName("cancelled_at") val cancelledAt: String? = null,
+    @SerialName("rejection_reason") val rejectionReason: String? = null,
     @SerialName("created_at") val createdAt: String,
     val appointment: AppointmentReferenceDto? = null,
 )

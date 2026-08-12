@@ -182,13 +182,6 @@ private fun OrderDetailContent(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                if (isEdited(item.rating.revisionNumber)) {
-                                    Text(
-                                        "Edited",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
                             }
                         }
                         HorizontalDivider()

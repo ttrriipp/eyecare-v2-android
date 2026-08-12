@@ -39,7 +39,6 @@ class OpticalOrderRepositoryImpl @Inject constructor(
             itemId = response.itemId,
             rating = response.rating,
             comment = response.comment,
-            revisionNumber = response.revisionNumber,
         )
     }
 
@@ -76,7 +75,7 @@ class OpticalOrderRepositoryImpl @Inject constructor(
         productVariantId = productVariantId,
         isRateable = isRateable,
         rating = rating?.let {
-            RatingSummary(rating = it.rating, comment = it.comment, revisionNumber = it.revisionNumber, createdAt = it.createdAt)
+            RatingSummary(rating = it.rating, comment = it.comment, createdAt = it.createdAt)
         },
     )
 }

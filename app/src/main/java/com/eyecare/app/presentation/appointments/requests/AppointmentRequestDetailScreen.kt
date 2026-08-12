@@ -225,6 +225,29 @@ private fun RequestDetailDataContent(
                     state.request.cancelledAt?.let {
                         DetailRow(label = "Cancelled", value = formatDetailDateTime(it))
                     }
+
+                    if (state.request.status == AppointmentRequestStatus.REJECTED) {
+                        state.request.rejectionReason?.takeIf { it.isNotBlank() }?.let { reason ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.errorContainer,
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = "Reason",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                    Text(
+                                        text = reason,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

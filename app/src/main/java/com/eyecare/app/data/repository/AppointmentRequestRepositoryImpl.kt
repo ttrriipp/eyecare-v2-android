@@ -91,6 +91,7 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         timePreferencesAreReserved = timePreferencesAreReserved,
         expiresAt = expiresAt,
         cancelledAt = cancelledAt,
+        rejectionReason = rejectionReason,
         createdAt = createdAt,
         appointmentId = appointment?.id,
     )

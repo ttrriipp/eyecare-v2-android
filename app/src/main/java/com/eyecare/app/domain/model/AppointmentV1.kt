@@ -22,7 +22,6 @@ data class AppointmentV1(
 data class VisitRating(
     val rating: Int,
     val comment: String?,
-    val revisionNumber: Int?,
     val createdAt: String?,
 )
 

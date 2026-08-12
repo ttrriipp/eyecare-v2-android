@@ -93,7 +93,6 @@ class AppointmentV1RepositoryImpl @Inject constructor(
     private fun AppointmentV1Dtos.VisitRatingDto.toDomain() = VisitRating(
         rating = rating,
         comment = comment,
-        revisionNumber = revisionNumber,
         createdAt = createdAt,
     )
 

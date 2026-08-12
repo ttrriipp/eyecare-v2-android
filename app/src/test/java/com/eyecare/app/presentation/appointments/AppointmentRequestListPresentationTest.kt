@@ -77,6 +77,7 @@ class AppointmentRequestListPresentationTest {
         timePreferencesAreReserved = false,
         expiresAt = null,
         cancelledAt = null,
+        rejectionReason = null,
         createdAt = "2026-08-03T10:00:00+08:00",
         appointmentId = appointmentId,
     )

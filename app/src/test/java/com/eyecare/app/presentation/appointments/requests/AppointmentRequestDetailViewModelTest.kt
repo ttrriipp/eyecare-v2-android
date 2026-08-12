@@ -30,8 +30,8 @@ class AppointmentRequestDetailViewModelTest {
         patientId = null, appointmentType = null, scheduledAt = "2026-08-10T10:00:00+08:00",
         alternativeScheduledTimes = emptyList(), provisionalDurationMinutes = null,
         reasonForVisit = "Test", referringSource = null, timePreferencesAreReserved = false,
-        expiresAt = "2026-08-11T10:00:00+08:00", cancelledAt = null, createdAt = "2026-08-09T10:00:00+08:00",
-        appointmentId = null,
+        expiresAt = "2026-08-11T10:00:00+08:00", cancelledAt = null, rejectionReason = null,
+        createdAt = "2026-08-09T10:00:00+08:00", appointmentId = null,
     )
 
     private val cancelledRequest = pendingRequest.copy(status = AppointmentRequestStatus.CANCELLED, cancelledAt = "2026-08-09T11:00:00+08:00")
