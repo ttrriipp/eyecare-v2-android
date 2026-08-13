@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.eyecare.app.ui.theme.EyecareColors
 import java.util.Locale
 
 /**
@@ -46,7 +47,7 @@ fun RatingBadge(
             imageVector = Icons.Filled.Star,
             contentDescription = null,
             modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = EyecareColors.current.accentText,
         )
         Text(
             text = displayText,
@@ -87,7 +88,7 @@ fun RatingSummary(
             imageVector = Icons.Filled.Star,
             contentDescription = null,
             modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = EyecareColors.current.accentText,
         )
         Text(
             text = "$formatted ($ratingCount ratings)",

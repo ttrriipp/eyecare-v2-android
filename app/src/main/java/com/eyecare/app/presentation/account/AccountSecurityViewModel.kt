@@ -2,10 +2,10 @@ package com.eyecare.app.presentation.account
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.domain.model.AccountContact
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.ContactType
+import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.StepUpChallenge
 import com.eyecare.app.domain.repository.AccountRepository
 import com.eyecare.app.domain.repository.AuthRepository
@@ -19,8 +19,13 @@ import javax.inject.Inject
 sealed interface AccountSecurityState {
     data object Loading : AccountSecurityState
     data class Overview(
-        val contacts: List<AccountContact> = emptyList(),
+        val account: PatientAccount? = null,
         val error: String? = null,
+        val isEditingAccount: Boolean = false,
+        val isSavingAccount: Boolean = false,
+        val editFirstName: String = "",
+        val editLastName: String = "",
+        val accountSaveError: String? = null,
     ) : AccountSecurityState
     data class EnterNewContact(
         val contactType: ContactType = ContactType.EMAIL,
@@ -50,7 +55,10 @@ sealed interface AccountSecurityState {
         val errors: Map<String, String> = emptyMap(),
         val successMessage: String? = null,
     ) : AccountSecurityState
-    data class Result(val message: String, val contacts: List<AccountContact> = emptyList()) : AccountSecurityState
+    data class Result(
+        val message: String,
+        val account: PatientAccount? = null,
+    ) : AccountSecurityState
     data object SignedOut : AccountSecurityState
 }
 
@@ -69,16 +77,85 @@ class AccountSecurityViewModel @Inject constructor(
 
     private val _state = MutableStateFlow<AccountSecurityState>(AccountSecurityState.Loading)
     val state: StateFlow<AccountSecurityState> = _state.asStateFlow()
+    private var latestAccount: PatientAccount? = null
 
-    fun loadContacts() {
+    fun loadAccount() {
         viewModelScope.launch {
             _state.value = AccountSecurityState.Loading
-            accountRepository.getContacts()
-                .onSuccess { contacts ->
-                    _state.value = AccountSecurityState.Overview(contacts = contacts)
+            val accountResult = authRepository.getMe()
+            val loadedAccount = accountResult.getOrNull()
+            if (loadedAccount != null) latestAccount = loadedAccount
+            _state.value = AccountSecurityState.Overview(
+                account = loadedAccount ?: latestAccount,
+                error = accountResult.exceptionOrNull()?.message,
+            )
+        }
+    }
+
+    fun startAccountEditing() {
+        val current = _state.value as? AccountSecurityState.Overview ?: return
+        val account = current.account ?: return
+        _state.value = current.copy(
+            isEditingAccount = true,
+            isSavingAccount = false,
+            editFirstName = account.firstName.orEmpty(),
+            editLastName = account.lastName.orEmpty(),
+            accountSaveError = null,
+        )
+    }
+
+    fun cancelAccountEditing() {
+        val current = _state.value as? AccountSecurityState.Overview ?: return
+        _state.value = current.copy(
+            isEditingAccount = false,
+            isSavingAccount = false,
+            accountSaveError = null,
+        )
+    }
+
+    fun updateAccountFirstName(value: String) {
+        val current = _state.value as? AccountSecurityState.Overview ?: return
+        _state.value = current.copy(editFirstName = value, accountSaveError = null)
+    }
+
+    fun updateAccountLastName(value: String) {
+        val current = _state.value as? AccountSecurityState.Overview ?: return
+        _state.value = current.copy(editLastName = value, accountSaveError = null)
+    }
+
+    fun saveAccountDetails() {
+        val current = _state.value as? AccountSecurityState.Overview ?: return
+        if (current.isSavingAccount) return
+
+        val firstName = current.editFirstName.trim()
+        val lastName = current.editLastName.trim()
+        if (firstName.isBlank() || lastName.isBlank()) {
+            _state.value = current.copy(accountSaveError = "First and last name are required")
+            return
+        }
+
+        _state.value = current.copy(
+            isSavingAccount = true,
+            accountSaveError = null,
+        )
+        viewModelScope.launch {
+            authRepository.updateAccountName(firstName, lastName)
+                .onSuccess { account ->
+                    latestAccount = account
+                    _state.value = current.copy(
+                        account = account,
+                        isEditingAccount = false,
+                        isSavingAccount = false,
+                        editFirstName = "",
+                        editLastName = "",
+                        accountSaveError = null,
+                    )
                 }
                 .onFailure { error ->
-                    _state.value = AccountSecurityState.Overview(error = error.message ?: "Failed to load contacts")
+                    _state.value = current.copy(
+                        isSavingAccount = false,
+                        accountSaveError = error.message ?: "Failed to save account details",
+                    )
                 }
         }
     }
@@ -121,7 +198,10 @@ class AccountSecurityViewModel @Inject constructor(
                     )
                 }
                 .onFailure { error ->
-                    _state.value = AccountSecurityState.Overview(error = error.message ?: "Failed to send code")
+                    _state.value = AccountSecurityState.Overview(
+                        account = latestAccount,
+                        error = error.message ?: "Failed to send code",
+                    )
                 }
         }
     }
@@ -169,8 +249,11 @@ class AccountSecurityViewModel @Inject constructor(
         viewModelScope.launch {
             accountRepository.verifyContactOtp(current.challengeId, current.code)
                 .onSuccess {
-                    _state.value = AccountSecurityState.Result("Contact added successfully")
-                    loadContacts()
+                    _state.value = AccountSecurityState.Result(
+                        message = "Contact added successfully",
+                        account = latestAccount,
+                    )
+                    loadAccount()
                 }
                 .onFailure { error ->
                     _state.value = current.copy(error = error.message ?: "Verification failed")
@@ -219,8 +302,8 @@ class AccountSecurityViewModel @Inject constructor(
                 password = current.newPassword,
                 passwordConfirmation = current.confirmPassword,
             ).onSuccess { message ->
-                _state.value = AccountSecurityState.Result(message)
-                loadContacts()
+                _state.value = AccountSecurityState.Result(message = message, account = latestAccount)
+                loadAccount()
             }.onFailure { error ->
                 val apiError = error as? ApiDomainError
                 _state.value = current.copy(errors = mapOf("_" to (apiError?.message ?: "Password change failed")))
@@ -243,7 +326,7 @@ class AccountSecurityViewModel @Inject constructor(
     }
 
     fun back() {
-        loadContacts()
+        loadAccount()
     }
 
     private fun executeProtectedAction(stepUpToken: String, action: StepUpAction) {
@@ -262,19 +345,28 @@ class AccountSecurityViewModel @Inject constructor(
                             )
                         }
                         .onFailure { error ->
-                            _state.value = AccountSecurityState.Overview(error = error.message ?: "Failed to send code")
+                            _state.value = AccountSecurityState.Overview(
+                                account = latestAccount,
+                                error = error.message ?: "Failed to send code",
+                            )
                         }
                 }
             }
             is StepUpAction.MakePrimary -> {
                 viewModelScope.launch {
                     accountRepository.makeContactPrimary(stepUpToken, action.contactId)
-                        .onSuccess { contacts ->
-                            _state.value = AccountSecurityState.Result("Primary contact updated", contacts)
-                            loadContacts()
+                        .onSuccess {
+                            _state.value = AccountSecurityState.Result(
+                                message = "Primary contact updated",
+                                account = latestAccount,
+                            )
+                            loadAccount()
                         }
                         .onFailure { error ->
-                            _state.value = AccountSecurityState.Overview(error = error.message ?: "Failed to update")
+                            _state.value = AccountSecurityState.Overview(
+                                account = latestAccount,
+                                error = error.message ?: "Failed to update",
+                            )
                         }
                 }
             }
@@ -282,11 +374,17 @@ class AccountSecurityViewModel @Inject constructor(
                 viewModelScope.launch {
                     accountRepository.removeContact(stepUpToken, action.contactId)
                         .onSuccess {
-                            _state.value = AccountSecurityState.Result("Contact removed")
-                            loadContacts()
+                            _state.value = AccountSecurityState.Result(
+                                message = "Contact removed",
+                                account = latestAccount,
+                            )
+                            loadAccount()
                         }
                         .onFailure { error ->
-                            _state.value = AccountSecurityState.Overview(error = error.message ?: "Failed to remove")
+                            _state.value = AccountSecurityState.Overview(
+                                account = latestAccount,
+                                error = error.message ?: "Failed to remove",
+                            )
                         }
                 }
             }

@@ -145,11 +145,11 @@ private fun PatientDetailsCard(patient: LinkedPatient) {
             PatientDetailRow("Patient number", patient.patientNumber)
             patient.dateOfBirth?.takeIf(String::isNotBlank)?.let {
                 PatientDetailDivider()
-                PatientDetailRow("Date of birth", it)
+                PatientDetailRow("Date of birth", formatPatientDob(it))
             }
             patient.gender?.takeIf(String::isNotBlank)?.let {
                 PatientDetailDivider()
-                PatientDetailRow("Gender", it)
+                PatientDetailRow("Gender", it.replaceFirstChar { c -> c.titlecase() })
             }
             patient.occupation?.takeIf(String::isNotBlank)?.let {
                 PatientDetailDivider()
@@ -247,4 +247,21 @@ private fun PatientDetailRow(
 @Composable
 private fun PatientDetailDivider() {
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+private val patientMonthNames = listOf(
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+private fun formatPatientDob(value: String): String {
+    val parts = value.split("-")
+    if (parts.size == 3) {
+        val month = parts[1].toIntOrNull()?.let { patientMonthNames.getOrNull(it - 1) }
+        if (month != null) {
+            val day = parts[2].toIntOrNull() ?: parts[2]
+            return "$month $day, ${parts[0]}"
+        }
+    }
+    return value
 }

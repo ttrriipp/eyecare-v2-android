@@ -869,7 +869,6 @@ private fun AppointmentRequestCard(
             val requestSummary = listOfNotNull(
                 request.appointmentType?.name,
                 durationMinutes?.let { "$it min" },
-                formatAlternativeCount(request.alternativeScheduledTimes.size),
             ).joinToString(" · ")
             Text(
                 text = requestSummary,
@@ -883,21 +882,8 @@ private fun AppointmentRequestCard(
             )
             AppointmentInfoRow(Icons.Outlined.CalendarMonth, formatAppointmentDate(request.scheduledAt))
             AppointmentInfoRow(Icons.Outlined.AccessTime, formatAppointmentTime(request.scheduledAt))
-            Text(
-                text = formatAppointmentTitle(request.reasonForVisit),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
     }
-}
-
-private fun formatAlternativeCount(count: Int): String = when (count) {
-    0 -> "0 alternatives"
-    1 -> "1 alternative"
-    else -> "$count alternatives"
 }
 
 internal fun appointmentRequestsForTab(

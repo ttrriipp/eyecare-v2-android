@@ -1,5 +1,6 @@
 package com.eyecare.app.data.remote.dto
 
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -29,6 +30,13 @@ class AccountDtosTest {
         assertEquals("uuid-1", response.data.challengeId)
         assertEquals("email", response.data.contactType)
         assertEquals("a***@example.com", response.data.maskedContact)
+    }
+
+    @Test
+    fun `StepUpOtpRequest includes required purpose`() {
+        val encoded = json.encodeToString(StepUpOtpRequest(purpose = "sensitive_change"))
+
+        assertEquals("""{"purpose":"sensitive_change"}""", encoded)
     }
 
     @Test

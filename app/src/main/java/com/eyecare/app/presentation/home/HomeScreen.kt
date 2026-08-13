@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -37,7 +37,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,24 +50,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.Frame
+import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.appointments.formatAppointmentDate
 import com.eyecare.app.presentation.appointments.formatAppointmentTime
 import com.eyecare.app.presentation.appointments.formatAppointmentTitle
-import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.frames.components.FrameCard
 import com.eyecare.app.ui.theme.EyecareColors
 import java.time.LocalDate
 import java.time.LocalTime
@@ -88,7 +84,9 @@ fun HomeScreen(
     onNavigateToBooking: () -> Unit = {},
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
+    onNavigateToLinkAccount: () -> Unit = {},
     hasActivePatientLink: Boolean = true,
+    patientLinkStatus: PatientLinkStatus = PatientLinkStatus.UNLINKED,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -116,7 +114,9 @@ fun HomeScreen(
                 onNavigateToBooking = onNavigateToBooking,
                 onNavigateToFrames = onNavigateToFrames,
                 onNavigateToFrameDetail = onNavigateToFrameDetail,
+                onNavigateToLinkAccount = onNavigateToLinkAccount,
                 hasActivePatientLink = hasActivePatientLink,
+                patientLinkStatus = patientLinkStatus,
             )
         }
     }
@@ -169,7 +169,9 @@ fun HomeContent(
     onNavigateToBooking: () -> Unit = {},
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
+    onNavigateToLinkAccount: () -> Unit = {},
     hasActivePatientLink: Boolean = true,
+    patientLinkStatus: PatientLinkStatus = PatientLinkStatus.UNLINKED,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -194,13 +196,15 @@ fun HomeContent(
             )
         }
 
-        ClinicHoursCard()
-
         if (hasActivePatientLink) {
             state.nextAppointment?.let { appointment ->
                 VisitTicket(appointment = appointment, onClick = onNavigateToAppointments)
             } ?: BookingInvitation(onClick = onNavigateToBooking)
+        } else {
+            AccountLinkInvitation(linkStatus = patientLinkStatus, onClick = onNavigateToLinkAccount)
         }
+
+        ClinicHoursCard()
 
         if (state.featuredFrames.isNotEmpty()) {
             Card(
@@ -213,21 +217,31 @@ fun HomeContent(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = "Featured Frames",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "Browse our AR-ready collection",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Featured Frames",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = "Browse our AR-ready collection",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        TextButton(
+                            onClick = onNavigateToFrames,
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                        ) {
+                            Text("See all")
+                        }
                     }
                     HomeFrameShelf(
                         frames = state.featuredFrames,
-                        onSeeAll = onNavigateToFrames,
                         onFrameClick = onNavigateToFrameDetail,
                     )
                 }
@@ -354,7 +368,8 @@ private fun VisitTicket(
     val status = appointment.status.name
         .replace("_", " ")
         .lowercase(Locale.US)
-        .replaceFirstChar { it.titlecase(Locale.US) }
+        .split(" ")
+        .joinToString(" ") { word -> word.replaceFirstChar { it.titlecase(Locale.US) } }
 
     Card(
         onClick = onClick,
@@ -399,35 +414,35 @@ private fun VisitTicket(
                 Text(
                     text = "YOUR NEXT VISIT",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.72f),
+                    color = EyecareColors.current.onVisitNavy.copy(alpha = 0.72f),
                     letterSpacing = 0.8.sp,
                 )
                 Text(
                     text = formatAppointmentTitle(appointment.appointmentType),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
+                    color = EyecareColors.current.onVisitNavy,
                 )
                 Surface(
-                    color = Color.White.copy(alpha = 0.12f),
+                    color = EyecareColors.current.onVisitNavy.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Text(
                         text = status,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color.White,
+                        color = EyecareColors.current.onVisitNavy,
                     )
                 }
                 Text(
                     text = formattedDate,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White,
+                    color = EyecareColors.current.onVisitNavy,
                 )
                 Text(
                     text = formatAppointmentTime(appointment.scheduledAt),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.82f),
+                    color = EyecareColors.current.onVisitNavy.copy(alpha = 0.82f),
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -496,62 +511,104 @@ private fun BookingInvitation(onClick: () -> Unit) {
 }
 
 @Composable
-private fun HomeFrameShelf(
-    frames: List<Frame>,
-    onSeeAll: () -> Unit,
-    onFrameClick: (Int) -> Unit,
+private fun AccountLinkInvitation(
+    linkStatus: PatientLinkStatus,
+    onClick: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+    val isPending = linkStatus == PatientLinkStatus.PENDING_REVIEW
+    val tintColor = if (isPending) EyecareColors.current.statusPending else EyecareColors.current.accentText
+    val eyebrow = if (isPending) "CLINIC REVIEW PENDING" else "ACCOUNT NOT LINKED"
+    val headline = if (isPending) {
+        "Your clinic link is under review"
+    } else {
+        "Connect your clinic record"
+    }
+    val body = if (isPending) {
+        "We're reviewing your request. You can check its status or link with an invitation code instead."
+    } else {
+        "Link your account with an invitation code, or ask the clinic to review your request, to unlock appointments, prescriptions, and orders."
+    }
+    val buttonLabel = if (isPending) "View request status" else "Link your account"
+
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, tintColor.copy(alpha = 0.35f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Featured Frames", style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = onSeeAll, modifier = Modifier.defaultMinSize(minHeight = 48.dp)) {
-                Text("See all")
+            Surface(
+                color = tintColor.copy(alpha = 0.14f),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.size(36.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (isPending) Icons.Outlined.Schedule else Icons.Outlined.Bookmark,
+                        contentDescription = null,
+                        tint = tintColor,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
-        }
-        LazyRow(
-            contentPadding = PaddingValues(end = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            items(frames, key = { it.id }) { frame ->
-                FrameSummaryCard(frame = frame, onClick = { onFrameClick(frame.id) })
+            Text(
+                text = eyebrow,
+                style = MaterialTheme.typography.labelMedium,
+                color = tintColor,
+                letterSpacing = 0.8.sp,
+            )
+            Text(
+                text = headline,
+                style = MaterialTheme.typography.headlineMedium,
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = buttonLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EyecareColors.current.accentText,
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = null,
+                    tint = EyecareColors.current.accentText,
+                    modifier = Modifier.size(16.dp),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun FrameSummaryCard(frame: Frame, onClick: () -> Unit) {
-    val imageUrl = frame.variants.firstOrNull()?.images?.firstOrNull()?.let(::buildImageUrl)
-    Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.width(148.dp).height(224.dp),
+private fun HomeFrameShelf(
+    frames: List<Frame>,
+    onFrameClick: (Int) -> Unit,
+) {
+    LazyRow(
+        contentPadding = PaddingValues(end = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Column {
-            Box(
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                if (imageUrl != null) {
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = frame.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-            }
-            Column(Modifier.padding(8.dp)) {
-                Text(frame.name, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                frame.brand?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            }
+        items(frames, key = { it.id }) { frame ->
+            FrameCard(
+                frame = frame,
+                onClick = { onFrameClick(frame.id) },
+                modifier = Modifier.width(148.dp),
+            )
         }
     }
 }

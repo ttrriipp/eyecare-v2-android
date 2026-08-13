@@ -35,6 +35,7 @@ import com.eyecare.app.domain.model.SessionState
 import com.eyecare.app.domain.model.requiresAppointmentRequestIdentity
 import com.eyecare.app.domain.model.toAppointmentRequestIdentityOrNull
 import com.eyecare.app.domain.model.canAccessPatientFeatures
+import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
@@ -286,6 +287,11 @@ fun EyecareNavGraph(
                 // Main graph
                 navigation<MainGraph>(startDestination = Home) {
                     composable<Home> {
+                        val homeLinkStatus = when (val state = sessionState) {
+                            is SessionState.Linked -> state.account.linkStatus
+                            is SessionState.Limited -> state.account.linkStatus
+                            else -> PatientLinkStatus.UNKNOWN
+                        }
                         HomeScreen(
                             onNavigateToAppointments = {
                                 navigateMainTab(Appointments)
@@ -295,12 +301,17 @@ fun EyecareNavGraph(
                                 navigateMainTab(Frames)
                             },
                             onNavigateToFrameDetail = { navigatePatientFeature(FrameDetail(it)) },
+                            onNavigateToLinkAccount = ::openAccountLink,
                             hasActivePatientLink = canAccessPatientFeatures(sessionState),
+                            patientLinkStatus = homeLinkStatus,
                         )
                     }
                     composable<Frames> {
                         FrameListScreen(
                             onNavigateToDetail = { id -> navigatePatientFeature(FrameDetail(id)) },
+                            onNavigateToTryOn = { frameId, variantId ->
+                                navigatePatientFeature(ArTryOn(frameId, variantId))
+                            },
                         )
                     }
                     composable<FrameDetail> { backStackEntry ->

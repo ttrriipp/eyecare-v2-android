@@ -40,7 +40,7 @@ data class ContactVerifyRequest(
 
 @Serializable
 data class StepUpOtpRequest(
-    val purpose: String = "sensitive_change",
+    val purpose: String,
 )
 
 @Serializable

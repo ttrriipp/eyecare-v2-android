@@ -41,7 +41,7 @@ class AccountRepositoryImpl @Inject constructor(
     }
 
     override suspend fun requestStepUpOtp(): Result<StepUpChallenge> = safeApiCall {
-        val response = api.requestStepUpOtp(StepUpOtpRequest())
+        val response = api.requestStepUpOtp(StepUpOtpRequest(purpose = "sensitive_change"))
         StepUpChallenge(
             challengeId = response.data.challengeId,
             expiresAt = response.data.expiresAt,

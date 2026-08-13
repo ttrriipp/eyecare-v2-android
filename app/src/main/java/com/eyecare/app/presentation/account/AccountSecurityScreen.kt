@@ -12,12 +12,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -27,6 +27,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -45,10 +46,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.eyecare.app.domain.model.AccountContact
 import com.eyecare.app.domain.model.ContactType
+import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.ContactField
 import com.eyecare.app.presentation.auth.components.ContactMethod
@@ -67,7 +70,7 @@ fun AccountSecurityScreen(
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.loadContacts()
+        viewModel.loadAccount()
     }
 
     when (val s = state) {
@@ -82,16 +85,35 @@ fun AccountSecurityScreen(
                 }
             }
         }
-        is AccountSecurityState.Overview -> ContactOverviewContent(s, viewModel, onSignedOut, onBack)
+        is AccountSecurityState.Overview -> AccountSecurityOverviewContent(
+            state = s,
+            onBack = onBack,
+            onEdit = viewModel::startAccountEditing,
+            onCancelEdit = viewModel::cancelAccountEditing,
+            onFirstNameChange = viewModel::updateAccountFirstName,
+            onLastNameChange = viewModel::updateAccountLastName,
+            onSave = viewModel::saveAccountDetails,
+            onChangePassword = { viewModel.startStepUp(StepUpAction.ChangePassword) },
+            onSignOut = viewModel::logout,
+            onSignOutAll = viewModel::logoutAll,
+        )
         is AccountSecurityState.EnterNewContact -> EnterNewContactContent(s, viewModel)
         is AccountSecurityState.StepUpOtp -> StepUpOtpContent(s, viewModel)
         is AccountSecurityState.AddContactOtp -> AddContactOtpContent(s, viewModel)
         is AccountSecurityState.ChangePassword -> ChangePasswordContent(s, viewModel)
         is AccountSecurityState.Result -> {
-            LaunchedEffect(s.message) { viewModel.loadContacts() }
-            ContactOverviewContent(
-                AccountSecurityState.Overview(contacts = s.contacts),
-                viewModel, onSignedOut, onBack,
+            LaunchedEffect(s.message) { viewModel.loadAccount() }
+            AccountSecurityOverviewContent(
+                state = AccountSecurityState.Overview(account = s.account),
+                onBack = onBack,
+                onEdit = viewModel::startAccountEditing,
+                onCancelEdit = viewModel::cancelAccountEditing,
+                onFirstNameChange = viewModel::updateAccountFirstName,
+                onLastNameChange = viewModel::updateAccountLastName,
+                onSave = viewModel::saveAccountDetails,
+                onChangePassword = { viewModel.startStepUp(StepUpAction.ChangePassword) },
+                onSignOut = viewModel::logout,
+                onSignOutAll = viewModel::logoutAll,
             )
         }
         is AccountSecurityState.SignedOut -> {
@@ -101,11 +123,17 @@ fun AccountSecurityScreen(
 }
 
 @Composable
-private fun ContactOverviewContent(
+fun AccountSecurityOverviewContent(
     state: AccountSecurityState.Overview,
-    viewModel: AccountSecurityViewModel,
-    onSignedOut: () -> Unit,
     onBack: () -> Unit,
+    onEdit: () -> Unit,
+    onCancelEdit: () -> Unit,
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onChangePassword: () -> Unit,
+    onSignOut: () -> Unit,
+    onSignOutAll: () -> Unit,
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showLogoutAllDialog by remember { mutableStateOf(false) }
@@ -119,40 +147,20 @@ private fun ContactOverviewContent(
                 Text(state.error, color = MaterialTheme.colorScheme.error)
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = "Contacts",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
+            state.account?.let { account ->
+                AccountDetailsContent(
+                    account = account,
+                    isEditing = state.isEditingAccount,
+                    isSaving = state.isSavingAccount,
+                    firstName = state.editFirstName,
+                    lastName = state.editLastName,
+                    saveError = state.accountSaveError,
+                    onEdit = onEdit,
+                    onCancel = onCancelEdit,
+                    onFirstNameChange = onFirstNameChange,
+                    onLastNameChange = onLastNameChange,
+                    onSave = onSave,
                 )
-
-                Card(
-                    shape = MaterialTheme.shapes.medium,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column {
-                        state.contacts.forEachIndexed { index, contact ->
-                            if (index > 0) AccountSecurityDivider()
-                            ContactRow(
-                                contact = contact,
-                                onMakePrimary = { viewModel.startStepUp(StepUpAction.MakePrimary(contact.id)) },
-                                onRemove = { viewModel.startStepUp(StepUpAction.RemoveContact(contact.id)) },
-                            )
-                        }
-                    }
-                }
-
-                OutlinedButton(
-                    onClick = { viewModel.startAddContact() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary,
-                    ),
-                ) { Text("Add contact", fontWeight = FontWeight.SemiBold) }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -172,7 +180,7 @@ private fun ContactOverviewContent(
                         SettingsNavRow(
                             icon = Icons.Outlined.Lock,
                             label = "Change password",
-                            onClick = { viewModel.startStepUp(StepUpAction.ChangePassword) },
+                            onClick = onChangePassword,
                         )
                         AccountSecurityDivider()
                         SettingsNavRow(
@@ -206,7 +214,7 @@ private fun ContactOverviewContent(
             dismissLabel = "Cancel",
             onConfirm = {
                 showLogoutDialog = false
-                viewModel.logout()
+                onSignOut()
             },
             onDismissRequest = { showLogoutDialog = false },
             iconTint = MaterialTheme.colorScheme.error,
@@ -223,7 +231,7 @@ private fun ContactOverviewContent(
             dismissLabel = "Cancel",
             onConfirm = {
                 showLogoutAllDialog = false
-                viewModel.logoutAll()
+                onSignOutAll()
             },
             onDismissRequest = { showLogoutAllDialog = false },
             iconTint = MaterialTheme.colorScheme.error,
@@ -233,71 +241,167 @@ private fun ContactOverviewContent(
 }
 
 @Composable
-private fun ContactRow(
-    contact: AccountContact,
-    onMakePrimary: () -> Unit,
-    onRemove: () -> Unit,
+fun AccountDetailsContent(
+    account: PatientAccount,
+    isEditing: Boolean,
+    isSaving: Boolean,
+    firstName: String,
+    lastName: String,
+    saveError: String?,
+    onEdit: () -> Unit,
+    onCancel: () -> Unit,
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
+    onSave: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier.size(40.dp),
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = if (contact.type == ContactType.EMAIL) Icons.Outlined.Email else Icons.Outlined.Phone,
-                    contentDescription = null,
-                    tint = EyecareColors.current.accentText,
-                    modifier = Modifier.size(21.dp),
-                )
+            Text(
+                text = "Account details",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (!isEditing) {
+                TextButton(onClick = onEdit) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text("Edit")
+                }
             }
         }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = contact.maskedValue,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (contact.isPrimary) {
-                    Text(
-                        text = "Primary",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = EyecareColors.current.accentText,
+        Card(
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (isEditing) {
+                    OutlinedTextField(
+                        value = firstName,
+                        onValueChange = onFirstNameChange,
+                        label = { Text("First name") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = lastName,
+                        onValueChange = onLastNameChange,
+                        label = { Text("Last name") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Done,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                if (contact.verifiedAt == null) {
+
+                if (!isEditing) {
+                    AccountDetailRow("First name", displayAccountValue(account.firstName))
+                    AccountDetailRow("Last name", displayAccountValue(account.lastName))
+                }
+                AccountDetailRow("Middle name", displayAccountValue(account.middleName))
+                AccountDetailRow("Email", displayAccountValue(account.email))
+                AccountDetailRow("Phone", displayAccountValue(account.phone))
+                AccountDetailRow("Date of birth", formatAccountDate(account.dateOfBirth))
+
+                if (saveError != null) {
                     Text(
-                        text = "Pending",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = saveError,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-            }
-        }
 
-        if (!contact.isPrimary && contact.verifiedAt != null) {
-            TextButton(onClick = onMakePrimary) {
-                Text("Make primary", style = MaterialTheme.typography.labelMedium)
-            }
-        }
-        if (!contact.isPrimary) {
-            TextButton(onClick = onRemove) {
-                Text(
-                    "Remove",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                if (isEditing) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = onCancel,
+                            enabled = !isSaving,
+                            modifier = Modifier.weight(1f).height(48.dp),
+                        ) {
+                            Text("Cancel")
+                        }
+                        Button(
+                            onClick = onSave,
+                            enabled = !isSaving,
+                            modifier = Modifier.weight(1f).height(48.dp),
+                        ) {
+                            if (isSaving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Text("Save")
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
+
+@Composable
+private fun AccountDetailRow(label: String, value: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+    }
+}
+
+private fun displayAccountValue(value: String?): String = value?.takeIf { it.isNotBlank() } ?: "Not provided"
+
+private fun formatAccountDate(value: String?): String {
+    val parts = value?.split("-") ?: return "Not provided"
+    if (parts.size != 3) return displayAccountValue(value)
+    val month = parts[1].toIntOrNull()?.let { accountMonthNames.getOrNull(it - 1) }
+        ?: return displayAccountValue(value)
+    return "$month ${parts[2].toIntOrNull() ?: parts[2]}, ${parts[0]}"
+}
+
+private val accountMonthNames = listOf(
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
 
 @Composable
 private fun EnterNewContactContent(
