@@ -34,9 +34,19 @@ class AppointmentRequestListViewModel @Inject constructor(
     val state: StateFlow<RequestListState> = _state.asStateFlow()
 
     private val seenIds = mutableSetOf<Int>()
+    private var hasBeenResumed = false
 
     init {
         loadInitial()
+    }
+
+    /**
+     * Refresh when an existing ViewModel is shown again after navigation. The first resume is
+     * covered by the initial load, so it does not start a duplicate request.
+     */
+    fun onScreenResumed() {
+        if (hasBeenResumed) refresh()
+        hasBeenResumed = true
     }
 
     fun loadInitial() {

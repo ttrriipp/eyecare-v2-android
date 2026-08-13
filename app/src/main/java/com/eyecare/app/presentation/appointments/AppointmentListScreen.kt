@@ -104,7 +104,6 @@ fun AppointmentListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val requestState by requestViewModel.state.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val hasResumedOnce = remember { mutableStateOf(false) }
 
     LaunchedEffect(hasActivePatientLink) {
         viewModel.load(hasActivePatientLink)
@@ -113,8 +112,7 @@ fun AppointmentListScreen(
     DisposableEffect(lifecycleOwner, requestViewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                if (hasResumedOnce.value) requestViewModel.refresh()
-                hasResumedOnce.value = true
+                requestViewModel.onScreenResumed()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

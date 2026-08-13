@@ -102,6 +102,24 @@ class AppointmentRequestListViewModelTest {
     }
 
     @Test
+    fun `resuming an existing list refreshes retained ViewModel state`() {
+        coEvery { repo.getRequests(1, 15) } returns Result.success(
+            PaginatedResult(listOf(fakeRequest(1)), 1, 1, 1)
+        )
+        vm = AppointmentRequestListViewModel(repo)
+
+        vm.onScreenResumed()
+
+        coEvery { repo.getRequests(1, 15) } returns Result.success(
+            PaginatedResult(listOf(fakeRequest(2)), 1, 1, 1)
+        )
+        vm.onScreenResumed()
+
+        val state = vm.state.value as RequestListState.Data
+        assertEquals(2, state.requests.single().id)
+    }
+
+    @Test
     fun `append failure preserves existing data`() {
         coEvery { repo.getRequests(1, 15) } returns Result.success(
             PaginatedResult(listOf(fakeRequest(1)), 1, 2, 2)
