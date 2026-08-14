@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.LoginOutcome
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -62,6 +63,7 @@ class AuthRepositoryImplTest {
         val outcome = result.getOrThrow()
         assertTrue(outcome is LoginOutcome.Authenticated)
         assertEquals("tok123", (outcome as LoginOutcome.Authenticated).token)
+        verify(exactly = 1) { tokenManager.saveToken("tok123") }
     }
 
     @Test

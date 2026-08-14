@@ -117,7 +117,11 @@ class AuthRepositoryImpl @Inject constructor(
                 installationId = installationId ?: deviceIdentityProvider.getOrCreateInstallationId(),
             ),
         )
-        mapLoginResponse(response)
+        val outcome = mapLoginResponse(response)
+        if (outcome is LoginOutcome.Authenticated) {
+            tokenManager.saveToken(outcome.token)
+        }
+        outcome
     }
 
     override suspend fun verifyLogin(
