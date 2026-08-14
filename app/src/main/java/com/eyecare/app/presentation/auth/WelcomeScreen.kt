@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.auth
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,8 +40,13 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             // ── Logo ──────────────────────────────────────────────────────────
+            val logoRes = if (isSystemInDarkTheme()) {
+                com.eyecare.app.R.drawable.ic_eyecare_logo_dark
+            } else {
+                com.eyecare.app.R.drawable.ic_eyecare_logo_1
+            }
             Image(
-                painter = painterResource(id = com.eyecare.app.R.drawable.welcome_logo),
+                painter = painterResource(id = logoRes),
                 contentDescription = "Eyecare logo",
                 modifier = Modifier.size(475.dp),
                 contentScale = ContentScale.Fit,
