@@ -6,9 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -20,9 +18,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.frames.FrameListFilters
-import com.eyecare.app.presentation.frames.FrameSortOption
 import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
@@ -42,7 +36,6 @@ fun FrameCatalogControls(
     filters: FrameListFilters,
     brands: List<String>,
     categories: List<String>,
-    onSelectSort: (FrameSortOption) -> Unit,
     onSelectBrand: (String?) -> Unit,
     onSelectCategory: (String?) -> Unit,
     onSetArOnly: (Boolean) -> Unit,
@@ -90,30 +83,6 @@ fun FrameCatalogControls(
                 ) {
                     Text("Clear")
                 }
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        SingleChoiceSegmentedButtonRow {
-            FrameSortOption.entries.forEach { option ->
-                SegmentedButton(
-                    selected = filters.sort == option,
-                    onClick = { onSelectSort(option) },
-                    shape = SegmentedButtonDefaults.itemShape(
-                        index = option.ordinal,
-                        count = FrameSortOption.entries.size,
-                    ),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                        activeContentColor = EyecareColors.current.accentText,
-                        activeBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                        inactiveContainerColor = MaterialTheme.colorScheme.surface,
-                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    ),
-                    label = { Text(option.label) },
-                )
             }
         }
     }

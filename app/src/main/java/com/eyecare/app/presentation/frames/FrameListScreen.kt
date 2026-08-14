@@ -77,12 +77,6 @@ fun FrameListScreen(
                 style = MaterialTheme.typography.displayLarge,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
-            Text(
-                text = "Try frames virtually, then reserve your favorite for your visit.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 4.dp),
-            )
 
             val filters = (uiState as? FrameListUiState.Success)?.filters ?: FrameListFilters()
             var query by rememberSaveable { mutableStateOf(filters.search) }
@@ -171,7 +165,6 @@ fun FrameListScreen(
                                     filters = state.filters,
                                     brands = brands,
                                     categories = categories,
-                                    onSelectSort = viewModel::selectSort,
                                     onSelectBrand = viewModel::selectBrand,
                                     onSelectCategory = viewModel::selectCategory,
                                     onSetArOnly = viewModel::setArOnly,

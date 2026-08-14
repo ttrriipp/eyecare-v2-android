@@ -300,15 +300,6 @@ fun FrameDetailScreen(
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
-                                            Text(
-                                                text = if (selected.isArReady) {
-                                                    "AR-ready — try it on"
-                                                } else {
-                                                    "Virtual try-on unavailable for this option"
-                                                },
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = EyecareColors.current.accentText,
-                                            )
                                         }
                                     }
 
@@ -428,15 +419,6 @@ fun FrameDetailScreen(
                                 .navigationBarsPadding(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text(
-                                text = if (selected.isArReady) {
-                                    "AR-ready — try it on before you reserve."
-                                } else {
-                                    "Virtual try-on isn't available for this option."
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),

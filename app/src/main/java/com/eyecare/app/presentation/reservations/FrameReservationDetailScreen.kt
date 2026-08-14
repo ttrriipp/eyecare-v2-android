@@ -77,6 +77,7 @@ fun FrameReservationDetailScreen(
     onBack: () -> Unit,
     onViewAppointment: (Int) -> Unit,
     onViewFrame: (Int) -> Unit,
+    onAddFrame: () -> Unit,
     viewModel: FrameReservationDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -122,7 +123,10 @@ fun FrameReservationDetailScreen(
                 onViewAppointment = onViewAppointment,
                 onViewFrame = onViewFrame,
                 onDelete = viewModel::deleteReservation,
+                onRemoveItem = viewModel::removeItem,
+                onAddFrame = onAddFrame,
                 onDismissDeleteError = viewModel::dismissDeleteError,
+                onDismissRemoveItemError = viewModel::dismissRemoveItemError,
                 modifier = Modifier.padding(padding),
             )
 
@@ -138,10 +142,10 @@ fun ReservationDetailContent(
     onViewAppointment: (Int) -> Unit,
     onViewFrame: (Int) -> Unit,
     onDelete: () -> Unit,
-    onRemoveItem: (Int) -> Unit = {},
-    onAddFrame: () -> Unit = {},
-    onDismissDeleteError: () -> Unit = {},
-    onDismissRemoveItemError: () -> Unit = {},
+    onRemoveItem: (Int) -> Unit,
+    onAddFrame: () -> Unit,
+    onDismissDeleteError: () -> Unit,
+    onDismissRemoveItemError: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val reservation = state.reservation
