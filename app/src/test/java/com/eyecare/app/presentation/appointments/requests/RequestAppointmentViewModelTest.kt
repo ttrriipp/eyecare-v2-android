@@ -11,6 +11,7 @@ import com.eyecare.app.domain.model.AppointmentRequestTypeSummary
 import com.eyecare.app.domain.model.AppointmentType
 import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
+import com.eyecare.app.presentation.appointments.DayAvailability
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

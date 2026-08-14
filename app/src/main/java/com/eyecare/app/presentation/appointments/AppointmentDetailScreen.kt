@@ -130,9 +130,12 @@ fun AppointmentDetailScreen(
         if (state.showRescheduleSheet) {
             RescheduleBottomSheet(
                 currentScheduledAt = state.appointment.scheduledAt,
+                weekStart = state.rescheduleWeekStart,
+                dayAvailability = state.rescheduleDayAvailability,
                 availabilityState = state.rescheduleAvailability,
                 isSubmitting = state.isRescheduling,
                 errorMessage = state.rescheduleError,
+                onShowWeek = viewModel::loadRescheduleWeekAvailability,
                 onDateChanged = viewModel::loadRescheduleAvailability,
                 onRetryAvailability = {
                     (state.rescheduleAvailability as? RescheduleAvailabilityState.Error)

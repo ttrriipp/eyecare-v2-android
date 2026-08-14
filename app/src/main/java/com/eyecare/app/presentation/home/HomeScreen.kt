@@ -252,7 +252,7 @@ fun HomeContent(
 
 @Composable
 private fun ClinicHoursCard() {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(true) }
     val today = remember { LocalDate.now() }
     val dayName = remember(today) {
         today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, Locale.getDefault())

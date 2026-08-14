@@ -9,6 +9,16 @@ import java.time.format.DateTimeFormatter
 
 internal val CLINIC_TIME_ZONE: ZoneId = ZoneId.of("Asia/Manila")
 
+/** Days shown at once in a week-strip date picker (reschedule sheet, appointment requests). */
+internal const val availabilityWeekLength = 7
+
+/**
+ * How a single date in a week strip looks before the patient commits to it. The clinic's
+ * availability endpoint answers one date per call, so a week strip fetches its whole week in
+ * parallel and caches the verdict per date.
+ */
+enum class DayAvailability { UNKNOWN, LOADING, OPEN, CLOSED, FULL }
+
 internal fun formatClinicScheduledAt(date: String, time: String): String =
     LocalDate.parse(date)
         .atTime(LocalTime.parse(time))

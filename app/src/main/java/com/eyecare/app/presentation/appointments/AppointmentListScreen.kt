@@ -857,13 +857,19 @@ private fun AppointmentRequestCard(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            AppointmentRequestStatusPill(request.status, presentation.label)
-            Text(
-                text = "Request ${request.requestNumber}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Request ${request.requestNumber}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                AppointmentRequestStatusPill(request.status, presentation.label)
+            }
             val durationMinutes = request.provisionalDurationMinutes
                 ?: request.appointmentType?.durationMinutes
             val requestSummary = listOfNotNull(

@@ -11,6 +11,8 @@ import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentType
 import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
+import com.eyecare.app.presentation.appointments.DayAvailability
+import com.eyecare.app.presentation.appointments.availabilityWeekLength
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -31,16 +33,6 @@ private const val maxIdentityFieldLength = 255
 private const val maxReferralLength = 255
 private const val maxReasonLength = 1000
 internal const val maxAlternatives = 2
-
-/** Days shown at once in the schedule step's date strip. */
-internal const val availabilityWeekLength = 7
-
-/**
- * How a single date in the week strip looks before the patient commits to it. The clinic's
- * availability endpoint answers one date per call, so the strip fetches its whole week in
- * parallel and caches the verdict per date.
- */
-enum class DayAvailability { UNKNOWN, LOADING, OPEN, CLOSED, FULL }
 
 /**
  * Which selection the schedule list is currently collecting. Splitting this into two explicit

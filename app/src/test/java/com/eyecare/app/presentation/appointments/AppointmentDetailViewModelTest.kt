@@ -23,6 +23,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppointmentDetailViewModelTest {
@@ -47,6 +50,23 @@ class AppointmentDetailViewModelTest {
         assignedOptometrist = null,
     )
 
+    private fun fakeAvailability(
+        date: String = "2026-07-14",
+        dayStatus: String = "open",
+        slots: List<AppointmentSlot> = emptyList(),
+    ) = AppointmentAvailability(
+        date = date,
+        timezone = "Asia/Manila",
+        intervalMinutes = 15,
+        visitReasonId = 1,
+        visitDurationMinutes = 15,
+        optometristId = null,
+        appointmentId = 4,
+        dayStatus = dayStatus,
+        generatedAt = "2026-07-13T12:00:00Z",
+        slots = slots,
+    )
+
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
@@ -54,6 +74,10 @@ class AppointmentDetailViewModelTest {
         reservations = mockk()
         coEvery { appointments.getAppointment(4) } returns Result.success(appointment)
         coEvery { reservations.getReservations() } returns Result.success(emptyList())
+        // Week-strip prefetch fans out to every visible date; a catch-all keeps tests
+        // independent of which real-world week "today" falls in.
+        coEvery { appointments.getAppointmentAvailability(any(), any()) } returns
+            Result.success(fakeAvailability())
         viewModel = AppointmentDetailViewModel(
             repository = appointments,
             reservationRepository = reservations,
@@ -144,20 +168,7 @@ class AppointmentDetailViewModelTest {
     fun `reschedule failure shows error message`() = runTest {
         coEvery {
             appointments.getAppointmentAvailability("2026-07-14", 4)
-        } returns Result.success(
-            AppointmentAvailability(
-                date = "2026-07-14",
-                timezone = "Asia/Manila",
-                intervalMinutes = 15,
-                visitReasonId = 1,
-                visitDurationMinutes = 15,
-                optometristId = null,
-                appointmentId = 4,
-                dayStatus = "open",
-                generatedAt = "2026-07-13T12:00:00Z",
-                slots = emptyList(),
-            ),
-        )
+        } returns Result.success(fakeAvailability())
         coEvery {
             appointments.rescheduleAppointment(4, any())
         } returns Result.failure(RuntimeException("Slot taken"))
@@ -215,16 +226,7 @@ class AppointmentDetailViewModelTest {
 
     @Test
     fun openingRescheduleLoadsAuthoritativeSlotsForCurrentClinicDay() = runTest {
-        val availability = AppointmentAvailability(
-            date = "2026-07-14",
-            timezone = "Asia/Manila",
-            intervalMinutes = 15,
-            visitReasonId = 1,
-            visitDurationMinutes = 15,
-            optometristId = null,
-            appointmentId = 4,
-            dayStatus = "open",
-            generatedAt = "2026-07-13T12:00:00Z",
+        val availability = fakeAvailability(
             slots = listOf(
                 AppointmentSlot(
                     startsAt = "2026-07-14T02:00:00Z",
@@ -267,5 +269,66 @@ class AppointmentDetailViewModelTest {
             ),
             state.rescheduleAvailability,
         )
+    }
+
+    @Test
+    fun openingRescheduleSeedsWeekStripDayVerdicts() = runTest {
+        val openSlot = AppointmentSlot(
+            startsAt = "2026-07-14T02:00:00Z",
+            endsAt = "2026-07-14T02:15:00Z",
+            available = true,
+            reason = null,
+        )
+        coEvery {
+            appointments.getAppointmentAvailability(any(), any())
+        } returns Result.success(fakeAvailability(slots = listOf(openSlot)))
+
+        viewModel.showRescheduleSheet()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
+        assertTrue(state.rescheduleWeekStart != null)
+        assertTrue(state.rescheduleDayAvailability.isNotEmpty())
+        assertTrue(state.rescheduleDayAvailability.values.all { it == DayAvailability.OPEN })
+    }
+
+    @Test
+    fun rescheduleWeekPrefetchClassifiesClosedDays() = runTest {
+        val weekStart = LocalDate.now(CLINIC_TIME_ZONE)
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .toString()
+        coEvery {
+            appointments.getAppointmentAvailability(any(), any())
+        } returns Result.success(fakeAvailability(dayStatus = "closed"))
+
+        viewModel.loadRescheduleWeekAvailability(weekStart)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
+        assertEquals(weekStart, state.rescheduleWeekStart)
+        assertTrue(state.rescheduleDayAvailability.values.isNotEmpty())
+        assertTrue(state.rescheduleDayAvailability.values.all { it == DayAvailability.CLOSED })
+    }
+
+    @Test
+    fun rescheduleWeekPrefetchMarksFullyBookedDayAsFull() = runTest {
+        val weekStart = LocalDate.now(CLINIC_TIME_ZONE)
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .toString()
+        val bookedSlot = AppointmentSlot(
+            startsAt = "2026-07-14T02:00:00Z",
+            endsAt = "2026-07-14T02:15:00Z",
+            available = false,
+            reason = null,
+        )
+        coEvery {
+            appointments.getAppointmentAvailability(any(), any())
+        } returns Result.success(fakeAvailability(slots = listOf(bookedSlot)))
+
+        viewModel.loadRescheduleWeekAvailability(weekStart)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AppointmentDetailUiState.Success
+        assertTrue(state.rescheduleDayAvailability.values.all { it == DayAvailability.FULL })
     }
 }

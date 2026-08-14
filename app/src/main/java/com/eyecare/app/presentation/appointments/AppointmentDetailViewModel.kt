@@ -13,10 +13,15 @@ import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.FrameReservationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
 sealed interface RescheduleAvailabilityState {
@@ -40,6 +45,8 @@ sealed interface AppointmentDetailUiState {
         val showRescheduleSheet: Boolean = false,
         val isRescheduling: Boolean = false,
         val rescheduleError: String? = null,
+        val rescheduleWeekStart: String? = null,
+        val rescheduleDayAvailability: Map<String, DayAvailability> = emptyMap(),
         val rescheduleAvailability: RescheduleAvailabilityState = RescheduleAvailabilityState.Idle,
         val showRescheduleSuccessDialog: Boolean = false,
         val showRatingDialog: Boolean = false,
@@ -61,6 +68,8 @@ class AppointmentDetailViewModel @Inject constructor(
     private val appointmentId: Int = savedStateHandle["appointmentId"] ?: -1
     private var availabilityJob: Job? = null
     private var availabilityGeneration = 0L
+    private var weekJob: Job? = null
+    private var weekGeneration = 0L
 
     private val _uiState = MutableStateFlow<AppointmentDetailUiState>(
         if (savedStateHandle.get<Int>("appointmentId") != null) AppointmentDetailUiState.Loading
@@ -112,13 +121,21 @@ class AppointmentDetailViewModel @Inject constructor(
             ?.toLocalDate()
             ?.toString()
             ?: current.appointment.scheduledAt.take(10)
+        val today = LocalDate.now(CLINIC_TIME_ZONE)
+        val appointmentWeekStart = runCatching { LocalDate.parse(date) }.getOrDefault(today)
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val currentWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val weekStart = maxOf(appointmentWeekStart, currentWeekStart).toString()
 
         _uiState.value = current.copy(
             showRescheduleSheet = true,
             rescheduleError = null,
+            rescheduleWeekStart = weekStart,
+            rescheduleDayAvailability = emptyMap(),
             rescheduleAvailability = RescheduleAvailabilityState.Idle,
             actionMessage = null,
         )
+        loadRescheduleWeekAvailability(weekStart)
         loadRescheduleAvailability(date)
     }
 
@@ -128,11 +145,62 @@ class AppointmentDetailViewModel @Inject constructor(
 
         availabilityJob?.cancel()
         availabilityGeneration++
+        weekJob?.cancel()
+        weekGeneration++
         _uiState.value = current.copy(
             showRescheduleSheet = false,
             rescheduleError = null,
             rescheduleAvailability = RescheduleAvailabilityState.Idle,
         )
+    }
+
+    /** The seven dates a reschedule week strip shows, starting at [weekStart]. */
+    private fun rescheduleWeekDates(weekStart: String): List<LocalDate> {
+        val start = runCatching { LocalDate.parse(weekStart) }
+            .getOrElse { LocalDate.now(CLINIC_TIME_ZONE) }
+        return (0 until availabilityWeekLength).map { start.plusDays(it.toLong()) }
+    }
+
+    /**
+     * Fetches all seven visible days in parallel so the strip can mark each one open, closed, or
+     * fully booked before the patient commits a tap. The reschedule availability endpoint answers
+     * one date per call, which is why this fans out rather than requesting a range.
+     */
+    fun loadRescheduleWeekAvailability(weekStart: String) {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+
+        weekJob?.cancel()
+        val generation = ++weekGeneration
+        val today = LocalDate.now(CLINIC_TIME_ZONE)
+        val dates = rescheduleWeekDates(weekStart).filter { !it.isBefore(today) }
+
+        _uiState.value = current.copy(
+            rescheduleWeekStart = weekStart,
+            rescheduleDayAvailability = current.rescheduleDayAvailability +
+                dates.associate { it.toString() to DayAvailability.LOADING },
+        )
+
+        weekJob = viewModelScope.launch {
+            val results = dates.map { date ->
+                async {
+                    date.toString() to repository.getAppointmentAvailability(date.toString(), appointmentId)
+                }
+            }.awaitAll()
+
+            if (weekGeneration != generation) return@launch
+            val latest = _uiState.value as? AppointmentDetailUiState.Success ?: return@launch
+
+            val resolved = results.associate { (date, result) ->
+                date to result.fold(
+                    onSuccess = { availability -> dayAvailabilityVerdict(availability) },
+                    onFailure = { DayAvailability.UNKNOWN },
+                )
+            }
+            _uiState.value = latest.copy(
+                rescheduleDayAvailability = latest.rescheduleDayAvailability + resolved,
+            )
+        }
     }
 
     fun loadRescheduleAvailability(date: String) {
@@ -155,6 +223,8 @@ class AppointmentDetailViewModel @Inject constructor(
                         _uiState.value = latest.copy(
                             rescheduleAvailability = RescheduleAvailabilityState.Success(availability),
                             rescheduleError = null,
+                            rescheduleDayAvailability = latest.rescheduleDayAvailability +
+                                (date to dayAvailabilityVerdict(availability)),
                         )
                     }
                 },
@@ -286,6 +356,8 @@ class AppointmentDetailViewModel @Inject constructor(
     private fun load() {
         availabilityJob?.cancel()
         availabilityGeneration++
+        weekJob?.cancel()
+        weekGeneration++
         viewModelScope.launch {
             val appointmentResult = repository.getAppointment(appointmentId)
             appointmentResult.fold(
@@ -306,6 +378,12 @@ class AppointmentDetailViewModel @Inject constructor(
             )
         }
     }
+}
+
+private fun dayAvailabilityVerdict(availability: AppointmentAvailability): DayAvailability = when {
+    !availability.dayStatus.equals("open", ignoreCase = true) -> DayAvailability.CLOSED
+    availability.slots.none { it.available } -> DayAvailability.FULL
+    else -> DayAvailability.OPEN
 }
 
 private enum class AppointmentAction {
