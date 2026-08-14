@@ -2,12 +2,14 @@ package com.eyecare.app.presentation.home
 
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.ClinicHoursDay
 import com.eyecare.app.domain.model.EyeMeasurement
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.domain.model.PrescriptionMeasurementGroup
 import com.eyecare.app.domain.model.PrescriptionMeasurements
 import com.eyecare.app.domain.repository.AppointmentV1Repository
+import com.eyecare.app.domain.repository.ClinicRepository
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.domain.repository.PrescriptionRepository
@@ -35,6 +37,18 @@ class HomeViewModelTest {
     private lateinit var appointmentRepo: AppointmentV1Repository
     private lateinit var frameRepo: FrameRepository
     private lateinit var prescriptionRepo: PrescriptionRepository
+    private lateinit var clinicRepo: ClinicRepository
+
+    private val sampleClinicHours = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+        .mapIndexed { weekday, name ->
+            ClinicHoursDay(
+                weekday = weekday,
+                dayName = name,
+                enabled = weekday != 0,
+                openTime = if (weekday != 0) "09:00" else null,
+                closeTime = if (weekday != 0) "17:00" else null,
+            )
+        }
 
     private val futureAppt = AppointmentV1(1, "APT-001", "New Patient", 30, null, AppointmentStatus.SCHEDULED,
         "${LocalDate.now().plusDays(3)}T10:00:00+08:00", null, null, null, "mobile", null)
@@ -66,15 +80,17 @@ class HomeViewModelTest {
         appointmentRepo = mockk()
         frameRepo = mockk()
         prescriptionRepo = mockk()
+        clinicRepo = mockk()
         coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { frameRepo.getFrames(any()) } returns Result.success(emptyList())
         coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
+        coEvery { clinicRepo.getClinicHours() } returns Result.success(sampleClinicHours)
     }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo).also { it.load() }
+    private fun vm() = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo, clinicRepo).also { it.load() }
 
     @Test
     fun `nextAppointment is the soonest future scheduled appointment`() = runTest {
@@ -125,7 +141,7 @@ class HomeViewModelTest {
 
     @Test
     fun `limited load keeps account-safe home data and loads featured frames`() = runTest {
-        val limitedVm = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo)
+        val limitedVm = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo, clinicRepo)
         coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
 
         limitedVm.load(hasActivePatientLink = false)
@@ -134,9 +150,27 @@ class HomeViewModelTest {
         assertNull(state.nextAppointment)
         assertNull(state.currentPrescription)
         assertEquals(listOf(frame(1)), state.featuredFrames)
+        assertEquals(sampleClinicHours, state.clinicHours)
         coVerify(exactly = 0) { appointmentRepo.getAppointments(any()) }
         coVerify(exactly = 1) { frameRepo.getFrames(any()) }
         coVerify(exactly = 0) { prescriptionRepo.getPrescriptions(any()) }
+        coVerify(exactly = 1) { clinicRepo.getClinicHours() }
+    }
+
+    @Test
+    fun `clinicHours passes through from repository on linked load`() = runTest {
+        val state = vm().uiState.value as HomeUiState.Success
+        assertEquals(sampleClinicHours, state.clinicHours)
+    }
+
+    @Test
+    fun `clinicHours failure does not hide other home content`() = runTest {
+        coEvery { clinicRepo.getClinicHours() } returns Result.failure(RuntimeException("offline"))
+        coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
+
+        val state = vm().uiState.value as HomeUiState.Success
+        assertEquals(emptyList<ClinicHoursDay>(), state.clinicHours)
+        assertEquals(1, state.featuredFrames.size)
     }
 
     private fun frame(id: Int) = Frame(

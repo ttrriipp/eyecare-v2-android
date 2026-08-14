@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.ClinicHoursDay
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.appointments.formatAppointmentDate
@@ -68,6 +69,7 @@ import com.eyecare.app.presentation.frames.components.FrameCard
 import com.eyecare.app.ui.theme.EyecareColors
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.runtime.LaunchedEffect
 
@@ -204,7 +206,9 @@ fun HomeContent(
             AccountLinkInvitation(linkStatus = patientLinkStatus, onClick = onNavigateToLinkAccount)
         }
 
-        ClinicHoursCard()
+        if (state.clinicHours.isNotEmpty()) {
+            ClinicHoursCard(clinicHours = state.clinicHours)
+        }
 
         if (state.featuredFrames.isNotEmpty()) {
             Card(
@@ -250,13 +254,31 @@ fun HomeContent(
     }
 }
 
-@Composable
-private fun ClinicHoursCard() {
-    var expanded by remember { mutableStateOf(true) }
-    val today = remember { LocalDate.now() }
-    val dayName = remember(today) {
-        today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, Locale.getDefault())
+/** Backend's Carbon weekday convention: 0 = Sunday ... 6 = Saturday. */
+private fun LocalDate.toCarbonWeekday(): Int = dayOfWeek.value % 7
+
+private val clinicTimeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
+
+private fun formatClinicTime(hhmm: String): String = runCatching {
+    LocalTime.parse(hhmm).format(clinicTimeFormatter)
+}.getOrDefault(hhmm)
+
+private fun ClinicHoursDay.rangeLabel(): String =
+    if (enabled && openTime != null && closeTime != null) {
+        "${formatClinicTime(openTime)} – ${formatClinicTime(closeTime)}"
+    } else {
+        "Closed"
     }
+
+@Composable
+private fun ClinicHoursCard(clinicHours: List<ClinicHoursDay>) {
+    var expanded by remember { mutableStateOf(false) }
+    val today = remember { LocalDate.now() }
+    val todayHours = remember(clinicHours, today) {
+        clinicHours.firstOrNull { it.weekday == today.toCarbonWeekday() }
+    }
+    val todayDayName = todayHours?.dayName
+        ?: today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, Locale.getDefault())
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -297,7 +319,7 @@ private fun ClinicHoursCard() {
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = dayName,
+                            text = todayHours?.let { "$todayDayName · ${it.rangeLabel()}" } ?: todayDayName,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -320,35 +342,28 @@ private fun ClinicHoursCard() {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            text = "Morning",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = "8:00 AM – 12:00 PM",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            text = "Afternoon",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = "1:00 PM – 5:00 PM",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                        )
+                    clinicHours.forEach { day ->
+                        val isToday = day.weekday == todayHours?.weekday
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = day.dayName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isToday) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                            Text(
+                                text = day.rangeLabel(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Medium,
+                            )
+                        }
                     }
                 }
             }

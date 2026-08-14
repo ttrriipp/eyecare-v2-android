@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.ClinicHoursDay
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.domain.repository.AppointmentV1Repository
+import com.eyecare.app.domain.repository.ClinicRepository
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.PrescriptionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,6 +26,7 @@ sealed interface HomeUiState {
         val nextAppointment: AppointmentV1?,
         val currentPrescription: Prescription?,
         val featuredFrames: List<Frame>,
+        val clinicHours: List<ClinicHoursDay> = emptyList(),
     ) : HomeUiState
     data class Error(val message: String) : HomeUiState
 }
@@ -33,6 +36,7 @@ class HomeViewModel @Inject constructor(
     private val appointmentRepository: AppointmentV1Repository,
     private val frameRepository: FrameRepository,
     private val prescriptionRepository: PrescriptionRepository,
+    private val clinicRepository: ClinicRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -46,13 +50,19 @@ class HomeViewModel @Inject constructor(
         _uiState.value = HomeUiState.Loading
         if (!hasActivePatientLink) {
             viewModelScope.launch {
-                val frames = runCatching {
-                    frameRepository.getFrames(page = 1).getOrDefault(emptyList())
-                }.getOrDefault(emptyList())
+                val framesDeferred = async {
+                    runCatching { frameRepository.getFrames(page = 1).getOrDefault(emptyList()) }
+                }
+                val clinicHoursDeferred = async {
+                    runCatching { clinicRepository.getClinicHours().getOrDefault(emptyList()) }
+                }
+                val frames = framesDeferred.await().getOrDefault(emptyList())
+                val clinicHours = clinicHoursDeferred.await().getOrDefault(emptyList())
                 _uiState.value = HomeUiState.Success(
                     nextAppointment = null,
                     currentPrescription = null,
                     featuredFrames = frames.take(HOME_SHELF_LIMIT),
+                    clinicHours = clinicHours,
                 )
             }
             return
@@ -68,10 +78,14 @@ class HomeViewModel @Inject constructor(
             val prescriptionsDeferred = async {
                 runCatching { prescriptionRepository.getPrescriptions(page = 1).getOrNull()?.data ?: emptyList() }
             }
+            val clinicHoursDeferred = async {
+                runCatching { clinicRepository.getClinicHours().getOrDefault(emptyList()) }
+            }
 
             val appointments = appointmentsDeferred.await().getOrDefault(emptyList())
             val frames = framesDeferred.await().getOrDefault(emptyList())
             val prescriptions = prescriptionsDeferred.await().getOrDefault(emptyList())
+            val clinicHours = clinicHoursDeferred.await().getOrDefault(emptyList())
 
             val today = LocalDate.now()
 
@@ -90,6 +104,7 @@ class HomeViewModel @Inject constructor(
                 nextAppointment = nextAppointment,
                 currentPrescription = currentPrescription,
                 featuredFrames = frames.take(HOME_SHELF_LIMIT),
+                clinicHours = clinicHours,
             )
         }
     }

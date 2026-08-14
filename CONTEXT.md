@@ -268,6 +268,16 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - Each Home shelf preserves source order and is capped at four products. The Home request currently reads only the first product page, so products outside that page are not candidates for a shelf.
 - Home grouping behavior is covered by `HomeViewModelTest`, including disallowed product types and category-name normalization.
 
+## Home Dashboard — Clinic Hours
+
+`presentation/home/HomeScreen.kt` (`ClinicHoursCard`), `HomeViewModel.kt`, `data/repository/ClinicRepositoryImpl.kt`:
+
+- Backend-driven, not hardcoded. `GET /clinic-hours` (account-only, no active link required) returns all seven `clinic_hours` rows in one call; `HomeViewModel.load()` fetches it in parallel with the other Home sources for both the linked and limited/unlinked branches, degrading to an empty list (card hidden) on failure like the other Home sources.
+- `weekday` follows the backend's Carbon convention (`0 = Sunday` … `6 = Saturday`); Android converts `LocalDate.now().dayOfWeek` (ISO, Monday=1..Sunday=7) via `dayOfWeek.value % 7` to find today's row rather than trusting index order. `day_name` from the response is used directly for display so the conversion is never re-derived for copy.
+- The schema has one continuous `open_time`–`close_time` range per weekday with no lunch-break field, and disabled days return both times as `null`. The card reflects this: a single formatted range (`9:00 AM – 5:00 PM`) or "Closed", never a fabricated morning/afternoon split.
+- Collapsed state shows today's day name and hours inline as the card subtitle; expanding reveals the full seven-day list in the order the API returns it (Sunday-first), with today's row bolded.
+- `GET /clinic-hours` is route 55 of 55 in the API contract (account-only category, 30 routes) — see `ApprovedApiRoutes.kt`/`ApiRouteAllowlistTest.kt`.
+
 ## Frame Reservations — List and Detail
 
 `presentation/reservations/FrameReservationListScreen.kt`,
@@ -335,7 +345,7 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 
 ## Backend API (base: `/api/v1`)
 
-54 approved patient-mobile routes (8 public, 29 account-only, 17 active-link).
+55 approved patient-mobile routes (8 public, 30 account-only, 17 active-link).
 Source of truth: `docs/API_CONTRACT.md`.
 
 **Auth:** V13 two-stage OTP registration, hybrid login (trusted skips OTP), password recovery, Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). Installation identity via `DeviceIdentityProvider`. 401 → bearer-aware logout via `AuthEventBus`. Session resolution via `GET /me` before routing.
@@ -440,12 +450,12 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
   pass ID directly.
 - `PatientFeatureIntent` preserves typed Order intents through the active-link gate.
 
-## Route Governance — 54 Routes
+## Route Governance — 55 Routes
 
 `test/.../ApprovedApiRoutes.kt`, `test/.../ApiRouteAllowlistTest.kt`:
 
-- 8 public, 29 account-only, 17 active-link = 54 total.
-- Account-only includes `GET /appointment-types`, `GET /appointment-optometrists`, and conversation read/list/send.
+- 8 public, 30 account-only, 17 active-link = 55 total.
+- Account-only includes `GET /appointment-types`, `GET /appointment-optometrists`, `GET /clinic-hours`, and conversation read/list/send.
 - Attachment download (`GET /conversation/attachments/{id}`) remains active-link-only.
 - Retired routes explicitly rejected: `/eyewear`, `/job-orders`, `/billing-records`,
   legacy `/login`, `/register`, appointment intake routes.
@@ -516,7 +526,7 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 - `docs/specs/backend-alignment-v8-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v8-tasks.md` — Complete: all acceptance criteria met
 - `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
-- `docs/API_CONTRACT.md` — Authoritative mobile API contract (54 routes)
+- `docs/API_CONTRACT.md` — Authoritative mobile API contract (55 routes)
 
 ## Boundaries
 

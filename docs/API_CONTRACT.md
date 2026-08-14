@@ -1,6 +1,6 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-13) — optical commerce and dispensing implementation complete, with resilient patient invitation linking, additive API rate-limit errors, simplified frame reservations, and commerce model simplification. Internal optical data (eyewear specifications, dispensing measurements, supplier references, approval/verification metadata, and balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
+> **Backend version:** Current repository state (2026-08-14) — optical commerce and dispensing implementation complete, with resilient patient invitation linking, appointment-request account-link synchronization, additive API rate-limit errors, simplified frame reservations, and commerce model simplification. Internal optical data (eyewear specifications, dispensing measurements, supplier references, approval/verification metadata, and balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
@@ -25,6 +25,15 @@
 > `expires_at` instead of `status`, and never exposes `accepted_at`. Staff build
 > quotations by selecting frames from the catalog. No patient API route, request,
 > or response field was added beyond the `is_held`/`expires_at` contract change.
+
+> **Shipped 2026-08-14: appointment-request account-link synchronization.**
+> When staff approve a Patient Link Request, previously submitted appointment
+> requests for that account are associated with the approved `patient_id`
+> without rewriting their encrypted identity snapshots. If an account is later
+> unlinked, only its pending requests are cleared back to `patient_id: null`;
+> terminal requests retain their historical patient association. The list and
+> detail responses therefore reflect the current link state for pending
+> requests and the historical clinical link for terminal requests.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -817,6 +826,13 @@ Returns the current active link request for the authenticated account.
 
 **Response (204):** No active request exists.
 
+**Appointment-request link effects:** When staff approve a link request, the
+account's previously submitted unlinked appointment requests are associated
+with the approved patient without changing their encrypted identity
+snapshots. If staff later unlink the account, only pending appointment
+requests are cleared back to `patient_id: null`; terminal requests retain
+their historical patient association.
+
 ---
 
 ## 7. Patient Invitations
@@ -949,6 +965,39 @@ Returns active optometrists with stable ID and display name.
 
 ---
 
+### GET `/clinic-hours`
+
+Returns the clinic's complete weekly operating-hours catalog.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Query parameters:** None.
+
+**Response (200):**
+```json
+{
+  "data": [
+    { "weekday": 0, "day_name": "Sunday", "enabled": false, "open_time": null, "close_time": null },
+    { "weekday": 1, "day_name": "Monday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 2, "day_name": "Tuesday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 3, "day_name": "Wednesday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 4, "day_name": "Thursday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 5, "day_name": "Friday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 6, "day_name": "Saturday", "enabled": true, "open_time": "09:00", "close_time": "17:00" }
+  ]
+}
+```
+
+**Notes:**
+- Exactly seven rows are returned, ordered by `weekday` from 0 through 6.
+- `weekday` follows Laravel/Carbon's convention: `0 = Sunday`, `1 = Monday`, …, `6 = Saturday`. `day_name` is included as the display source of truth for clients using ISO-8601 day numbering.
+- `open_time` and `close_time` are nullable `HH:mm` 24-hour wall-clock strings in the clinic's local time. They are not instants and do not include a timezone offset.
+- When `enabled` is `false`, both time keys remain present and are `null`.
+- The schema exposes one continuous open/close range per weekday; there is no lunch-break field.
+- This endpoint uses the account-only rate limit of 120 requests per minute per authenticated account.
+
+---
+
 ### GET `/appointment-request-availability`
 
 Returns server-generated time slots for a given date and appointment type.
@@ -1026,7 +1075,13 @@ Paginated list of the authenticated account's appointment requests.
 **Status values:** `pending`, `accepted`, `rejected`, `cancelled`, `expired`.
 
 **Notes:**
-- `patient_id` is `null` for unlinked accounts.
+- `patient_id` is `null` for currently unlinked pending requests. Staff approval
+  of a Patient Link Request can backfill the approved patient ID onto requests
+  that were submitted while the account was unlinked; the encrypted identity
+  snapshot is not rewritten.
+- If the account is later unlinked, pending requests return to
+  `patient_id: null`; terminal requests retain their historical patient
+  association.
 - `appointment` is populated only when `status` is `accepted`.
 - `rejection_reason` is `null` for non-rejected requests; contains the staff-provided reason when `status` is `rejected`.
 - Identity snapshots and contact details are excluded from list responses.
@@ -1115,6 +1170,11 @@ Creates a new appointment request.
 - For linked accounts, `patient_id` is copied from the active link.
 - For unlinked accounts, `patient_id` remains `null`.
 - For unlinked accounts, an encrypted identity snapshot is stored.
+- Approving a staff Patient Link Request backfills `patient_id` on that
+  account's previously unlinked requests without changing their encrypted
+  snapshots.
+- Unlinking the account clears `patient_id` only for pending requests;
+  terminal requests retain their historical patient link.
 - Maximum 2 active pending requests per account.
 - Rate limited per account and per IP.
 - Does **not** create a Patient or an Appointment.
@@ -1185,23 +1245,31 @@ Returns time slots for a given date. Used for confirmed appointment rescheduling
 | Param | Type | Required | Rules |
 |---|---|---|---|
 | `date` | string | yes | `date_format:Y-m-d`, `after_or_equal:today` |
-| `appointment_id` | integer | no | `exists:appointments,id` (own appointments only, for reschedule context) |
+| `appointment_id` | integer | no | `exists:appointments,id`; when present, it must belong to the authenticated patient |
+| `appointment_type_id` | integer | conditional | Required when `appointment_id` is omitted; must reference an active, patient-visible type. Optional when `appointment_id` is present and resolved from that appointment |
+
+When `appointment_id` is present, the Android client may omit
+`appointment_type_id`. The server resolves the appointment type from the
+owned appointment and uses its duration to calculate slots. If both values are
+sent, they must refer to the same appointment type.
 
 **Response (200):**
 ```json
 {
   "data": {
-    "date": "2026-07-28",
+    "date": "2026-08-14",
     "timezone": "Asia/Manila",
-    "interval_minutes": 30,
-    "appointment_type_id": 1,
-    "visit_duration_minutes": 30,
+    "interval_minutes": 15,
+    "appointment_type_id": 5,
+    "visit_duration_minutes": 45,
+    "optometrist_id": null,
+    "appointment_id": 3,
     "day_status": "open",
-    "generated_at": "2026-07-27T10:00:00+08:00",
+    "generated_at": "2026-08-14T14:00:00+08:00",
     "slots": [
       {
-        "starts_at": "2026-07-28T09:00:00+08:00",
-        "ends_at": "2026-07-28T09:30:00+08:00",
+        "starts_at": "2026-08-14T09:00:00+08:00",
+        "ends_at": "2026-08-14T09:45:00+08:00",
         "available": true,
         "reason": null
       }
@@ -1211,13 +1279,28 @@ Returns time slots for a given date. Used for confirmed appointment rescheduling
 ```
 
 **Validation (with `appointment_id`):**
-- Appointment must belong to the authenticated patient.
-- Appointment must be in `scheduled` or `checked_in` status.
+- The appointment is looked up within the authenticated patient's records;
+  another patient's appointment returns `404`.
+- The appointment must be in an eligible reschedule context.
 - Duration and type are derived from the existing appointment.
+- A submitted `appointment_type_id`, when present, must match the appointment's
+  resolved type.
 
 **Notes:**
-- `appointment_type_id` and `visit_duration_minutes` are derived from the existing appointment when rescheduling, not submitted by the patient.
+- When rescheduling, `appointment_type_id` and `visit_duration_minutes` are
+  derived from the existing appointment rather than requiring the client to
+  submit the type.
+- The response always includes the resolved integer `appointment_type_id`,
+  including when the request supplied only `appointment_id`.
 - Unexpired pending request holds are included in capacity calculations.
+- This endpoint is separate from `GET /appointment-request-availability`,
+  which always requires `appointment_type_id` because it creates a new
+  appointment request without an existing appointment.
+
+**Errors:**
+- `404`: Appointment not found or not owned by the authenticated patient.
+- `422`: Missing `appointment_type_id` when `appointment_id` is omitted,
+  mismatched appointment type, invalid appointment state, or invalid date/type.
 
 ---
 
@@ -2220,6 +2303,7 @@ The following routes are **removed** in the coordinated Android cutover:
 | `POST /patient-invitations/accept` | Accept invitation and activate link |
 | `GET /appointment-types` | List active, patient-visible appointment types |
 | `GET /appointment-optometrists` | List active optometrists with patient-safe fields |
+| `GET /clinic-hours` | List all seven weekly clinic-hour rows |
 | `GET /appointment-request-availability` | Get available slots for requests |
 | `GET /appointment-requests` | List own requests |
 | `POST /appointment-requests` | Create request |
@@ -2387,6 +2471,7 @@ POST   /api/v1/patient-invitations/acceptance/otp  Request invitation OTP
 POST   /api/v1/patient-invitations/accept     Accept invitation and link
 GET    /api/v1/appointment-types              List patient-visible appointment types
 GET    /api/v1/appointment-optometrists       List active optometrists
+GET    /api/v1/clinic-hours                   List weekly clinic hours
 GET    /api/v1/appointment-request-availability Get request availability
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request
@@ -2443,4 +2528,4 @@ GET    /api/v1/conversation/attachments/{id}  Download attachment
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 29 account-only + 17 active-link = **54 routes total.**
+**Route count:** 8 public + 30 account-only + 17 active-link = **55 routes total.**

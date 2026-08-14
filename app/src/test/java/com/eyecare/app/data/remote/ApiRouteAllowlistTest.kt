@@ -14,7 +14,7 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `account-only routes match expected count`() {
-        assertEquals(29, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
+        assertEquals(30, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
     }
 
     @Test
@@ -23,9 +23,9 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
-    fun `total approved routes is exactly 54`() {
-        // 8 public + 29 account-only + 17 active-link = 54 canonical callable
-        assertEquals(54, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
+    fun `total approved routes is exactly 55`() {
+        // 8 public + 30 account-only + 17 active-link = 55 canonical callable
+        assertEquals(55, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test
@@ -70,6 +70,14 @@ class ApiRouteAllowlistTest {
         assertTrue(
             "GET /api/v1/appointment-optometrists" in ApprovedApiRoutes.accountOnlyRoutes,
             "appointment-optometrists must be an approved account-only route",
+        )
+    }
+
+    @Test
+    fun `clinic hours is approved account-only`() {
+        assertTrue(
+            "GET /api/v1/clinic-hours" in ApprovedApiRoutes.accountOnlyRoutes,
+            "clinic-hours must be an approved account-only route",
         )
     }
 
