@@ -1,0 +1,216 @@
+package com.eyecare.app.presentation.notifications
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.AppNotification
+import com.eyecare.app.domain.model.MobileDestination
+import com.eyecare.app.domain.repository.NotificationRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+sealed interface NotificationListUiState {
+    data object Loading : NotificationListUiState
+
+    data class Success(
+        val notifications: List<AppNotification>,
+        val isLoadingMore: Boolean,
+        val canLoadMore: Boolean,
+        val mutationInFlight: Set<String>,
+        val inlineError: String?,
+    ) : NotificationListUiState
+
+    data class Error(val patientSafeMessage: String) : NotificationListUiState
+}
+
+sealed interface NotificationEffect {
+    data class Navigate(val destination: MobileDestination) : NotificationEffect
+}
+
+@HiltViewModel
+class NotificationListViewModel @Inject constructor(
+    private val notificationRepository: NotificationRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<NotificationListUiState>(NotificationListUiState.Loading)
+    val uiState: StateFlow<NotificationListUiState> = _uiState.asStateFlow()
+
+    private val _effects = Channel<NotificationEffect>(Channel.BUFFERED)
+    val effects = _effects.receiveAsFlow()
+
+    private var currentPage = 0
+    private var lastPage = 0
+    private var isLoadingMoreGuard = false
+    private var isMarkAllInFlight = false
+
+    init { loadInitial() }
+
+    fun loadInitial() {
+        _uiState.value = NotificationListUiState.Loading
+        currentPage = 0
+        lastPage = 0
+        isLoadingMoreGuard = false
+        isMarkAllInFlight = false
+        viewModelScope.launch {
+            notificationRepository.getNotifications(page = 1).fold(
+                onSuccess = { page ->
+                    currentPage = 1
+                    lastPage = page.lastPage
+                    _uiState.value = NotificationListUiState.Success(
+                        notifications = page.notifications,
+                        isLoadingMore = false,
+                        canLoadMore = currentPage < lastPage,
+                        mutationInFlight = emptySet(),
+                        inlineError = null,
+                    )
+                },
+                onFailure = {
+                    _uiState.value = NotificationListUiState.Error(
+                        mapError(it),
+                    )
+                },
+            )
+        }
+    }
+
+    fun loadMore() {
+        val current = _uiState.value as? NotificationListUiState.Success ?: return
+        if (!current.canLoadMore || current.isLoadingMore || isLoadingMoreGuard) return
+        val nextPage = currentPage + 1
+        if (nextPage > lastPage) return
+
+        isLoadingMoreGuard = true
+        _uiState.value = current.copy(isLoadingMore = true, inlineError = null)
+
+        viewModelScope.launch {
+            notificationRepository.getNotifications(page = nextPage).fold(
+                onSuccess = { page ->
+                    val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
+                    val existingIds = latest.notifications.map { it.id }.toSet()
+                    val deduped = page.notifications.filter { it.id !in existingIds }
+                    currentPage = page.currentPage
+                    lastPage = page.lastPage
+                    _uiState.value = latest.copy(
+                        notifications = latest.notifications + deduped,
+                        isLoadingMore = false,
+                        canLoadMore = currentPage < lastPage,
+                    )
+                },
+                onFailure = {
+                    val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        isLoadingMore = false,
+                        inlineError = "Failed to load more notifications. Tap to retry.",
+                    )
+                },
+            )
+            isLoadingMoreGuard = false
+        }
+    }
+
+    fun refresh() {
+        val current = _uiState.value as? NotificationListUiState.Success
+        viewModelScope.launch {
+            notificationRepository.getNotifications(page = 1).fold(
+                onSuccess = { page ->
+                    currentPage = 1
+                    lastPage = page.lastPage
+                    _uiState.value = NotificationListUiState.Success(
+                        notifications = page.notifications,
+                        isLoadingMore = false,
+                        canLoadMore = currentPage < lastPage,
+                        mutationInFlight = emptySet(),
+                        inlineError = null,
+                    )
+                },
+                onFailure = {
+                    if (current != null) {
+                        _uiState.value = current.copy(inlineError = "Refresh failed. Pull to try again.")
+                    }
+                },
+            )
+        }
+    }
+
+    fun markOneRead(notification: AppNotification) {
+        if (notification.readAt != null) return
+        val current = _uiState.value as? NotificationListUiState.Success ?: return
+        if (notification.id in current.mutationInFlight) return
+
+        _uiState.value = current.copy(
+            mutationInFlight = current.mutationInFlight + notification.id,
+            notifications = current.notifications.map {
+                if (it.id == notification.id) it.copy(readAt = "") else it
+            },
+        )
+
+        viewModelScope.launch {
+            notificationRepository.markOneRead(notification.id).fold(
+                onSuccess = {
+                    val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        mutationInFlight = latest.mutationInFlight - notification.id,
+                    )
+                    if (notification.mobileAction != null && notification.mobileAction != MobileDestination.UNKNOWN) {
+                        _effects.send(NotificationEffect.Navigate(notification.mobileAction))
+                    }
+                },
+                onFailure = {
+                    val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        mutationInFlight = latest.mutationInFlight - notification.id,
+                        notifications = latest.notifications.map {
+                            if (it.id == notification.id) it.copy(readAt = notification.readAt) else it
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    fun markAllRead() {
+        val current = _uiState.value as? NotificationListUiState.Success ?: return
+        if (isMarkAllInFlight) return
+
+        isMarkAllInFlight = true
+        _uiState.value = current.copy(inlineError = null)
+
+        viewModelScope.launch {
+            notificationRepository.markAllRead().fold(
+                onSuccess = {
+                    val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        notifications = latest.notifications.map { it.copy(readAt = it.readAt ?: "") },
+                    )
+                    isMarkAllInFlight = false
+                },
+                onFailure = {
+                    val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        inlineError = "Failed to mark all as read. Please try again.",
+                    )
+                    isMarkAllInFlight = false
+                },
+            )
+        }
+    }
+
+    fun onNotificationTap(notification: AppNotification) {
+        if (notification.readAt == null) {
+            markOneRead(notification)
+        } else {
+            if (notification.mobileAction != null && notification.mobileAction != MobileDestination.UNKNOWN) {
+                viewModelScope.launch {
+                    _effects.send(NotificationEffect.Navigate(notification.mobileAction))
+                }
+            }
+        }
+    }
+
+    private fun mapError(throwable: Throwable): String = "Unable to load notifications. Please try again."
+}

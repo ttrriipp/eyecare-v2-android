@@ -51,6 +51,9 @@ import kotlinx.serialization.Serializable
 // Chat (FAB destination, not a tab)
 @Serializable object Chat
 
+// Notifications (sub-destination, not a tab)
+@Serializable object Notifications
+
 // Graph tags
 @Serializable object AuthGraph
 @Serializable object AccountAccessGraph
