@@ -1,16 +1,17 @@
 package com.eyecare.app.data.remote
 
 /**
- * V18 route governance — 55-route contract.
+ * V19 route governance — 61-route contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
- * 2. Account-only routes (30) — authenticated, no patient link required
+ * 2. Account-only routes (36) — authenticated, no patient link required
  * 3. Active-link routes (17) — require active patient link
  *
- * Total canonical callable routes: 8 + 30 + 17 = 55.
+ * Total canonical callable routes: 8 + 36 + 17 = 61.
  *
- * Conversation read/list/send are account-only; attachment download remains active-link.
+ * Conversation read/list/send/search/read-mark are account-only; attachment download remains active-link.
+ * Notification list/count/mark-one/mark-all are account-only.
  * Retired routes (eyewear, job-orders, billing-records, quotations, legacy aliases) are rejected.
  */
 internal object ApprovedApiRoutes {
@@ -28,7 +29,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/auth/policies",
     )
 
-    /** Account-only routes — authenticated, no patient link required. (30) */
+    /** Account-only routes — authenticated, no patient link required. (36) */
     val accountOnlyRoutes: Set<String> = setOf(
         "POST $BASE/logout",
         "POST $BASE/logout-all",
@@ -61,6 +62,13 @@ internal object ApprovedApiRoutes {
         "GET $BASE/conversation",
         "GET $BASE/conversation/messages",
         "POST $BASE/conversation/messages",
+        "GET $BASE/conversation/messages/search",
+        "POST $BASE/conversation/messages/read",
+        // Notifications — account-only inbox
+        "GET $BASE/notifications",
+        "GET $BASE/notifications/unread-count",
+        "PATCH $BASE/notifications/{notification}/read",
+        "PATCH $BASE/notifications/read-all",
     )
 
     /** Active-link routes — require active patient link. (17) */

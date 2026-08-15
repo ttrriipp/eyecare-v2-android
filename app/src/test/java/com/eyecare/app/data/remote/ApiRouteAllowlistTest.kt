@@ -14,7 +14,7 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `account-only routes match expected count`() {
-        assertEquals(30, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
+        assertEquals(36, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
     }
 
     @Test
@@ -23,9 +23,9 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
-    fun `total approved routes is exactly 55`() {
-        // 8 public + 30 account-only + 17 active-link = 55 canonical callable
-        assertEquals(55, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
+    fun `total approved routes is exactly 61`() {
+        // 8 public + 36 account-only + 17 active-link = 61 canonical callable
+        assertEquals(61, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test
@@ -106,6 +106,54 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
+    fun `conversation search is account-only`() {
+        assertTrue(
+            "GET /api/v1/conversation/messages/search" in ApprovedApiRoutes.accountOnlyRoutes,
+            "conversation search must be account-only",
+        )
+    }
+
+    @Test
+    fun `conversation mark-read is account-only`() {
+        assertTrue(
+            "POST /api/v1/conversation/messages/read" in ApprovedApiRoutes.accountOnlyRoutes,
+            "conversation mark-read must be account-only",
+        )
+    }
+
+    @Test
+    fun `notification list is account-only`() {
+        assertTrue(
+            "GET /api/v1/notifications" in ApprovedApiRoutes.accountOnlyRoutes,
+            "notification list must be account-only",
+        )
+    }
+
+    @Test
+    fun `notification unread count is account-only`() {
+        assertTrue(
+            "GET /api/v1/notifications/unread-count" in ApprovedApiRoutes.accountOnlyRoutes,
+            "notification unread count must be account-only",
+        )
+    }
+
+    @Test
+    fun `notification mark-one is account-only`() {
+        assertTrue(
+            "PATCH /api/v1/notifications/{notification}/read" in ApprovedApiRoutes.accountOnlyRoutes,
+            "notification mark-one must be account-only",
+        )
+    }
+
+    @Test
+    fun `notification mark-all is account-only`() {
+        assertTrue(
+            "PATCH /api/v1/notifications/read-all" in ApprovedApiRoutes.accountOnlyRoutes,
+            "notification mark-all must be account-only",
+        )
+    }
+
+    @Test
     fun `all Retrofit service annotations are accounted for`() {
         val serviceDir = File("src/main/java/com/eyecare/app/data/remote/api")
         assertTrue(serviceDir.exists(), "API service directory not found")
@@ -166,6 +214,8 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""account/contacts/\{id\}/primary"""), "account/contacts/{contact}/primary")
             .replace(Regex("""appointment-requests/\{id\}"""), "appointment-requests/{appointmentRequest}")
             .replace(Regex("""appointment-requests/\{id\}/cancel"""), "appointment-requests/{appointmentRequest}/cancel")
+            .replace(Regex("""notifications/\{id\}"""), "notifications/{notification}")
+            .replace(Regex("""notifications/\{id\}/read"""), "notifications/{notification}/read")
     }
 
     private fun normalizeRouteVariables(route: String): String {
@@ -180,5 +230,6 @@ class ApiRouteAllowlistTest {
             .replace("{item}", "{var}")
             .replace("{contact}", "{var}")
             .replace("{appointmentRequest}", "{var}")
+            .replace("{notification}", "{var}")
     }
 }
