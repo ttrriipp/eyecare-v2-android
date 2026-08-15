@@ -8,7 +8,9 @@ import android.util.Log
 import androidx.camera.core.ImageProxy
 import com.eyecare.app.presentation.ar.model.ArFaceState
 import com.eyecare.app.presentation.ar.model.FaceFrame
+import com.eyecare.app.presentation.ar.tracking.extractSingleFaceTransformationMatrix
 import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
@@ -38,8 +40,9 @@ class FaceLandmarkerHelper(
             )
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumFaces(1)
+            .setOutputFacialTransformationMatrixes(true)
             .setResultListener(::handleResult)
-            .setErrorListener { e -> 
+            .setErrorListener { e ->
                 Log.e("FaceLandmarker", "Error: ${e.message}")
                 onResult(ArFaceState.NoFace)
             }
@@ -68,28 +71,53 @@ class FaceLandmarkerHelper(
         landmarker = null
     }
 
-    private fun handleResult(result: FaceLandmarkerResult, input: com.google.mediapipe.framework.image.MPImage) {
-        if (result.faceLandmarks().isEmpty()) {
-            Log.d("FaceLandmarker", "no face detected")
+    private fun handleResult(result: FaceLandmarkerResult, input: MPImage) {
+        val landmarks = result.faceLandmarks().singleOrNull()
+        val transformationMatrix = extractSingleFaceTransformationMatrix(
+            result.facialTransformationMatrixes().orElse(emptyList())
+        )
+        if (landmarks == null || transformationMatrix == null) {
             onResult(ArFaceState.NoFace)
             return
         }
-        val landmarks = result.faceLandmarks()[0]
         val w = input.width
         val h = input.height
+        if (w <= 0 || h <= 0 || landmarks.size <= RIGHT_TEMPLE) {
+            onResult(ArFaceState.NoFace)
+            return
+        }
 
         fun lm(idx: Int) = landmarks[idx]
 
         val noseBridgeX = (lm(NOSE_BRIDGE_1).x() + lm(NOSE_BRIDGE_2).x()) / 2f
         val noseBridgeY = (lm(NOSE_BRIDGE_1).y() + lm(NOSE_BRIDGE_2).y()) / 2f
         val leftX = lm(LEFT_TEMPLE).x()
+        val leftY = lm(LEFT_TEMPLE).y()
         val rightX = lm(RIGHT_TEMPLE).x()
+        val rightY = lm(RIGHT_TEMPLE).y()
         val faceWidth = rightX - leftX
+        if (!noseBridgeX.isFinite() ||
+            !noseBridgeY.isFinite() ||
+            !leftX.isFinite() ||
+            !leftY.isFinite() ||
+            !rightX.isFinite() ||
+            !rightY.isFinite() ||
+            !faceWidth.isFinite() ||
+            faceWidth <= 0f
+        ) {
+            onResult(ArFaceState.NoFace)
+            return
+        }
 
         // Head roll: angle of the temple-to-temple line relative to horizontal
         val dx = rightX - leftX
-        val dy = lm(RIGHT_TEMPLE).y() - lm(LEFT_TEMPLE).y()
+        val dy = rightY - leftY
         val rotationDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+        val timestampMs = result.timestampMs()
+        if (!rotationDeg.isFinite() || timestampMs < 0L) {
+            onResult(ArFaceState.NoFace)
+            return
+        }
 
         // FPS counter and landmark debug log
         val now = System.currentTimeMillis()
@@ -105,6 +133,8 @@ class FaceLandmarkerHelper(
                     leftTempleX = leftX, rightTempleX = rightX,
                     faceWidthNorm = faceWidth, rotationDeg = rotationDeg,
                     imageWidth = w, imageHeight = h,
+                    transformationMatrix = transformationMatrix,
+                    timestampMs = timestampMs,
                 )
             )
         )

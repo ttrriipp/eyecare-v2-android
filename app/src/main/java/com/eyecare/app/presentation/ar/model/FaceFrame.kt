@@ -1,6 +1,46 @@
 package com.eyecare.app.presentation.ar.model
 
 /**
+ * One validated MediaPipe facial transformation matrix.
+ *
+ * Values preserve the 16-value order emitted by Face Landmarker.
+ * The immutable list prevents a MediaPipe-owned mutable array from leaking into presentation
+ * state or changing after the callback returns.
+ */
+class FaceTransformationMatrix private constructor(
+    values: List<Float>,
+) {
+    val values: List<Float> = values.toList()
+
+    init {
+        require(this.values.size == MATRIX_ELEMENT_COUNT) {
+            "Facial transformation matrix must contain exactly 16 values"
+        }
+        require(this.values.all(Float::isFinite)) {
+            "Facial transformation matrix must contain only finite values"
+        }
+    }
+
+    operator fun get(index: Int): Float = values[index]
+
+    override fun equals(other: Any?): Boolean =
+        other is FaceTransformationMatrix && values == other.values
+
+    override fun hashCode(): Int = values.hashCode()
+
+    companion object {
+        const val MATRIX_ELEMENT_COUNT = 16
+
+        fun from(rawValues: FloatArray): FaceTransformationMatrix? {
+            if (rawValues.size != MATRIX_ELEMENT_COUNT || rawValues.any { !it.isFinite() }) {
+                return null
+            }
+            return FaceTransformationMatrix(rawValues.toList())
+        }
+    }
+}
+
+/**
  * Computed face geometry derived from MediaPipe Face Landmarker output.
  * Coordinates are normalised [0,1] relative to the image frame.
  */
@@ -18,6 +58,10 @@ data class FaceFrame(
     /** Image dimensions used to produce these values */
     val imageWidth: Int,
     val imageHeight: Int,
+    /** Validated canonical-face-to-detected-face transform emitted by MediaPipe. */
+    val transformationMatrix: FaceTransformationMatrix,
+    /** MediaPipe timestamp associated with this detection. */
+    val timestampMs: Long,
 )
 
 sealed interface ArFaceState {
