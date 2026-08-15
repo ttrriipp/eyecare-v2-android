@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -151,6 +152,13 @@ fun ChatScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
             },
+            actions = {
+                if (successState != null && successState.searchState == null) {
+                    IconButton(onClick = { viewModel.openSearch() }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search messages")
+                    }
+                }
+            },
         )
 
         Box(Modifier.weight(1f)) {
@@ -160,104 +168,119 @@ fun ChatScreen(
                 }
                 is ChatUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::retry)
                 is ChatUiState.Success -> {
-                    ChatContent(
-                        state = state,
-                        listState = listState,
-                        onRetryLoadOlder = viewModel::retryLoadOlder,
-                    )
+                    val search = state.searchState
+                    if (search != null) {
+                        MessageSearchContent(
+                            searchState = search,
+                            searchDraft = state.searchDraft,
+                            currentUserId = state.currentUserId,
+                            onDraftChanged = viewModel::onSearchQueryChanged,
+                            onSubmit = viewModel::submitSearch,
+                            onClose = viewModel::closeSearch,
+                            onLoadMore = viewModel::loadMoreSearchResults,
+                        )
+                    } else {
+                        ChatContent(
+                            state = state,
+                            listState = listState,
+                            onRetryLoadOlder = viewModel::retryLoadOlder,
+                        )
+                    }
                 }
             }
         }
 
-        // Pending attachment preview
-        successState?.pendingAttachment?.let { attachment ->
-            AttachmentPreview(
-                attachment = attachment,
-                error = successState.attachmentError,
-                onRemove = { viewModel.setPendingAttachment(null) },
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-            )
-        }
+        // Pending attachment preview (hidden during search)
+        if (successState?.searchState == null) {
+            successState?.pendingAttachment?.let { attachment ->
+                AttachmentPreview(
+                    attachment = attachment,
+                    error = successState.attachmentError,
+                    onRemove = { viewModel.setPendingAttachment(null) },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+            }
 
-        // Send error message
-        successState?.sendError?.let { error ->
-            Text(
-                text = error,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
-            )
-        }
+            // Send error message
+            successState?.sendError?.let { error ->
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                )
+            }
 
-        // Input bar
-        val isSending = successState?.isSending == true
-        val inputText = successState?.inputText ?: ""
-        val canUpload = successState?.conversation?.let {
-            it.accessLevel == ConversationAccessLevel.LINKED_PATIENT && it.capabilities.canUploadAttachments
-        } == true
+            // Input bar
+            val isSending = successState?.isSending == true
+            val inputText = successState?.inputText ?: ""
+            val canUpload = successState?.conversation?.let {
+                it.accessLevel == ConversationAccessLevel.LINKED_PATIENT && it.capabilities.canUploadAttachments
+            } == true
 
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // "+" attachment button — only shown when upload is allowed
-            if (canUpload) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // "+" attachment button — only shown when upload is allowed
+                if (canUpload) {
+                    Surface(
+                        onClick = {
+                            filePicker.launch(arrayOf("image/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                        },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        enabled = !isSending,
+                        modifier = Modifier.size(44.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Add, contentDescription = "Add attachment", tint = EyecareColors.current.accentText)
+                        }
+                    }
+                    Spacer(Modifier.width(8.dp))
+                }
+
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { viewModel.onDraftChanged(it) },
+                    placeholder = { Text("Type a message…") },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                    maxLines = 4,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isSending,
+                )
+                Spacer(Modifier.width(8.dp))
+
+                val hasPendingAttachment = successState?.pendingAttachment != null && successState.attachmentError == null
+                val canSend = (inputText.isNotBlank() || hasPendingAttachment) && !isSending
+
                 Surface(
                     onClick = {
-                        filePicker.launch(arrayOf("image/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                        when {
+                            hasPendingAttachment -> viewModel.sendPendingAttachment()
+                            else -> viewModel.sendMessage()
+                        }
                     },
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    enabled = !isSending,
-                    modifier = Modifier.size(44.dp),
+                    color = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    enabled = canSend,
+                    modifier = Modifier.size(48.dp),
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Add, contentDescription = "Add attachment", tint = EyecareColors.current.accentText)
-                    }
-                }
-                Spacer(Modifier.width(8.dp))
-            }
-
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = { viewModel.onDraftChanged(it) },
-                placeholder = { Text("Type a message…") },
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                ),
-                maxLines = 4,
-                modifier = Modifier.weight(1f),
-                enabled = !isSending,
-            )
-            Spacer(Modifier.width(8.dp))
-
-            val hasPendingAttachment = successState?.pendingAttachment != null && successState.attachmentError == null
-            val canSend = (inputText.isNotBlank() || hasPendingAttachment) && !isSending
-
-            Surface(
-                onClick = {
-                    when {
-                        hasPendingAttachment -> viewModel.sendPendingAttachment()
-                        else -> viewModel.sendMessage()
-                    }
-                },
-                shape = CircleShape,
-                color = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                enabled = canSend,
-                modifier = Modifier.size(48.dp),
-            ) {
-                val sendContentColor = if (canSend) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                Box(contentAlignment = Alignment.Center) {
-                    if (isSending) {
-                        CircularProgressIndicator(Modifier.size(20.dp), color = sendContentColor)
+                    val sendContentColor = if (canSend) {
+                        MaterialTheme.colorScheme.onPrimary
                     } else {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = sendContentColor)
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    Box(contentAlignment = Alignment.Center) {
+                        if (isSending) {
+                            CircularProgressIndicator(Modifier.size(20.dp), color = sendContentColor)
+                        } else {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = sendContentColor)
+                        }
                     }
                 }
             }

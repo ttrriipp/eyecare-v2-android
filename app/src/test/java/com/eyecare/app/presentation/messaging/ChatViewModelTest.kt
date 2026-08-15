@@ -27,6 +27,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -781,6 +782,285 @@ class ChatViewModelTest {
                 assertInstanceOf(ChatEffect.MessagesMarkedRead::class.java, effect)
                 cancelAndIgnoreRemainingEvents()
             }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    // --- Task 12: Search state and cursor behavior ---
+
+    private fun setupVmWithSuccess(): ChatViewModel {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(listOf(fakeMessage), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        val vm = vm()
+        dispatcher.scheduler.runCurrent()
+        return vm
+    }
+
+    @Test
+    fun `search validation rejects fewer than 3 characters`() = runTest {
+        val vm = setupVmWithSuccess()
+
+        try {
+            vm.onSearchQueryChanged("ab")
+            dispatcher.scheduler.runCurrent()
+            vm.submitSearch()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            val ss = state.searchState
+            assert(ss != null)
+            assertEquals("ab", ss!!.query)
+            assertEquals("Search requires at least 3 characters.", ss.error)
+            assertFalse(ss.isLoading)
+            assertTrue(ss.results.isEmpty())
+            coVerify(exactly = 0) { repo.searchMessages(any(), any()) }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `search validation accepts 3 characters`() = runTest {
+        coEvery { repo.searchMessages("abc", null) } returns Result.success(
+            MessagePage(emptyList(), null, false)
+        )
+        val vm = setupVmWithSuccess()
+
+        try {
+            vm.onSearchQueryChanged("abc")
+            dispatcher.scheduler.runCurrent()
+            vm.submitSearch()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            val ss = state.searchState
+            assert(ss != null)
+            assertEquals("abc", ss!!.query)
+            assertNull(ss.error)
+            assertFalse(ss.isLoading)
+            coVerify(exactly = 1) { repo.searchMessages("abc", null) }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `search validation accepts 500 characters`() = runTest {
+        val query500 = "a".repeat(500)
+        coEvery { repo.searchMessages(query500, null) } returns Result.success(
+            MessagePage(emptyList(), null, false)
+        )
+        val vm = setupVmWithSuccess()
+
+        try {
+            vm.onSearchQueryChanged(query500)
+            dispatcher.scheduler.runCurrent()
+            vm.submitSearch()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            val ss = state.searchState
+            assert(ss != null)
+            assertEquals(query500, ss!!.query)
+            assertNull(ss.error)
+            coVerify(exactly = 1) { repo.searchMessages(query500, null) }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `search validation rejects 501 characters`() = runTest {
+        val query501 = "a".repeat(501)
+        val vm = setupVmWithSuccess()
+
+        try {
+            vm.onSearchQueryChanged(query501)
+            dispatcher.scheduler.runCurrent()
+            vm.submitSearch()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            val ss = state.searchState
+            assert(ss != null)
+            assertEquals(query501, ss!!.query)
+            assertEquals("Search is limited to 500 characters.", ss.error)
+            assertFalse(ss.isLoading)
+            coVerify(exactly = 0) { repo.searchMessages(any(), any()) }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `typing does not fire search request only submit does`() = runTest {
+        coEvery { repo.searchMessages("hello", null) } returns Result.success(
+            MessagePage(emptyList(), null, false)
+        )
+        val vm = setupVmWithSuccess()
+
+        try {
+            vm.onSearchQueryChanged("h")
+            dispatcher.scheduler.runCurrent()
+            vm.onSearchQueryChanged("he")
+            dispatcher.scheduler.runCurrent()
+            vm.onSearchQueryChanged("hel")
+            dispatcher.scheduler.runCurrent()
+            vm.onSearchQueryChanged("hell")
+            dispatcher.scheduler.runCurrent()
+            vm.onSearchQueryChanged("hello")
+            dispatcher.scheduler.runCurrent()
+
+            // No search request should have been made yet
+            coVerify(exactly = 0) { repo.searchMessages(any(), any()) }
+
+            // Draft should be updated
+            val before = vm.uiState.value as ChatUiState.Success
+            assertEquals("hello", before.searchDraft)
+            assertNull(before.searchState)
+
+            vm.submitSearch()
+            dispatcher.scheduler.runCurrent()
+
+            coVerify(exactly = 1) { repo.searchMessages("hello", null) }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `new search generation rejects stale responses`() = runTest {
+        val searchResult1 = MessagePage(
+            listOf(fakeMessage.copy(id = 100, body = "stale")),
+            null, false,
+        )
+        val searchResult2 = MessagePage(
+            listOf(fakeMessage.copy(id = 200, body = "fresh")),
+            null, false,
+        )
+        coEvery { repo.searchMessages("first", null) } coAnswers {
+            kotlinx.coroutines.delay(5_000)
+            Result.success(searchResult1)
+        }
+        coEvery { repo.searchMessages("second", null) } returns Result.success(searchResult2)
+        val vm = setupVmWithSuccess()
+
+        try {
+            // Submit first search (delayed)
+            vm.onSearchQueryChanged("first")
+            dispatcher.scheduler.runCurrent()
+            vm.submitSearch()
+            dispatcher.scheduler.runCurrent()
+
+            // Submit second search (immediate) before first completes
+            vm.onSearchQueryChanged("second")
+            dispatcher.scheduler.runCurrent()
+            vm.submitSearch()
+            dispatcher.scheduler.runCurrent()
+
+            // Let first (stale) complete — should be rejected
+            dispatcher.scheduler.advanceTimeBy(5_001)
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            val ss = state.searchState!!
+            assertEquals("second", ss.query)
+            assertEquals(1, ss.results.size)
+            assertEquals("fresh", ss.results[0].body)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `search page retry with query and cursor forwarding`() = runTest {
+        val msg1 = fakeMessage.copy(id = 300, body = "result1")
+        val msg2 = fakeMessage.copy(id = 301, body = "result2")
+        coEvery { repo.searchMessages("test", null) } returns Result.success(
+            MessagePage(listOf(msg1), "search-cursor-1", true)
+        )
+        coEvery { repo.searchMessages("test", "search-cursor-1") } returns Result.success(
+            MessagePage(listOf(msg2), null, false)
+        )
+        val vm = setupVmWithSuccess()
+
+        try {
+            vm.onSearchQueryChanged("test")
+            dispatcher.scheduler.runCurrent()
+            vm.submitSearch()
+            dispatcher.scheduler.runCurrent()
+
+            val afterFirst = vm.uiState.value as ChatUiState.Success
+            val ss1 = afterFirst.searchState!!
+            assertEquals(1, ss1.results.size)
+            assertTrue(ss1.hasMore)
+            assertEquals("search-cursor-1", ss1.nextCursor)
+
+            vm.loadMoreSearchResults()
+            dispatcher.scheduler.runCurrent()
+
+            val afterMore = vm.uiState.value as ChatUiState.Success
+            val ss2 = afterMore.searchState!!
+            assertEquals(2, ss2.results.size)
+            assertFalse(ss2.hasMore)
+            assertNull(ss2.nextCursor)
+            assertFalse(ss2.isLoadingMore)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `close search restores timeline pages draft and cursor state unchanged`() = runTest {
+        coEvery { repo.searchMessages("query", null) } returns Result.success(
+            MessagePage(listOf(fakeMessage.copy(id = 500, body = "search hit")), null, false)
+        )
+        coEvery { repo.getMessages(null) } returns Result.success(
+            MessagePage(listOf(fakeMessage), "cursor-abc", true)
+        )
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            // Pre-set draft and input text
+            vm.onDraftChanged("my draft")
+            dispatcher.scheduler.runCurrent()
+
+            val before = vm.uiState.value as ChatUiState.Success
+            assertEquals("my draft", before.inputText)
+            assertEquals("cursor-abc", before.nextCursor)
+            assertTrue(before.hasMore)
+            val messagesBefore = before.messages
+
+            // Open and use search
+            vm.openSearch()
+            dispatcher.scheduler.runCurrent()
+            vm.onSearchQueryChanged("query")
+            dispatcher.scheduler.runCurrent()
+            vm.submitSearch()
+            dispatcher.scheduler.runCurrent()
+
+            val searching = vm.uiState.value as ChatUiState.Success
+            assertNotNull(searching.searchState)
+            assertEquals(1, searching.searchState!!.results.size)
+
+            // Close search
+            vm.closeSearch()
+            dispatcher.scheduler.runCurrent()
+
+            val after = vm.uiState.value as ChatUiState.Success
+            assertNull(after.searchState)
+            assertEquals("", after.searchDraft)
+            // Timeline pages, draft, and cursor should be unchanged
+            assertEquals("my draft", after.inputText)
+            assertEquals(messagesBefore.size, after.messages.size)
+            assertEquals(messagesBefore[0].body, after.messages[0].body)
+            assertEquals("cursor-abc", after.nextCursor)
+            assertTrue(after.hasMore)
         } finally {
             vm.viewModelScope.cancel()
         }

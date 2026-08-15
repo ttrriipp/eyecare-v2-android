@@ -31,6 +31,17 @@ data class PendingAttachment(
     val fileSize: Long,
 )
 
+data class SearchState(
+    val query: String,
+    val results: List<Message>,
+    val nextCursor: String?,
+    val hasMore: Boolean,
+    val isLoading: Boolean,
+    val isLoadingMore: Boolean,
+    val error: String?,
+    val generation: Long,
+)
+
 sealed interface ChatUiState {
     data object Loading : ChatUiState
     data class Success(
@@ -46,6 +57,8 @@ sealed interface ChatUiState {
         val hasMore: Boolean = false,
         val isLoadingOlder: Boolean = false,
         val olderPageError: String? = null,
+        val searchState: SearchState? = null,
+        val searchDraft: String = "",
     ) : ChatUiState
     data class Error(val message: String) : ChatUiState
 }
@@ -72,6 +85,8 @@ class ChatViewModel @Inject constructor(
     private var isLoadingOlderGuard = false
     private var isMarkReadInFlight = false
     private var pendingMarkRead = false
+    private var searchGeneration = 0L
+    private var isLoadingMoreSearchGuard = false
 
     init { load() }
 
@@ -275,6 +290,130 @@ class ChatViewModel @Inject constructor(
     fun clearSendError() {
         val current = _uiState.value as? ChatUiState.Success ?: return
         _uiState.value = current.copy(sendError = null)
+    }
+
+    fun openSearch() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        if (current.searchState != null) return
+        _uiState.value = current.copy(searchDraft = "", searchState = null)
+    }
+
+    fun closeSearch() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        _uiState.value = current.copy(searchState = null, searchDraft = "")
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        _uiState.value = current.copy(searchDraft = query)
+    }
+
+    fun submitSearch() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        val trimmed = current.searchDraft.trim()
+        if (trimmed.length < 3 || trimmed.length > 500) {
+            _uiState.value = current.copy(
+                searchState = SearchState(
+                    query = trimmed,
+                    results = emptyList(),
+                    nextCursor = null,
+                    hasMore = false,
+                    isLoading = false,
+                    isLoadingMore = false,
+                    error = if (trimmed.length < 3) "Search requires at least 3 characters."
+                    else "Search is limited to 500 characters.",
+                    generation = searchGeneration,
+                ),
+            )
+            return
+        }
+        val gen = ++searchGeneration
+        isLoadingMoreSearchGuard = false
+        _uiState.value = current.copy(
+            searchState = SearchState(
+                query = trimmed,
+                results = emptyList(),
+                nextCursor = null,
+                hasMore = false,
+                isLoading = true,
+                isLoadingMore = false,
+                error = null,
+                generation = gen,
+            ),
+        )
+        viewModelScope.launch {
+            chatRepository.searchMessages(trimmed).fold(
+                onSuccess = { page ->
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    val ss = latest.searchState ?: return@fold
+                    if (ss.generation != gen) return@fold
+                    _uiState.value = latest.copy(
+                        searchState = ss.copy(
+                            results = page.messages,
+                            nextCursor = page.nextCursor,
+                            hasMore = page.hasMore,
+                            isLoading = false,
+                            error = null,
+                        ),
+                    )
+                },
+                onFailure = { throwable ->
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    val ss = latest.searchState ?: return@fold
+                    if (ss.generation != gen) return@fold
+                    _uiState.value = latest.copy(
+                        searchState = ss.copy(
+                            isLoading = false,
+                            error = "Search failed. Please try again.",
+                        ),
+                    )
+                },
+            )
+        }
+    }
+
+    fun loadMoreSearchResults() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        val ss = current.searchState ?: return
+        if (!ss.hasMore || ss.isLoadingMore || ss.isLoading || isLoadingMoreSearchGuard) return
+        val cursor = ss.nextCursor ?: return
+
+        isLoadingMoreSearchGuard = true
+        val gen = ss.generation
+        _uiState.value = current.copy(
+            searchState = ss.copy(isLoadingMore = true, error = null),
+        )
+
+        viewModelScope.launch {
+            chatRepository.searchMessages(ss.query, cursor).fold(
+                onSuccess = { page ->
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    val currentSS = latest.searchState ?: return@fold
+                    if (currentSS.generation != gen) return@fold
+                    _uiState.value = latest.copy(
+                        searchState = currentSS.copy(
+                            results = currentSS.results + page.messages,
+                            nextCursor = page.nextCursor,
+                            hasMore = page.hasMore,
+                            isLoadingMore = false,
+                            error = null,
+                        ),
+                    )
+                },
+                onFailure = {
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    val currentSS = latest.searchState ?: return@fold
+                    if (currentSS.generation != gen) return@fold
+                    _uiState.value = latest.copy(
+                        searchState = currentSS.copy(
+                            isLoadingMore = false,
+                            error = "Failed to load more results. Tap to retry.",
+                        ),
+                    )
+                },
+            )
+            isLoadingMoreSearchGuard = false
+        }
     }
 
     private fun mapSendError(throwable: Throwable): String {
