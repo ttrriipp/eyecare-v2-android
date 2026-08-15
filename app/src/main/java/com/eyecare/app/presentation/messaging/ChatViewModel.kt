@@ -8,6 +8,7 @@ import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,10 @@ sealed interface ChatUiState {
         val pendingAttachment: PendingAttachment? = null,
         val attachmentError: String? = null,
         val sendError: String? = null,
+        val nextCursor: String? = null,
+        val hasMore: Boolean = false,
+        val isLoadingOlder: Boolean = false,
+        val olderPageError: String? = null,
     ) : ChatUiState
     data class Error(val message: String) : ChatUiState
 }
@@ -48,8 +53,10 @@ class ChatViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Loading)
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
+    private var timelineState = MessageTimeline.State()
     private var isScreenVisible = false
-    private var pollingJob: kotlinx.coroutines.Job? = null
+    private var pollingJob: Job? = null
+    private var isLoadingOlderGuard = false
 
     init { load() }
 
@@ -67,19 +74,72 @@ class ChatViewModel @Inject constructor(
         pollingJob = viewModelScope.launch {
             while (isScreenVisible) {
                 delay(POLL_INTERVAL_MS)
-                val current = _uiState.value as? ChatUiState.Success ?: continue
-                chatRepository.getMessages().onSuccess { page ->
-                    val latest = _uiState.value as? ChatUiState.Success ?: return@onSuccess
-                    val messages = page.messages
-                    if (messages.size != latest.messages.size || messages.lastOrNull()?.id != latest.messages.lastOrNull()?.id) {
-                        _uiState.value = latest.copy(messages = messages)
-                    }
-                }
+                poll()
             }
         }
     }
 
+    private suspend fun poll() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        chatRepository.getMessages().fold(
+            onSuccess = { page ->
+                val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                val polledMessages = page.messages
+                if (MessageTimeline.hasNewMessages(timelineState, polledMessages)) {
+                    timelineState = MessageTimeline.merge(timelineState, polledMessages)
+                    _uiState.value = latest.copy(
+                        messages = timelineState.chronological,
+                    )
+                }
+            },
+            onFailure = {
+                // Poll failures preserve usable messages; no full-screen error
+            },
+        )
+    }
+
     fun retry() = load()
+
+    fun loadOlder() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        if (!current.hasMore || current.isLoadingOlder || isLoadingOlderGuard) return
+        val cursor = current.nextCursor ?: return
+
+        isLoadingOlderGuard = true
+        _uiState.value = current.copy(isLoadingOlder = true, olderPageError = null)
+
+        viewModelScope.launch {
+            chatRepository.getMessages(cursor).fold(
+                onSuccess = { page ->
+                    timelineState = MessageTimeline.merge(timelineState, page.messages)
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        messages = timelineState.chronological,
+                        nextCursor = page.nextCursor,
+                        hasMore = page.hasMore,
+                        isLoadingOlder = false,
+                        olderPageError = null,
+                    )
+                },
+                onFailure = {
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        isLoadingOlder = false,
+                        olderPageError = "Failed to load older messages. Tap to retry.",
+                    )
+                },
+            )
+            isLoadingOlderGuard = false
+        }
+    }
+
+    fun retryLoadOlder() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        if (current.olderPageError != null) {
+            _uiState.value = current.copy(olderPageError = null)
+            loadOlder()
+        }
+    }
 
     fun sendMessage(body: String) {
         val trimmed = body.trim()
@@ -89,12 +149,19 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.sendMessage(trimmed).fold(
                 onSuccess = { msg ->
+                    timelineState = MessageTimeline.merge(timelineState, listOf(msg))
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
-                    _uiState.value = latest.copy(messages = latest.messages + msg, isSending = false)
+                    _uiState.value = latest.copy(
+                        messages = timelineState.chronological,
+                        isSending = false,
+                    )
                 },
                 onFailure = {
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
-                    _uiState.value = latest.copy(isSending = false, sendError = it.message ?: "Failed to send message")
+                    _uiState.value = latest.copy(
+                        isSending = false,
+                        sendError = it.message ?: "Failed to send message",
+                    )
                 },
             )
         }
@@ -115,15 +182,19 @@ class ChatViewModel @Inject constructor(
         _uiState.value = current.copy(isSending = true, pendingAttachment = null)
         viewModelScope.launch {
             chatRepository.sendFileMessage(attachment.uri, attachment.mimeType, attachment.fileName).fold(
-                onSuccess = {
-                    chatRepository.getMessages().fold(
-                        onSuccess = { page ->
-                            _uiState.value = current.copy(messages = page.messages, isSending = false, pendingAttachment = null)
-                        },
-                        onFailure = { _uiState.value = current.copy(isSending = false, pendingAttachment = null) },
+                onSuccess = { msg ->
+                    timelineState = MessageTimeline.merge(timelineState, listOf(msg))
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        messages = timelineState.chronological,
+                        isSending = false,
+                        pendingAttachment = null,
                     )
                 },
-                onFailure = { _uiState.value = current.copy(isSending = false, pendingAttachment = attachment) },
+                onFailure = {
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(isSending = false, pendingAttachment = attachment)
+                },
             )
         }
     }
@@ -135,17 +206,20 @@ class ChatViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            // Loaded alongside the conversation, not derived from message.senderType — this backend
-            // is known to leak raw Eloquent polymorphic class names for other polymorphic fields
-            // instead of its own documented "patient"/"staff" aliases, so bubble ownership is
-            // determined by comparing sender_id to the authenticated account's own id instead.
             val accountDeferred = async { authRepository.getMe() }
             chatRepository.getConversation().fold(
                 onSuccess = { conversation ->
                     chatRepository.getMessages().fold(
                         onSuccess = { page ->
+                            timelineState = MessageTimeline.fromMessages(page.messages)
                             val currentUserId = accountDeferred.await().getOrNull()?.id
-                            _uiState.value = ChatUiState.Success(conversation, page.messages, currentUserId = currentUserId)
+                            _uiState.value = ChatUiState.Success(
+                                conversation = conversation,
+                                messages = timelineState.chronological,
+                                currentUserId = currentUserId,
+                                nextCursor = page.nextCursor,
+                                hasMore = page.hasMore,
+                            )
                         },
                         onFailure = { _uiState.value = ChatUiState.Error(it.message ?: "Failed to load messages") },
                     )
