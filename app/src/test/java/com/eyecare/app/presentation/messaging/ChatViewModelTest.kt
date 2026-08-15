@@ -6,6 +6,7 @@ import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.ConversationAccessLevel
 import com.eyecare.app.domain.model.ConversationCapabilities
 import com.eyecare.app.domain.model.Message
+import com.eyecare.app.domain.model.MessagePage
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.model.SenderType
@@ -74,7 +75,7 @@ class ChatViewModelTest {
     @Test
     fun `initial state is Loading then loads conversation and messages`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
-        coEvery { repo.getMessages() } returns Result.success(listOf(fakeMessage))
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(listOf(fakeMessage), null, false))
         val vm = vm()
 
         try {
@@ -94,7 +95,7 @@ class ChatViewModelTest {
     @Test
     fun `send message appends it to list`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
-        coEvery { repo.getMessages() } returns Result.success(emptyList())
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
         coEvery { repo.sendMessage("Hi there") } returns Result.success(
             fakeMessage.copy(id = 2, body = "Hi there")
         )
@@ -129,7 +130,7 @@ class ChatViewModelTest {
     @Test
     fun `send empty message does nothing`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
-        coEvery { repo.getMessages() } returns Result.success(emptyList())
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
         val vm = vm()
 
         try {
@@ -148,8 +149,8 @@ class ChatViewModelTest {
         val newMessage = fakeMessage.copy(id = 2, body = "New reply from clinic")
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages() } returnsMany listOf(
-            Result.success(listOf(fakeMessage)),
-            Result.success(listOf(fakeMessage, newMessage)),
+            Result.success(MessagePage(listOf(fakeMessage), null, false)),
+            Result.success(MessagePage(listOf(fakeMessage, newMessage), null, false)),
         )
         val vm = vm()
         vm.setScreenVisible(true)
@@ -198,7 +199,7 @@ class ChatViewModelTest {
             capabilities = ConversationCapabilities(canUploadAttachments = false),
         )
         coEvery { repo.getConversation() } returns Result.success(generalInquiryConversation)
-        coEvery { repo.getMessages() } returns Result.success(emptyList())
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
         val vm = vm()
 
         try {
