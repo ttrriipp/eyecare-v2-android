@@ -14,6 +14,7 @@ private val accountSafeDestinationNames = setOf(
     "Profile",
     "EditProfile",
     "AccountSecurity",
+    "Notifications",
     "LimitedAccount",
     "SessionGate",
     "Welcome",
@@ -34,6 +35,7 @@ fun classifyRouteAccess(route: String): PatientRouteAccess = when {
     route.contains("RequestAppointment") -> PatientRouteAccess.AccountOnly
     route.contains("AppointmentRequest") -> PatientRouteAccess.AccountOnly
     route.contains("Chat") -> PatientRouteAccess.AccountOnly
+    route.contains("Notifications") -> PatientRouteAccess.AccountOnly
     // Active-link required: confirmed appointments, clinical resources
     route.contains("AppointmentDetail") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("PatientProfile") -> PatientRouteAccess.ActiveLinkRequired

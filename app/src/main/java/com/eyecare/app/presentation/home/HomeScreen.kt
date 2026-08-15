@@ -19,10 +19,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Button
@@ -87,8 +91,10 @@ fun HomeScreen(
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
     onNavigateToLinkAccount: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     hasActivePatientLink: Boolean = true,
     patientLinkStatus: PatientLinkStatus = PatientLinkStatus.UNLINKED,
+    notificationUnreadCount: Int = 0,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -117,8 +123,10 @@ fun HomeScreen(
                 onNavigateToFrames = onNavigateToFrames,
                 onNavigateToFrameDetail = onNavigateToFrameDetail,
                 onNavigateToLinkAccount = onNavigateToLinkAccount,
+                onNavigateToNotifications = onNavigateToNotifications,
                 hasActivePatientLink = hasActivePatientLink,
                 patientLinkStatus = patientLinkStatus,
+                notificationUnreadCount = notificationUnreadCount,
             )
         }
     }
@@ -172,8 +180,10 @@ fun HomeContent(
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
     onNavigateToLinkAccount: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     hasActivePatientLink: Boolean = true,
     patientLinkStatus: PatientLinkStatus = PatientLinkStatus.UNLINKED,
+    notificationUnreadCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -186,15 +196,25 @@ fun HomeContent(
     ) {
         Spacer(Modifier.height(8.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = timeOfDayGreeting(LocalTime.now()),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = "Here's what's ahead",
-                style = MaterialTheme.typography.displayLarge,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = timeOfDayGreeting(LocalTime.now()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Here's what's ahead",
+                    style = MaterialTheme.typography.displayLarge,
+                )
+            }
+            NotificationBell(
+                unreadCount = notificationUnreadCount,
+                onClick = onNavigateToNotifications,
             )
         }
 
@@ -624,6 +644,57 @@ private fun HomeFrameShelf(
                 onClick = { onFrameClick(frame.id) },
                 modifier = Modifier.width(148.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun NotificationBell(
+    unreadCount: Int,
+    onClick: () -> Unit,
+) {
+    Box(contentAlignment = Alignment.TopEnd) {
+        Surface(
+            onClick = onClick,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.size(40.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = if (unreadCount > 0) {
+                        "$unreadCount unread notifications"
+                    } else {
+                        "Notifications"
+                    },
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+        if (unreadCount > 0) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .widthIn(min = 18.dp)
+                    .height(18.dp)
+                    .semantics {
+                        contentDescription = "$unreadCount unread notifications"
+                    },
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (unreadCount > 9) "9+" else unreadCount.toString(),
+                        color = MaterialTheme.colorScheme.onError,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
         }
     }
 }

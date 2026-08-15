@@ -12,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,12 +30,12 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.eyecare.app.data.local.TokenManager
+import com.eyecare.app.domain.model.MobileDestination
 import com.eyecare.app.domain.model.SessionState
 import com.eyecare.app.domain.model.requiresAppointmentRequestIdentity
 import com.eyecare.app.domain.model.toAppointmentRequestIdentityOrNull
 import com.eyecare.app.domain.model.canAccessPatientFeatures
 import com.eyecare.app.domain.model.PatientLinkStatus
-import com.eyecare.app.domain.repository.ChatRepository
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestDetailScreen
@@ -63,18 +62,23 @@ import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.profile.EditProfileScreen
 import com.eyecare.app.presentation.profile.PatientProfileScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
+import com.eyecare.app.presentation.notifications.NotificationListScreen
+import com.eyecare.app.presentation.notifications.NotificationListViewModel
+import com.eyecare.app.presentation.notifications.NotificationListUiState
+import com.eyecare.app.presentation.notifications.NotificationEffect
 import com.eyecare.app.presentation.profile.ProfileScreen
 
 @Composable
 fun EyecareNavGraph(
     tokenManager: TokenManager,
-    chatRepository: ChatRepository,
     onLogout: () -> Unit,
     navController: NavHostController = rememberNavController(),
 ) {
     val startDestination = SessionGate
     val sessionViewModel: SessionViewModel = hiltViewModel()
+    val mainUnreadViewModel: MainUnreadViewModel = hiltViewModel()
     val sessionState by sessionViewModel.state.collectAsState()
+    val mainUnreadState by mainUnreadViewModel.state.collectAsState()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDest: NavDestination? = backStackEntry?.destination
 
@@ -92,8 +96,13 @@ fun EyecareNavGraph(
         }
     }
 
-    // Unread message count — only loaded inside MainGraph
-    var unreadCount by remember { mutableIntStateOf(0) }
+    // Refresh unread counts when entering MainGraph
+    LaunchedEffect(sessionState) {
+        if (sessionState is SessionState.Linked || sessionState is SessionState.Limited) {
+            mainUnreadViewModel.refresh()
+        }
+    }
+
     var pendingPatientFeature by remember { mutableStateOf<PatientFeatureIntent?>(null) }
 
     // Hide bottom nav on auth/limited screens and chat
@@ -102,7 +111,7 @@ fun EyecareNavGraph(
             !route.contains("SessionGate") && !route.contains("Welcome") &&
             !route.contains("CreateAccount") && !route.contains("RecoverPassword") &&
             !route.contains("LimitedAccount") && !route.contains("AccountSecurity") &&
-            !route.contains("Chat") && !route.contains("AppointmentDetail") &&
+            !route.contains("Chat") && !route.contains("Notifications") && !route.contains("AppointmentDetail") &&
             !route.contains("AppointmentRequest") &&
             !route.contains("BookAppointment") && !route.contains("CreateFrameReservation") &&
             !route.contains("FrameReservation") && !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
@@ -302,8 +311,10 @@ fun EyecareNavGraph(
                             },
                             onNavigateToFrameDetail = { navigatePatientFeature(FrameDetail(it)) },
                             onNavigateToLinkAccount = ::openAccountLink,
+                            onNavigateToNotifications = { navController.navigate(Notifications) },
                             hasActivePatientLink = canAccessPatientFeatures(sessionState),
                             patientLinkStatus = homeLinkStatus,
+                            notificationUnreadCount = mainUnreadState.notificationUnreadCount,
                         )
                     }
                     composable<Frames> {
@@ -463,7 +474,7 @@ fun EyecareNavGraph(
                             onNavigateToPatientProfile = { navigatePatientFeature(PatientProfile) },
                             onNavigateToAccountSecurity = { navController.navigate(AccountSecurity) },
                             onNavigateToInviteCode = ::openAccountLink,
-                            unreadMessageCount = unreadCount,
+                            unreadMessageCount = mainUnreadState.messageUnreadCount,
                         )
                     }
                     composable<EditProfile> {
@@ -481,6 +492,37 @@ fun EyecareNavGraph(
                     composable<Chat> {
                         ChatScreen(
                             onBack = { navController.popBackStack() },
+                            onMessagesMarkedRead = { mainUnreadViewModel.onMessagesMarkedRead() },
+                        )
+                    }
+                    composable<Notifications> {
+                        val notificationViewModel: NotificationListViewModel = hiltViewModel()
+                        val notificationUiState by notificationViewModel.uiState.collectAsState()
+
+                        LaunchedEffect(Unit) {
+                            notificationViewModel.effects.collect { effect ->
+                                when (effect) {
+                                    is NotificationEffect.Navigate -> {
+                                        when (effect.destination) {
+                                            MobileDestination.CONVERSATION -> navController.navigate(Chat)
+                                            MobileDestination.UNKNOWN -> { /* no-op */ }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        NotificationListScreen(
+                            uiState = notificationUiState,
+                            onBack = { navController.popBackStack() },
+                            onNotificationTap = { notificationViewModel.onNotificationTap(it) },
+                            onMarkAllRead = {
+                                notificationViewModel.markAllRead()
+                                mainUnreadViewModel.onAllNotificationsRead()
+                            },
+                            onLoadMore = { notificationViewModel.loadMore() },
+                            onRefresh = { notificationViewModel.refresh() },
+                            onRetry = { notificationViewModel.loadInitial() },
                         )
                     }
                 }

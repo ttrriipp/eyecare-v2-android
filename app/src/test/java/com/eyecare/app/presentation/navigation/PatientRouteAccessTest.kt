@@ -43,6 +43,11 @@ class PatientRouteAccessTest {
     }
 
     @Test
+    fun `notifications are account-only`() {
+        assertEquals(PatientRouteAccess.AccountOnly, classifyRouteAccess("Notifications"))
+    }
+
+    @Test
     fun `chat is account-only`() {
         assertEquals(PatientRouteAccess.AccountOnly, classifyRouteAccess("Chat"))
     }
@@ -85,7 +90,7 @@ class PatientRouteAccessTest {
     }
 
     @Test
-    fun `unlinked account can access chat but not clinical records`() {
+    fun `unlinked account can access chat and notifications but not clinical records`() {
         val linkStatus = PatientLinkStatus.UNLINKED
 
         assertFalse(canAccessRoute(PatientProfile, linkStatus))
@@ -93,6 +98,7 @@ class PatientRouteAccessTest {
         assertFalse(canAccessRoute(PrescriptionList, linkStatus))
         assertFalse(canAccessRoute(CreateFrameReservation(frameId = 7, variantId = 3), linkStatus))
         assertTrue(canAccessRoute(Chat, linkStatus))
+        assertTrue(canAccessRoute(Notifications, linkStatus))
     }
 
     @Test
@@ -107,6 +113,12 @@ class PatientRouteAccessTest {
     fun `limited session does not redirect chat`() {
         val sessionState = SessionState.Limited(testAccount())
         assertFalse(shouldRedirectToLimitedAccount("Chat", sessionState))
+    }
+
+    @Test
+    fun `limited session does not redirect notifications`() {
+        val sessionState = SessionState.Limited(testAccount())
+        assertFalse(shouldRedirectToLimitedAccount("Notifications", sessionState))
     }
 
     @Test
