@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import com.eyecare.app.data.remote.ApiContractFixtures
+import com.eyecare.app.data.remote.dto.MessageDtos
 import com.eyecare.app.data.remote.api.ConversationApiService
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import io.mockk.mockk
@@ -148,5 +149,22 @@ class ChatRepositoryImplTest {
         assertTrue(requestBody.contains("body"))
         assertTrue(requestBody.contains("Please see attached"))
         assertTrue(requestBody.contains("photo.jpg"))
+    }
+
+    @Test
+    fun `invalid non-terminal cursor metadata is rejected`() = runTest {
+        val malformedResponse = MessageDtos.MessageListResponse(
+            data = emptyList(),
+            meta = MessageDtos.CursorMetaDto(nextCursor = null, hasMore = true),
+        )
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                json.encodeToString(MessageDtos.MessageListResponse.serializer(), malformedResponse),
+            ),
+        )
+
+        val result = repository.getMessages()
+
+        assertTrue(result.isFailure)
     }
 }

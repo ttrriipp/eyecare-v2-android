@@ -32,21 +32,11 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getMessages(cursor: String?): Result<MessagePage> = safeApiCall {
-        val response = api.getMessages(cursor)
-        MessagePage(
-            messages = response.data.map { it.toDomain() },
-            nextCursor = response.meta.nextCursor,
-            hasMore = response.meta.hasMore,
-        )
+        api.getMessages(cursor).toDomainPage()
     }
 
     override suspend fun searchMessages(query: String, cursor: String?): Result<MessagePage> = safeApiCall {
-        val response = api.searchMessages(query, cursor)
-        MessagePage(
-            messages = response.data.map { it.toDomain() },
-            nextCursor = response.meta.nextCursor,
-            hasMore = response.meta.hasMore,
-        )
+        api.searchMessages(query, cursor).toDomainPage()
     }
 
     override suspend fun markMessagesRead(): Result<Int> = safeApiCall {
@@ -111,6 +101,17 @@ class ChatRepositoryImpl @Inject constructor(
     private fun MessageDtos.ConversationCapabilitiesDto.toDomain() = ConversationCapabilities(
         canUploadAttachments = canUploadAttachments,
     )
+
+    private fun MessageDtos.MessageListResponse.toDomainPage(): MessagePage {
+        if (meta.hasMore && meta.nextCursor.isNullOrBlank()) {
+            error("Invalid cursor metadata")
+        }
+        return MessagePage(
+            messages = data.map { it.toDomain() },
+            nextCursor = meta.nextCursor,
+            hasMore = meta.hasMore,
+        )
+    }
 }
 
 internal fun MessageDtos.MessageDto.toDomain() = Message(
