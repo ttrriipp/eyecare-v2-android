@@ -1,6 +1,8 @@
 package com.eyecare.app.data.repository
 
+import android.content.ContentResolver
 import android.content.Context
+import android.net.Uri
 import com.eyecare.app.data.remote.ApiContractFixtures
 import com.eyecare.app.data.remote.api.ConversationApiService
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -20,28 +22,42 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import retrofit2.Retrofit
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.nio.file.Files
 
 class ChatRepositoryImplTest {
 
     private lateinit var server: MockWebServer
     private lateinit var repository: ChatRepositoryImpl
+    private lateinit var context: Context
+    private lateinit var contentResolver: ContentResolver
+    private lateinit var cacheDir: File
     private val json: Json = ApiContractFixtures.json
 
     @BeforeEach
     fun setup() {
         server = MockWebServer()
         server.start()
+        cacheDir = Files.createTempDirectory("chat-repository-test").toFile()
+        contentResolver = mockk()
+        context = mockk()
+        io.mockk.every { context.cacheDir } returns cacheDir
+        io.mockk.every { context.contentResolver } returns contentResolver
         val retrofit = Retrofit.Builder()
             .baseUrl(server.url("/"))
             .client(OkHttpClient())
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
         val api = retrofit.create(ConversationApiService::class.java)
-        repository = ChatRepositoryImpl(api, context = mockk<Context>(relaxed = true))
+        repository = ChatRepositoryImpl(api, context)
     }
 
     @AfterEach
-    fun tearDown() = server.shutdown()
+    fun tearDown() {
+        server.shutdown()
+        cacheDir.deleteRecursively()
+    }
 
     @Test
     fun `getMessages maps DTOs to domain MessagePage with cursor metadata`() = runTest {
@@ -110,5 +126,27 @@ class ChatRepositoryImplTest {
             "eyJpZCI6NTAsImNyZWF0ZWRfYXQiOiIyMDI2LTA3LTE1VDA4OjAwOjAwKzA4OjAwIn0=",
             page.nextCursor,
         )
+    }
+
+    @Test
+    fun `sendFileMessage includes the supplied body in multipart request`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(ApiContractFixtures.sendMessageResponse))
+        val uri: Uri = mockk()
+        io.mockk.every { contentResolver.openInputStream(uri) } returns
+            ByteArrayInputStream("file bytes".toByteArray())
+
+        val result = repository.sendFileMessage(
+            body = "Please see attached",
+            uri = uri,
+            mimeType = "image/jpeg",
+            fileName = "photo.jpg",
+        )
+
+        assertTrue(result.isSuccess)
+        val requestBody = server.takeRequest().body.readUtf8()
+        assertTrue(requestBody.contains("name="))
+        assertTrue(requestBody.contains("body"))
+        assertTrue(requestBody.contains("Please see attached"))
+        assertTrue(requestBody.contains("photo.jpg"))
     }
 }

@@ -11,7 +11,12 @@ interface ChatRepository {
     suspend fun searchMessages(query: String, cursor: String? = null): Result<MessagePage>
     suspend fun markMessagesRead(): Result<Int>
     suspend fun sendMessage(body: String): Result<Message>
-    suspend fun sendFileMessage(uri: Uri, mimeType: String, fileName: String): Result<Message>
+    suspend fun sendFileMessage(
+        body: String,
+        uri: Uri,
+        mimeType: String,
+        fileName: String,
+    ): Result<Message>
     suspend fun downloadAttachment(attachmentId: Int): Result<AttachmentDownload>
 }
 

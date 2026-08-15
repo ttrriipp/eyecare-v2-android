@@ -18,8 +18,8 @@ class AttachmentValidatorTest {
     }
 
     @Test
-    fun `gif mime type is allowed`() {
-        assertTrue(AttachmentValidator.isAllowedType("image/gif"))
+    fun `gif mime type is rejected`() {
+        assertFalse(AttachmentValidator.isAllowedType("image/gif"))
     }
 
     @Test

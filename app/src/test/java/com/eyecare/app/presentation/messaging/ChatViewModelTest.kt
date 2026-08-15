@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.messaging
 
+import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.eyecare.app.domain.model.ApiDomainError
@@ -516,6 +517,44 @@ class ChatViewModelTest {
             assertEquals("", state.inputText)
             assertEquals(1, state.messages.size)
             assertEquals("clear me", state.messages[0].body)
+            assertFalse(state.isSending)
+            assertNull(state.sendError)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `attachment send forwards draft body and clears submitted draft`() = runTest {
+        val attachmentUri: Uri = mockk()
+        val attachment = PendingAttachment(
+            uri = attachmentUri,
+            mimeType = "image/jpeg",
+            fileName = "photo.jpg",
+            fileSize = 1024,
+        )
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        coEvery {
+            repo.sendFileMessage("Please see attached", attachmentUri, "image/jpeg", "photo.jpg")
+        } returns Result.success(fakeMessage.copy(id = 11, body = "Please see attached"))
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.onDraftChanged(" Please see attached ")
+            vm.setPendingAttachment(attachment)
+            dispatcher.scheduler.runCurrent()
+
+            vm.sendPendingAttachment()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            coVerify(exactly = 1) {
+                repo.sendFileMessage("Please see attached", attachmentUri, "image/jpeg", "photo.jpg")
+            }
+            assertEquals("", state.inputText)
             assertFalse(state.isSending)
             assertNull(state.sendError)
         } finally {

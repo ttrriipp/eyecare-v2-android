@@ -58,6 +58,7 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     override suspend fun sendFileMessage(
+        body: String,
         uri: Uri,
         mimeType: String,
         fileName: String,
@@ -67,7 +68,7 @@ class ChatRepositoryImpl @Inject constructor(
         val tempFile = File.createTempFile("upload_", null, context.cacheDir)
         try {
             tempFile.outputStream().use { out -> inputStream.use { it.copyTo(out) } }
-            val bodyPart = "Attachment".toRequestBody("text/plain".toMediaType())
+            val bodyPart = body.toRequestBody("text/plain".toMediaType())
             val filePart = MultipartBody.Part.createFormData(
                 "attachment", fileName,
                 tempFile.asRequestBody(mimeType.toMediaType()),

@@ -2,7 +2,7 @@ package com.eyecare.app.presentation.messaging
 
 object AttachmentValidator {
     private val ALLOWED_TYPES = setOf(
-        "image/jpeg", "image/png", "image/gif",
+        "image/jpeg", "image/png",
         "application/pdf",
         "application/msword",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

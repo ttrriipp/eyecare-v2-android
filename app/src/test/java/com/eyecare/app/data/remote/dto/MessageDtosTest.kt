@@ -1,6 +1,7 @@
 package com.eyecare.app.data.remote.dto
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.SerializationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -97,7 +98,11 @@ class MessageDtosTest {
                 "read_at": null,
                 "created_at": "2026-07-23T10:00:00Z",
                 "attachments": []
-              }]
+              }],
+              "meta": {
+                "next_cursor": null,
+                "has_more": false
+              }
             }
             """.trimIndent(),
         )
@@ -123,7 +128,11 @@ class MessageDtosTest {
                 "contexts": [
                   { "type": "appointment", "id": 7 }
                 ]
-              }]
+              }],
+              "meta": {
+                "next_cursor": null,
+                "has_more": false
+              }
             }
             """.trimIndent(),
         )
@@ -197,8 +206,9 @@ class MessageDtosTest {
     }
 
     @Test
-    fun `message list defaults cursor metadata when meta is absent`() {
-        val response = json.decodeFromString<MessageDtos.MessageListResponse>(
+    fun `message list rejects missing cursor metadata`() {
+        val failure = runCatching {
+            json.decodeFromString<MessageDtos.MessageListResponse>(
             """
             {
               "data": [{
@@ -212,10 +222,10 @@ class MessageDtosTest {
               }]
             }
             """.trimIndent(),
-        )
+            )
+        }
 
-        assertNull(response.meta.nextCursor)
-        assertFalse(response.meta.hasMore)
+        assertTrue(failure.exceptionOrNull() is SerializationException)
     }
 
     @Test
@@ -276,7 +286,11 @@ class MessageDtosTest {
                 "read_at": null,
                 "created_at": "2026-08-01T00:00:00Z",
                 "attachments": []
-              }]
+              }],
+              "meta": {
+                "next_cursor": null,
+                "has_more": false
+              }
             }
             """.trimIndent(),
         )

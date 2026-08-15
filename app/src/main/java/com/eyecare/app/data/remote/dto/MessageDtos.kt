@@ -42,8 +42,8 @@ object MessageDtos {
 
     @Serializable
     data class CursorMetaDto(
-        @SerialName("next_cursor") val nextCursor: String? = null,
-        @SerialName("has_more") val hasMore: Boolean = false,
+        @SerialName("next_cursor") val nextCursor: String?,
+        @SerialName("has_more") val hasMore: Boolean,
     )
 
     @Serializable data class ConversationResponse(val data: ConversationDto)
@@ -51,7 +51,7 @@ object MessageDtos {
     @Serializable
     data class MessageListResponse(
         val data: List<MessageDto>,
-        val meta: CursorMetaDto = CursorMetaDto(),
+        val meta: CursorMetaDto,
     )
 
     @Serializable data class MessageResponse(val data: MessageDto)

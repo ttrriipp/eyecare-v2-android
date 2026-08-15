@@ -226,7 +226,15 @@ fun ChatScreen(
                 if (canUpload) {
                     Surface(
                         onClick = {
-                            filePicker.launch(arrayOf("image/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                    filePicker.launch(
+                        arrayOf(
+                            "image/jpeg",
+                            "image/png",
+                            "application/pdf",
+                            "application/msword",
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        ),
+                    )
                         },
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surfaceVariant,

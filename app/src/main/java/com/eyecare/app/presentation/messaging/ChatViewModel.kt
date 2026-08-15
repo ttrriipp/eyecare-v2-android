@@ -263,9 +263,16 @@ class ChatViewModel @Inject constructor(
         val attachment = current.pendingAttachment ?: return
         if (current.attachmentError != null) return
         if (current.isSending) return
+        val submittedDraft = current.inputText
+        val submittedBody = submittedDraft.trim().ifBlank { "Attachment" }
         _uiState.value = current.copy(isSending = true, sendError = null, pendingAttachment = null)
         viewModelScope.launch {
-            chatRepository.sendFileMessage(attachment.uri, attachment.mimeType, attachment.fileName).fold(
+            chatRepository.sendFileMessage(
+                submittedBody,
+                attachment.uri,
+                attachment.mimeType,
+                attachment.fileName,
+            ).fold(
                 onSuccess = { msg ->
                     timelineState = MessageTimeline.merge(timelineState, listOf(msg))
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
@@ -273,6 +280,7 @@ class ChatViewModel @Inject constructor(
                         messages = timelineState.chronological,
                         isSending = false,
                         pendingAttachment = null,
+                        inputText = if (latest.inputText == submittedDraft) "" else latest.inputText,
                     )
                 },
                 onFailure = {
