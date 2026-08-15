@@ -68,8 +68,9 @@ class ChatViewModel @Inject constructor(
             while (isScreenVisible) {
                 delay(POLL_INTERVAL_MS)
                 val current = _uiState.value as? ChatUiState.Success ?: continue
-                chatRepository.getMessages().onSuccess { messages ->
+                chatRepository.getMessages().onSuccess { page ->
                     val latest = _uiState.value as? ChatUiState.Success ?: return@onSuccess
+                    val messages = page.messages
                     if (messages.size != latest.messages.size || messages.lastOrNull()?.id != latest.messages.lastOrNull()?.id) {
                         _uiState.value = latest.copy(messages = messages)
                     }
@@ -116,8 +117,8 @@ class ChatViewModel @Inject constructor(
             chatRepository.sendFileMessage(attachment.uri, attachment.mimeType, attachment.fileName).fold(
                 onSuccess = {
                     chatRepository.getMessages().fold(
-                        onSuccess = { messages ->
-                            _uiState.value = current.copy(messages = messages, isSending = false, pendingAttachment = null)
+                        onSuccess = { page ->
+                            _uiState.value = current.copy(messages = page.messages, isSending = false, pendingAttachment = null)
                         },
                         onFailure = { _uiState.value = current.copy(isSending = false, pendingAttachment = null) },
                     )
@@ -142,9 +143,9 @@ class ChatViewModel @Inject constructor(
             chatRepository.getConversation().fold(
                 onSuccess = { conversation ->
                     chatRepository.getMessages().fold(
-                        onSuccess = { messages ->
+                        onSuccess = { page ->
                             val currentUserId = accountDeferred.await().getOrNull()?.id
-                            _uiState.value = ChatUiState.Success(conversation, messages, currentUserId = currentUserId)
+                            _uiState.value = ChatUiState.Success(conversation, page.messages, currentUserId = currentUserId)
                         },
                         onFailure = { _uiState.value = ChatUiState.Error(it.message ?: "Failed to load messages") },
                     )

@@ -10,6 +10,7 @@ import com.eyecare.app.domain.model.ConversationAccessLevel
 import com.eyecare.app.domain.model.ConversationCapabilities
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
+import com.eyecare.app.domain.model.MessagePage
 import com.eyecare.app.domain.model.SenderType
 import com.eyecare.app.domain.repository.AttachmentDownload
 import com.eyecare.app.domain.repository.ChatRepository
@@ -30,8 +31,26 @@ class ChatRepositoryImpl @Inject constructor(
         api.getConversation().data.toDomain()
     }
 
-    override suspend fun getMessages(): Result<List<Message>> = safeApiCall {
-        api.getMessages().data.map { it.toDomain() }
+    override suspend fun getMessages(cursor: String?): Result<MessagePage> = safeApiCall {
+        val response = api.getMessages(cursor)
+        MessagePage(
+            messages = response.data.map { it.toDomain() },
+            nextCursor = response.meta.nextCursor,
+            hasMore = response.meta.hasMore,
+        )
+    }
+
+    override suspend fun searchMessages(query: String, cursor: String?): Result<MessagePage> = safeApiCall {
+        val response = api.searchMessages(query, cursor)
+        MessagePage(
+            messages = response.data.map { it.toDomain() },
+            nextCursor = response.meta.nextCursor,
+            hasMore = response.meta.hasMore,
+        )
+    }
+
+    override suspend fun markMessagesRead(): Result<Int> = safeApiCall {
+        api.markMessagesRead().markedCount
     }
 
     override suspend fun sendMessage(body: String): Result<Message> = safeApiCall {
