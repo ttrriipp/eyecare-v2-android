@@ -10,6 +10,10 @@ data class ArDeviceFacts(
     val availableStorageBytes: Long,
 )
 
+fun interface ArCapabilityProvider {
+    fun readFacts(): ArDeviceFacts
+}
+
 data class OpenGlEsVersion(
     val major: Int,
     val minor: Int,

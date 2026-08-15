@@ -5,15 +5,18 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.StatFs
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 
 /** Reads platform facts without initializing CameraX, MediaPipe, or SceneView. */
-class AndroidArCapabilityProvider(
+class AndroidArCapabilityProvider @Inject constructor(
+    @param:ApplicationContext
     private val context: Context,
-) {
+) : ArCapabilityProvider {
 
     private val applicationContext = context.applicationContext ?: context
 
-    fun readFacts(): ArDeviceFacts {
+    override fun readFacts(): ArDeviceFacts {
         val activityManager = applicationContext.getSystemService(ActivityManager::class.java)
         val configuration = activityManager?.deviceConfigurationInfo
         val memoryInfo = ActivityManager.MemoryInfo()
