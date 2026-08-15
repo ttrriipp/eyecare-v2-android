@@ -66,12 +66,20 @@ import com.eyecare.app.ui.theme.EyecareColors
 @Composable
 fun ChatScreen(
     onBack: () -> Unit,
+    onMessagesMarkedRead: () -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    LaunchedEffect(Unit) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is ChatEffect.MessagesMarkedRead -> onMessagesMarkedRead()
+            }
+        }
+    }
 
     // Lifecycle-aware polling
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -183,6 +191,7 @@ fun ChatScreen(
 
         // Input bar
         val isSending = successState?.isSending == true
+        val inputText = successState?.inputText ?: ""
         val canUpload = successState?.conversation?.let {
             it.accessLevel == ConversationAccessLevel.LINKED_PATIENT && it.capabilities.canUploadAttachments
         } == true
@@ -199,6 +208,7 @@ fun ChatScreen(
                     },
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = !isSending,
                     modifier = Modifier.size(44.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -210,7 +220,7 @@ fun ChatScreen(
 
             OutlinedTextField(
                 value = inputText,
-                onValueChange = { inputText = it },
+                onValueChange = { viewModel.onDraftChanged(it) },
                 placeholder = { Text("Type a message…") },
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -230,14 +240,12 @@ fun ChatScreen(
                 onClick = {
                     when {
                         hasPendingAttachment -> viewModel.sendPendingAttachment()
-                        else -> {
-                            viewModel.sendMessage(inputText)
-                            inputText = ""
-                        }
+                        else -> viewModel.sendMessage()
                     }
                 },
                 shape = CircleShape,
                 color = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                enabled = canSend,
                 modifier = Modifier.size(48.dp),
             ) {
                 val sendContentColor = if (canSend) {

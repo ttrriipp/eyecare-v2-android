@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.messaging
 
 import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
+import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.ConversationAccessLevel
 import com.eyecare.app.domain.model.ConversationCapabilities
@@ -13,6 +14,7 @@ import com.eyecare.app.domain.model.SenderType
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +31,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatViewModelTest {
@@ -46,6 +49,7 @@ class ChatViewModelTest {
         capabilities = ConversationCapabilities(canUploadAttachments = true),
     )
     private val fakeMessage = Message(1, 42, SenderType.PATIENT, "Hello", null, "2026-10-24T10:00:00Z", emptyList())
+    private val fakeStaffMessage = Message(2, 99, SenderType.STAFF, "Hi from staff", null, "2026-10-24T10:01:00Z", emptyList())
     private val fakeAccount = PatientAccount(
         id = 42,
         name = "Test Patient",
@@ -79,6 +83,7 @@ class ChatViewModelTest {
     fun `initial state is Loading then loads conversation and messages`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages() } returns Result.success(MessagePage(listOf(fakeMessage), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -104,6 +109,7 @@ class ChatViewModelTest {
         coEvery { repo.getMessages() } returns Result.success(
             MessagePage(listOf(newest, middle, oldest), null, false),
         )
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -124,6 +130,7 @@ class ChatViewModelTest {
         coEvery { repo.sendMessage("Hi there") } returns Result.success(
             fakeMessage.copy(id = 2, body = "Hi there")
         )
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -132,7 +139,11 @@ class ChatViewModelTest {
                 dispatcher.scheduler.runCurrent()
                 awaitItem() // Success with empty messages
 
-                vm.sendMessage("Hi there")
+                vm.onDraftChanged("Hi there")
+                dispatcher.scheduler.runCurrent()
+                awaitItem() // draft updated
+
+                vm.sendMessage()
                 dispatcher.scheduler.runCurrent()
 
                 val sending = awaitItem() as ChatUiState.Success
@@ -156,12 +167,15 @@ class ChatViewModelTest {
     fun `send empty message does nothing`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
             dispatcher.scheduler.runCurrent()
+            vm.onDraftChanged("   ")
+            dispatcher.scheduler.runCurrent()
             val stateBefore = vm.uiState.value
-            vm.sendMessage("   ")
+            vm.sendMessage()
             dispatcher.scheduler.runCurrent()
             assertEquals(stateBefore, vm.uiState.value)
         } finally {
@@ -175,6 +189,7 @@ class ChatViewModelTest {
         coEvery { repo.getMessages(null) } returns Result.success(
             MessagePage(listOf(fakeMessage), "cursor-abc", true),
         )
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -199,6 +214,7 @@ class ChatViewModelTest {
         coEvery { repo.getMessages("cursor-1") } returns Result.success(
             MessagePage(listOf(olderMsg), null, false),
         )
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -227,6 +243,7 @@ class ChatViewModelTest {
             MessagePage(listOf(fakeMessage), "cursor-1", true),
         )
         coEvery { repo.getMessages("cursor-1") } returns Result.failure(RuntimeException("offline"))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -254,6 +271,7 @@ class ChatViewModelTest {
         coEvery { repo.getMessages("cursor-1") } returns Result.success(
             MessagePage(emptyList(), null, false),
         )
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -280,6 +298,7 @@ class ChatViewModelTest {
             Result.success(MessagePage(listOf(msg1), null, false)),
             Result.success(MessagePage(listOf(msg1, msg2), null, false)),
         )
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
         vm.setScreenVisible(true)
 
@@ -313,6 +332,7 @@ class ChatViewModelTest {
             Result.success(MessagePage(listOf(fakeMessage, sentMsg), null, false)),
         )
         coEvery { repo.sendMessage("sent") } returns Result.success(sentMsg)
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -321,7 +341,9 @@ class ChatViewModelTest {
             assertEquals(1, initial.messages.size)
 
             // Send message
-            vm.sendMessage("sent")
+            vm.onDraftChanged("sent")
+            dispatcher.scheduler.runCurrent()
+            vm.sendMessage()
             dispatcher.scheduler.runCurrent()
 
             // Poll happens
@@ -352,6 +374,7 @@ class ChatViewModelTest {
         coEvery { repo.getMessages("cursor-1") } returns Result.success(
             MessagePage(listOf(page1Msg), null, false),
         )
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -403,6 +426,7 @@ class ChatViewModelTest {
         )
         coEvery { repo.getConversation() } returns Result.success(generalInquiryConversation)
         coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
         val vm = vm()
 
         try {
@@ -410,6 +434,353 @@ class ChatViewModelTest {
             val state = vm.uiState.value as ChatUiState.Success
             assertEquals(ConversationAccessLevel.GENERAL_INQUIRY, state.conversation.accessLevel)
             assertEquals(false, state.conversation.capabilities.canUploadAttachments)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    // --- Task 10: Draft ownership and safe send ---
+
+    @Test
+    fun `draft survives configuration change simulation`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.onDraftChanged("hello draft")
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            assertEquals("hello draft", state.inputText)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `double tap single flight prevents concurrent send`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        coEvery { repo.sendMessage("msg") } coAnswers {
+            kotlinx.coroutines.delay(10_000)
+            Result.success(fakeMessage.copy(id = 99, body = "msg"))
+        }
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.onDraftChanged("msg")
+            dispatcher.scheduler.runCurrent()
+            vm.sendMessage()
+            dispatcher.scheduler.runCurrent()
+            // Second send while first is in-flight
+            vm.sendMessage()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            assertTrue(state.isSending)
+
+            dispatcher.scheduler.advanceTimeBy(10_001)
+            dispatcher.scheduler.runCurrent()
+
+            // Only one sendMessage call should have been made
+            coVerify(exactly = 1) { repo.sendMessage("msg") }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `success clears draft and merges message`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        coEvery { repo.sendMessage("clear me") } returns Result.success(
+            fakeMessage.copy(id = 10, body = "clear me")
+        )
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.onDraftChanged("clear me")
+            dispatcher.scheduler.runCurrent()
+            vm.sendMessage()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            assertEquals("", state.inputText)
+            assertEquals(1, state.messages.size)
+            assertEquals("clear me", state.messages[0].body)
+            assertFalse(state.isSending)
+            assertNull(state.sendError)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `send failure 429 preserves draft and shows safe copy`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        coEvery { repo.sendMessage("rate limited") } returns Result.failure(
+            ApiDomainError(httpStatus = 429, code = "RATE_LIMITED", message = "Too Many Requests")
+        )
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.onDraftChanged("rate limited")
+            dispatcher.scheduler.runCurrent()
+            vm.sendMessage()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            assertEquals("rate limited", state.inputText)
+            assertEquals("You're sending messages too quickly. Please wait and try again.", state.sendError)
+            assertFalse(state.isSending)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `send failure 422 preserves draft and shows safe copy`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        coEvery { repo.sendMessage("bad input") } returns Result.failure(
+            ApiDomainError(httpStatus = 422, code = "VALIDATION_ERROR", message = "body field required")
+        )
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.onDraftChanged("bad input")
+            dispatcher.scheduler.runCurrent()
+            vm.sendMessage()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            assertEquals("bad input", state.inputText)
+            assertEquals("Message could not be sent. Please check and try again.", state.sendError)
+            assertFalse(state.isSending)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `send failure network preserves draft and shows safe copy`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        coEvery { repo.sendMessage("offline") } returns Result.failure(IOException("Connection refused"))
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.onDraftChanged("offline")
+            dispatcher.scheduler.runCurrent()
+            vm.sendMessage()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            assertEquals("offline", state.inputText)
+            assertEquals("Unable to send. Check your connection and try again.", state.sendError)
+            assertFalse(state.isSending)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `send failure unknown shows safe copy no raw exception text`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        coEvery { repo.sendMessage("weird") } returns Result.failure(
+            RuntimeException("PHP Fatal Error: Class not found in /var/www/vendor...")
+        )
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.onDraftChanged("weird")
+            dispatcher.scheduler.runCurrent()
+            vm.sendMessage()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            assertEquals("weird", state.inputText)
+            assertEquals("Unable to send. Check your connection and try again.", state.sendError)
+            val error = state.sendError ?: ""
+            assertFalse(error.contains("PHP"))
+            assertFalse(error.contains("Fatal"))
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    // --- Task 11: Mark-read and effects ---
+
+    @Test
+    fun `initial staff message triggers mark-read`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(
+            MessagePage(listOf(fakeMessage, fakeStaffMessage), null, false),
+        )
+        coEvery { repo.markMessagesRead() } returns Result.success(1)
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            dispatcher.scheduler.runCurrent()
+            coVerify(exactly = 1) { repo.markMessagesRead() }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `own messages do not trigger mark-read`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(
+            MessagePage(listOf(fakeMessage), null, false),
+        )
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            dispatcher.scheduler.runCurrent()
+            coVerify(exactly = 0) { repo.markMessagesRead() }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `mark-read is single flight no concurrent requests`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(
+            MessagePage(listOf(fakeMessage, fakeStaffMessage), null, false),
+        )
+        var callCount = 0
+        coEvery { repo.markMessagesRead() } coAnswers {
+            callCount++
+            kotlinx.coroutines.delay(5_000)
+            Result.success(1)
+        }
+        val vm = vm()
+
+        try {
+            // Run initial load → tryMarkRead launches mark-read coroutine (delayed 5s)
+            dispatcher.scheduler.runCurrent()
+            dispatcher.scheduler.runCurrent()
+            assertEquals(1, callCount) // mark-read #1 launched (but delayed)
+
+            // While mark-read #1 is in-flight, call setScreenVisible(true) again
+            vm.setScreenVisible(true)
+            dispatcher.scheduler.runCurrent()
+            // Still only 1 call — the second tryMarkRead sees isMarkReadInFlight=true
+            assertEquals(1, callCount)
+
+            // Let mark-read #1 complete — this triggers pendingMarkRead → mark-read #2
+            dispatcher.scheduler.advanceTimeBy(5_001)
+            dispatcher.scheduler.runCurrent()
+            assertEquals(2, callCount)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `hidden screen suppresses mark-read`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(
+            MessagePage(listOf(fakeStaffMessage), null, false),
+        )
+        coEvery { repo.markMessagesRead() } returns Result.success(1)
+        val vm = vm()
+
+        try {
+            // Run initial load and mark-read
+            dispatcher.scheduler.runCurrent()
+            dispatcher.scheduler.runCurrent()
+            coVerify(exactly = 1) { repo.markMessagesRead() }
+
+            // Now hide and poll with new staff message
+            vm.setScreenVisible(false)
+            val newStaff = fakeStaffMessage.copy(id = 99, body = "new staff")
+            coEvery { repo.getMessages() } returns Result.success(
+                MessagePage(listOf(fakeMessage, fakeStaffMessage, newStaff), null, false),
+            )
+            dispatcher.scheduler.advanceTimeBy(5_001)
+            dispatcher.scheduler.runCurrent()
+
+            // Still only 1 call — hidden screen did not trigger another
+            coVerify(exactly = 1) { repo.markMessagesRead() }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `mark-read failure sets pending retry for next visible refresh`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(
+            MessagePage(listOf(fakeStaffMessage), null, false),
+        )
+        coEvery { repo.markMessagesRead() } returnsMany listOf(
+            Result.failure(RuntimeException("server error")),
+            Result.success(1),
+        )
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            dispatcher.scheduler.runCurrent()
+            assertTrue(vm.uiState.value is ChatUiState.Success)
+
+            // Hide screen
+            vm.setScreenVisible(false)
+            dispatcher.scheduler.runCurrent()
+
+            // Show screen again
+            vm.setScreenVisible(true)
+            dispatcher.scheduler.runCurrent()
+            dispatcher.scheduler.runCurrent()
+            dispatcher.scheduler.runCurrent()
+
+            coVerify(exactly = 2) { repo.markMessagesRead() }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `success emits one-shot MessagesMarkedRead effect`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(
+            MessagePage(listOf(fakeStaffMessage), null, false),
+        )
+        coEvery { repo.markMessagesRead() } returns Result.success(1)
+        val vm = vm()
+
+        try {
+            vm.effects.test {
+                // Run load and mark-read
+                dispatcher.scheduler.runCurrent()
+                dispatcher.scheduler.runCurrent()
+                val effect = awaitItem()
+                assertInstanceOf(ChatEffect.MessagesMarkedRead::class.java, effect)
+                cancelAndIgnoreRemainingEvents()
+            }
         } finally {
             vm.viewModelScope.cancel()
         }

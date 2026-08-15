@@ -3,18 +3,23 @@ package com.eyecare.app.presentation.messaging
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
+import com.eyecare.app.domain.model.SenderType
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 private const val POLL_INTERVAL_MS = 5_000L
@@ -32,6 +37,7 @@ sealed interface ChatUiState {
         val conversation: Conversation,
         val messages: List<Message>,
         val currentUserId: Int? = null,
+        val inputText: String = "",
         val isSending: Boolean = false,
         val pendingAttachment: PendingAttachment? = null,
         val attachmentError: String? = null,
@@ -44,6 +50,10 @@ sealed interface ChatUiState {
     data class Error(val message: String) : ChatUiState
 }
 
+sealed interface ChatEffect {
+    data object MessagesMarkedRead : ChatEffect
+}
+
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
@@ -53,10 +63,15 @@ class ChatViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ChatUiState>(ChatUiState.Loading)
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
+    private val _effects = Channel<ChatEffect>(Channel.BUFFERED)
+    val effects = _effects.receiveAsFlow()
+
     private var timelineState = MessageTimeline.State()
     private var isScreenVisible = false
     private var pollingJob: Job? = null
     private var isLoadingOlderGuard = false
+    private var isMarkReadInFlight = false
+    private var pendingMarkRead = false
 
     init { load() }
 
@@ -67,6 +82,9 @@ class ChatViewModel @Inject constructor(
         } else if (!visible) {
             pollingJob?.cancel()
             pollingJob = null
+        }
+        if (visible) {
+            tryMarkRead()
         }
     }
 
@@ -85,17 +103,60 @@ class ChatViewModel @Inject constructor(
             onSuccess = { page ->
                 val latest = _uiState.value as? ChatUiState.Success ?: return@fold
                 val polledMessages = page.messages
+                val hadNewStaff = hasNewStaffMessages(polledMessages)
                 if (MessageTimeline.hasNewMessages(timelineState, polledMessages)) {
                     timelineState = MessageTimeline.merge(timelineState, polledMessages)
                     _uiState.value = latest.copy(
                         messages = timelineState.chronological,
                     )
+                    if (hadNewStaff && isScreenVisible) {
+                        tryMarkRead()
+                    }
                 }
             },
             onFailure = {
                 // Poll failures preserve usable messages; no full-screen error
             },
         )
+    }
+
+    private fun hasNewStaffMessages(incoming: List<Message>): Boolean {
+        val currentUserId = (_uiState.value as? ChatUiState.Success)?.currentUserId
+        return incoming.any { msg ->
+            msg.senderType == SenderType.STAFF ||
+                (currentUserId != null && msg.senderId != currentUserId)
+        }
+    }
+
+    private fun tryMarkRead() {
+        val state = _uiState.value as? ChatUiState.Success ?: return
+        val hasStaffMessages = state.messages.any { msg ->
+            msg.senderType == SenderType.STAFF ||
+                (state.currentUserId != null && msg.senderId != state.currentUserId)
+        }
+        if (!hasStaffMessages) return
+        if (isMarkReadInFlight) {
+            pendingMarkRead = true
+            return
+        }
+        isMarkReadInFlight = true
+        pendingMarkRead = false
+        viewModelScope.launch {
+            chatRepository.markMessagesRead().fold(
+                onSuccess = {
+                    isMarkReadInFlight = false
+                    _effects.send(ChatEffect.MessagesMarkedRead)
+                    if (pendingMarkRead) {
+                        pendingMarkRead = false
+                        tryMarkRead()
+                    }
+                },
+                onFailure = {
+                    isMarkReadInFlight = false
+                    pendingMarkRead = true
+                },
+            )
+        }
     }
 
     fun retry() = load()
@@ -141,10 +202,16 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun sendMessage(body: String) {
-        val trimmed = body.trim()
-        if (trimmed.isBlank()) return
+    fun onDraftChanged(text: String) {
         val current = _uiState.value as? ChatUiState.Success ?: return
+        _uiState.value = current.copy(inputText = text)
+    }
+
+    fun sendMessage() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        val trimmed = current.inputText.trim()
+        if (trimmed.isBlank()) return
+        if (current.isSending) return
         _uiState.value = current.copy(isSending = true, sendError = null)
         viewModelScope.launch {
             chatRepository.sendMessage(trimmed).fold(
@@ -154,13 +221,14 @@ class ChatViewModel @Inject constructor(
                     _uiState.value = latest.copy(
                         messages = timelineState.chronological,
                         isSending = false,
+                        inputText = "",
                     )
                 },
                 onFailure = {
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
                     _uiState.value = latest.copy(
                         isSending = false,
-                        sendError = it.message ?: "Failed to send message",
+                        sendError = mapSendError(it),
                     )
                 },
             )
@@ -179,7 +247,8 @@ class ChatViewModel @Inject constructor(
         val current = _uiState.value as? ChatUiState.Success ?: return
         val attachment = current.pendingAttachment ?: return
         if (current.attachmentError != null) return
-        _uiState.value = current.copy(isSending = true, pendingAttachment = null)
+        if (current.isSending) return
+        _uiState.value = current.copy(isSending = true, sendError = null, pendingAttachment = null)
         viewModelScope.launch {
             chatRepository.sendFileMessage(attachment.uri, attachment.mimeType, attachment.fileName).fold(
                 onSuccess = { msg ->
@@ -193,7 +262,11 @@ class ChatViewModel @Inject constructor(
                 },
                 onFailure = {
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
-                    _uiState.value = latest.copy(isSending = false, pendingAttachment = attachment)
+                    _uiState.value = latest.copy(
+                        isSending = false,
+                        pendingAttachment = attachment,
+                        sendError = mapSendError(it),
+                    )
                 },
             )
         }
@@ -202,6 +275,20 @@ class ChatViewModel @Inject constructor(
     fun clearSendError() {
         val current = _uiState.value as? ChatUiState.Success ?: return
         _uiState.value = current.copy(sendError = null)
+    }
+
+    private fun mapSendError(throwable: Throwable): String {
+        val apiError = throwable as? ApiDomainError
+        return when {
+            apiError?.httpStatus == 429 ->
+                "You're sending messages too quickly. Please wait and try again."
+            apiError?.httpStatus == 422 ->
+                "Message could not be sent. Please check and try again."
+            throwable is IOException ->
+                "Unable to send. Check your connection and try again."
+            else ->
+                "Unable to send. Check your connection and try again."
+        }
     }
 
     private fun load() {
@@ -220,6 +307,7 @@ class ChatViewModel @Inject constructor(
                                 nextCursor = page.nextCursor,
                                 hasMore = page.hasMore,
                             )
+                            tryMarkRead()
                         },
                         onFailure = { _uiState.value = ChatUiState.Error(it.message ?: "Failed to load messages") },
                     )
