@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.Conversation
 import com.eyecare.app.domain.model.Message
+import com.eyecare.app.domain.model.MessagePage
 import com.eyecare.app.domain.model.SenderType
 import com.eyecare.app.domain.repository.AuthRepository
 import com.eyecare.app.domain.repository.ChatRepository
@@ -23,6 +24,8 @@ import java.io.IOException
 import javax.inject.Inject
 
 private const val POLL_INTERVAL_MS = 5_000L
+private const val CONVERSATION_LOAD_ERROR = "Unable to load conversation. Please try again."
+private const val MESSAGE_LOAD_ERROR = "Unable to load messages. Please try again."
 
 data class PendingAttachment(
     val uri: Uri,
@@ -118,8 +121,12 @@ class ChatViewModel @Inject constructor(
             onSuccess = { page ->
                 val latest = _uiState.value as? ChatUiState.Success ?: return@fold
                 val polledMessages = page.messages
-                val hadNewStaff = hasNewStaffMessages(polledMessages)
-                if (MessageTimeline.hasNewMessages(timelineState, polledMessages)) {
+                val newMessages = polledMessages.filter { it.id !in timelineState.byId }
+                if (newMessages.isNotEmpty()) {
+                    val hadNewStaff = hasStaffMessages(
+                        messages = newMessages,
+                        currentUserId = latest.currentUserId,
+                    )
                     timelineState = MessageTimeline.merge(timelineState, polledMessages)
                     _uiState.value = latest.copy(
                         messages = timelineState.chronological,
@@ -135,9 +142,8 @@ class ChatViewModel @Inject constructor(
         )
     }
 
-    private fun hasNewStaffMessages(incoming: List<Message>): Boolean {
-        val currentUserId = (_uiState.value as? ChatUiState.Success)?.currentUserId
-        return incoming.any { msg ->
+    private fun hasStaffMessages(messages: List<Message>, currentUserId: Int?): Boolean {
+        return messages.any { msg ->
             msg.senderType == SenderType.STAFF ||
                 (currentUserId != null && msg.senderId != currentUserId)
         }
@@ -145,11 +151,7 @@ class ChatViewModel @Inject constructor(
 
     private fun tryMarkRead() {
         val state = _uiState.value as? ChatUiState.Success ?: return
-        val hasStaffMessages = state.messages.any { msg ->
-            msg.senderType == SenderType.STAFF ||
-                (state.currentUserId != null && msg.senderId != state.currentUserId)
-        }
-        if (!hasStaffMessages) return
+        if (!hasStaffMessages(state.messages, state.currentUserId)) return
         if (isMarkReadInFlight) {
             pendingMarkRead = true
             return
@@ -189,10 +191,11 @@ class ChatViewModel @Inject constructor(
                 onSuccess = { page ->
                     timelineState = MessageTimeline.merge(timelineState, page.messages)
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    val (nextCursor, hasMore) = normalizeCursor(cursor, page)
                     _uiState.value = latest.copy(
                         messages = timelineState.chronological,
-                        nextCursor = page.nextCursor,
-                        hasMore = page.hasMore,
+                        nextCursor = nextCursor,
+                        hasMore = hasMore,
                         isLoadingOlder = false,
                         olderPageError = null,
                     )
@@ -355,11 +358,12 @@ class ChatViewModel @Inject constructor(
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
                     val ss = latest.searchState ?: return@fold
                     if (ss.generation != gen) return@fold
+                    val (nextCursor, hasMore) = normalizeCursor(null, page)
                     _uiState.value = latest.copy(
                         searchState = ss.copy(
                             results = page.messages,
-                            nextCursor = page.nextCursor,
-                            hasMore = page.hasMore,
+                            nextCursor = nextCursor,
+                            hasMore = hasMore,
                             isLoading = false,
                             error = null,
                         ),
@@ -398,11 +402,12 @@ class ChatViewModel @Inject constructor(
                     val latest = _uiState.value as? ChatUiState.Success ?: return@fold
                     val currentSS = latest.searchState ?: return@fold
                     if (currentSS.generation != gen) return@fold
+                    val (nextCursor, hasMore) = normalizeCursor(cursor, page)
                     _uiState.value = latest.copy(
                         searchState = currentSS.copy(
                             results = currentSS.results + page.messages,
-                            nextCursor = page.nextCursor,
-                            hasMore = page.hasMore,
+                            nextCursor = nextCursor,
+                            hasMore = hasMore,
                             isLoadingMore = false,
                             error = null,
                         ),
@@ -438,6 +443,12 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private fun normalizeCursor(requestedCursor: String?, page: MessagePage): Pair<String?, Boolean> {
+        val nextCursor = page.nextCursor?.takeIf { it.isNotBlank() }
+        val hasMore = page.hasMore && nextCursor != null && nextCursor != requestedCursor
+        return if (hasMore) nextCursor to true else null to false
+    }
+
     private fun load() {
         viewModelScope.launch {
             val accountDeferred = async { authRepository.getMe() }
@@ -447,19 +458,20 @@ class ChatViewModel @Inject constructor(
                         onSuccess = { page ->
                             timelineState = MessageTimeline.fromMessages(page.messages)
                             val currentUserId = accountDeferred.await().getOrNull()?.id
+                            val (nextCursor, hasMore) = normalizeCursor(null, page)
                             _uiState.value = ChatUiState.Success(
                                 conversation = conversation,
                                 messages = timelineState.chronological,
                                 currentUserId = currentUserId,
-                                nextCursor = page.nextCursor,
-                                hasMore = page.hasMore,
+                                nextCursor = nextCursor,
+                                hasMore = hasMore,
                             )
                             tryMarkRead()
                         },
-                        onFailure = { _uiState.value = ChatUiState.Error(it.message ?: "Failed to load messages") },
+                        onFailure = { _uiState.value = ChatUiState.Error(MESSAGE_LOAD_ERROR) },
                     )
                 },
-                onFailure = { _uiState.value = ChatUiState.Error(it.message ?: "Failed to load conversation") },
+                onFailure = { _uiState.value = ChatUiState.Error(CONVERSATION_LOAD_ERROR) },
             )
         }
     }

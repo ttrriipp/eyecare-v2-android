@@ -265,6 +265,35 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `repeated older cursor terminates pagination without retry loop`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages(null) } returns Result.success(
+            MessagePage(listOf(fakeMessage), "cursor-1", true),
+        )
+        coEvery { repo.getMessages("cursor-1") } returns Result.success(
+            MessagePage(emptyList(), "cursor-1", true),
+        )
+        coEvery { repo.markMessagesRead() } returns Result.success(0)
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.loadOlder()
+            dispatcher.scheduler.runCurrent()
+
+            val after = vm.uiState.value as ChatUiState.Success
+            assertFalse(after.hasMore)
+            assertNull(after.nextCursor)
+
+            vm.loadOlder()
+            dispatcher.scheduler.runCurrent()
+            coVerify(exactly = 1) { repo.getMessages("cursor-1") }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
     fun `concurrent older-page guard`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages(null) } returns Result.success(
@@ -319,6 +348,29 @@ class ChatViewModelTest {
                 assertEquals("new", polled.messages[1].body)
                 cancelAndIgnoreRemainingEvents()
             }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `polling own-only message does not mark read again`() = runTest {
+        val ownNewMessage = fakeMessage.copy(id = 3, body = "My follow-up")
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returnsMany listOf(
+            Result.success(MessagePage(listOf(fakeStaffMessage), null, false)),
+            Result.success(MessagePage(listOf(fakeStaffMessage, ownNewMessage), null, false)),
+        )
+        coEvery { repo.markMessagesRead() } returns Result.success(1)
+        val vm = vm()
+        vm.setScreenVisible(true)
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            dispatcher.scheduler.advanceTimeBy(5_001)
+            dispatcher.scheduler.runCurrent()
+
+            coVerify(exactly = 1) { repo.markMessagesRead() }
         } finally {
             vm.viewModelScope.cancel()
         }
@@ -405,14 +457,40 @@ class ChatViewModelTest {
 
     @Test
     fun `repo error emits Error state`() = runTest {
-        coEvery { repo.getConversation() } returns Result.failure(RuntimeException("offline"))
+        coEvery { repo.getConversation() } returns Result.failure(
+            RuntimeException("PHP Fatal Error: backend internals"),
+        )
         val vm = vm()
 
         try {
             vm.uiState.test {
                 awaitItem() // Loading
                 dispatcher.scheduler.runCurrent()
-                assertInstanceOf(ChatUiState.Error::class.java, awaitItem())
+                val error = awaitItem() as ChatUiState.Error
+                assertEquals("Unable to load conversation. Please try again.", error.message)
+                assertFalse(error.message.contains("PHP"))
+                cancelAndIgnoreRemainingEvents()
+            }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `message load error is patient safe`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.failure(
+            RuntimeException("PHP Fatal Error: backend internals"),
+        )
+        val vm = vm()
+
+        try {
+            vm.uiState.test {
+                awaitItem() // Loading
+                dispatcher.scheduler.runCurrent()
+                val error = awaitItem() as ChatUiState.Error
+                assertEquals("Unable to load messages. Please try again.", error.message)
+                assertFalse(error.message.contains("PHP"))
                 cancelAndIgnoreRemainingEvents()
             }
         } finally {
