@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.ar.model.BundledFrameAsset
+import com.eyecare.app.presentation.ar.model.FacePose
 import io.github.sceneview.SceneView
 import io.github.sceneview.SurfaceType
 import io.github.sceneview.math.Position
@@ -54,14 +55,19 @@ private sealed interface AssetCheck {
 /**
  * Renders one known GLB in a standalone SceneView viewport.
  *
- * CameraX, MediaPipe, and face pose are intentionally absent here. SceneView remembers and
- * disposes Filament resources with the Compose lifecycle; the caller only observes the explicit
- * loading/ready/failure state and can keep a non-3D fallback visible when needed.
+ * SceneView remembers and disposes Filament resources with the Compose lifecycle; the caller only
+ * observes the explicit loading/ready/failure state and can keep a non-3D fallback visible when
+ * needed.
  */
 @Composable
 fun FrameModelRenderer(
     modifier: Modifier = Modifier,
     asset: BundledFrameAsset = BundledFrameAsset.RoundFrame,
+    pose: FacePose? = null,
+    showModelWithoutPose: Boolean = true,
+    transparent: Boolean = false,
+    autoCenterContent: Boolean = true,
+    showStatus: Boolean = true,
     onStateChanged: (FrameModelRenderState) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -100,12 +106,16 @@ fun FrameModelRenderer(
             .testTag(FRAME_MODEL_RENDERER_TAG),
     ) {
         when (val check = assetCheck) {
-            AssetCheck.Checking -> RendererStatus(
-                message = "Checking frame model",
-                showProgress = true,
-            )
+            AssetCheck.Checking -> if (showStatus) {
+                RendererStatus(
+                    message = "Checking frame model",
+                    showProgress = true,
+                )
+            }
 
-            is AssetCheck.Invalid -> RendererStatus(message = check.message)
+            is AssetCheck.Invalid -> if (showStatus) {
+                RendererStatus(message = check.message)
+            }
 
             AssetCheck.Valid -> {
                 val engine = rememberEngine()
@@ -134,6 +144,8 @@ fun FrameModelRenderer(
                 SceneView(
                     modifier = Modifier.fillMaxSize(),
                     surfaceType = SurfaceType.TextureSurface,
+                    isOpaque = !transparent,
+                    autoCenterContent = autoCenterContent,
                     engine = engine,
                     modelLoader = modelLoader,
                     materialLoader = materialLoader,
@@ -146,28 +158,50 @@ fun FrameModelRenderer(
                         ModelNode(
                             modelInstance = instance,
                             autoAnimate = false,
-                            rotation = Rotation(0f),
-                            scale = Scale(asset.scale.x, asset.scale.y, asset.scale.z),
+                            position = pose?.let { currentPose ->
+                                Position(
+                                    x = currentPose.translationX,
+                                    y = currentPose.translationY,
+                                    z = currentPose.translationZ,
+                                )
+                            } ?: Position(),
+                            rotation = pose?.let { currentPose ->
+                                Rotation(
+                                    x = currentPose.pitchDeg,
+                                    y = currentPose.yawDeg,
+                                    z = currentPose.rollDeg,
+                                )
+                            } ?: Rotation(0f),
+                            scale = pose?.let { currentPose ->
+                                Scale(
+                                    asset.scale.x * currentPose.scale,
+                                    asset.scale.y * currentPose.scale,
+                                    asset.scale.z * currentPose.scale,
+                                )
+                            } ?: Scale(asset.scale.x, asset.scale.y, asset.scale.z),
+                            isVisible = showModelWithoutPose || pose != null,
                         )
                     }
                 }
 
-                when (val state = renderState) {
-                    FrameModelRenderState.CheckingAsset,
-                    FrameModelRenderState.Loading,
-                    -> RendererStatus(
-                        message = "Loading 3D frame",
-                        showProgress = true,
-                    )
+                if (showStatus) {
+                    when (val state = renderState) {
+                        FrameModelRenderState.CheckingAsset,
+                        FrameModelRenderState.Loading,
+                        -> RendererStatus(
+                            message = "Loading 3D frame",
+                            showProgress = true,
+                        )
 
-                    FrameModelRenderState.Ready -> RendererStatus(
-                        message = "3D frame model ready",
-                        alignment = Alignment.BottomCenter,
-                    )
+                        FrameModelRenderState.Ready -> RendererStatus(
+                            message = "3D frame model ready",
+                            alignment = Alignment.BottomCenter,
+                        )
 
-                    is FrameModelRenderState.Failed -> RendererStatus(
-                        message = state.message,
-                    )
+                        is FrameModelRenderState.Failed -> RendererStatus(
+                            message = state.message,
+                        )
+                    }
                 }
             }
         }

@@ -29,6 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +45,8 @@ import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import com.eyecare.app.presentation.ar.components.VariantChipRow
 import com.eyecare.app.presentation.ar.model.ArFaceState
+import com.eyecare.app.presentation.ar.rendering.FrameModelRenderState
+import com.eyecare.app.presentation.ar.rendering.FrameModelRenderer
 
 @Composable
 fun ArTryOnScreen(
@@ -55,8 +60,12 @@ fun ArTryOnScreen(
 
     val permissionState by viewModel.permissionState.collectAsStateWithLifecycle()
     val faceState by viewModel.faceState.collectAsStateWithLifecycle()
+    val facePose by viewModel.facePose.collectAsStateWithLifecycle()
     val variants by viewModel.variants.collectAsStateWithLifecycle()
     val selectedVariant by viewModel.selectedVariant.collectAsStateWithLifecycle()
+    var modelRenderState by remember {
+        mutableStateOf<FrameModelRenderState>(FrameModelRenderState.CheckingAsset)
+    }
     val context = LocalContext.current
     val imageLoader = SingletonImageLoader.get(context)
 
@@ -91,12 +100,15 @@ fun ArTryOnScreen(
                 }
                 when (val face = faceState) {
                     is ArFaceState.Detected -> {
-                        FrameOverlayRenderer(
-                            face = face.frame,
-                            frameAssetUrl = frameUrl,
-                            imageLoader = imageLoader,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                        val showThreeD = modelRenderState is FrameModelRenderState.Ready && facePose != null
+                        if (!showThreeD) {
+                            FrameOverlayRenderer(
+                                face = face.frame,
+                                frameAssetUrl = frameUrl,
+                                imageLoader = imageLoader,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                     is ArFaceState.NoFace -> {
                         // Guide message
@@ -120,6 +132,16 @@ fun ArTryOnScreen(
                     }
                     else -> {}
                 }
+
+                FrameModelRenderer(
+                    modifier = Modifier.fillMaxSize(),
+                    pose = if (faceState is ArFaceState.Detected) facePose else null,
+                    showModelWithoutPose = false,
+                    transparent = true,
+                    autoCenterContent = false,
+                    showStatus = false,
+                    onStateChanged = { modelRenderState = it },
+                )
 
                 // Bottom sheet: AR-ready frame variants
                 Box(

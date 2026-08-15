@@ -5,6 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.presentation.ar.model.ArFaceState
+import com.eyecare.app.presentation.ar.model.FacePose
+import com.eyecare.app.presentation.ar.model.FacePoseCalibration
+import com.eyecare.app.presentation.ar.tracking.PoseStabilizer
+import com.eyecare.app.presentation.ar.tracking.mapFacePose
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -41,6 +45,12 @@ class ArViewModel @AssistedInject constructor(
     private val _faceState = MutableStateFlow<ArFaceState>(ArFaceState.Initialising)
     val faceState: StateFlow<ArFaceState> = _faceState.asStateFlow()
 
+    private val _facePose = MutableStateFlow<FacePose?>(null)
+    val facePose: StateFlow<FacePose?> = _facePose.asStateFlow()
+
+    private val poseStabilizer = PoseStabilizer()
+    private val poseCalibration = FacePoseCalibration.ProvisionalRoundFrame
+
     private val _variants = MutableStateFlow<List<FrameVariant>>(emptyList())
     val variants: StateFlow<List<FrameVariant>> = _variants.asStateFlow()
 
@@ -55,6 +65,22 @@ class ArViewModel @AssistedInject constructor(
     }
 
     fun onFaceResult(state: ArFaceState) {
+        _facePose.value = when (state) {
+            is ArFaceState.Detected -> poseStabilizer.update(
+                pose = mapFacePose(
+                    matrix = state.frame.transformationMatrix,
+                    calibration = poseCalibration,
+                ),
+                timestampMs = state.frame.timestampMs,
+            )
+
+            ArFaceState.NoFace,
+            ArFaceState.Initialising,
+            -> {
+                poseStabilizer.reset()
+                null
+            }
+        }
         _faceState.value = state
     }
 
