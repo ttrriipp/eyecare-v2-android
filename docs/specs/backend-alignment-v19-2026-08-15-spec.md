@@ -1,6 +1,6 @@
 # Spec: Backend Alignment v19 — Messaging Hardening, Search, and Notifications
 
-> Status: **Draft — awaiting human review**
+> Status: **Approved — implementation complete**
 > Phase: **Specify**
 > Date: 2026-08-15
 > Sources: `docs/API_CONTRACT.md` (2026-08-15, 61 routes),

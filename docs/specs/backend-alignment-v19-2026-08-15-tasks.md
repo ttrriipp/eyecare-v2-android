@@ -1,6 +1,6 @@
 # Tasks: Backend Alignment v19 — Messaging Hardening, Search, and Notifications
 
-> Status: **Draft — awaiting human review**
+> Status: **Approved — implementation complete**
 > Phase: **Tasks**
 > Spec: `docs/specs/backend-alignment-v19-2026-08-15-spec.md` — approved 2026-08-15
 > Plan: `docs/specs/backend-alignment-v19-2026-08-15-plan.md` — approved 2026-08-15

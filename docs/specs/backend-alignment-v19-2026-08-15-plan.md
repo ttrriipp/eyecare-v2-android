@@ -1,6 +1,6 @@
 # Plan: Backend Alignment v19 — Messaging Hardening, Search, and Notifications
 
-> Status: **Draft — awaiting human review**
+> Status: **Approved — implementation complete**
 > Phase: **Plan**
 > Spec: `docs/specs/backend-alignment-v19-2026-08-15-spec.md` — approved 2026-08-15
 > Tasks: not created; Phase 3 remains gated on approval of this plan

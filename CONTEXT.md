@@ -330,22 +330,47 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - The refresh is presentation-only: no backend endpoint, DTO, domain `User`, repository signature, navigation route, dependency, or global theme token changed. Backend-supported address editing remains out of scope because the current Android user/update contract does not expose it.
 - Stateless `ProfileContent`, `ProfileLoadingContent`, and `EditProfileContent` composables provide deterministic Compose UI-test seams. `ProfileViewModelTest` covers dirty comparison, initials fallback, and save-failure draft preservation; `ProfileScreenTest` covers the visible hierarchy, callbacks, optional phone, unread semantics, loading semantics, supported edit fields, direct save, and saving/error states.
 
-## Messaging — Account-Owned Conversation (v17)
+## Messaging — Account-Owned Conversation (v17, hardened v19)
 
 `data/remote/dto/MessageDtos.kt`, `data/repository/ChatRepositoryImpl.kt`,
 `domain/model/Message.kt`, `presentation/messaging/ChatViewModel.kt`,
-`presentation/messaging/ChatScreen.kt`, `presentation/messaging/components/MessageBubble.kt`:
+`presentation/messaging/ChatScreen.kt`, `presentation/messaging/MessageTimeline.kt`,
+`presentation/messaging/MessageSearchContent.kt`,
+`presentation/messaging/components/MessageBubble.kt`:
 
-- **Conversation access:** Chat and text messaging are account-only. Linked and unlinked accounts can read and send text messages. `GET /conversation`, `GET /conversation/messages`, and `POST /conversation/messages` are account-only routes. Attachment download remains active-link-only.
+- **Conversation access:** Chat and text messaging are account-only. Linked and unlinked accounts can read and send text messages. `GET /conversation`, `GET /conversation/messages`, `POST /conversation/messages`, `GET /conversation/messages/search`, and `POST /conversation/messages/read` are account-only routes. Attachment download remains active-link-only.
+- **Cursor pagination:** `GET /conversation/messages` and `GET /conversation/messages/search` use opaque cursor pagination (fixed page size 50, newest-first `(created_at DESC, id DESC)` ordering, `meta.next_cursor`, `meta.has_more`). Android stores and returns cursors unchanged; it never decodes, constructs, or fabricates them.
+- **Chronological timeline:** Server pages are presented as one chronological timeline (oldest at top, newest at bottom). Messages are merged by stable integer ID using `MessageTimeline` with ascending-instant, ascending-ID tie-breaking.
+- **Older history:** Reaching the top of Chat requests `next_cursor` only when `has_more` is true. Older messages insert above the visible history without jumping the viewport.
+- **Polling:** Lifecycle-aware polling at 5-second interval refreshes page 1 (no cursor) and merges by ID. Changed fixed-size first page detected via ID set comparison, not size/lastOrNull.
+- **Read state:** `POST /conversation/messages/read` is called after initial load and when new staff messages arrive while visible. Own messages don't trigger mark-read. Failure retries opportunistically on next visible refresh.
+- **Draft safety:** Text draft is ViewModel-owned. Success clears only the submitted draft. HTTP 429/422/network failures preserve exact text and show patient-safe copy. Send is single-flight.
+- **Search:** Cursor-paginated conversation search via `GET /conversation/messages/search?q=&cursor=`. Independent state from timeline (own results, cursor, generation). 3-500 trimmed characters, explicit submit. Back restores timeline, draft, and scroll.
 - **Access levels:** Conversation response includes `access_level` (`linked_patient` or `general_inquiry`) and `capabilities` (`can_upload_attachments`). Missing or unknown values fail closed for upload/download while text remains account-available.
-- **No structured contexts:** `contexts[]` is retired and never sent. No context picker, context cards, or context navigation exists. Legacy server messages with `contexts` fields are safely ignored by `ignoreUnknownKeys`.
+- **No structured contexts:** `contexts[]` is retired and never sent. Legacy server messages with `contexts` fields are safely ignored by `ignoreUnknownKeys`.
 - **Attachment gating:** Upload controls appear only when `access_level == linked_patient` AND `capabilities.can_upload_attachments == true`. Image preview rendering only attempts the protected download route for `linked_patient` conversations. General-inquiry messages show safe metadata without fetching protected images.
 - **Error handling:** All conversation operations use `safeApiCall` to preserve `ApiDomainError` details. Send failures preserve the draft text and show patient-safe copy. Single-flight sends with no automatic retry.
-- **Route governance:** 8 public, 29 account-only, 17 canonical active-link routes. 54 canonical callable + 1 legacy alias = 55 registered total. Conversation read/list/send moved from active-link to account-only.
+- **Route governance:** 8 public, 36 account-only, 17 canonical active-link routes. 61 canonical callable routes total. Conversation search/read-mark and notification routes are account-only.
+
+## Notification Inbox (v19)
+
+`data/remote/dto/NotificationDtos.kt`, `data/repository/NotificationRepositoryImpl.kt`,
+`domain/model/AppNotification.kt`, `presentation/notifications/NotificationListViewModel.kt`,
+`presentation/notifications/NotificationListScreen.kt`,
+`presentation/navigation/MainUnreadViewModel.kt`:
+
+- **Access:** Every authenticated account (linked or unlinked) can open Notifications.
+- **Notification resource:** Stable `kind` (snake-case product enum, e.g. `new_message`) and nullable `mobile_action` (discriminated by `type`; v19 supports `conversation` only). Legacy `type`, `action_url`, `related_type`, `related_id` are ignored for navigation.
+- **Pagination:** Page-based (`per_page=20`), newest-first. Pull-to-refresh replaces page 1 only on success.
+- **UUID identity:** Notification IDs are UUID strings end-to-end; never coerced to integers.
+- **Read mutations:** `PATCH /notifications/{id}/read` marks one; `PATCH /notifications/read-all` marks all. Mark-one is optimistic per UUID with single-flight guard. Mark-all clears only after server success.
+- **Mobile actions:** `conversation` navigates through typed `Chat` route. Unknown/null actions remain in inbox; `action_url` is never read for navigation.
+- **Unread badge:** Home greeting header notification bell with `9+` cap. Count from `GET /notifications/unread-count`. Full count in accessibility semantics.
+- **Unread coordinator:** `MainUnreadViewModel` owns independent `messageUnreadCount` and `notificationUnreadCount`. Chat mark-read zeros message count; notification mutations update notification count. Neither overwrites the other.
 
 ## Backend API (base: `/api/v1`)
 
-55 approved patient-mobile routes (8 public, 30 account-only, 17 active-link).
+61 approved patient-mobile routes (8 public, 36 account-only, 17 active-link).
 Source of truth: `docs/API_CONTRACT.md`.
 
 **Auth:** V13 two-stage OTP registration, hybrid login (trusted skips OTP), password recovery, Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). Installation identity via `DeviceIdentityProvider`. 401 → bearer-aware logout via `AuthEventBus`. Session resolution via `GET /me` before routing.
@@ -450,12 +475,12 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
   pass ID directly.
 - `PatientFeatureIntent` preserves typed Order intents through the active-link gate.
 
-## Route Governance — 55 Routes
+## Route Governance — 61 Routes
 
 `test/.../ApprovedApiRoutes.kt`, `test/.../ApiRouteAllowlistTest.kt`:
 
-- 8 public, 30 account-only, 17 active-link = 55 total.
-- Account-only includes `GET /appointment-types`, `GET /appointment-optometrists`, `GET /clinic-hours`, and conversation read/list/send.
+- 8 public, 36 account-only, 17 active-link = 61 total.
+- Account-only includes `GET /appointment-types`, `GET /appointment-optometrists`, `GET /clinic-hours`, conversation read/list/send/search/read-mark, and notification list/count/mark-one/mark-all.
 - Attachment download (`GET /conversation/attachments/{id}`) remains active-link-only.
 - Retired routes explicitly rejected: `/eyewear`, `/job-orders`, `/billing-records`,
   legacy `/login`, `/register`, appointment intake routes.
@@ -504,6 +529,9 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 
 ## Active Specs
 
+- `docs/specs/backend-alignment-v19-2026-08-15-spec.md` — Complete: Messaging Hardening, Search, and Notifications
+- `docs/specs/backend-alignment-v19-2026-08-15-plan.md` — Complete: implementation plan (7 phases)
+- `docs/specs/backend-alignment-v19-2026-08-15-tasks.md` — Complete: 22 tasks + 6 checkpoints
 - `docs/specs/backend-alignment-v18-2026-08-13-spec.md` — Complete: Frame Reservation Item Editing and My Orders
 - `docs/specs/backend-alignment-v18-2026-08-13-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v18-2026-08-13-tasks.md` — Complete: tasks + checkpoints
