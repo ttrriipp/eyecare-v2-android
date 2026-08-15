@@ -113,8 +113,8 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - Limited users can use account-safe areas, the limited Home shell, Profile, Account & Security, and
   the normal shell. Clinical data is not loaded or shown until the backend reports an active link.
 - Limited users may browse the nonclinical frame catalog (including frame details/AR browse) and submit
-  appointment requests. Confirmed appointments, prescriptions, reservations, eyewear, and messaging
-  remain active-link-only.
+  appointment requests. Confirmed appointments, prescriptions, reservations, and eyewear remain
+  active-link-only. Messaging is account-only; attachment download remains active-link-only.
 - The appointment-request wizard adds a requester-identity step after the visit reason for limited
   accounts. It pre-fills the verified account phone, optional email, and structured account identity
   when available. The requester can edit email, first/middle/last name, date of birth, gender,

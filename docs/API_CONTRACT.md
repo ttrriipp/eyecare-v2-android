@@ -2211,6 +2211,9 @@ paginated with the same cursor shape as the messages endpoint.
 
 **Query parameters:**
 - `q` (required, string, max 500): Search term.
+- `cursor` (optional, string): Opaque cursor from a previous `meta.next_cursor`.
+  Omit on the first request. Android stores and returns the value unchanged; it
+  never decodes, constructs, or fabricates a cursor.
 
 **Validation:**
 - `q`: required, string, maximum 500 characters
