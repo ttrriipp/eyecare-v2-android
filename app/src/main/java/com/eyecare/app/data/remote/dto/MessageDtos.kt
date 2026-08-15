@@ -24,7 +24,7 @@ object MessageDtos {
     data class MessageDto(
         val id: Int,
         @SerialName("sender_id") val senderId: Int,
-        @SerialName("sender_type") val senderType: String? = null,
+        @SerialName("sender_type") val senderType: String = "unknown",
         val body: String,
         @SerialName("read_at") val readAt: String? = null,
         @SerialName("created_at") val createdAt: String,
@@ -37,12 +37,29 @@ object MessageDtos {
         @SerialName("original_name") val originalName: String,
         @SerialName("mime_type") val mimeType: String,
         @SerialName("file_size") val fileSize: Long,
-        @SerialName("download_url") val downloadUrl: String? = null,
+        @SerialName("download_url") val downloadUrl: String = "",
+    )
+
+    @Serializable
+    data class CursorMetaDto(
+        @SerialName("next_cursor") val nextCursor: String? = null,
+        @SerialName("has_more") val hasMore: Boolean = false,
     )
 
     @Serializable data class ConversationResponse(val data: ConversationDto)
-    @Serializable data class MessageListResponse(val data: List<MessageDto>)
+
+    @Serializable
+    data class MessageListResponse(
+        val data: List<MessageDto>,
+        val meta: CursorMetaDto = CursorMetaDto(),
+    )
+
     @Serializable data class MessageResponse(val data: MessageDto)
+
+    @Serializable
+    data class MarkReadResponse(
+        @SerialName("marked_count") val markedCount: Int = 0,
+    )
 
     @Serializable
     data class SendMessageRequest(

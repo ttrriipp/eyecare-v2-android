@@ -58,5 +58,11 @@ data class MessageAttachment(
     val originalName: String,
     val mimeType: String,
     val fileSize: Long,
-    val downloadUrl: String?,
+    val downloadUrl: String,
+)
+
+data class MessagePage(
+    val messages: List<Message>,
+    val nextCursor: String?,
+    val hasMore: Boolean,
 )

@@ -87,7 +87,7 @@ class ChatRepositoryMappingsTest {
         assertEquals(SenderType.STAFF, staff.senderType)
 
         val unknown = MessageDtos.MessageDto(
-            id = 3, senderId = 3, senderType = null, body = "?", createdAt = "2026-08-01T00:00:00Z",
+            id = 3, senderId = 3, senderType = "unknown", body = "?", createdAt = "2026-08-01T00:00:00Z",
         ).toDomain()
         assertEquals(SenderType.UNKNOWN, unknown.senderType)
     }
