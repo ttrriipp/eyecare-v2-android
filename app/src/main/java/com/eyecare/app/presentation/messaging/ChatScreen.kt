@@ -3,6 +3,7 @@ package com.eyecare.app.presentation.messaging
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -38,9 +40,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -104,12 +109,25 @@ fun ChatScreen(
         viewModel.setPendingAttachment(PendingAttachment(uri, mimeType, fileName, fileSize))
     }
 
-    // Auto-scroll to latest message
-    val messages = (uiState as? ChatUiState.Success)?.messages
+    val successState = uiState as? ChatUiState.Success
+
+    // Auto-scroll to newest message on initial load
+    val messages = successState?.messages
+    var hasScrolledToBottom by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(messages?.size) {
         val size = messages?.size ?: return@LaunchedEffect
-        if (size > 0) listState.animateScrollToItem(size - 1)
+        if (size > 0 && !hasScrolledToBottom) {
+            listState.scrollToItem(size - 1)
+            hasScrolledToBottom = true
+        }
     }
+
+    // Older-page prepend viewport anchoring
+    val isLoadingOlder = successState?.isLoadingOlder == true
+    OlderPageAnchorEffect(listState, messages?.size, isLoadingOlder)
+
+    // Load-older trigger when reaching the top
+    LoadOlderTrigger(listState, successState, viewModel::loadOlder)
 
     Column(
         Modifier
@@ -134,36 +152,16 @@ fun ChatScreen(
                 }
                 is ChatUiState.Error -> ErrorContent(message = state.message, onRetry = viewModel::retry)
                 is ChatUiState.Success -> {
-                    if (state.messages.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                "No messages yet. Say hello!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize().padding(vertical = 8.dp),
-                        ) {
-                            items(state.messages, key = { it.id }) { msg ->
-                                val isOwn = state.currentUserId?.let { it == msg.senderId }
-                                    ?: (msg.senderType == SenderType.PATIENT)
-                                MessageBubble(
-                                    message = msg,
-                                    isOwn = isOwn,
-                                    conversationAccessLevel = state.conversation.accessLevel,
-                                )
-                            }
-                        }
-                    }
+                    ChatContent(
+                        state = state,
+                        listState = listState,
+                        onRetryLoadOlder = viewModel::retryLoadOlder,
+                    )
                 }
             }
         }
 
         // Pending attachment preview
-        val successState = uiState as? ChatUiState.Success
         successState?.pendingAttachment?.let { attachment ->
             AttachmentPreview(
                 attachment = attachment,
@@ -256,5 +254,111 @@ fun ChatScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChatContent(
+    state: ChatUiState.Success,
+    listState: LazyListState,
+    onRetryLoadOlder: () -> Unit,
+) {
+    if (state.messages.isEmpty() && !state.isLoadingOlder && state.olderPageError == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                "No messages yet. Say hello!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().padding(vertical = 8.dp),
+        ) {
+            // Top loading/error/retry states
+            if (state.isLoadingOlder) {
+                item(key = "__loading_older__") {
+                    Box(
+                        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(Modifier.size(24.dp))
+                    }
+                }
+            }
+            if (state.olderPageError != null) {
+                item(key = "__older_error__") {
+                    Box(
+                        Modifier.fillMaxWidth()
+                            .clickable { onRetryLoadOlder() }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            state.olderPageError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+
+            items(state.messages, key = { it.id }) { msg ->
+                val isOwn = state.currentUserId?.let { it == msg.senderId }
+                    ?: (msg.senderType == SenderType.PATIENT)
+                MessageBubble(
+                    message = msg,
+                    isOwn = isOwn,
+                    conversationAccessLevel = state.conversation.accessLevel,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OlderPageAnchorEffect(
+    listState: LazyListState,
+    messageCount: Int?,
+    isLoadingOlder: Boolean,
+) {
+    var anchorIndex by remember { mutableIntStateOf(0) }
+    var anchorOffset by remember { mutableIntStateOf(0) }
+    var anchorCount by remember { mutableIntStateOf(0) }
+    var wasLoadingOlder by remember { mutableStateOf(false) }
+
+    // Capture anchor before prepend starts
+    if (isLoadingOlder && !wasLoadingOlder) {
+        anchorIndex = listState.firstVisibleItemIndex
+        anchorOffset = listState.firstVisibleItemScrollOffset
+        anchorCount = messageCount ?: 0
+    }
+    wasLoadingOlder = isLoadingOlder
+
+    // Restore anchor after prepend completes
+    LaunchedEffect(messageCount, isLoadingOlder) {
+        if (!isLoadingOlder && anchorCount > 0 && messageCount != null && messageCount > anchorCount) {
+            val inserted = messageCount - anchorCount
+            listState.scrollToItem(anchorIndex + inserted, anchorOffset)
+            anchorCount = 0
+        }
+    }
+}
+
+@Composable
+private fun LoadOlderTrigger(
+    listState: LazyListState,
+    state: ChatUiState.Success?,
+    loadOlder: () -> Unit,
+) {
+    LaunchedEffect(listState, state?.hasMore, state?.isLoadingOlder, state?.olderPageError) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .collect { index ->
+                val current = state
+                if (index == 0 && current != null && current.hasMore && !current.isLoadingOlder && current.olderPageError == null) {
+                    loadOlder()
+                }
+            }
     }
 }
