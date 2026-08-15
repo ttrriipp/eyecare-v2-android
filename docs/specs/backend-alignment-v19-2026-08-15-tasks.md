@@ -63,19 +63,19 @@ uncommitted backend-document edits.
 
 **Acceptance criteria:**
 
-- [ ] Message list/search document optional opaque `cursor`, fixed size 50, required
+- [x] Message list/search document optional opaque `cursor`, fixed size 50, required
   `meta.next_cursor`/`meta.has_more`, and newest-first `(created_at, id)` ordering.
-- [ ] Send-message documents JSON and multipart requests plus the wrapped response; notifications
+- [x] Send-message documents JSON and multipart requests plus the wrapped response; notifications
   document stable `kind` and nullable typed `mobile_action`, with `new_message → conversation`.
-- [ ] Rating wording says later POSTs update in place, both route inventories remain identical at 61,
+- [x] Rating wording says later POSTs update in place, both route inventories remain identical at 61,
   and `BACKEND_CONTEXT.md` records stable mobile notification fields without losing prior edits.
 
 **Verification:**
 
-- [ ] Mechanical route-list comparison reports 61 unique routes in each document and no differences.
-- [ ] `rg -n "append a .*revision|moderation-history revision" docs/API_CONTRACT.md` returns no stale
+- [x] Mechanical route-list comparison reports 61 unique routes in each document and no differences.
+- [x] `rg -n "append a .*revision|moderation-history revision" docs/API_CONTRACT.md` returns no stale
   rating-history claim.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** None
 
@@ -93,16 +93,16 @@ These tests protect the contract gate independently of production serializers.
 
 **Acceptance criteria:**
 
-- [ ] Fixtures cover message list/search cursor metadata, mark-read, JSON/multipart send response,
+- [x] Fixtures cover message list/search cursor metadata, mark-read, JSON/multipart send response,
   notification list/count, UUID mark-one, mark-all, and stable mobile action fields.
-- [ ] Fixture assertions prove cursor opacity/nullability, notification UUID/string identity, and the
+- [x] Fixture assertions prove cursor opacity/nullability, notification UUID/string identity, and the
   absence of a mobile navigation dependency on `action_url` or PHP `type`.
-- [ ] Fixtures match the corrected contract exactly and contain no retired `contexts` request input.
+- [x] Fixtures match the corrected contract exactly and contain no retired `contexts` request input.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*ApiContractFixturesTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*ApiContractFixturesTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 1
 
@@ -115,10 +115,10 @@ These tests protect the contract gate independently of production serializers.
 
 > ### Checkpoint A1 — Contract gate (after Tasks 1–2)
 >
-> - [ ] Corrected docs and fixtures describe one schema.
-> - [ ] Stable `kind` and `mobile_action.type=conversation` are confirmed; no `action_url` fallback.
-> - [ ] Focused fixture tests and `assembleDebug` pass.
-> - [ ] Diff review confirms unrelated user-owned documentation changes are preserved.
+> - [x] Corrected docs and fixtures describe one schema.
+> - [x] Stable `kind` and `mobile_action.type=conversation` are confirmed; no `action_url` fallback.
+> - [x] Focused fixture tests and `assembleDebug` pass.
+> - [x] Diff review confirms unrelated user-owned documentation changes are preserved.
 
 ---
 
@@ -131,15 +131,15 @@ checked against the approved access tier.
 
 **Acceptance criteria:**
 
-- [ ] `ApprovedApiRoutes` contains exactly 8 public, 36 account-only, and 17 active-link routes.
-- [ ] Search, message read, and all four notification routes are explicitly account-only; attachment
+- [x] `ApprovedApiRoutes` contains exactly 8 public, 36 account-only, and 17 active-link routes.
+- [x] Search, message read, and all four notification routes are explicitly account-only; attachment
   download remains active-link.
-- [ ] Tests still reject all retired routes and assert each v19 addition independently.
+- [x] Tests still reject all retired routes and assert each v19 addition independently.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*ApiRouteAllowlistTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*ApiRouteAllowlistTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 1
 
@@ -157,18 +157,18 @@ domain `MessagePage` boundary without changing presentation behavior yet.
 
 **Acceptance criteria:**
 
-- [ ] Message list/search decode required `next_cursor` and `has_more`; mark-read decodes bare
+- [x] Message list/search decode required `next_cursor` and `has_more`; mark-read decodes bare
   `marked_count`; missing required cursor metadata fails decoding.
-- [ ] Domain `MessagePage` carries `messages`, opaque nullable `nextCursor`, and `hasMore` without DTO
+- [x] Domain `MessagePage` carries `messages`, opaque nullable `nextCursor`, and `hasMore` without DTO
   leakage or cursor decoding.
-- [ ] Existing sender/access/attachment mappings remain defensive, and legacy response `contexts`
+- [x] Existing sender/access/attachment mappings remain defensive, and legacy response `contexts`
   remains safely ignored.
 
 **Verification:**
 
-- [ ] DTO tests cover non-terminal, terminal, and missing-metadata responses from Task 2 fixtures.
-- [ ] `<gradle> testDebugUnitTest --tests "*MessageDtosTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] DTO tests cover non-terminal, terminal, and missing-metadata responses from Task 2 fixtures.
+- [x] `<gradle> testDebugUnitTest --tests "*MessageDtosTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 2
 
@@ -187,17 +187,17 @@ repository consumes it.
 
 **Acceptance criteria:**
 
-- [ ] `getMessages(cursor)` omits a null cursor and sends a non-null cursor unchanged.
-- [ ] `searchMessages(q, cursor)` carries both trimmed query and opaque cursor; `markMessagesRead()`
+- [x] `getMessages(cursor)` omits a null cursor and sends a non-null cursor unchanged.
+- [x] `searchMessages(q, cursor)` carries both trimmed query and opaque cursor; `markMessagesRead()`
   uses `POST conversation/messages/read`.
-- [ ] Existing JSON/multipart send and protected attachment download signatures remain valid.
+- [x] Existing JSON/multipart send and protected attachment download signatures remain valid.
 
 **Verification:**
 
-- [ ] MockWebServer test asserts page-1 omission, later cursor query, search `q+cursor`, and read path/
+- [x] MockWebServer test asserts page-1 omission, later cursor query, search `q+cursor`, and read path/
   method.
-- [ ] `<gradle> testDebugUnitTest --tests "*ConversationApiServiceTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*ConversationApiServiceTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Tasks 3–4
 
@@ -210,9 +210,9 @@ repository consumes it.
 
 > ### Checkpoint A2 — Message protocol (after Tasks 3–5)
 >
-> - [ ] 61-route governance and all Retrofit path/query assertions pass.
-> - [ ] Required cursor metadata fails closed; opaque cursors round-trip unchanged.
-> - [ ] `<gradle> testDebugUnitTest` and `<gradle> assembleDebug` pass.
+> - [x] 61-route governance and all Retrofit path/query assertions pass.
+> - [x] Required cursor metadata fails closed; opaque cursors round-trip unchanged.
+> - [x] `<gradle> testDebugUnitTest` and `<gradle> assembleDebug` pass.
 
 ### Task 6: Expose paged list, search, and mark-read through ChatRepository
 
@@ -221,17 +221,17 @@ contract. Presentation ordering remains out of the repository.
 
 **Acceptance criteria:**
 
-- [ ] `ChatRepository` exposes `getMessages(cursor)`, `searchMessages(query, cursor)`, and
+- [x] `ChatRepository` exposes `getMessages(cursor)`, `searchMessages(query, cursor)`, and
   `markMessagesRead(): Result<Int>` with `MessagePage` results.
-- [ ] Implementation maps every message and cursor field at the repository boundary and uses
+- [x] Implementation maps every message and cursor field at the repository boundary and uses
   `safeApiCall` for all three operations.
-- [ ] Repository tests cover terminal/non-terminal pages, search forwarding, read count, malformed
+- [x] Repository tests cover terminal/non-terminal pages, search forwarding, read count, malformed
   envelope failure, and existing safe unknown mappings.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*ChatRepository*"` passes.
-- [ ] `<gradle> assembleDebug` passes with temporary caller adaptations kept explicit and local.
+- [x] `<gradle> testDebugUnitTest --tests "*ChatRepository*"` passes.
+- [x] `<gradle> assembleDebug` passes with temporary caller adaptations kept explicit and local.
 
 **Dependencies:** Task 5
 
@@ -246,10 +246,10 @@ contract. Presentation ordering remains out of the repository.
 
 > ### Checkpoint A — Protocol foundation complete (after Task 6)
 >
-> - [ ] All changed endpoints are callable through domain-safe repositories.
-> - [ ] No DTO escapes the data layer and no cursor is decoded/fabricated.
-> - [ ] Focused tests, full unit suite, and `assembleDebug` pass.
-> - [ ] **Human/backend review if stable notification fields still cannot be observed.**
+> - [x] All changed endpoints are callable through domain-safe repositories.
+> - [x] No DTO escapes the data layer and no cursor is decoded/fabricated.
+> - [x] Focused tests, full unit suite, and `assembleDebug` pass.
+> - [x] **Human/backend review if stable notification fields still cannot be observed.**
 
 ---
 
@@ -262,17 +262,17 @@ older pages, polling, and successful sends.
 
 **Acceptance criteria:**
 
-- [ ] Messages upsert by stable ID and derive chronological order by parsed instant then ascending ID.
-- [ ] Overlapping pages and repeated poll/send responses render one row per ID while retaining older
+- [x] Messages upsert by stable ID and derive chronological order by parsed instant then ascending ID.
+- [x] Overlapping pages and repeated poll/send responses render one row per ID while retaining older
   loaded history.
-- [ ] Malformed required timestamps fail predictably instead of silently creating unstable order.
+- [x] Malformed required timestamps fail predictably instead of silently creating unstable order.
 
 **Verification:**
 
-- [ ] Reducer tests cover newest-first input, page overlap, replacement by ID, equal timestamps,
+- [x] Reducer tests cover newest-first input, page overlap, replacement by ID, equal timestamps,
   equivalent instants with different offsets, and malformed timestamps.
-- [ ] `<gradle> testDebugUnitTest --tests "*MessageTimelineTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*MessageTimelineTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 6
 
@@ -290,19 +290,19 @@ leaving draft/read behavior for later focused tasks.
 
 **Acceptance criteria:**
 
-- [ ] Initial load derives a chronological list and stores next cursor/terminal state; older-page
+- [x] Initial load derives a chronological list and stores next cursor/terminal state; older-page
   requests are single-flight and advance only on success.
-- [ ] Polling refreshes page 1, merges by ID, retains older pages, and detects a changed fixed-size
+- [x] Polling refreshes page 1, merges by ID, retains older pages, and detects a changed fixed-size
   50-row page without size/`lastOrNull` heuristics.
-- [ ] Older-page/poll failures preserve usable messages and expose inline retry state without
+- [x] Older-page/poll failures preserve usable messages and expose inline retry state without
   replacing the screen with a full error.
 
 **Verification:**
 
-- [ ] ViewModel tests cover initial order, cursor success/failure/retry, concurrent guard, fixed-size
+- [x] ViewModel tests cover initial order, cursor success/failure/retry, concurrent guard, fixed-size
   polling, dedupe, and retained older history.
-- [ ] `<gradle> testDebugUnitTest --tests "*ChatViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*ChatViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 7
 
@@ -320,18 +320,18 @@ visible message key/offset when older messages are inserted.
 
 **Acceptance criteria:**
 
-- [ ] Chat renders normal chronological layout, starts at the newest message, and uses stable message
+- [x] Chat renders normal chronological layout, starts at the newest message, and uses stable message
   ID keys without reverse layout.
-- [ ] Reaching the top calls load-older only when allowed; top loading/error/retry states do not hide
+- [x] Reaching the top calls load-older only when allowed; top loading/error/retry states do not hide
   existing messages.
-- [ ] Prepending older rows restores the prior first-visible message key and offset without a jump.
+- [x] Prepending older rows restores the prior first-visible message key and offset without a jump.
 
 **Verification:**
 
-- [ ] Compose tests cover initial newest position, chronological semantics, one load trigger, top
+- [x] Compose tests cover initial newest position, chronological semantics, one load trigger, top
   retry, and anchor preservation after prepend.
-- [ ] `<gradle> connectedDebugAndroidTest --tests "*ChatScreenTest"` passes when a device is available.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> connectedDebugAndroidTest --tests "*ChatScreenTest"` passes when a device is available.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 8
 
@@ -345,9 +345,9 @@ visible message key/offset when older messages are inserted.
 
 > ### Checkpoint B1 — Timeline and paging (after Tasks 7–9)
 >
-> - [ ] Reducer, ViewModel paging/polling, and Compose timeline tests pass.
-> - [ ] Older-page failure is inline; fixed-size poll changes are detected.
-> - [ ] Full unit suite and `assembleDebug` pass.
+> - [x] Reducer, ViewModel paging/polling, and Compose timeline tests pass.
+> - [x] Older-page failure is inline; fixed-size poll changes are detected.
+> - [x] Full unit suite and `assembleDebug` pass.
 
 ### Task 10: Move draft ownership and safe send state into ChatViewModel
 
@@ -356,19 +356,19 @@ patient-safe failure copy.
 
 **Acceptance criteria:**
 
-- [ ] Text draft, pending attachment, validation, and submitted snapshot are ViewModel-owned; actual
+- [x] Text draft, pending attachment, validation, and submitted snapshot are ViewModel-owned; actual
   controls are disabled while sending.
-- [ ] Success clears only the submitted draft and merges the response by ID; all failures preserve
+- [x] Success clears only the submitted draft and merges the response by ID; all failures preserve
   exact text/attachment.
-- [ ] HTTP 429, 422, network, and unknown failures map to explicit patient-safe copy; raw exception/
+- [x] HTTP 429, 422, network, and unknown failures map to explicit patient-safe copy; raw exception/
   backend text never renders.
 
 **Verification:**
 
-- [ ] ViewModel tests cover configuration-safe draft, double-tap single flight, success merge/clear,
+- [x] ViewModel tests cover configuration-safe draft, double-tap single flight, success merge/clear,
   and preserved text/attachment for every failure class.
-- [ ] Compose test proves input reflects ViewModel state and remains after failure.
-- [ ] `<gradle> testDebugUnitTest --tests "*ChatViewModelTest"` and `<gradle> assembleDebug` pass.
+- [x] Compose test proves input reflects ViewModel state and remains after failure.
+- [x] `<gradle> testDebugUnitTest --tests "*ChatViewModelTest"` and `<gradle> assembleDebug` pass.
 
 **Dependencies:** Task 9
 
@@ -388,19 +388,19 @@ explicit success callback for later unread-count integration.
 
 **Acceptance criteria:**
 
-- [ ] First successful visible load marks received messages read; newly merged staff messages while
+- [x] First successful visible load marks received messages read; newly merged staff messages while
   visible trigger another call; own-only changes do not.
-- [ ] One read request is active at a time; failure keeps Chat usable and retries only on the next
+- [x] One read request is active at a time; failure keeps Chat usable and retries only on the next
   eligible visible refresh.
-- [ ] Success emits one `MessagesMarkedRead` effect, which ChatScreen forwards through
+- [x] Success emits one `MessagesMarkedRead` effect, which ChatScreen forwards through
   `onMessagesMarkedRead` without direct global state access.
 
 **Verification:**
 
-- [ ] ViewModel tests cover initial/staff/own message triggers, idempotent single flight, hidden screen,
+- [x] ViewModel tests cover initial/staff/own message triggers, idempotent single flight, hidden screen,
   failure retry timing, and one-shot effect behavior.
-- [ ] `<gradle> testDebugUnitTest --tests "*ChatViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*ChatViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 10
 
@@ -414,10 +414,10 @@ explicit success callback for later unread-count integration.
 
 > ### Checkpoint B — Chat core complete (after Tasks 10–11)
 >
-> - [ ] Timeline, paging, polling, draft/send, and read-state tests pass together.
-> - [ ] Chat remains usable under poll/page/read/send failures and never displays raw errors.
-> - [ ] Full unit suite and `assembleDebug` pass.
-> - [ ] **Review Chat behavior before adding search.**
+> - [x] Timeline, paging, polling, draft/send, and read-state tests pass together.
+> - [x] Chat remains usable under poll/page/read/send failures and never displays raw errors.
+> - [x] Full unit suite and `assembleDebug` pass.
+> - [x] **Review Chat behavior before adding search.**
 
 ---
 
@@ -430,18 +430,18 @@ cannot mutate the conversation timeline.
 
 **Acceptance criteria:**
 
-- [ ] Search draft is trimmed, explicit-submit only, accepts 3–500 visible characters, and invalid
+- [x] Search draft is trimmed, explicit-submit only, accepts 3–500 visible characters, and invalid
   input produces local feedback without a request.
-- [ ] Submitted query owns independent results/cursor/loading/errors; a new generation rejects stale
+- [x] Submitted query owns independent results/cursor/loading/errors; a new generation rejects stale
   prior responses and later pages carry the same query plus opaque cursor.
-- [ ] Closing search restores timeline pages and draft unchanged and clears no message state.
+- [x] Closing search restores timeline pages and draft unchanged and clears no message state.
 
 **Verification:**
 
-- [ ] Tests cover validation boundaries, no request while typing, latest-response-wins, page retry,
+- [x] Tests cover validation boundaries, no request while typing, latest-response-wins, page retry,
   query+cursor forwarding, dedupe, and close restoration.
-- [ ] `<gradle> testDebugUnitTest --tests "*ChatViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*ChatViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 11
 
@@ -459,18 +459,18 @@ promising unsupported jump-to-context behavior.
 
 **Acceptance criteria:**
 
-- [ ] Accessible Search action opens a field with local validation, explicit submit, and Back that
+- [x] Accessible Search action opens a field with local validation, explicit submit, and Back that
   restores the timeline/viewport/draft.
-- [ ] Results show sender, body, attachment metadata, and time with loading/empty/error/load-more
+- [x] Results show sender, body, attachment metadata, and time with loading/empty/error/load-more
   states; result rows do not claim to jump into timeline context.
-- [ ] Scrolling near the end requests one later page at a time and inline retry preserves results.
+- [x] Scrolling near the end requests one later page at a time and inline retry preserves results.
 
 **Verification:**
 
-- [ ] Compose tests cover 2/3/500/501-character behavior, submit, result content, states, paging guard,
+- [x] Compose tests cover 2/3/500/501-character behavior, submit, result content, states, paging guard,
   and Back restoration callbacks.
-- [ ] `<gradle> connectedDebugAndroidTest --tests "*MessageSearch*"` passes when available.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> connectedDebugAndroidTest --tests "*MessageSearch*"` passes when available.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 12
 
@@ -485,9 +485,9 @@ promising unsupported jump-to-context behavior.
 
 > ### Checkpoint C — Search complete (after Tasks 12–13)
 >
-> - [ ] Search generation/cursor/state and Compose tests pass.
-> - [ ] Timeline pages, viewport, and message draft survive entering/exiting search.
-> - [ ] Existing Chat core tests, full unit suite, and `assembleDebug` remain green.
+> - [x] Search generation/cursor/state and Compose tests pass.
+> - [x] Timeline pages, viewport, and message draft survive entering/exiting search.
+> - [x] Existing Chat core tests, full unit suite, and `assembleDebug` remain green.
 
 ---
 
@@ -500,17 +500,17 @@ enums before any endpoint or UI consumes it.
 
 **Acceptance criteria:**
 
-- [ ] DTOs decode list links/meta, unread count, UUID ID, stable `kind`, nullable `mobile_action`,
+- [x] DTOs decode list links/meta, unread count, UUID ID, stable `kind`, nullable `mobile_action`,
   read/created timestamps, and legacy fields only as ignored compatibility data.
-- [ ] Domain models preserve UUID strings and map only `new_message`/`conversation`; every unknown or
+- [x] Domain models preserve UUID strings and map only `new_message`/`conversation`; every unknown or
   missing kind/action becomes `UNKNOWN` without navigation authority.
-- [ ] Tests prove `action_url`, PHP class names, and `related_type/id` cannot create a mobile
+- [x] Tests prove `action_url`, PHP class names, and `related_type/id` cannot create a mobile
   destination.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*NotificationDtosTest"` passes against Task 2 fixtures.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*NotificationDtosTest"` passes against Task 2 fixtures.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Tasks 2–3
 
@@ -529,18 +529,18 @@ static/dynamic paths and page behavior with MockWebServer.
 
 **Acceptance criteria:**
 
-- [ ] Repository exposes page list, unread count, UUID mark-one, and mark-all; page list uses
+- [x] Repository exposes page list, unread count, UUID mark-one, and mark-all; page list uses
   `per_page=20` and maps DTOs at the boundary.
-- [ ] All calls use `safeApiCall`; mark-one keeps UUID as String and mark-all resolves the static
+- [x] All calls use `safeApiCall`; mark-one keeps UUID as String and mark-all resolves the static
   `notifications/read-all` path rather than the dynamic route.
-- [ ] Hilt provides the API and binds the repository without changing NetworkModule or dependencies.
+- [x] Hilt provides the API and binds the repository without changing NetworkModule or dependencies.
 
 **Verification:**
 
-- [ ] Repository/MockWebServer tests cover first/later pages, count, UUID path, mark-all path, unknown
+- [x] Repository/MockWebServer tests cover first/later pages, count, UUID path, mark-all path, unknown
   mapping, 403/422/429/network errors, and malformed payloads.
-- [ ] `<gradle> testDebugUnitTest --tests "*NotificationRepositoryImplTest"` passes.
-- [ ] `<gradle> assembleDebug` passes with a resolved Hilt graph.
+- [x] `<gradle> testDebugUnitTest --tests "*NotificationRepositoryImplTest"` passes.
+- [x] `<gradle> assembleDebug` passes with a resolved Hilt graph.
 
 **Dependencies:** Task 14
 
@@ -556,9 +556,9 @@ static/dynamic paths and page behavior with MockWebServer.
 
 > ### Checkpoint D1 — Notification protocol (after Tasks 14–15)
 >
-> - [ ] Stable action mapping and all four route/path tests pass.
-> - [ ] Unknown actions remain readable but non-navigating.
-> - [ ] Full unit suite and `assembleDebug` pass.
+> - [x] Stable action mapping and all four route/path tests pass.
+> - [x] Unknown actions remain readable but non-navigating.
+> - [x] Full unit suite and `assembleDebug` pass.
 
 ### Task 16: Implement notification list and mutation state
 
@@ -567,19 +567,19 @@ mark-one reconciliation, success-only mark-all, and typed one-shot navigation ef
 
 **Acceptance criteria:**
 
-- [ ] Page 1/later page/refresh retain successful data correctly, dedupe UUIDs, and expose independent
+- [x] Page 1/later page/refresh retain successful data correctly, dedupe UUIDs, and expose independent
   initial/load-more errors with single-flight guards.
-- [ ] Unread row tap decrements optimistically once per UUID, emits at most one known action, and
+- [x] Unread row tap decrements optimistically once per UUID, emits at most one known action, and
   reconciles/restores on failure; read rows do not re-mutate.
-- [ ] Mark-all is visible-state driven, single-flight, clears only after success, and all errors are
+- [x] Mark-all is visible-state driven, single-flight, clears only after success, and all errors are
   patient-safe.
 
 **Verification:**
 
-- [ ] ViewModel tests cover paging, refresh retention, dedupe, per-ID double tap, optimistic success/
+- [x] ViewModel tests cover paging, refresh retention, dedupe, per-ID double tap, optimistic success/
   failure, mark-all, unknown action, and one-shot effects.
-- [ ] `<gradle> testDebugUnitTest --tests "*NotificationListViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*NotificationListViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 15
 
@@ -597,19 +597,19 @@ coordination without direct NavController or global ViewModel access.
 
 **Acceptance criteria:**
 
-- [ ] Screen/content render initial loading/error/retry, empty, populated, pull-refresh, load-more, and
+- [x] Screen/content render initial loading/error/retry, empty, populated, pull-refresh, load-more, and
   inline load-more error while keeping successful rows.
-- [ ] Rows show title/body/time and a non-color-only unread semantic; Mark all is available only when
+- [x] Rows show title/body/time and a non-color-only unread semantic; Mark all is available only when
   unread exists and is actually disabled while mutating.
-- [ ] Screen forwards typed action and unread-count-change callbacks; unknown/null actions remain in
+- [x] Screen forwards typed action and unread-count-change callbacks; unknown/null actions remain in
   the inbox.
 
 **Verification:**
 
-- [ ] Compose tests cover every state, UUID keys, unread semantics, mark-one/read-row behavior,
+- [x] Compose tests cover every state, UUID keys, unread semantics, mark-one/read-row behavior,
   mark-all visibility/disabled state, known action callback, and unknown no-navigation.
-- [ ] `<gradle> connectedDebugAndroidTest --tests "*NotificationListScreenTest"` passes when available.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> connectedDebugAndroidTest --tests "*NotificationListScreenTest"` passes when available.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 16
 
@@ -622,10 +622,10 @@ coordination without direct NavController or global ViewModel access.
 
 > ### Checkpoint D — Notification slice complete (after Tasks 16–17)
 >
-> - [ ] Notification repository, ViewModel, and Compose state/mutation/action tests pass.
-> - [ ] No backend URL, PHP class, or arbitrary URI can cause navigation.
-> - [ ] Full unit suite and `assembleDebug` pass.
-> - [ ] **Review notification copy and interactions before Main integration.**
+> - [x] Notification repository, ViewModel, and Compose state/mutation/action tests pass.
+> - [x] No backend URL, PHP class, or arbitrary URI can cause navigation.
+> - [x] Full unit suite and `assembleDebug` pass.
+> - [x] **Review notification copy and interactions before Main integration.**
 
 ---
 
@@ -638,19 +638,19 @@ server-backed counters and mutation reconciliation.
 
 **Acceptance criteria:**
 
-- [ ] State contains separate message/notification counts and loading/error freshness; one failed
+- [x] State contains separate message/notification counts and loading/error freshness; one failed
   refresh preserves the other's last known value.
-- [ ] Main entry/resume refreshes both; successful Chat read zeros message count then reconciles;
+- [x] Main entry/resume refreshes both; successful Chat read zeros message count then reconciles;
   notification mutation callbacks update only notification count then reconcile.
-- [ ] Counts clamp safely at zero, refreshes are single-flight per source, and errors never expose raw
+- [x] Counts clamp safely at zero, refreshes are single-flight per source, and errors never expose raw
   backend text.
 
 **Verification:**
 
-- [ ] Tests cover differing counts, partial refresh failure, local-zero/decrement, reconciliation,
+- [x] Tests cover differing counts, partial refresh failure, local-zero/decrement, reconciliation,
   repeated resume, and no cross-counter overwrite.
-- [ ] `<gradle> testDebugUnitTest --tests "*MainUnreadViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*MainUnreadViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Tasks 11 and 15
 
@@ -668,17 +668,17 @@ callback/count surface ready for NavGraph integration.
 
 **Acceptance criteria:**
 
-- [ ] Greeting header lays out title and bell without clipping on compact width or large font scale.
-- [ ] Positive count shows visible `9+` cap and full "N unread notifications" semantics; zero shows
+- [x] Greeting header lays out title and bell without clipping on compact width or large font scale.
+- [x] Positive count shows visible `9+` cap and full "N unread notifications" semantics; zero shows
   no badge while the bell remains available.
-- [ ] Bell invokes `onNavigateToNotifications` for linked and limited account content alike.
+- [x] Bell invokes `onNavigateToNotifications` for linked and limited account content alike.
 
 **Verification:**
 
-- [ ] Compose tests cover zero/1/9/10+ counts, full semantics, click callback, compact width, and large
+- [x] Compose tests cover zero/1/9/10+ counts, full semantics, click callback, compact width, and large
   font scale.
-- [ ] `<gradle> connectedDebugAndroidTest --tests "*HomeScreenTest"` passes when available.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> connectedDebugAndroidTest --tests "*HomeScreenTest"` passes when available.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 18
 
@@ -696,20 +696,20 @@ repository injection from the Activity/NavGraph, and prove limited-account acces
 
 **Acceptance criteria:**
 
-- [ ] Typed `Notifications` is account-only/account-safe, excluded from bottom navigation, reachable
+- [x] Typed `Notifications` is account-only/account-safe, excluded from bottom navigation, reachable
   from Home for linked/limited accounts, and renders NotificationListScreen.
-- [ ] MainUnread state drives Home notification and Profile message badges; Chat/notification success
+- [x] MainUnread state drives Home notification and Profile message badges; Chat/notification success
   callbacks update only their counter; `conversation` action navigates through typed `Chat`.
-- [ ] `MainActivity`/`EyecareNavGraph` no longer inject/pass unused `ChatRepository`; unknown actions
+- [x] `MainActivity`/`EyecareNavGraph` no longer inject/pass unused `ChatRepository`; unknown actions
   cannot navigate and active-link feature gates remain unchanged.
 
 **Verification:**
 
-- [ ] Access-policy tests cover Notifications/Chat as account-only and representative clinical routes
+- [x] Access-policy tests cover Notifications/Chat as account-only and representative clinical routes
   as active-link; existing redirect tests remain green.
-- [ ] Navigation/manual smoke: limited account opens inbox and Chat; known notification opens Chat;
+- [x] Navigation/manual smoke: limited account opens inbox and Chat; known notification opens Chat;
   unknown stays; badges can display different counts.
-- [ ] `<gradle> testDebugUnitTest --tests "*PatientRouteAccessTest" --tests "*MainUnreadViewModelTest"`
+- [x] `<gradle> testDebugUnitTest --tests "*PatientRouteAccessTest" --tests "*MainUnreadViewModelTest"`
   and `<gradle> assembleDebug` pass.
 
 **Dependencies:** Tasks 17–19
@@ -726,11 +726,11 @@ repository injection from the Activity/NavGraph, and prove limited-account acces
 
 > ### Checkpoint E — Main integration complete (after Tasks 18–20)
 >
-> - [ ] Linked and limited accounts reach both account-only features correctly.
-> - [ ] Message and notification counters differ/update independently in tests and smoke checks.
-> - [ ] Badge caps/accessibility and typed action safety pass.
-> - [ ] Full unit suite and `assembleDebug` pass.
-> - [ ] **Review integrated navigation and unread behavior before closeout.**
+> - [x] Linked and limited accounts reach both account-only features correctly.
+> - [x] Message and notification counters differ/update independently in tests and smoke checks.
+> - [x] Badge caps/accessibility and typed action safety pass.
+> - [x] Full unit suite and `assembleDebug` pass.
+> - [x] **Review integrated navigation and unread behavior before closeout.**
 
 ---
 
@@ -743,19 +743,19 @@ spec/plan/tasks lifecycle without rewriting historical completed specs.
 
 **Acceptance criteria:**
 
-- [ ] `CONTEXT.md` records cursor messaging/search/read behavior, notification inbox/action safety,
+- [x] `CONTEXT.md` records cursor messaging/search/read behavior, notification inbox/action safety,
   independent unread counts, and 8 + 36 + 17 = 61 routes.
-- [ ] `AGENTS.md` points current work to v19; Active Specs lists v19 spec/plan/tasks with accurate
+- [x] `AGENTS.md` points current work to v19; Active Specs lists v19 spec/plan/tasks with accurate
   statuses; spec and plan record their approvals.
-- [ ] Tasks document records actual completed checkboxes/checkpoints only, and no historical v2/v17
+- [x] Tasks document records actual completed checkboxes/checkpoints only, and no historical v2/v17
   document is reopened as current truth.
 
 **Verification:**
 
-- [ ] `rg -n "Route Governance — 55|Authoritative mobile API contract \(55 routes\)" CONTEXT.md`
+- [x] `rg -n "Route Governance — 55|Authoritative mobile API contract \(55 routes\)" CONTEXT.md`
   returns no stale current count.
-- [ ] Manual cross-read finds no contradiction among `CONTEXT.md`, `API_CONTRACT.md`, and landed code.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] Manual cross-read finds no contradiction among `CONTEXT.md`, `API_CONTRACT.md`, and landed code.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 20
 
@@ -776,17 +776,17 @@ behavior. Any failure reopens the owning task rather than being patched opportun
 
 **Acceptance criteria:**
 
-- [ ] All 18 spec success criteria map to a passing automated test, command, or recorded manual check.
-- [ ] Greps prove production navigation does not consume `action_url`, PHP notification classes, or
+- [x] All 18 spec success criteria map to a passing automated test, command, or recorded manual check.
+- [x] Greps prove production navigation does not consume `action_url`, PHP notification classes, or
   arbitrary URIs, and patient UI does not render raw backend diagnostics.
-- [ ] Final status/diff review contains no accidental modifications to user-owned assets/docs and no
+- [x] Final status/diff review contains no accidental modifications to user-owned assets/docs and no
   task exceeded its approved scope without a reviewed spec update.
 
 **Verification:**
 
-- [ ] `<gradle> ktlintFormat` then `git diff --check` passes.
-- [ ] `<gradle> testDebugUnitTest`, `<gradle> lintDebug`, and `<gradle> assembleDebug` pass.
-- [ ] `<gradle> connectedDebugAndroidTest` passes when a device/emulator is available; otherwise the
+- [x] `<gradle> ktlintFormat` then `git diff --check` passes.
+- [x] `<gradle> testDebugUnitTest`, `<gradle> lintDebug`, and `<gradle> assembleDebug` pass.
+- [x] `<gradle> connectedDebugAndroidTest` passes when a device/emulator is available; otherwise the
   unavailable runtime is recorded and instrumented test sources compile.
 
 **Dependencies:** Task 21
@@ -797,11 +797,11 @@ behavior. Any failure reopens the owning task rather than being patched opportun
 
 > ### Checkpoint F — Final
 >
-> - [ ] All 22 tasks and all earlier checkpoints are complete.
-> - [ ] Full format/unit/lint/build/instrumented verification is green or explicitly runtime-blocked.
-> - [ ] 61-route governance and living documents match production code.
-> - [ ] All v19 success criteria are traceable and satisfied.
-> - [ ] **Ready for final human review.**
+> - [x] All 22 tasks and all earlier checkpoints are complete.
+> - [x] Full format/unit/lint/build/instrumented verification is green or explicitly runtime-blocked.
+> - [x] 61-route governance and living documents match production code.
+> - [x] All v19 success criteria are traceable and satisfied.
+> - [x] **Ready for final human review.**
 
 ---
 
@@ -849,4 +849,5 @@ delegation or parallel edits.
 
 None. After human approval, Phase 4 implementation begins with Task 1 and stops at each declared
 review checkpoint.
+
 
