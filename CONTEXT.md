@@ -276,7 +276,7 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - `weekday` follows the backend's Carbon convention (`0 = Sunday` … `6 = Saturday`); Android converts `LocalDate.now().dayOfWeek` (ISO, Monday=1..Sunday=7) via `dayOfWeek.value % 7` to find today's row rather than trusting index order. `day_name` from the response is used directly for display so the conversion is never re-derived for copy.
 - The schema has one continuous `open_time`–`close_time` range per weekday with no lunch-break field, and disabled days return both times as `null`. The card reflects this: a single formatted range (`9:00 AM – 5:00 PM`) or "Closed", never a fabricated morning/afternoon split.
 - Collapsed state shows today's day name and hours inline as the card subtitle; expanding reveals the full seven-day list in the order the API returns it (Sunday-first), with today's row bolded.
-- `GET /clinic-hours` is route 55 of 55 in the API contract (account-only category, 30 routes) — see `ApprovedApiRoutes.kt`/`ApiRouteAllowlistTest.kt`.
+- `GET /clinic-hours` is an account-only route in the 61-route API contract — see `ApprovedApiRoutes.kt`/`ApiRouteAllowlistTest.kt`.
 
 ## Frame Reservations — List and Detail
 
@@ -567,3 +567,5 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 - **Always** use `sealed interface` for UI state
 - **Ask first** before adding new dependencies
 - **Ask first** before changing navigation graph structure
+
+
