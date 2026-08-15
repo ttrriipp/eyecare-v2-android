@@ -180,6 +180,31 @@ class NotificationListViewModelTest {
         }
     }
 
+    @Test
+    fun `duplicate UUIDs within one page are deduped`() = runTest {
+        val n1 = notification(id = "uuid-1")
+        val duplicate = notification(id = "uuid-1", body = "duplicate")
+        val n2 = notification(id = "uuid-2")
+        coEvery { repo.getNotifications(page = 1) } returns Result.success(
+            page(listOf(n1), currentPage = 1, lastPage = 2),
+        )
+        coEvery { repo.getNotifications(page = 2) } returns Result.success(
+            page(listOf(duplicate, n2), currentPage = 2, lastPage = 2),
+        )
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.loadMore()
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as NotificationListUiState.Success
+            assertEquals(listOf("uuid-1", "uuid-2"), state.notifications.map { it.id })
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
     // --- Per-UUID double-tap prevention ---
 
     @Test
@@ -231,6 +256,7 @@ class NotificationListViewModelTest {
         val n1 = notification(id = "uuid-1", readAt = null)
         coEvery { repo.getNotifications(page = 1) } returns Result.success(page(listOf(n1)))
         coEvery { repo.markOneRead("uuid-1") } returns Result.failure(RuntimeException("server error"))
+        coEvery { repo.getUnreadCount() } returns Result.success(7)
         val vm = vm()
 
         try {
@@ -241,6 +267,14 @@ class NotificationListViewModelTest {
             val state = vm.uiState.value as NotificationListUiState.Success
             assertTrue(state.mutationInFlight.isEmpty())
             assertNull(state.notifications[0].readAt)
+            assertEquals("Failed to mark notification as read. Please try again.", state.inlineError)
+            vm.effects.test {
+                assertEquals(
+                    NotificationEffect.UnreadCountReconciled(7),
+                    awaitItem(),
+                )
+                cancelAndIgnoreRemainingEvents()
+            }
         } finally {
             vm.viewModelScope.cancel()
         }
@@ -285,6 +319,7 @@ class NotificationListViewModelTest {
             dispatcher.scheduler.runCurrent()
 
             coVerify(exactly = 1) { repo.markAllRead() }
+            assertTrue((vm.uiState.value as NotificationListUiState.Success).isMarkAllInFlight)
         } finally {
             vm.viewModelScope.cancel()
         }
@@ -305,6 +340,11 @@ class NotificationListViewModelTest {
 
             val state = vm.uiState.value as NotificationListUiState.Success
             assertTrue(state.notifications.all { it.readAt != null })
+            assertFalse(state.isMarkAllInFlight)
+            vm.effects.test {
+                assertEquals(NotificationEffect.AllNotificationsRead, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
         } finally {
             vm.viewModelScope.cancel()
         }
@@ -315,6 +355,7 @@ class NotificationListViewModelTest {
         val n1 = notification(id = "uuid-1", readAt = null)
         coEvery { repo.getNotifications(page = 1) } returns Result.success(page(listOf(n1)))
         coEvery { repo.markAllRead() } returns Result.failure(RuntimeException("offline"))
+        coEvery { repo.getUnreadCount() } returns Result.success(4)
         val vm = vm()
 
         try {
@@ -324,6 +365,14 @@ class NotificationListViewModelTest {
 
             val state = vm.uiState.value as NotificationListUiState.Success
             assertEquals("Failed to mark all as read. Please try again.", state.inlineError)
+            assertFalse(state.isMarkAllInFlight)
+            vm.effects.test {
+                assertEquals(
+                    NotificationEffect.UnreadCountReconciled(4),
+                    awaitItem(),
+                )
+                cancelAndIgnoreRemainingEvents()
+            }
         } finally {
             vm.viewModelScope.cancel()
         }
@@ -332,7 +381,7 @@ class NotificationListViewModelTest {
     // --- Action mapping ---
 
     @Test
-    fun `unknown action does not emit Navigate effect`() = runTest {
+    fun `unknown action emits read effect but no navigation`() = runTest {
         val n1 = notification(id = "uuid-1", readAt = null, mobileAction = MobileDestination.UNKNOWN)
         coEvery { repo.getNotifications(page = 1) } returns Result.success(page(listOf(n1)))
         coEvery { repo.markOneRead("uuid-1") } returns Result.success(Unit)
@@ -344,6 +393,7 @@ class NotificationListViewModelTest {
                 vm.markOneRead(n1)
                 dispatcher.scheduler.runCurrent()
 
+                assertEquals(NotificationEffect.NotificationRead, awaitItem())
                 expectNoEvents()
                 cancelAndIgnoreRemainingEvents()
             }
@@ -365,6 +415,7 @@ class NotificationListViewModelTest {
                 vm.markOneRead(n1)
                 dispatcher.scheduler.runCurrent()
 
+                assertEquals(NotificationEffect.NotificationRead, awaitItem())
                 val effect = awaitItem()
                 assertInstanceOf(NotificationEffect.Navigate::class.java, effect)
                 assertEquals(MobileDestination.CONVERSATION, (effect as NotificationEffect.Navigate).destination)

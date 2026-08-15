@@ -51,6 +51,10 @@ class MainUnreadViewModel @Inject constructor(
         refreshNotifications()
     }
 
+    fun reconcileNotificationUnreadCount(count: Int) {
+        _state.value = _state.value.copy(notificationUnreadCount = count.coerceAtLeast(0))
+    }
+
     private fun refreshMessages() {
         if (isMessageRefreshInFlight) return
         isMessageRefreshInFlight = true

@@ -23,6 +23,8 @@ sealed interface NotificationListUiState {
         val canLoadMore: Boolean,
         val mutationInFlight: Set<String>,
         val inlineError: String?,
+        val isRefreshing: Boolean = false,
+        val isMarkAllInFlight: Boolean = false,
     ) : NotificationListUiState
 
     data class Error(val patientSafeMessage: String) : NotificationListUiState
@@ -30,6 +32,9 @@ sealed interface NotificationListUiState {
 
 sealed interface NotificationEffect {
     data class Navigate(val destination: MobileDestination) : NotificationEffect
+    data object NotificationRead : NotificationEffect
+    data object AllNotificationsRead : NotificationEffect
+    data class UnreadCountReconciled(val count: Int) : NotificationEffect
 }
 
 @HiltViewModel
@@ -91,8 +96,8 @@ class NotificationListViewModel @Inject constructor(
             notificationRepository.getNotifications(page = nextPage).fold(
                 onSuccess = { page ->
                     val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
-                    val existingIds = latest.notifications.map { it.id }.toSet()
-                    val deduped = page.notifications.filter { it.id !in existingIds }
+                    val seenIds = latest.notifications.map { it.id }.toMutableSet()
+                    val deduped = page.notifications.filter { seenIds.add(it.id) }
                     currentPage = page.currentPage
                     lastPage = page.lastPage
                     _uiState.value = latest.copy(
@@ -115,6 +120,9 @@ class NotificationListViewModel @Inject constructor(
 
     fun refresh() {
         val current = _uiState.value as? NotificationListUiState.Success
+        if (current != null) {
+            _uiState.value = current.copy(isRefreshing = true, inlineError = null)
+        }
         viewModelScope.launch {
             notificationRepository.getNotifications(page = 1).fold(
                 onSuccess = { page ->
@@ -126,11 +134,16 @@ class NotificationListViewModel @Inject constructor(
                         canLoadMore = currentPage < lastPage,
                         mutationInFlight = emptySet(),
                         inlineError = null,
+                        isRefreshing = false,
                     )
                 },
                 onFailure = {
-                    if (current != null) {
-                        _uiState.value = current.copy(inlineError = "Refresh failed. Pull to try again.")
+                    val latest = _uiState.value as? NotificationListUiState.Success
+                    if (latest != null) {
+                        _uiState.value = latest.copy(
+                            isRefreshing = false,
+                            inlineError = "Refresh failed. Pull to try again.",
+                        )
                     }
                 },
             )
@@ -155,7 +168,9 @@ class NotificationListViewModel @Inject constructor(
                     val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
                     _uiState.value = latest.copy(
                         mutationInFlight = latest.mutationInFlight - notification.id,
+                        inlineError = null,
                     )
+                    _effects.send(NotificationEffect.NotificationRead)
                     if (notification.mobileAction != null && notification.mobileAction != MobileDestination.UNKNOWN) {
                         _effects.send(NotificationEffect.Navigate(notification.mobileAction))
                     }
@@ -167,7 +182,9 @@ class NotificationListViewModel @Inject constructor(
                         notifications = latest.notifications.map {
                             if (it.id == notification.id) it.copy(readAt = notification.readAt) else it
                         },
+                        inlineError = "Failed to mark notification as read. Please try again.",
                     )
+                    reconcileUnreadCount()
                 },
             )
         }
@@ -178,7 +195,7 @@ class NotificationListViewModel @Inject constructor(
         if (isMarkAllInFlight) return
 
         isMarkAllInFlight = true
-        _uiState.value = current.copy(inlineError = null)
+        _uiState.value = current.copy(inlineError = null, isMarkAllInFlight = true)
 
         viewModelScope.launch {
             notificationRepository.markAllRead().fold(
@@ -186,14 +203,18 @@ class NotificationListViewModel @Inject constructor(
                     val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
                     _uiState.value = latest.copy(
                         notifications = latest.notifications.map { it.copy(readAt = it.readAt ?: "") },
+                        isMarkAllInFlight = false,
                     )
+                    _effects.send(NotificationEffect.AllNotificationsRead)
                     isMarkAllInFlight = false
                 },
                 onFailure = {
                     val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
                     _uiState.value = latest.copy(
                         inlineError = "Failed to mark all as read. Please try again.",
+                        isMarkAllInFlight = false,
                     )
+                    reconcileUnreadCount()
                     isMarkAllInFlight = false
                 },
             )
@@ -213,4 +234,15 @@ class NotificationListViewModel @Inject constructor(
     }
 
     private fun mapError(throwable: Throwable): String = "Unable to load notifications. Please try again."
+
+    private suspend fun reconcileUnreadCount() {
+        notificationRepository.getUnreadCount().fold(
+            onSuccess = { count ->
+                _effects.send(NotificationEffect.UnreadCountReconciled(count.coerceAtLeast(0)))
+            },
+            onFailure = {
+                // The mutation error remains the safe feedback shown to the patient.
+            },
+        )
+    }
 }

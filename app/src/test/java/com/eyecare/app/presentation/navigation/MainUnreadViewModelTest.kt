@@ -126,6 +126,16 @@ class MainUnreadViewModelTest {
     }
 
     @Test
+    fun `reconcileNotificationUnreadCount replaces only notification count`() = runTest {
+        val vm = viewModel()
+
+        vm.reconcileNotificationUnreadCount(9)
+
+        assertEquals(0, vm.state.value.messageUnreadCount)
+        assertEquals(9, vm.state.value.notificationUnreadCount)
+    }
+
+    @Test
     fun `reconciliation after local update restores server count`() = runTest {
         coEvery { chatRepository.getConversation() } returns Result.success(conversation(unreadCount = 3))
         coEvery { notificationRepository.getUnreadCount() } returns Result.success(5)

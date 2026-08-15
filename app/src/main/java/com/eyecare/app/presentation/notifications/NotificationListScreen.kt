@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -29,6 +30,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -38,11 +41,13 @@ import com.eyecare.app.domain.model.AppNotification
 import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
+import kotlinx.coroutines.flow.collect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationListScreen(
     uiState: NotificationListUiState,
+    unreadCount: Int,
     onBack: () -> Unit,
     onNotificationTap: (AppNotification) -> Unit,
     onMarkAllRead: () -> Unit,
@@ -65,8 +70,8 @@ fun NotificationListScreen(
             },
             actions = {
                 if (uiState is NotificationListUiState.Success) {
-                    val hasUnread = uiState.notifications.any { it.readAt == null }
-                    val isMutating = uiState.mutationInFlight.isNotEmpty()
+                    val hasUnread = unreadCount > 0
+                    val isMutating = uiState.mutationInFlight.isNotEmpty() || uiState.isMarkAllInFlight
                     if (hasUnread) {
                         TextButton(
                             onClick = onMarkAllRead,
@@ -91,7 +96,7 @@ fun NotificationListScreen(
                         EmptyContent(message = "No notifications yet.")
                     } else {
                         PullToRefreshBox(
-                            isRefreshing = false,
+                            isRefreshing = state.isRefreshing,
                             onRefresh = onRefresh,
                         ) {
                             NotificationList(
@@ -113,8 +118,26 @@ private fun NotificationList(
     onNotificationTap: (AppNotification) -> Unit,
     onLoadMore: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(listState, state.canLoadMore, state.isLoadingMore, state.notifications.size) {
+        snapshotFlow {
+            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        }.collect { lastVisibleIndex ->
+            val loadThreshold = (state.notifications.size - 3).coerceAtLeast(0)
+            if (
+                state.canLoadMore &&
+                !state.isLoadingMore &&
+                lastVisibleIndex >= loadThreshold
+            ) {
+                onLoadMore()
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        state = listState,
     ) {
         items(
             items = state.notifications,

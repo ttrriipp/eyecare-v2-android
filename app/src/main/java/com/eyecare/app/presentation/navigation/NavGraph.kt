@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -19,6 +20,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavDestination
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavOptionsBuilder
@@ -101,6 +105,20 @@ fun EyecareNavGraph(
         if (sessionState is SessionState.Linked || sessionState is SessionState.Limited) {
             mainUnreadViewModel.refresh()
         }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, sessionState) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (
+                event == Lifecycle.Event.ON_RESUME &&
+                (sessionState is SessionState.Linked || sessionState is SessionState.Limited)
+            ) {
+                mainUnreadViewModel.refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     var pendingPatientFeature by remember { mutableStateOf<PatientFeatureIntent?>(null) }
@@ -508,18 +526,21 @@ fun EyecareNavGraph(
                                             MobileDestination.UNKNOWN -> { /* no-op */ }
                                         }
                                     }
+                                    NotificationEffect.NotificationRead -> mainUnreadViewModel.onNotificationRead()
+                                    NotificationEffect.AllNotificationsRead -> mainUnreadViewModel.onAllNotificationsRead()
+                                    is NotificationEffect.UnreadCountReconciled -> {
+                                        mainUnreadViewModel.reconcileNotificationUnreadCount(effect.count)
+                                    }
                                 }
                             }
                         }
 
                         NotificationListScreen(
                             uiState = notificationUiState,
+                            unreadCount = mainUnreadState.notificationUnreadCount,
                             onBack = { navController.popBackStack() },
                             onNotificationTap = { notificationViewModel.onNotificationTap(it) },
-                            onMarkAllRead = {
-                                notificationViewModel.markAllRead()
-                                mainUnreadViewModel.onAllNotificationsRead()
-                            },
+                            onMarkAllRead = { notificationViewModel.markAllRead() },
                             onLoadMore = { notificationViewModel.loadMore() },
                             onRefresh = { notificationViewModel.refresh() },
                             onRetry = { notificationViewModel.loadInitial() },
