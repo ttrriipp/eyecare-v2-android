@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-14.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-15.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -20,6 +20,27 @@
 > Encounter service charges, and direct Billing Record charges now share
 > one open checkout per patient visit instead of creating duplicate billing
 > records per source.
+>
+> **Shipped (2026-08-15): direct messaging hardening.** Patient-side
+> `messages.read_at` is now written by `POST /conversation/messages/read`
+> (bulk mark-read), so `unread_count` works for the first time. Staff side
+> uses a clinic-wide `conversations.staff_last_read_at` watermark stamped
+> on thread selection — the patient/staff asymmetry is deliberate. The
+> inbox orders by latest message, hides archived threads by default with a
+> toggle, and shows a navigation badge for unread conversations. Inbox
+> archiving is wired end to end (archive, restore, auto-restore on new
+> message). `MessageResource` now returns `sender_type` and
+> `attachments[].download_url`; the `contexts` field and
+> `message_context_links` table are removed. The send throttle is
+> 10 requests/minute. Notification feed routes (`GET /notifications`,
+> `GET /notifications/unread-count`, `PATCH /notifications/{notification}/read`,
+> `PATCH /notifications/read-all`) are wired. Both parties are notified
+> of new messages (`NewMessageReceived`); deactivated staff are excluded.
+> `GET /conversation/messages/search?q=` provides conversation-scoped MySQL
+> FULLTEXT message search. `GET /conversation/messages` and the search endpoint
+> are cursor-paginated newest-first with stable `(created_at, id)` ordering
+> (page size 50, `next_cursor`/`has_more`). Eight
+> unreachable Filament classes under `Conversations/` are deleted.
 
 > **Shipped (2026-08-14): unified quotation, optical-order, and billing
 > entry points.** Prescription eyewear has a dedicated builder in both the
@@ -110,7 +131,9 @@
 > Order creation uses two paths; billing uses one append path keyed by
 > `BillingItemSourceKind`. Ratings update in place with no revision history.
 > `products` table no longer has `lens_category_id`; permitted product types
-> are `frame`, `contact_lens`, `accessory`. Route count is 54 (was 55).
+> are `frame`, `contact_lens`, `accessory`. The commerce reconciliation reduced
+> the route count from 55 to 54; subsequent messaging hardening brought the
+> current total to 61.
 >
 > **Shipped (2026-08-11): resilient patient invitation linking.** Invitation
 > acceptance is bound to the authenticated account's verified invited contact,
@@ -244,8 +267,9 @@ server-side rules.
 > optometrist (15m), Routine Check-up → Regular eye examination (30m),
 > Problem/Urgent Visit → New or worsening eye concern (30m), Contact Lens
 > Consultation → Contact lens consultation (45m), and Referral → Referral
-> (45m, requires referral source). The API contract includes 54 routes (8
-> public, 29 account-only, 17 active-link). New
+> (45m, requires referral source). At that point in the 2026-08-09 rollout,
+> the API contract included 54 routes (8 public, 29 account-only, 17
+> active-link). New
 > endpoints: `GET /appointment-types` (restored, patient-visible catalog),
 > `GET /appointment-optometrists` (patient-safe provider catalog). Modified
 > endpoints: `GET /appointment-request-availability` (now requires
@@ -308,12 +332,12 @@ server-side rules.
 > shipped in `5dcf292`) — corrected here 2026-08-07 after this note wrongly
 > called that surface still write-only.
 >
-> **Known bug in that aggregate (2026-08-07):** hidden ratings were excluded
-> from both the average and the count — `FrameController` eager-loads
+> **Historical issue, fixed 2026-08-13:** hidden ratings were excluded from
+> both the average and the count — `FrameController` eager-loaded
 > `ratings` filtered to `where('is_hidden', false)`, so a moderated rating's
-> star value vanished from the aggregate entirely. **Fixed 2026-08-13** as
-> part of the commerce model simplification (Task 15): the aggregate now
-> includes every rating; only comment text is suppressed for hidden rows.
+> star value vanished from the aggregate entirely. As part of the commerce
+> model simplification (Task 15), the aggregate now includes every rating;
+> only comment text is suppressed for hidden rows.
 >
 > Separately, `docs/gap-analysis.md` §J still describes only the frame-rating
 > workflow and hasn't been updated to mention visit feedback as a second, now-
@@ -496,7 +520,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `frame_reservation_items` | `frame_reservation_id`, `product_variant_id`; candidate rows are retained as history after release. |
 | `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment`, `is_hidden`, `moderation_reason`. |
 | `visit_ratings` | `patient_id`, `appointment_id` (unique — one rating per visit), `encounter_id`, `optometrist_id`, `rating` (1-5), `comment`, `service_ids` (JSON snapshot), `is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`. |
-| `conversations` | `account_user_id` (nullable FK users, unique when set), `patient_id` (nullable FK patients, indexed, no longer unique), `inbox_archived_at` (nullable timestamp, inbox archive semantics). At least one of `account_user_id` or `patient_id` must be non-null. States: unlinked (`account_user_id` set, `patient_id` null), current linked (both set), historical after unlink (`account_user_id` null, `patient_id` set). `account_user_id` is the mobile authorization boundary. Inbox archive removes from staff inbox without soft-deleting; auto-restores on new message. |
+| `conversations` | `account_user_id` (nullable FK users, unique when set), `patient_id` (nullable FK patients, indexed, no longer unique), `inbox_archived_at` (nullable timestamp, inbox archive semantics), `staff_last_read_at` (nullable timestamp, clinic-wide staff read watermark). At least one of `account_user_id` or `patient_id` must be non-null. States: unlinked (`account_user_id` set, `patient_id` null), current linked (both set), historical after unlink (`account_user_id` null, `patient_id` set). `account_user_id` is the mobile authorization boundary. Inbox archive removes from staff inbox without soft-deleting; auto-restores on new message. Patient read uses per-message `messages.read_at`; staff read uses the clinic-wide `staff_last_read_at` watermark — the asymmetry is deliberate (one thread per patient, 2–3 staff). |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
 | `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON), `ip_address`, `user_agent`. |
 | `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
@@ -628,6 +652,15 @@ POST   /api/v1/patient-invitations/accept
 GET    /api/v1/appointment-types              List patient-visible appointment types
 GET    /api/v1/appointment-optometrists       List active optometrists
 GET    /api/v1/clinic-hours                   List weekly clinic hours
+GET    /api/v1/conversation                   Get conversation
+GET    /api/v1/conversation/messages          List messages
+GET    /api/v1/conversation/messages/search   Search messages
+POST   /api/v1/conversation/messages          Send message
+POST   /api/v1/conversation/messages/read     Mark messages read
+GET    /api/v1/notifications                  List notifications
+GET    /api/v1/notifications/unread-count     Unread count
+PATCH  /api/v1/notifications/{notification}/read Mark read
+PATCH  /api/v1/notifications/read-all         Mark all read
 GET    /api/v1/frames
 GET    /api/v1/frames/{id}
 GET    /api/v1/appointment-request-availability
@@ -654,14 +687,11 @@ GET    /api/v1/prescriptions
 GET    /api/v1/prescriptions/{id}
 GET    /api/v1/optical-orders
 GET    /api/v1/optical-orders/{id}
-GET    /api/v1/conversation
-GET    /api/v1/conversation/messages
-POST   /api/v1/conversation/messages
-GET    /api/v1/conversation/attachments/{id}
+GET    /api/v1/conversation/attachments/{attachment}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 30 account-only + 17 active-link = **55 routes total.**
+**Route count:** 8 public + 36 account-only + 17 active-link = **61 routes total.**
 
 Conversation routes moved from active-link to account-only tier (no patient
 link required for read/send; attachment download remains active-link).

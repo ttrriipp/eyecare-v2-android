@@ -1,14 +1,14 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-14) — optical commerce and dispensing implementation complete, with resilient patient invitation linking, appointment-request account-link synchronization, additive API rate-limit errors, simplified frame reservations, and commerce model simplification. Internal optical data (eyewear specifications, dispensing measurements, supplier references, approval/verification metadata, and balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
+> **Backend version:** Current repository state (2026-08-15) — direct messaging hardening complete: patient mark-read, staff read watermark, inbox archiving, activity ordering, navigation badge, notification feed routing, sender_type/download_url on messages, contexts removed, send throttle (10/min), conversation-scoped message search, cursor pagination on messages. Previous: optical commerce and dispensing implementation complete, with resilient patient invitation linking, appointment-request account-link synchronization, additive API rate-limit errors, simplified frame reservations, and commerce model simplification.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
-> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped (quotations have since been removed from the patient API). `?filter=` works on optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. Any `⚠️` marker remaining below this line is stale — flag it for removal on sight rather than trusting it.
+> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped (quotations have since been removed from the patient API). `?filter=` works on optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. No ⚠️ drift markers remain below this line; any newly added marker must be verified before it is kept.
 >
 > **Shipped 2026-08-07:** patient-submitted visit feedback — `POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`. See §10. Design rationale is in `docs/specs/mobile-visit-feedback-spec.md`, but that spec's own tasks checklist is stale (unchecked despite the work landing).
 >
-> **Also shipped:** `GET /frames` and `GET /frames/{id}` now return `average_rating`/`rating_count` per product (§11) — corrected here 2026-08-07 after this note wrongly called that surface still write-only. **Known bug:** the aggregate excludes hidden ratings' stars entirely rather than just their comments, contradicting the documented moderation model — see §11.
+> **Also shipped:** `GET /frames` and `GET /frames/{id}` now return `average_rating`/`rating_count` per product (§11) — corrected here 2026-08-07 after this note wrongly called that surface still write-only. The aggregate includes hidden ratings' star values while suppressing hidden comment text, matching the documented moderation model.
 >
 > **Shipped 2026-08-11:** patient invitation acceptance is bound to the
 > authenticated account's verified invited contact and committed atomically
@@ -44,25 +44,26 @@
 
 ## Table of Contents
 
-1. [Authentication](#1-authentication)
-   - [Registration Flow](#registration-flow-two-stage)
-2. [Profile (me)](#3-profile-me)
-3. [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
-4. [Contact Management](#5-contact-management)
-5. [Patient Linking](#6-patient-linking)
-6. [Patient Invitations](#7-patient-invitations)
-7. [Appointment Requests](#8-appointment-requests)
-8. [Appointment Availability](#9-appointment-availability)
-9. [Confirmed Appointments](#10-confirmed-appointments)
-10. [Frames](#11-frames)
-11. [Frame Reservations](#12-frame-reservations)
-12. [Prescriptions](#13-prescriptions)
-13. [Optical Orders](#14-optical-orders)
-14. [Conversation](#15-conversation)
-15. [Error Responses](#16-error-responses)
-16. [Coordinated Breaking Changes](#17-coordinated-breaking-changes)
-17. [Retired Features](#18-retired-features)
-18. [Clarifications](#19-clarifications)
+- [Authentication](#1-authentication)
+  - [Registration Flow](#registration-flow-two-stage)
+- [Profile (me)](#3-profile-me)
+- [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
+- [Contact Management](#5-contact-management)
+- [Patient Linking](#6-patient-linking)
+- [Patient Invitations](#7-patient-invitations)
+- [Appointment Requests](#8-appointment-requests)
+- [Appointment Availability](#9-appointment-availability)
+- [Confirmed Appointments](#10-confirmed-appointments)
+- [Frames](#11-frames)
+- [Frame Reservations](#12-frame-reservations)
+- [Prescriptions](#13-prescriptions)
+- [Optical Orders](#14-optical-orders)
+- [Conversation](#15-conversation)
+- [Notifications](#15b-notifications)
+- [Error Responses](#16-error-responses)
+- [Coordinated Breaking Changes](#17-coordinated-breaking-changes)
+- [Retired Features](#18-retired-features)
+- [Clarifications](#19-clarifications)
 
 ---
 
@@ -1530,12 +1531,8 @@ ratings, collected via `POST /optical-order-items/{id}/rating`.
 > that coerces `null` to `0` will render every unrated frame as a 0-star
 > product instead of an unrated one — do not collapse the two.
 
-> ~~⚠️ **Known bug (2026-08-07):** both fields were computed from ratings
-> filtered to `is_hidden = false` (`FrameController` / `FrameResource`), so a
-> **hidden rating's star value was excluded from the aggregate entirely**, not
-> just its comment.~~ **Fixed 2026-08-13** as part of the commerce model
-> simplification: the aggregate now includes every rating; only comment text
-> is suppressed for hidden rows.
+> **Fixed 2026-08-13:** the aggregate now includes every rating's star value;
+> only comment text is suppressed for hidden rows.
 
 ---
 
@@ -2026,8 +2023,8 @@ star value always counts toward averages regardless of hiding.
 **Authenticated account-only (no active patient link required).**
 
 The conversation is the account's single messaging thread with the clinic.
-Linked and unlinked accounts can send text messages. Structured context
-links (`contexts[]`) are retired and rejected with HTTP 422. Messages are
+Linked and unlinked accounts can send text messages. Message contexts have
+been retired; legacy `contexts` input is rejected with HTTP 422. Messages are
 plain text only, maximum 5,000 characters.
 
 Attachment uploads and downloads require an active patient link. Unlinked
@@ -2048,8 +2045,7 @@ Returns (or creates) the account's single conversation.
     "patient_id": null,
     "access_level": "general_inquiry",
     "capabilities": {
-      "can_upload_attachments": false,
-      "can_create_context_links": false
+      "can_upload_attachments": false
     },
     "unread_count": 0,
     "created_at": "2026-08-11T10:00:00.000000Z"
@@ -2065,8 +2061,7 @@ Returns (or creates) the account's single conversation.
     "patient_id": 1,
     "access_level": "linked_patient",
     "capabilities": {
-      "can_upload_attachments": true,
-      "can_create_context_links": false
+      "can_upload_attachments": true
     },
     "unread_count": 3,
     "created_at": "2026-07-27T10:00:00.000000Z"
@@ -2076,7 +2071,10 @@ Returns (or creates) the account's single conversation.
 
 ### GET `/conversation/messages`
 
-Returns all messages in the conversation (oldest first). NOT paginated.
+Returns messages in the conversation, cursor-paginated (newest-first, default
+50 per page). Results are ordered by `created_at` descending with `id`
+descending as the unique tie-breaker, so messages created in the same second
+are not skipped across cursors.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
@@ -2113,7 +2111,7 @@ Returns all messages in the conversation (oldest first). NOT paginated.
 | `sender_id` | integer | no | User ID of sender |
 | `sender_type` | string | no | `patient` or `staff` |
 | `body` | string | no | Message text, maximum 5,000 characters |
-| `read_at` | string | yes | ISO 8601 when read by patient |
+| `read_at` | string | yes | ISO 8601 when read (set by `POST /conversation/messages/read`) |
 | `created_at` | string | no | ISO 8601 creation timestamp |
 | `attachments` | array | no | Attached files (empty array for unlinked accounts) |
 | `attachments[].id` | integer | no | Attachment ID |
@@ -2124,7 +2122,7 @@ Returns all messages in the conversation (oldest first). NOT paginated.
 
 ### POST `/conversation/messages`
 
-Sends a plain text message. Structured context input is rejected.
+Sends a plain text message. Context input is prohibited.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
@@ -2137,10 +2135,66 @@ Sends a plain text message. Structured context input is rejected.
 
 **Validation:**
 - `body`: required, string, maximum 5,000 characters
-- `contexts`: prohibited (returns 422)
+- `contexts`: retired legacy input; prohibited (returns 422)
 
 **Rate limit:** 10 requests per minute per account. Throttled requests return
 HTTP 429 without creating a partial message.
+
+### POST `/conversation/messages/read`
+
+Marks every message the caller did not send as read. Idempotent — a second
+call returns `marked_count: 0`.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Response (200):**
+```json
+{
+  "marked_count": 3
+}
+```
+
+### GET `/conversation/messages/search`
+
+Full-text search within the account's conversation using the MySQL `FULLTEXT`
+index on `messages.body`. Results are returned newest-first, ordered by
+`created_at` descending with `id` descending as the unique tie-breaker, and
+paginated with the same cursor shape as the messages endpoint.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Query parameters:**
+- `q` (required, string, max 500): Search term.
+
+**Validation:**
+- `q`: required, string, maximum 500 characters
+- Empty or whitespace-only `q` returns 422.
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 5,
+      "conversation_id": 1,
+      "sender_id": 1,
+      "sender_type": "patient",
+      "body": "When will my prescription be ready?",
+      "read_at": null,
+      "created_at": "2026-08-05T11:00:00+08:00",
+      "attachments": []
+    }
+  ],
+  "meta": {
+    "next_cursor": null,
+    "has_more": false
+  }
+}
+```
+
+**Known limitation:** MySQL's default `innodb_ft_min_token_size` (3) means
+short words like "ok" silently match nothing. This is a database-level
+constraint, not an application bug.
 
 ### GET `/conversation/attachments/{attachment}`
 
@@ -2151,47 +2205,91 @@ Downloads a message attachment. Requires an active patient link.
 Returns 404 for unlinked accounts, missing files, or attachments from
 other conversations (non-disclosing).
 
-**Request (multipart/form-data):**
-```
-body: "string (required, max:5000)"
-attachment: File (optional, max 10MB, allowed: pdf,png,jpg,jpeg,doc,docx)
-contexts[0][type]: "optical_order"
-contexts[0][id]: "1"
-```
-
-**Notes:**
-- `contexts` is optional. Each entry must include `type` and `id`.
-- Valid `type` values: `optical_order`, `quotation`.
-- The referenced resource must exist and belong to the authenticated patient.
-- A message accepts at most one attachment through the singular `attachment`
-  field. To send multiple files, send separate messages.
-
-**Response (201):**
-```json
-{
-  "data": {
-    "id": 2,
-    "sender_id": 1,
-    "sender_type": "patient",
-    "body": "Thank you!",
-    "read_at": null,
-    "created_at": "2026-08-05T11:00:00+08:00",
-    "contexts": [],
-    "attachments": []
-  }
-}
-```
-
-### GET `/conversation/attachments/{id}`
-
-Downloads a message attachment. Patient can only download from their own conversation.
-
-**Auth:** Required (Sanctum token). **Active patient link required.**
-
 **Response:** Binary file download with appropriate `Content-Type` and `Content-Disposition` headers.
 
 **Errors:**
 - `404`: Attachment not found or not owned by patient's conversation.
+
+---
+
+## 15b. Notifications
+
+**Authenticated account-only (no active patient link required).**
+
+The notification feed provides an in-app inbox for database-backed
+notifications. Notifications are created by the backend when events occur
+(e.g. new message from staff).
+
+### GET `/notifications`
+
+Returns paginated notifications for the authenticated account.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Query:** `per_page` (default: 20)
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "type": "App\\Notifications\\NewMessageReceived",
+      "title": "New Message",
+      "body": "Dr. Santos sent a message.",
+      "action_url": "/admin/conversations/1",
+      "related_type": null,
+      "related_id": null,
+      "read_at": null,
+      "created_at": "2026-08-15T10:00:00+08:00"
+    }
+  ],
+  "links": { "first": "...", "last": "...", "prev": null, "next": null },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 20, "total": 1 }
+}
+```
+
+### GET `/notifications/unread-count`
+
+Returns the count of unread notifications.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Response (200):**
+```json
+{
+  "unread_count": 3
+}
+```
+
+### PATCH `/notifications/{notification}/read`
+
+Marks a single notification as read.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Errors:**
+- `403`: Notification does not belong to the authenticated account.
+
+**Response (200):**
+```json
+{
+  "message": "Notification marked as read."
+}
+```
+
+### PATCH `/notifications/read-all`
+
+Marks all unread notifications as read.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Response (200):**
+```json
+{
+  "message": "All notifications marked as read."
+}
+```
 
 ---
 
@@ -2277,6 +2375,10 @@ The following routes are **removed** in the coordinated Android cutover:
 
 ### New Routes Added
 
+This table includes routes added by the coordinated Android cutover and by the
+direct-messaging hardening shipped on 2026-08-15. Current behavior is
+authoritative in §§15 and 15b.
+
 | New Route | Purpose |
 |---|---|
 | `POST /auth/registration/otp` | Request phone registration OTP |
@@ -2312,6 +2414,16 @@ The following routes are **removed** in the coordinated Android cutover:
 | `GET /optical-orders` | List patient optical orders (product fulfillment) |
 | `GET /optical-orders/{id}` | Get optical order detail |
 | `POST /optical-order-items/{id}/rating` | Rate a dispensed product item |
+| `GET /conversation` | Get the authenticated account's conversation |
+| `GET /conversation/messages` | List conversation messages with cursor pagination |
+| `GET /conversation/messages/search` | Search messages within the authenticated account's conversation |
+| `POST /conversation/messages` | Send a plain text conversation message |
+| `POST /conversation/messages/read` | Mark received conversation messages as read |
+| `GET /conversation/attachments/{attachment}` | Download an attachment with an active patient link |
+| `GET /notifications` | List account notifications |
+| `GET /notifications/unread-count` | Get the account's unread notification count |
+| `PATCH /notifications/{notification}/read` | Mark one notification as read |
+| `PATCH /notifications/read-all` | Mark all account notifications as read |
 
 ### Modified Routes
 
@@ -2340,10 +2452,8 @@ The following old mobile features/routes are **intentionally retired**:
 | Billing PDF | Retired. |
 | Clinic feedback (`/feedback`) | Retired. |
 | Appointment contact-note editing | Retired. |
-| Explicit message mark-read | Retired. |
 | `/api/user` (unversioned) | Absent. |
 | `/api/v1/patient/profile` | Absent. Profile is `/api/v1/me`. |
-| Notification endpoints | Retired from mobile API. |
 
 ---
 
@@ -2423,14 +2533,13 @@ inferred from the status string alone.
 ### Messaging and attachments
 
 Messages include `sender_id`, `sender_type` (`patient` or `staff`), `body`,
-`read_at`, `created_at`, normalized `contexts`, and an `attachments` array that
+`read_at`, `created_at`, and an `attachments` array that
 contains zero or one attachment. A message accepts one optional multipart
 `attachment` field; multiple files require separate messages.
 
 Each attachment returns `id`, `original_name`, `mime_type`, `file_size`, and an
 authenticated `download_url`. Allowed file types are PDF, PNG, JPG/JPEG, DOC,
-and DOCX, with a 10 MB maximum. Valid context types are `optical_order` and
-`quotation`; each referenced record must belong to the authenticated patient.
+and DOCX, with a 10 MB maximum.
 
 ---
 
@@ -2472,6 +2581,15 @@ POST   /api/v1/patient-invitations/accept     Accept invitation and link
 GET    /api/v1/appointment-types              List patient-visible appointment types
 GET    /api/v1/appointment-optometrists       List active optometrists
 GET    /api/v1/clinic-hours                   List weekly clinic hours
+GET    /api/v1/conversation                   Get conversation
+GET    /api/v1/conversation/messages          List messages
+GET    /api/v1/conversation/messages/search   Search messages
+POST   /api/v1/conversation/messages          Send message
+POST   /api/v1/conversation/messages/read     Mark messages read
+GET    /api/v1/notifications                  List notifications
+GET    /api/v1/notifications/unread-count     Unread count
+PATCH  /api/v1/notifications/{notification}/read Mark read
+PATCH  /api/v1/notifications/read-all         Mark all read
 GET    /api/v1/appointment-request-availability Get request availability
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request
@@ -2520,12 +2638,9 @@ GET    /api/v1/prescriptions/{id}             Get prescription
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
 
-GET    /api/v1/conversation                   Get conversation
-GET    /api/v1/conversation/messages          List messages
-POST   /api/v1/conversation/messages          Send message
-GET    /api/v1/conversation/attachments/{id}  Download attachment
+GET    /api/v1/conversation/attachments/{attachment}  Download attachment
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 30 account-only + 17 active-link = **55 routes total.**
+**Route count:** 8 public + 36 account-only + 17 active-link = **61 routes total.**
