@@ -134,6 +134,9 @@ dependencies {
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
 
+    // SceneView / Filament 3D
+    implementation(libs.sceneview)
+
     // MediaPipe
     implementation(libs.mediapipe.tasks.vision)
 
