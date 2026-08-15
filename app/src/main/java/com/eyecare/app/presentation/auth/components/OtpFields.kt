@@ -95,13 +95,13 @@ fun OtpExpiryRow(
                 )
                 expiry != null && secondsUntilExpiry != null && secondsUntilExpiry > 0 -> Text(
                     text = "Code expires in ${formatCountdown(secondsUntilExpiry)} · " +
-                        formatOtpExpiry(expiry, ZoneId.systemDefault(), Locale.getDefault()),
+                        formatOtpExpiry(expiry, ZoneId.systemDefault(), androidx.compose.ui.platform.LocalConfiguration.current.locales[0]),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 expiry != null -> Text(
                     text = "Code expired at " +
-                        formatOtpExpiry(expiry, ZoneId.systemDefault(), Locale.getDefault()),
+                        formatOtpExpiry(expiry, ZoneId.systemDefault(), androidx.compose.ui.platform.LocalConfiguration.current.locales[0]),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -147,3 +147,5 @@ internal fun formatOtpExpiry(instant: Instant, zoneId: ZoneId, locale: Locale): 
     DateTimeFormatter.ofPattern("MMM d, h:mm a", locale)
         .withZone(zoneId)
         .format(instant)
+
+

@@ -297,8 +297,9 @@ private fun ClinicHoursCard(clinicHours: List<ClinicHoursDay>) {
     val todayHours = remember(clinicHours, today) {
         clinicHours.firstOrNull { it.weekday == today.toCarbonWeekday() }
     }
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     val todayDayName = todayHours?.dayName
-        ?: today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, Locale.getDefault())
+        ?: today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, locale)
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -698,4 +699,6 @@ private fun NotificationBell(
         }
     }
 }
+
+
 

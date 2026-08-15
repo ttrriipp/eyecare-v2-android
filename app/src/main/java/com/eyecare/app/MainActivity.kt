@@ -1,6 +1,7 @@
 package com.eyecare.app
 
 import android.graphics.Color
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var tokenManager: TokenManager
     @Inject lateinit var authEventBus: AuthEventBus
 
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Status/nav bar icon style is independent of the Compose theme below and
@@ -46,7 +48,7 @@ class MainActivity : ComponentActivity() {
         )
         @Suppress("DEPRECATION")
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        setContent {
+            setContent {
             EyecareTheme {
                 val navController = rememberNavController()
                 val snackbarHostState = remember { SnackbarHostState() }
@@ -77,7 +79,7 @@ class MainActivity : ComponentActivity() {
                             Snackbar(snackbarData = data)
                         }
                     },
-                ) { _ ->
+                ) { _innerPadding ->
                     EyecareNavGraph(
                         tokenManager = tokenManager,
                         onLogout = { logoutTrigger++ },
@@ -88,3 +90,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
