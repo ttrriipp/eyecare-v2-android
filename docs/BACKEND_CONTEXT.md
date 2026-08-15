@@ -36,6 +36,11 @@
 > `GET /notifications/unread-count`, `PATCH /notifications/{notification}/read`,
 > `PATCH /notifications/read-all`) are wired. Both parties are notified
 > of new messages (`NewMessageReceived`); deactivated staff are excluded.
+> Notification resources expose stable mobile fields: `kind` (snake-case
+> product enum, e.g. `new_message`) and nullable `mobile_action` (discriminated
+> by `type`; v19 supports `conversation` only). Legacy `type`, `action_url`,
+> `related_type`, and `related_id` remain for compatibility but Android ignores
+> them for navigation.
 > `GET /conversation/messages/search?q=` provides conversation-scoped MySQL
 > FULLTEXT message search. `GET /conversation/messages` and the search endpoint
 > are cursor-paginated newest-first with stable `(created_at, id)` ordering
