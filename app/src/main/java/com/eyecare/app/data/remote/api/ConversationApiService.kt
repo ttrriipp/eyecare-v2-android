@@ -10,6 +10,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 import retrofit2.http.Streaming
 
 interface ConversationApiService {
@@ -17,7 +18,16 @@ interface ConversationApiService {
     suspend fun getConversation(): MessageDtos.ConversationResponse
 
     @GET("conversation/messages")
-    suspend fun getMessages(): MessageDtos.MessageListResponse
+    suspend fun getMessages(@Query("cursor") cursor: String? = null): MessageDtos.MessageListResponse
+
+    @GET("conversation/messages/search")
+    suspend fun searchMessages(
+        @Query("q") query: String,
+        @Query("cursor") cursor: String? = null,
+    ): MessageDtos.MessageListResponse
+
+    @POST("conversation/messages/read")
+    suspend fun markMessagesRead(): MessageDtos.MarkReadResponse
 
     @POST("conversation/messages")
     suspend fun sendMessage(@Body request: MessageDtos.SendMessageRequest): MessageDtos.MessageResponse
