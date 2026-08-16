@@ -378,6 +378,88 @@ class ArViewModelTest {
         )
     }
 
+    @Test
+    fun `rapid A B A switching prevents stale B result from replacing A`() {
+        val arAssetA = typedArAsset(sha256 = "a".repeat(64))
+        val arAssetB = typedArAsset(sha256 = "b".repeat(64))
+        val variants = listOf(
+            variant(id = 11, name = "Matte Black", ar = arAssetA),
+            variant(id = 12, name = "Tortoise", ar = arAssetB),
+        )
+        val slowResultA = CompletableDeferred<ArAssetLoadResult>()
+        val slowResultB = CompletableDeferred<ArAssetLoadResult>()
+        val arRepo = mockk<ArAssetRepository>()
+        coEvery { arRepo.load(11, any()) } coAnswers { slowResultA.await() }
+        coEvery { arRepo.load(12, any()) } coAnswers { slowResultB.await() }
+        val viewModel = viewModel(
+            frameResult = Result.success(frame(variants = variants)),
+            arAssetRepository = arRepo,
+        )
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        drain()
+
+        // Select A, then immediately B, then back to A
+        viewModel.selectVariant(variants[0])
+        viewModel.selectVariant(variants[1])
+        viewModel.selectVariant(variants[0])
+        drain()
+
+        // B's result arrives late — should be discarded
+        slowResultB.complete(
+            ArAssetLoadResult.Downloaded(
+                identity = ArAssetIdentity(12, 2, "b".repeat(64)),
+                asset = arAssetB,
+                localFilePath = "/tmp/variant-b.glb",
+            )
+        )
+        drain()
+
+        // A's result arrives — should be applied
+        slowResultA.complete(
+            ArAssetLoadResult.Downloaded(
+                identity = ArAssetIdentity(11, 2, "a".repeat(64)),
+                asset = arAssetA,
+                localFilePath = "/tmp/variant-a.glb",
+            )
+        )
+        drain()
+
+        val source = assertInstanceOf(ArAssetSource.Ready::class.java, viewModel.assetSource.value)
+        assertEquals("/tmp/variant-a.glb", source.filePath)
+    }
+
+    @Test
+    fun `switching to variant without typed asset clears asset source`() {
+        val arAsset = typedArAsset()
+        val variants = listOf(
+            variant(id = 11, name = "Matte Black", ar = arAsset),
+            variant(id = 12, name = "Tortoise", ar = null),
+        )
+        val arRepo = mockk<ArAssetRepository>()
+        coEvery { arRepo.load(11, any()) } returns ArAssetLoadResult.Downloaded(
+            identity = ArAssetIdentity(11, 2, "a".repeat(64)),
+            asset = arAsset,
+            localFilePath = "/tmp/variant-11.glb",
+        )
+        val viewModel = viewModel(
+            frameResult = Result.success(frame(variants = variants)),
+            arAssetRepository = arRepo,
+        )
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        drain()
+
+        // Verify A is loaded
+        assertInstanceOf(ArAssetSource.Ready::class.java, viewModel.assetSource.value)
+
+        // Switch to B which has no typed asset
+        viewModel.selectVariant(variants[1])
+        drain()
+
+        assertEquals(ArAssetSource.NotLoaded, viewModel.assetSource.value)
+    }
+
     private fun viewModel(
         capabilityProvider: ArCapabilityProvider = ArCapabilityProvider { supportedFacts() },
         repositoryResult: Result<Frame> = Result.success(frame()),

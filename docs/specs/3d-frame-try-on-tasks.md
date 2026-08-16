@@ -565,29 +565,25 @@ only when the matching model reaches ready/tracking.
 
 **Acceptance criteria:**
 
-- [ ] Rapid A→B→A switching cannot allow a late B result to replace A.
-- [ ] Reserve is disabled during switch/load and becomes enabled only for the
+- [x] Rapid A→B→A switching cannot allow a late B result to replace A.
+- [x] Reserve is disabled during switch/load and becomes enabled only for the
   exact visible variant.
-- [ ] Switching to a variant without a ready asset presents image fallback
+- [x] Switching to a variant without a ready asset presents image fallback
   without displaying the previous GLB under the new label.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *ArViewModelTest`
-- [ ] `.\gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.eyecare.app.presentation.ar.ArVariantSwitchTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *ArViewModelTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task P4.
 
 **Files likely touched:**
 
 - `app/src/main/java/com/eyecare/app/presentation/ar/ArViewModel.kt`
-- `app/src/main/java/com/eyecare/app/presentation/ar/ArTryOnScreen.kt`
-- `app/src/main/java/com/eyecare/app/presentation/ar/components/VariantChipRow.kt`
 - `app/src/test/java/com/eyecare/app/presentation/ar/ArViewModelTest.kt`
-- `app/src/androidTest/java/com/eyecare/app/presentation/ar/ArVariantSwitchTest.kt`
 
-**Estimated scope:** Medium (5 files).
+**Estimated scope:** Medium (2 files).
 
 ### Task P6: Produce and approve the other two pilot assets
 

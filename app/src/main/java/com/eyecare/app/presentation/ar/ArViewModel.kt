@@ -59,6 +59,7 @@ class ArViewModel @AssistedInject constructor(
     private var poseCalibration = FacePoseCalibration.ProvisionalRoundFrame
     private var loadJob: Job? = null
     private var assetLoadJob: Job? = null
+    private var assetGeneration = 0
     private var sessionActive = true
     private var capabilityPassed = false
     private var permissionGranted = false
@@ -225,6 +226,8 @@ class ArViewModel @AssistedInject constructor(
 
     private fun loadAssetForVariant(variant: FrameVariant) {
         assetLoadJob?.cancel()
+        assetGeneration++
+        val currentGeneration = assetGeneration
         val arAsset = variant.ar
         if (arAsset == null || !variant.isTypedArReady) {
             _assetSource.value = ArAssetSource.NotLoaded
@@ -245,6 +248,7 @@ class ArViewModel @AssistedInject constructor(
                 ArAssetLoadResult.RecoverableFailure(ArAssetFailureReason.NETWORK)
             }
             if (!sessionActive || !isActive) return@launch
+            if (currentGeneration != assetGeneration) return@launch
 
             when (result) {
                 is ArAssetLoadResult.Ready -> {
