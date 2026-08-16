@@ -674,17 +674,17 @@ reservation screen. Reuse existing authorization and eligibility routing.
 
 **Acceptance criteria:**
 
-- [ ] Reserve is visible only for an unambiguous selected/displayed variant and
+- [x] Reserve is visible only for an unambiguous selected/displayed variant and
   sends that exact ID to `CreateFrameReservation`.
-- [ ] Existing patient-link and appointment eligibility gates still apply.
-- [ ] Back navigation returns safely without creating a reservation implicitly.
+- [x] Existing patient-link and appointment eligibility gates still apply.
+- [x] Back navigation returns safely without creating a reservation implicitly.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *PatientFeatureIntentTest --tests *ArViewModelTest`
-- [ ] Manual: open try-on, reserve, select an eligible appointment, and confirm
+- [x] `.\gradlew testDebugUnitTest --tests *PatientFeatureIntentTest --tests *ArViewModelTest`
+- [x] Manual: open try-on, reserve, select an eligible appointment, and confirm
   the resulting reservation item uses the displayed variant.
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task P5 PASS or Task F1 FAIL.
 

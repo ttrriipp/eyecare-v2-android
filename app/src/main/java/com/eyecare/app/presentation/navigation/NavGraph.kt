@@ -409,6 +409,9 @@ fun EyecareNavGraph(
                             frameId = route.frameId,
                             initialVariantId = route.variantId,
                             onBack = { navController.popBackStack() },
+                            onReserveFrame = { fId, vId ->
+                                navigatePatientFeature(CreateFrameReservation(fId, vId))
+                            },
                         )
                     }
                     composable<PrescriptionList> {
