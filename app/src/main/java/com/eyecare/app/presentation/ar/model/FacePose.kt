@@ -79,7 +79,7 @@ data class FacePoseCalibration(
             translationScale = 0.01f,
             scaleMultiplier = 1f,
             mirrorFrontCamera = true,
-            anchorY = 0.006f,
+            anchorY = 0.014f,
         )
     }
 }

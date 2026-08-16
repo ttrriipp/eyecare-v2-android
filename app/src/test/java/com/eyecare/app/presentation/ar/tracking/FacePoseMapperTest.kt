@@ -99,7 +99,7 @@ class FacePoseMapperTest {
         )
 
         assertNotNull(pose)
-        assertEquals(0.006f, pose!!.translationY, EPSILON)
+        assertEquals(0.014f, pose!!.translationY, EPSILON)
     }
 
     @Test

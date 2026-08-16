@@ -110,10 +110,9 @@ data class BundledFrameAsset(
                 y = 0.144565f,
                 z = 0.123f,
             ),
-            // The latest POCO smoke check still showed the measured mesh slightly undersized in
-            // the live view. Keep this provisional until the physical side-by-side calibration
-            // checkpoint.
-            displayScaleMultiplier = 1.9f,
+            // The current POCO calibration favors a slightly conservative display scale while
+            // physical side-by-side fitting remains pending.
+            displayScaleMultiplier = 1.6f,
         )
 
         private fun readIntLittleEndian(bytes: ByteArray, offset: Int): Int =
