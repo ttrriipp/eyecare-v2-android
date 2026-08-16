@@ -49,7 +49,7 @@ class RemoteArAssetRepository @Inject constructor(
         }
 
         val target = File(cacheDirectory, accepted.cacheKey.value)
-            if (target.isFile) {
+        if (target.isFile) {
             val cachedDecision = validateFile(target, variantId, asset)
             if (cachedDecision is ArAssetPolicyDecision.Accepted) {
                 return ArAssetLoadResult.Cached(
