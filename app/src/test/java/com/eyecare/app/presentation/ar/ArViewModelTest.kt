@@ -249,13 +249,18 @@ class ArViewModelTest {
     }
 
     @Test
-    fun `variant without typed asset sets source to NotLoaded`() {
+    fun `variant without typed asset uses image fallback`() {
         val viewModel = viewModel()
         drain()
         viewModel.onPermissionResult(granted = true)
         drain()
 
         assertEquals(ArAssetSource.NotLoaded, viewModel.assetSource.value)
+        val searching = assertInstanceOf(
+            ArTryOnUiState.Searching::class.java,
+            viewModel.uiState.value,
+        )
+        assertInstanceOf(ArAssetState.Failed::class.java, searching.assetState)
     }
 
     @Test

@@ -32,6 +32,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+private const val AR_PREVIEW_UNAVAILABLE_MESSAGE =
+    "This frame's 3D preview is not available. Try the image preview instead."
+
 @HiltViewModel(assistedFactory = ArViewModel.Factory::class)
 class ArViewModel @AssistedInject constructor(
     private val frameRepository: FrameRepository,
@@ -231,7 +234,7 @@ class ArViewModel @AssistedInject constructor(
         val arAsset = variant.ar
         if (arAsset == null || !variant.isTypedArReady) {
             _assetSource.value = ArAssetSource.NotLoaded
-            assetState = ArAssetState.Checking
+            assetState = ArAssetState.Failed(AR_PREVIEW_UNAVAILABLE_MESSAGE)
             updateActiveState()
             return
         }
@@ -279,7 +282,7 @@ class ArViewModel @AssistedInject constructor(
                 is ArAssetLoadResult.Unsupported -> {
                     _assetSource.value = ArAssetSource.NotLoaded
                     assetState = ArAssetState.Failed(
-                        "This frame's 3D preview is not available. Try the image preview instead.",
+                        AR_PREVIEW_UNAVAILABLE_MESSAGE,
                     )
                     moveToFacePhase()
                 }
