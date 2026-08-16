@@ -42,8 +42,6 @@ import com.eyecare.app.presentation.ar.components.VariantChipRow
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArFaceState
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
-import com.eyecare.app.presentation.ar.model.FaceFrame
-import com.eyecare.app.presentation.ar.model.FacePose
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderer
 import com.eyecare.app.presentation.common.buildImageUrl
@@ -90,59 +88,22 @@ fun ArTryOnScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        when (val state = uiState) {
-            ArTryOnUiState.CheckingCapability,
-            ArTryOnUiState.PermissionRequired,
-            is ArTryOnUiState.PermissionDenied,
-            is ArTryOnUiState.Unsupported,
-            is ArTryOnUiState.Error,
-            -> ArStatusOverlay(
-                state = state,
+        val activeContentState = uiState.toActiveTryOnContentState()
+        if (activeContentState != null) {
+            ActiveTryOnContent(
+                state = activeContentState,
+                imageLoader = imageLoader,
+                onFaceResult = viewModel::onFaceResult,
+                onAssetStateChanged = viewModel::onAssetStateChanged,
+                onSelectVariant = viewModel::selectVariant,
+                onOpenCatalog = onOpenCatalog,
+            )
+        } else {
+            ArStatusOverlay(
+                state = uiState,
                 onRetry = viewModel::retry,
                 onRequestPermission = { launcher.launch(Manifest.permission.CAMERA) },
                 onOpenSettings = openSettings,
-                onOpenCatalog = onOpenCatalog,
-            )
-
-            is ArTryOnUiState.Loading -> ActiveTryOnContent(
-                phase = ActiveTryOnPhase.Loading,
-                variants = state.variants,
-                selectedVariant = state.selectedVariant,
-                face = null,
-                pose = null,
-                assetState = state.assetState,
-                imageLoader = imageLoader,
-                onFaceResult = viewModel::onFaceResult,
-                onAssetStateChanged = viewModel::onAssetStateChanged,
-                onSelectVariant = viewModel::selectVariant,
-                onOpenCatalog = onOpenCatalog,
-            )
-
-            is ArTryOnUiState.Searching -> ActiveTryOnContent(
-                phase = ActiveTryOnPhase.Searching,
-                variants = state.variants,
-                selectedVariant = state.selectedVariant,
-                face = null,
-                pose = null,
-                assetState = state.assetState,
-                imageLoader = imageLoader,
-                onFaceResult = viewModel::onFaceResult,
-                onAssetStateChanged = viewModel::onAssetStateChanged,
-                onSelectVariant = viewModel::selectVariant,
-                onOpenCatalog = onOpenCatalog,
-            )
-
-            is ArTryOnUiState.Tracking -> ActiveTryOnContent(
-                phase = ActiveTryOnPhase.Tracking,
-                variants = state.variants,
-                selectedVariant = state.selectedVariant,
-                face = state.face,
-                pose = state.pose,
-                assetState = state.assetState,
-                imageLoader = imageLoader,
-                onFaceResult = viewModel::onFaceResult,
-                onAssetStateChanged = viewModel::onAssetStateChanged,
-                onSelectVariant = viewModel::selectVariant,
                 onOpenCatalog = onOpenCatalog,
             )
         }
@@ -159,28 +120,17 @@ fun ArTryOnScreen(
     }
 }
 
-private enum class ActiveTryOnPhase {
-    Loading,
-    Searching,
-    Tracking,
-}
-
 @Composable
 private fun ActiveTryOnContent(
-    phase: ActiveTryOnPhase,
-    variants: List<FrameVariant>,
-    selectedVariant: FrameVariant?,
-    face: FaceFrame?,
-    pose: FacePose?,
-    assetState: ArAssetState,
+    state: ActiveTryOnContentState,
     imageLoader: ImageLoader,
     onFaceResult: (ArFaceState) -> Unit,
     onAssetStateChanged: (ArAssetState) -> Unit,
     onSelectVariant: (FrameVariant) -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
-    val frameUrl = selectedVariant?.arAssetReference?.let(::buildImageUrl)
-    val showThreeD = assetState is ArAssetState.Ready && face != null && pose != null
+    val frameUrl = state.selectedVariant?.arAssetReference?.let(::buildImageUrl)
+    val showThreeD = state.assetState is ArAssetState.Ready && state.face != null && state.pose != null
 
     Box(Modifier.fillMaxSize()) {
         CameraPreviewView(
@@ -190,7 +140,7 @@ private fun ActiveTryOnContent(
 
         FrameModelRenderer(
             modifier = Modifier.fillMaxSize(),
-            pose = if (face != null) pose else null,
+            pose = if (state.face != null) state.pose else null,
             showModelWithoutPose = false,
             transparent = true,
             autoCenterContent = false,
@@ -198,14 +148,14 @@ private fun ActiveTryOnContent(
             onStateChanged = { onAssetStateChanged(it.toArAssetState()) },
         )
 
-        if (face != null && !showThreeD) {
+        if (state.face != null && !showThreeD) {
             FrameOverlayRenderer(
-                face = face,
+                face = state.face,
                 frameAssetUrl = frameUrl,
                 imageLoader = imageLoader,
                 modifier = Modifier.fillMaxSize(),
             )
-        } else if (face == null) {
+        } else if (state.face == null) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -215,7 +165,7 @@ private fun ActiveTryOnContent(
                     color = Color.Black.copy(alpha = 0.5f),
                 ) {
                     Text(
-                        if (phase == ActiveTryOnPhase.Loading) {
+                        if (state.phase == ActiveTryOnPhase.Loading) {
                             "Loading this frame's preview…"
                         } else {
                             "Position your face in the center"
@@ -229,7 +179,7 @@ private fun ActiveTryOnContent(
             }
         }
 
-        if (phase == ActiveTryOnPhase.Tracking && face != null) {
+        if (state.phase == ActiveTryOnPhase.Tracking && state.face != null) {
             ArDisclosureBanner(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -238,10 +188,10 @@ private fun ActiveTryOnContent(
         }
 
         ArAssetStatusBanner(
-            state = assetState,
+            state = state.assetState,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = if (face != null) 112.dp else 64.dp),
+                .padding(top = if (state.face != null) 112.dp else 64.dp),
         )
 
         Box(
@@ -255,10 +205,10 @@ private fun ActiveTryOnContent(
                 TextButton(onClick = onOpenCatalog) {
                     Text("View frame images", color = Color.White)
                 }
-                if (variants.isNotEmpty()) {
+                if (state.variants.isNotEmpty()) {
                     VariantChipRow(
-                        variants = variants,
-                        selectedVariant = selectedVariant,
+                        variants = state.variants,
+                        selectedVariant = state.selectedVariant,
                         onSelectVariant = onSelectVariant,
                         modifier = Modifier.fillMaxWidth(),
                     )
