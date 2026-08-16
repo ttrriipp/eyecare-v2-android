@@ -9,7 +9,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,7 +40,6 @@ import io.github.sceneview.rememberModelLoader
 private const val MODEL_LOAD_TIMEOUT_MILLIS = 15_000L
 const val FRAME_MODEL_RENDERER_TAG = "frame-model-renderer"
 
-/** State exposed by the isolated renderer so its host can choose a fallback without guessing. */
 sealed interface FrameModelRenderState {
     data object CheckingAsset : FrameModelRenderState
     data object Loading : FrameModelRenderState
@@ -55,16 +53,6 @@ private sealed interface AssetCheck {
     data class Invalid(val message: String) : AssetCheck
 }
 
-/**
- * Renders one GLB in a standalone SceneView viewport.
- *
- * Supports both [FrameModelSource.Bundled] (Android assets for feasibility/demo) and
- * [FrameModelSource.Downloaded] (verified cached files from remote delivery).
- *
- * SceneView remembers and disposes Filament resources with the Compose lifecycle; the caller only
- * observes the explicit loading/ready/failure state and can keep a non-3D fallback visible when
- * needed.
- */
 @Composable
 fun FrameModelRenderer(
     modifier: Modifier = Modifier,
@@ -138,6 +126,7 @@ fun FrameModelRenderer(
                     showModelWithoutPose = showModelWithoutPose,
                     transparent = transparent,
                     autoCenterContent = autoCenterContent,
+                    onRenderStateChange = { renderState = it },
                 )
             }
         }
@@ -171,6 +160,7 @@ private fun ModelScene(
     showModelWithoutPose: Boolean,
     transparent: Boolean,
     autoCenterContent: Boolean,
+    onRenderStateChange: (FrameModelRenderState) -> Unit,
 ) {
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
@@ -186,6 +176,19 @@ private fun ModelScene(
         is FrameModelSource.Bundled -> {
             val modelInstance = rememberModelInstance(modelLoader, source.assetPath)
             val scale = source.descriptor.scaleForPose(pose?.scale ?: 1f)
+
+            LaunchedEffect(modelInstance) {
+                if (modelInstance != null) {
+                    onRenderStateChange(FrameModelRenderState.Ready)
+                } else {
+                    kotlinx.coroutines.delay(MODEL_LOAD_TIMEOUT_MILLIS)
+                    onRenderStateChange(
+                        FrameModelRenderState.Failed(
+                            "The 3D frame could not be initialized. Try the image preview instead.",
+                        ),
+                    )
+                }
+            }
 
             SceneView(
                 modifier = Modifier.fillMaxSize(),
@@ -235,8 +238,18 @@ private fun ModelScene(
             }
 
             LaunchedEffect(source.assetPath) {
-                val file = java.io.File(source.assetPath)
-                downloadedInstance = modelLoader.createModelInstance(file)
+                try {
+                    val file = java.io.File(source.assetPath)
+                    val instance = modelLoader.createModelInstance(file)
+                    downloadedInstance = instance
+                    onRenderStateChange(FrameModelRenderState.Ready)
+                } catch (e: Exception) {
+                    onRenderStateChange(
+                        FrameModelRenderState.Failed(
+                            "The 3D frame could not be initialized. Try the image preview instead.",
+                        ),
+                    )
+                }
             }
 
             SceneView(
