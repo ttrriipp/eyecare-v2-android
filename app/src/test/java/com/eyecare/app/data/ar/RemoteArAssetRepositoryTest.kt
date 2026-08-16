@@ -52,10 +52,11 @@ class RemoteArAssetRepositoryTest {
 
         val result = repository().load(variantId = 42, asset = asset)
 
-        assertInstanceOf(ArAssetLoadResult.Downloaded::class.java, result)
+        val downloaded = assertInstanceOf(ArAssetLoadResult.Downloaded::class.java, result)
         assertEquals(1, server.requestCount)
         assertEquals(payload.toList(), cacheFile(asset).readBytes().toList())
         assertTrue(tempFiles().isEmpty())
+        assertEquals(cacheFile(asset).absolutePath, downloaded.localFilePath)
     }
 
     @Test
@@ -69,9 +70,10 @@ class RemoteArAssetRepositoryTest {
 
         val result = repository().load(variantId = 42, asset = asset)
 
-        assertInstanceOf(ArAssetLoadResult.Cached::class.java, result)
+        val cached = assertInstanceOf(ArAssetLoadResult.Cached::class.java, result)
         assertEquals(0, server.requestCount)
         assertTrue(tempFiles().isEmpty())
+        assertEquals(cacheFile(asset).absolutePath, cached.localFilePath)
     }
 
     @Test

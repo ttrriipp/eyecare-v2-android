@@ -41,11 +41,13 @@ import com.eyecare.app.presentation.ar.components.ArAssetStatusBanner
 import com.eyecare.app.presentation.ar.components.ArDisclosureBanner
 import com.eyecare.app.presentation.ar.components.ArStatusOverlay
 import com.eyecare.app.presentation.ar.components.VariantChipRow
+import com.eyecare.app.presentation.ar.model.ArAssetSource
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArFaceState
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderer
+import com.eyecare.app.presentation.ar.rendering.FrameModelSource
 import com.eyecare.app.presentation.common.buildImageUrl
 
 @Composable
@@ -59,6 +61,7 @@ fun ArTryOnScreen(
         it.create(frameId, initialVariantId)
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val assetSource by viewModel.assetSource.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val imageLoader = SingletonImageLoader.get(context)
 
@@ -94,6 +97,7 @@ fun ArTryOnScreen(
         if (activeContentState != null) {
             ActiveTryOnContent(
                 state = activeContentState,
+                assetSource = assetSource,
                 imageLoader = imageLoader,
                 onFaceResult = viewModel::onFaceResult,
                 onAssetStateChanged = viewModel::onAssetStateChanged,
@@ -125,6 +129,7 @@ fun ArTryOnScreen(
 @Composable
 private fun ActiveTryOnContent(
     state: ActiveTryOnContentState,
+    assetSource: ArAssetSource,
     imageLoader: ImageLoader,
     onFaceResult: (ArFaceState) -> Unit,
     onAssetStateChanged: (ArAssetState) -> Unit,
@@ -132,7 +137,10 @@ private fun ActiveTryOnContent(
     onOpenCatalog: () -> Unit,
 ) {
     val frameUrl = state.selectedVariant?.arAssetReference?.let(::buildImageUrl)
-    val showThreeD = state.assetState is ArAssetState.Ready && state.face != null && state.pose != null
+    val rendererSource = assetSource.toFrameModelSource()
+    val assetReady = rendererSource != null && state.assetState is ArAssetState.Ready
+    val hasPose = state.face != null && state.pose != null
+    val showThreeD = assetReady && hasPose
 
     Box(Modifier.fillMaxSize()) {
         CameraPreviewView(
@@ -140,15 +148,18 @@ private fun ActiveTryOnContent(
             onFaceResult = onFaceResult,
         )
 
-        FrameModelRenderer(
-            modifier = Modifier.fillMaxSize(),
-            pose = if (state.face != null) state.pose else null,
-            showModelWithoutPose = false,
-            transparent = true,
-            autoCenterContent = false,
-            showStatus = false,
-            onStateChanged = { onAssetStateChanged(it.toArAssetState()) },
-        )
+        if (rendererSource != null) {
+            FrameModelRenderer(
+                modifier = Modifier.fillMaxSize(),
+                source = rendererSource,
+                pose = if (state.face != null) state.pose else null,
+                showModelWithoutPose = false,
+                transparent = true,
+                autoCenterContent = false,
+                showStatus = false,
+                onStateChanged = { onAssetStateChanged(it.toArAssetState()) },
+            )
+        }
 
         if (state.face != null && !showThreeD) {
             FrameOverlayRenderer(

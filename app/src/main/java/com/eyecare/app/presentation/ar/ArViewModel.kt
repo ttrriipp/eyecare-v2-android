@@ -2,16 +2,22 @@ package com.eyecare.app.presentation.ar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.ArAssetFailureReason
+import com.eyecare.app.domain.model.ArAssetLoadResult
 import com.eyecare.app.domain.model.FrameVariant
+import com.eyecare.app.domain.model.isTypedArReady
+import com.eyecare.app.domain.repository.ArAssetRepository
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.presentation.ar.capability.ArCapability
 import com.eyecare.app.presentation.ar.capability.ArCapabilityProvider
+import com.eyecare.app.presentation.ar.model.ArAssetSource
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArFaceState
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FacePose
 import com.eyecare.app.presentation.ar.model.FacePoseCalibration
+import com.eyecare.app.presentation.ar.model.FrameModelScale
 import com.eyecare.app.presentation.ar.tracking.PoseStabilizer
 import com.eyecare.app.presentation.ar.tracking.mapFacePose
 import dagger.assisted.Assisted
@@ -29,6 +35,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel(assistedFactory = ArViewModel.Factory::class)
 class ArViewModel @AssistedInject constructor(
     private val frameRepository: FrameRepository,
+    private val arAssetRepository: ArAssetRepository,
     private val capabilityProvider: ArCapabilityProvider,
     @Assisted("frameId") private val frameId: Int,
     @Assisted("variantId") private val initialVariantId: Int,
@@ -45,9 +52,13 @@ class ArViewModel @AssistedInject constructor(
     private val _uiState = MutableStateFlow<ArTryOnUiState>(ArTryOnUiState.CheckingCapability)
     val uiState: StateFlow<ArTryOnUiState> = _uiState.asStateFlow()
 
+    private val _assetSource = MutableStateFlow<ArAssetSource>(ArAssetSource.NotLoaded)
+    val assetSource: StateFlow<ArAssetSource> = _assetSource.asStateFlow()
+
     private val poseStabilizer = PoseStabilizer()
-    private val poseCalibration = FacePoseCalibration.ProvisionalRoundFrame
+    private var poseCalibration = FacePoseCalibration.ProvisionalRoundFrame
     private var loadJob: Job? = null
+    private var assetLoadJob: Job? = null
     private var sessionActive = true
     private var capabilityPassed = false
     private var permissionGranted = false
@@ -128,6 +139,7 @@ class ArViewModel @AssistedInject constructor(
             is ArTryOnUiState.Tracking -> current.copy(selectedVariant = selected)
             else -> return
         }
+        loadAssetForVariant(selected)
     }
 
     fun retry() {
@@ -135,6 +147,7 @@ class ArViewModel @AssistedInject constructor(
 
         clearTracking()
         assetState = ArAssetState.Checking
+        _assetSource.value = ArAssetSource.NotLoaded
         if (!capabilityPassed) {
             checkCapability()
             return
@@ -199,6 +212,7 @@ class ArViewModel @AssistedInject constructor(
                     selectedVariant = frame.variants.firstOrNull { it.id == initialVariantId }
                         ?: frame.variants.first()
                     if (permissionGranted) moveToFacePhase()
+                    selectedVariant?.let { loadAssetForVariant(it) }
                 },
                 onFailure = {
                     _uiState.value = ArTryOnUiState.Error(
@@ -206,6 +220,76 @@ class ArViewModel @AssistedInject constructor(
                     )
                 },
             )
+        }
+    }
+
+    private fun loadAssetForVariant(variant: FrameVariant) {
+        assetLoadJob?.cancel()
+        val arAsset = variant.ar
+        if (arAsset == null || !variant.isTypedArReady) {
+            _assetSource.value = ArAssetSource.NotLoaded
+            assetState = ArAssetState.Checking
+            updateActiveState()
+            return
+        }
+
+        _assetSource.value = ArAssetSource.Loading
+        assetState = ArAssetState.Loading
+        updateActiveState()
+        assetLoadJob = viewModelScope.launch {
+            val result = try {
+                arAssetRepository.load(variant.id, arAsset)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                ArAssetLoadResult.RecoverableFailure(ArAssetFailureReason.NETWORK)
+            }
+            if (!sessionActive || !isActive) return@launch
+
+            when (result) {
+                is ArAssetLoadResult.Ready -> {
+                    val cal = arAsset.calibration
+                    _assetSource.value = ArAssetSource.Ready(
+                        filePath = result.localFilePath,
+                        scale = FrameModelScale(
+                            x = cal.scale.x.toFloat(),
+                            y = cal.scale.y.toFloat(),
+                            z = cal.scale.z.toFloat(),
+                        ),
+                    )
+                    poseCalibration = FacePoseCalibration(
+                        translationScale = 0.01f,
+                        scaleMultiplier = 1f,
+                        mirrorFrontCamera = true,
+                        anchorX = cal.anchor.x.toFloat(),
+                        anchorY = cal.anchor.y.toFloat(),
+                        anchorZ = cal.anchor.z.toFloat(),
+                        pitchOffsetDeg = cal.rotationDegrees.x.toFloat(),
+                        yawOffsetDeg = cal.rotationDegrees.y.toFloat(),
+                        rollOffsetDeg = cal.rotationDegrees.z.toFloat(),
+                    )
+                    assetState = ArAssetState.Ready
+                    moveToFacePhase()
+                }
+
+                is ArAssetLoadResult.Unsupported -> {
+                    _assetSource.value = ArAssetSource.NotLoaded
+                    assetState = ArAssetState.Failed(
+                        "This frame's 3D preview is not available. Try the image preview instead.",
+                    )
+                    moveToFacePhase()
+                }
+
+                is ArAssetLoadResult.RecoverableFailure -> {
+                    _assetSource.value = ArAssetSource.Failed(
+                        message = "The 3D frame could not be loaded. Try the image preview instead.",
+                    )
+                    assetState = ArAssetState.Failed(
+                        "The 3D frame could not be loaded. Try the image preview instead.",
+                    )
+                    moveToFacePhase()
+                }
+            }
         }
     }
 
@@ -239,6 +323,15 @@ class ArViewModel @AssistedInject constructor(
         )
     }
 
+    private fun updateActiveState() {
+        _uiState.value = when (val current = _uiState.value) {
+            is ArTryOnUiState.Loading -> current.copy(assetState = assetState)
+            is ArTryOnUiState.Searching -> current.copy(assetState = assetState)
+            is ArTryOnUiState.Tracking -> current.copy(assetState = assetState)
+            else -> return
+        }
+    }
+
     private fun loadingState(): ArTryOnUiState.Loading = ArTryOnUiState.Loading(
         variants = loadedVariants,
         selectedVariant = selectedVariant,
@@ -254,6 +347,7 @@ class ArViewModel @AssistedInject constructor(
     override fun onCleared() {
         sessionActive = false
         loadJob?.cancel()
+        assetLoadJob?.cancel()
         clearTracking()
         super.onCleared()
     }

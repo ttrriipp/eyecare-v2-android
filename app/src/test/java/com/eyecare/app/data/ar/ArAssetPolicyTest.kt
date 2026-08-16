@@ -139,8 +139,8 @@ class ArAssetPolicyTest {
     @Test
     fun `load results distinguish cache, download, unsupported, and recoverable failure`() {
         val identity = ArAssetIdentity(variantId = 42, version = 2, sha256 = checksum)
-        val cached = ArAssetLoadResult.Cached(identity = identity, asset = asset())
-        val downloaded = ArAssetLoadResult.Downloaded(identity = identity, asset = asset())
+        val cached = ArAssetLoadResult.Cached(identity = identity, asset = asset(), localFilePath = "/tmp/cached.glb")
+        val downloaded = ArAssetLoadResult.Downloaded(identity = identity, asset = asset(), localFilePath = "/tmp/downloaded.glb")
         val unsupported = ArAssetLoadResult.Unsupported(ArAssetUnsupportedReason.NO_READY_ASSET)
         val recoverable = ArAssetLoadResult.RecoverableFailure(ArAssetFailureReason.CHECKSUM_MISMATCH)
 

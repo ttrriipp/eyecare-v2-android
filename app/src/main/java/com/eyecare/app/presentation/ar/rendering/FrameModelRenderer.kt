@@ -9,6 +9,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,11 +23,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.ar.model.BundledFrameAsset
 import com.eyecare.app.presentation.ar.model.FacePose
+import com.eyecare.app.presentation.ar.model.FrameModelScale
 import io.github.sceneview.SceneView
 import io.github.sceneview.SurfaceType
 import io.github.sceneview.math.Position
 import io.github.sceneview.math.Rotation
 import io.github.sceneview.math.Scale
+import io.github.sceneview.node.ModelNode
 import io.github.sceneview.rememberCameraNode
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberEnvironmentLoader
@@ -53,7 +56,10 @@ private sealed interface AssetCheck {
 }
 
 /**
- * Renders one known GLB in a standalone SceneView viewport.
+ * Renders one GLB in a standalone SceneView viewport.
+ *
+ * Supports both [FrameModelSource.Bundled] (Android assets for feasibility/demo) and
+ * [FrameModelSource.Downloaded] (verified cached files from remote delivery).
  *
  * SceneView remembers and disposes Filament resources with the Compose lifecycle; the caller only
  * observes the explicit loading/ready/failure state and can keep a non-3D fallback visible when
@@ -62,7 +68,7 @@ private sealed interface AssetCheck {
 @Composable
 fun FrameModelRenderer(
     modifier: Modifier = Modifier,
-    asset: BundledFrameAsset = BundledFrameAsset.RoundFrame,
+    source: FrameModelSource = FrameModelSource.Bundled(BundledFrameAsset.RoundFrame),
     pose: FacePose? = null,
     showModelWithoutPose: Boolean = true,
     transparent: Boolean = false,
@@ -71,25 +77,33 @@ fun FrameModelRenderer(
     onStateChanged: (FrameModelRenderState) -> Unit = {},
 ) {
     val context = LocalContext.current
-    var assetCheck by remember(asset.assetPath) {
+    var assetCheck by remember(source.assetPath) {
         mutableStateOf<AssetCheck>(AssetCheck.Checking)
     }
-    var renderState by remember(asset.assetPath) {
+    var renderState by remember(source.assetPath) {
         mutableStateOf<FrameModelRenderState>(FrameModelRenderState.CheckingAsset)
     }
 
-    LaunchedEffect(asset.assetPath) {
+    LaunchedEffect(source.assetPath) {
         assetCheck = AssetCheck.Checking
         renderState = FrameModelRenderState.CheckingAsset
 
-        val validation = asset.validate(context.assets)
+        val validation = when (source) {
+            is FrameModelSource.Bundled -> source.descriptor.validate(context.assets)
+            is FrameModelSource.Downloaded -> validateFileAsset(source.assetPath)
+        }
         assetCheck = validation.fold(
             onSuccess = {
                 renderState = FrameModelRenderState.Loading
                 AssetCheck.Valid
             },
             onFailure = {
-                val message = "Unable to load the bundled 3D frame. Try the image preview instead."
+                val message = when (source) {
+                    is FrameModelSource.Bundled ->
+                        "Unable to load the bundled 3D frame. Try the image preview instead."
+                    is FrameModelSource.Downloaded ->
+                        "Unable to load the 3D frame. Try the image preview instead."
+                }
                 renderState = FrameModelRenderState.Failed(message = message)
                 AssetCheck.Invalid(message)
             },
@@ -118,91 +132,188 @@ fun FrameModelRenderer(
             }
 
             AssetCheck.Valid -> {
-                val engine = rememberEngine()
-                val modelLoader = rememberModelLoader(engine)
-                val materialLoader = rememberMaterialLoader(engine)
-                val environmentLoader = rememberEnvironmentLoader(engine)
-                val cameraNode = rememberCameraNode(engine) {
-                    position = Position(z = 0.45f)
-                    lookAt(Position(x = 0f, y = 0f, z = 0f))
-                }
-                val mainLightNode = rememberMainLightNode(engine)
-                val modelInstance = rememberModelInstance(modelLoader, asset.assetPath)
-
-                LaunchedEffect(modelInstance, asset.assetPath) {
-                    if (modelInstance != null) {
-                        renderState = FrameModelRenderState.Ready
-                    } else {
-                        renderState = FrameModelRenderState.Loading
-                        kotlinx.coroutines.delay(MODEL_LOAD_TIMEOUT_MILLIS)
-                        renderState = FrameModelRenderState.Failed(
-                            message = "The 3D frame could not be initialized. Try the image preview instead.",
-                        )
-                    }
-                }
-
-                SceneView(
-                    modifier = Modifier.fillMaxSize(),
-                    surfaceType = SurfaceType.TextureSurface,
-                    isOpaque = !transparent,
+                ModelScene(
+                    source = source,
+                    pose = pose,
+                    showModelWithoutPose = showModelWithoutPose,
+                    transparent = transparent,
                     autoCenterContent = autoCenterContent,
-                    engine = engine,
-                    modelLoader = modelLoader,
-                    materialLoader = materialLoader,
-                    environmentLoader = environmentLoader,
-                    cameraNode = cameraNode,
-                    mainLightNode = mainLightNode,
-                    fillLightNode = null,
-                ) {
-                    modelInstance?.let { instance ->
-                        ModelNode(
-                            modelInstance = instance,
-                            autoAnimate = false,
-                            position = pose?.let { currentPose ->
-                                Position(
-                                    x = currentPose.translationX,
-                                    y = currentPose.translationY,
-                                    z = currentPose.translationZ,
-                                )
-                            } ?: Position(),
-                            rotation = pose?.let { currentPose ->
-                                Rotation(
-                                    x = currentPose.pitchDeg,
-                                    y = currentPose.yawDeg,
-                                    z = currentPose.rollDeg,
-                                )
-                            } ?: Rotation(0f),
-                            scale = asset.scaleForPose(pose?.scale ?: 1f).let { modelScale ->
-                                Scale(modelScale.x, modelScale.y, modelScale.z)
-                            },
-                            isVisible = showModelWithoutPose || pose != null,
-                        )
-                    }
+                )
+            }
+        }
+
+        if (showStatus) {
+            when (val state = renderState) {
+                FrameModelRenderState.CheckingAsset,
+                FrameModelRenderState.Loading,
+                -> RendererStatus(
+                    message = "Loading 3D frame",
+                    showProgress = true,
+                )
+
+                FrameModelRenderState.Ready -> RendererStatus(
+                    message = "3D frame model ready",
+                    alignment = Alignment.BottomCenter,
+                )
+
+                is FrameModelRenderState.Failed -> RendererStatus(
+                    message = state.message,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelScene(
+    source: FrameModelSource,
+    pose: FacePose?,
+    showModelWithoutPose: Boolean,
+    transparent: Boolean,
+    autoCenterContent: Boolean,
+) {
+    val engine = rememberEngine()
+    val modelLoader = rememberModelLoader(engine)
+    val materialLoader = rememberMaterialLoader(engine)
+    val environmentLoader = rememberEnvironmentLoader(engine)
+    val cameraNode = rememberCameraNode(engine) {
+        position = Position(z = 0.45f)
+        lookAt(Position(x = 0f, y = 0f, z = 0f))
+    }
+    val mainLightNode = rememberMainLightNode(engine)
+
+    when (source) {
+        is FrameModelSource.Bundled -> {
+            val modelInstance = rememberModelInstance(modelLoader, source.assetPath)
+            val scale = source.descriptor.scaleForPose(pose?.scale ?: 1f)
+
+            SceneView(
+                modifier = Modifier.fillMaxSize(),
+                surfaceType = SurfaceType.TextureSurface,
+                isOpaque = !transparent,
+                autoCenterContent = autoCenterContent,
+                engine = engine,
+                modelLoader = modelLoader,
+                materialLoader = materialLoader,
+                environmentLoader = environmentLoader,
+                cameraNode = cameraNode,
+                mainLightNode = mainLightNode,
+                fillLightNode = null,
+            ) {
+                modelInstance?.let { instance ->
+                    ModelNode(
+                        modelInstance = instance,
+                        autoAnimate = false,
+                        position = pose?.let { currentPose ->
+                            Position(
+                                x = currentPose.translationX,
+                                y = currentPose.translationY,
+                                z = currentPose.translationZ,
+                            )
+                        } ?: Position(),
+                        rotation = pose?.let { currentPose ->
+                            Rotation(
+                                x = currentPose.pitchDeg,
+                                y = currentPose.yawDeg,
+                                z = currentPose.rollDeg,
+                            )
+                        } ?: Rotation(0f),
+                        scale = Scale(scale.x, scale.y, scale.z),
+                        isVisible = showModelWithoutPose || pose != null,
+                    )
                 }
+            }
+        }
 
-                if (showStatus) {
-                    when (val state = renderState) {
-                        FrameModelRenderState.CheckingAsset,
-                        FrameModelRenderState.Loading,
-                        -> RendererStatus(
-                            message = "Loading 3D frame",
-                            showProgress = true,
-                        )
+        is FrameModelSource.Downloaded -> {
+            var downloadedInstance by remember(source.assetPath) {
+                mutableStateOf<com.google.android.filament.gltfio.FilamentInstance?>(null)
+            }
+            val nodeScale = remember(pose?.scale) {
+                val s = pose?.scale ?: 1f
+                FrameModelScale(s, s, s)
+            }
 
-                        FrameModelRenderState.Ready -> RendererStatus(
-                            message = "3D frame model ready",
-                            alignment = Alignment.BottomCenter,
-                        )
+            LaunchedEffect(source.assetPath) {
+                val file = java.io.File(source.assetPath)
+                downloadedInstance = modelLoader.createModelInstance(file)
+            }
 
-                        is FrameModelRenderState.Failed -> RendererStatus(
-                            message = state.message,
-                        )
-                    }
+            SceneView(
+                modifier = Modifier.fillMaxSize(),
+                surfaceType = SurfaceType.TextureSurface,
+                isOpaque = !transparent,
+                autoCenterContent = autoCenterContent,
+                engine = engine,
+                modelLoader = modelLoader,
+                materialLoader = materialLoader,
+                environmentLoader = environmentLoader,
+                cameraNode = cameraNode,
+                mainLightNode = mainLightNode,
+                fillLightNode = null,
+            ) {
+                downloadedInstance?.let { instance ->
+                    ModelNode(
+                        modelInstance = instance,
+                        autoAnimate = false,
+                        position = pose?.let { currentPose ->
+                            Position(
+                                x = currentPose.translationX,
+                                y = currentPose.translationY,
+                                z = currentPose.translationZ,
+                            )
+                        } ?: Position(),
+                        rotation = pose?.let { currentPose ->
+                            Rotation(
+                                x = currentPose.pitchDeg,
+                                y = currentPose.yawDeg,
+                                z = currentPose.rollDeg,
+                            )
+                        } ?: Rotation(0f),
+                        scale = Scale(nodeScale.x, nodeScale.y, nodeScale.z),
+                        isVisible = showModelWithoutPose || pose != null,
+                    )
                 }
             }
         }
     }
 }
+
+private fun validateFileAsset(filePath: String): Result<Unit> = runCatching {
+    val file = java.io.File(filePath)
+    require(file.exists()) {
+        "Downloaded asset file does not exist"
+    }
+    require(file.length() > 0) {
+        "Downloaded asset file is empty"
+    }
+    file.inputStream().use { input ->
+        val header = ByteArray(GLB_HEADER_SIZE)
+        var bytesRead = 0
+        while (bytesRead < header.size) {
+            val read = input.read(header, bytesRead, header.size - bytesRead)
+            if (read < 0) break
+            bytesRead += read
+        }
+        require(bytesRead == GLB_HEADER_SIZE) { "GLB header is truncated" }
+        require(header.copyOfRange(0, 4).contentEquals(GLB_MAGIC)) {
+            "Asset is not a binary glTF file"
+        }
+        val version = readIntLittleEndian(header, offset = 4)
+        require(version == GLB_VERSION) { "Unsupported binary glTF version: $version" }
+        val declaredLength = readIntLittleEndian(header, offset = 8)
+        require(declaredLength >= GLB_HEADER_SIZE) { "GLB length is invalid" }
+    }
+}
+
+private const val GLB_HEADER_SIZE = 12
+private const val GLB_VERSION = 2
+private val GLB_MAGIC = byteArrayOf(0x67, 0x6c, 0x54, 0x46)
+
+private fun readIntLittleEndian(bytes: ByteArray, offset: Int): Int =
+    java.nio.ByteBuffer.wrap(bytes, offset, Int.SIZE_BYTES)
+        .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        .int
 
 @Composable
 private fun RendererStatus(

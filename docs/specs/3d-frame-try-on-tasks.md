@@ -532,19 +532,19 @@ retry, cached-offline, and image-fallback behavior.
 
 **Acceptance criteria:**
 
-- [ ] The view model requests a typed asset for the selected ready variant and
+- [x] The view model requests a typed asset for the selected ready variant and
   reaches tracking only after verification and renderer readiness.
-- [ ] Offline cached success and recoverable download/parse failure follow the
+- [x] Offline cached success and recoverable download/parse failure follow the
   tested UI states without falling back to the legacy reference.
-- [ ] The bundled model remains explicitly limited to feasibility/demo fallback
+- [x] The bundled model remains explicitly limited to feasibility/demo fallback
   and is not shown as an unrelated production variant.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *ArViewModelTest`
-- [ ] Manual: load once online, reopen offline, then exercise retry after a
+- [x] `.\gradlew testDebugUnitTest --tests *ArViewModelTest`
+- [x] Manual: load once online, reopen offline, then exercise retry after a
   simulated failed download.
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task P3 and the backend patient contract endpoint.
 

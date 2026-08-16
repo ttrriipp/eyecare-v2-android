@@ -20,22 +20,26 @@ data class ArAssetIdentity(
     }
 }
 
-/** Domain result for asset loading; no File, Path, HTTP, or renderer types cross this boundary. */
+/** Domain result for asset loading; no HTTP or renderer types cross this boundary. */
 sealed interface ArAssetLoadResult {
     /** A verified asset that is ready for the renderer, identified independently of its origin. */
     sealed interface Ready : ArAssetLoadResult {
         val identity: ArAssetIdentity
         val asset: ArAsset
+        /** Absolute path to the verified local cache file. */
+        val localFilePath: String
     }
 
     data class Cached(
         override val identity: ArAssetIdentity,
         override val asset: ArAsset,
+        override val localFilePath: String,
     ) : Ready
 
     data class Downloaded(
         override val identity: ArAssetIdentity,
         override val asset: ArAsset,
+        override val localFilePath: String,
     ) : Ready
 
     data class Unsupported(

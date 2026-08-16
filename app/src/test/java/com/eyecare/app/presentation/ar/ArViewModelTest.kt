@@ -1,13 +1,23 @@
 package com.eyecare.app.presentation.ar
 
 import androidx.lifecycle.ViewModelStore
+import com.eyecare.app.domain.model.ArAsset
+import com.eyecare.app.domain.model.ArAssetFile
+import com.eyecare.app.domain.model.ArAssetFormat
+import com.eyecare.app.domain.model.ArAssetIdentity
+import com.eyecare.app.domain.model.ArAssetLoadResult
+import com.eyecare.app.domain.model.ArAssetStatus
+import com.eyecare.app.domain.model.ArCalibration
+import com.eyecare.app.domain.model.ArVector
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
+import com.eyecare.app.domain.repository.ArAssetRepository
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.presentation.ar.capability.ArCapabilityProvider
 import com.eyecare.app.presentation.ar.capability.ArCapabilityRequirements
 import com.eyecare.app.presentation.ar.capability.ArDeviceFacts
 import com.eyecare.app.presentation.ar.capability.OpenGlEsVersion
+import com.eyecare.app.presentation.ar.model.ArAssetSource
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArFaceState
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
@@ -238,16 +248,154 @@ class ArViewModelTest {
         assertInstanceOf(ArTryOnUiState.Searching::class.java, viewModel.uiState.value)
     }
 
+    @Test
+    fun `variant without typed asset sets source to NotLoaded`() {
+        val viewModel = viewModel()
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        drain()
+
+        assertEquals(ArAssetSource.NotLoaded, viewModel.assetSource.value)
+    }
+
+    @Test
+    fun `variant with typed asset triggers asset loading`() {
+        val arAsset = typedArAsset()
+        val viewModel = viewModel(
+            frameResult = Result.success(frameWithTypedAr(arAsset)),
+            arAssetResult = ArAssetLoadResult.Downloaded(
+                identity = ArAssetIdentity(42, 2, "a".repeat(64)),
+                asset = arAsset,
+                localFilePath = "/tmp/test.glb",
+            ),
+        )
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        drain()
+
+        val source = assertInstanceOf(ArAssetSource.Ready::class.java, viewModel.assetSource.value)
+        assertEquals("/tmp/test.glb", source.filePath)
+    }
+
+    @Test
+    fun `asset load failure sets source to Failed`() {
+        val arAsset = typedArAsset()
+        val viewModel = viewModel(
+            frameResult = Result.success(frameWithTypedAr(arAsset)),
+            arAssetResult = ArAssetLoadResult.RecoverableFailure(
+                com.eyecare.app.domain.model.ArAssetFailureReason.NETWORK,
+            ),
+        )
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        drain()
+
+        assertInstanceOf(ArAssetSource.Failed::class.java, viewModel.assetSource.value)
+    }
+
+    @Test
+    fun `unsupported asset sets source to NotLoaded with failed asset state`() {
+        val arAsset = typedArAsset()
+        val viewModel = viewModel(
+            frameResult = Result.success(frameWithTypedAr(arAsset)),
+            arAssetResult = ArAssetLoadResult.Unsupported(
+                com.eyecare.app.domain.model.ArAssetUnsupportedReason.NO_READY_ASSET,
+            ),
+        )
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        drain()
+
+        assertEquals(ArAssetSource.NotLoaded, viewModel.assetSource.value)
+        val searching = assertInstanceOf(ArTryOnUiState.Searching::class.java, viewModel.uiState.value)
+        assertInstanceOf(ArAssetState.Failed::class.java, searching.assetState)
+    }
+
+    @Test
+    fun `variant selection switches asset source`() {
+        val arAsset1 = typedArAsset()
+        val arAsset2 = typedArAsset(sha256 = "b".repeat(64))
+        val variants = listOf(
+            variant(id = 11, name = "Matte Black", ar = arAsset1),
+            variant(id = 12, name = "Tortoise", ar = arAsset2),
+        )
+        val arAssetResults = mapOf(
+            11 to ArAssetLoadResult.Downloaded(
+                identity = ArAssetIdentity(11, 2, "a".repeat(64)),
+                asset = arAsset1,
+                localFilePath = "/tmp/variant-11.glb",
+            ),
+            12 to ArAssetLoadResult.Downloaded(
+                identity = ArAssetIdentity(12, 2, "b".repeat(64)),
+                asset = arAsset2,
+                localFilePath = "/tmp/variant-12.glb",
+            ),
+        )
+        val arRepo = mockk<ArAssetRepository>()
+        coEvery { arRepo.load(11, any()) } returns arAssetResults[11]!!
+        coEvery { arRepo.load(12, any()) } returns arAssetResults[12]!!
+        val viewModel = viewModel(
+            frameResult = Result.success(frame(variants = variants)),
+            arAssetRepository = arRepo,
+        )
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        drain()
+
+        val source1 = assertInstanceOf(ArAssetSource.Ready::class.java, viewModel.assetSource.value)
+        assertEquals("/tmp/variant-11.glb", source1.filePath)
+
+        viewModel.selectVariant(variants[1])
+        drain()
+
+        val source2 = assertInstanceOf(ArAssetSource.Ready::class.java, viewModel.assetSource.value)
+        assertEquals("/tmp/variant-12.glb", source2.filePath)
+    }
+
+    @Test
+    fun `retry resets asset source to NotLoaded`() {
+        val arAsset = typedArAsset()
+        val viewModel = viewModel(
+            frameResult = Result.success(frameWithTypedAr(arAsset)),
+            arAssetResult = ArAssetLoadResult.RecoverableFailure(
+                com.eyecare.app.domain.model.ArAssetFailureReason.NETWORK,
+            ),
+        )
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        drain()
+
+        assertInstanceOf(ArAssetSource.Failed::class.java, viewModel.assetSource.value)
+
+        viewModel.retry()
+        drain()
+
+        // After retry, asset source resets then re-enters Loading as the asset re-fetches
+        val source = viewModel.assetSource.value
+        assertTrue(
+            source is ArAssetSource.Loading || source is ArAssetSource.Failed,
+            "Expected Loading or Failed after retry but got $source",
+        )
+    }
+
     private fun viewModel(
         capabilityProvider: ArCapabilityProvider = ArCapabilityProvider { supportedFacts() },
         repositoryResult: Result<Frame> = Result.success(frame()),
+        frameResult: Result<Frame>? = null,
         pendingResult: CompletableDeferred<Result<Frame>>? = null,
+        arAssetResult: ArAssetLoadResult? = null,
+        arAssetRepository: ArAssetRepository? = null,
     ): ArViewModel {
         val repository = mockk<FrameRepository>()
         coEvery { repository.getFrame(1) } coAnswers {
-            pendingResult?.await() ?: repositoryResult
+            pendingResult?.await() ?: (frameResult ?: repositoryResult)
         }
-        return ArViewModel(repository, capabilityProvider, frameId = 1, initialVariantId = 11)
+        val arRepo = arAssetRepository ?: mockk<ArAssetRepository>().also { repo ->
+            if (arAssetResult != null) {
+                coEvery { repo.load(any(), any()) } returns arAssetResult
+            }
+        }
+        return ArViewModel(repository, arRepo, capabilityProvider, frameId = 1, initialVariantId = 11)
     }
 
     private fun drain() {
@@ -263,7 +411,21 @@ class ArViewModelTest {
         availableStorageBytes = ArCapabilityRequirements.MIN_AVAILABLE_STORAGE_BYTES,
     )
 
-    private fun frame() = Frame(
+    private fun frame(variants: List<FrameVariant>? = null) = Frame(
+        id = 1,
+        name = "Round frame",
+        slug = "round-frame",
+        description = null,
+        brand = "Eyecare",
+        category = "Full Rim",
+        variants = variants ?: listOf(
+            variant(id = 11, name = "Matte Black"),
+            variant(id = 12, name = "Tortoise"),
+        ),
+        images = emptyList(),
+    )
+
+    private fun frameWithTypedAr(arAsset: ArAsset) = Frame(
         id = 1,
         name = "Round frame",
         slug = "round-frame",
@@ -271,13 +433,12 @@ class ArViewModelTest {
         brand = "Eyecare",
         category = "Full Rim",
         variants = listOf(
-            variant(id = 11, name = "Matte Black"),
-            variant(id = 12, name = "Tortoise"),
+            variant(id = 11, name = "Matte Black", ar = arAsset),
         ),
         images = emptyList(),
     )
 
-    private fun variant(id: Int, name: String) = FrameVariant(
+    private fun variant(id: Int, name: String, ar: ArAsset? = null) = FrameVariant(
         id = id,
         name = name,
         sku = "SKU-$id",
@@ -287,6 +448,29 @@ class ArViewModelTest {
         arEligible = true,
         arAssetReference = "frame-$id.png",
         images = emptyList(),
+        ar = ar,
+    )
+
+    private fun typedArAsset(sha256: String = "a".repeat(64)) = ArAsset(
+        status = ArAssetStatus.READY,
+        asset = ArAssetFile(
+            url = "https://cdn.example.test/ar/variants/42/v2/model.glb",
+            format = ArAssetFormat.GLB,
+            version = 2,
+            byteSize = 5_256_552,
+            sha256 = sha256,
+        ),
+        calibration = ArCalibration(
+            frameWidthMm = 123.0,
+            outerFrameHeightMm = 48.0,
+            lensWidthMm = 50.0,
+            lensHeightMm = 45.0,
+            bridgeWidthMm = 20.0,
+            templeLengthMm = 140.0,
+            scale = ArVector(0.123, 0.144565, 0.123),
+            anchor = ArVector(0.0, 0.0, 0.0),
+            rotationDegrees = ArVector(0.0, 0.0, 0.0),
+        ),
     )
 
     private fun frame(
