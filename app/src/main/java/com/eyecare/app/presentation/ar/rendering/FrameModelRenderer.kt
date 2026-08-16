@@ -172,13 +172,9 @@ fun FrameModelRenderer(
                                     z = currentPose.rollDeg,
                                 )
                             } ?: Rotation(0f),
-                            scale = pose?.let { currentPose ->
-                                Scale(
-                                    asset.scale.x * currentPose.scale,
-                                    asset.scale.y * currentPose.scale,
-                                    asset.scale.z * currentPose.scale,
-                                )
-                            } ?: Scale(asset.scale.x, asset.scale.y, asset.scale.z),
+                            scale = asset.scaleForPose(pose?.scale ?: 1f).let { modelScale ->
+                                Scale(modelScale.x, modelScale.y, modelScale.z)
+                            },
                             isVisible = showModelWithoutPose || pose != null,
                         )
                     }

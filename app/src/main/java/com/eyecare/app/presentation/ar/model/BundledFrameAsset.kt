@@ -26,6 +26,13 @@ data class FrameModelScale(
             "Frame model scale must be positive"
         }
     }
+
+    fun multiplied(multiplier: Float): FrameModelScale {
+        require(multiplier.isFinite() && multiplier > 0f) {
+            "Frame model scale multiplier must be positive and finite"
+        }
+        return FrameModelScale(x * multiplier, y * multiplier, z * multiplier)
+    }
 }
 
 /**
@@ -37,7 +44,22 @@ data class FrameModelScale(
 data class BundledFrameAsset(
     val assetPath: String,
     val scale: FrameModelScale,
+    /** Temporary device-smoke calibration kept separate from the measured source dimensions. */
+    val displayScaleMultiplier: Float = 1f,
 ) {
+    init {
+        require(displayScaleMultiplier.isFinite() && displayScaleMultiplier > 0f) {
+            "Frame display scale multiplier must be positive and finite"
+        }
+    }
+
+    fun scaleForPose(poseScale: Float): FrameModelScale {
+        require(poseScale.isFinite() && poseScale > 0f) {
+            "Pose scale must be positive and finite"
+        }
+        return scale.multiplied(displayScaleMultiplier * poseScale)
+    }
+
     /**
      * Performs a cheap, IO-bound GLB header check before initializing Filament.
      *
@@ -88,6 +110,9 @@ data class BundledFrameAsset(
                 y = 0.144565f,
                 z = 0.123f,
             ),
+            // POCO smoke feedback showed the measured mesh reading undersized in the live view.
+            // Keep this provisional until the physical side-by-side calibration checkpoint.
+            displayScaleMultiplier = 1.25f,
         )
 
         private fun readIntLittleEndian(bytes: ByteArray, offset: Int): Int =
