@@ -4,8 +4,14 @@ import com.eyecare.app.data.local.dao.FrameDao
 import com.eyecare.app.data.local.entity.FrameEntity
 import com.eyecare.app.data.remote.api.FrameApiService
 import com.eyecare.app.data.remote.dto.FrameDtos
+import com.eyecare.app.domain.model.ArAsset
+import com.eyecare.app.domain.model.ArAssetFile
+import com.eyecare.app.domain.model.ArAssetFormat
+import com.eyecare.app.domain.model.ArAssetStatus
+import com.eyecare.app.domain.model.ArCalibration
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
+import com.eyecare.app.domain.model.ArVector
 import com.eyecare.app.domain.repository.FrameRepository
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -128,7 +134,36 @@ class FrameRepositoryImpl @Inject constructor(
         arEligible = arEligible,
         arAssetReference = arAssetReference,
         images = images,
+        ar = ar?.toDomain(),
     )
+
+    private fun FrameDtos.ArAssetDto.toDomain() = ArAsset(
+        status = when (status) {
+            FrameDtos.ArAssetStatusDto.READY -> ArAssetStatus.READY
+        },
+        asset = ArAssetFile(
+            url = asset.url,
+            format = when (asset.format) {
+                FrameDtos.ArAssetFormatDto.GLB -> ArAssetFormat.GLB
+            },
+            version = asset.version,
+            byteSize = asset.byteSize,
+            sha256 = asset.sha256,
+        ),
+        calibration = ArCalibration(
+            frameWidthMm = calibration.frameWidthMm,
+            outerFrameHeightMm = calibration.outerFrameHeightMm,
+            lensWidthMm = calibration.lensWidthMm,
+            lensHeightMm = calibration.lensHeightMm,
+            bridgeWidthMm = calibration.bridgeWidthMm,
+            templeLengthMm = calibration.templeLengthMm,
+            scale = calibration.scale.toDomain(),
+            anchor = calibration.anchor.toDomain(),
+            rotationDegrees = calibration.rotationDegrees.toDomain(),
+        ),
+    )
+
+    private fun FrameDtos.ArVectorDto.toDomain() = ArVector(x = x, y = y, z = z)
 
     private fun kotlinx.serialization.json.JsonElement.toStringMap(): Map<String, String>? =
         runCatching {

@@ -25,7 +25,12 @@ data class FrameVariant(
     val arEligible: Boolean,
     val arAssetReference: String?,
     val images: List<String>,
+    val ar: ArAsset? = null,
 )
 
 val FrameVariant.isArReady: Boolean
     get() = arEligible && !arAssetReference.isNullOrBlank()
+
+/** True only when the additive typed remote asset contract is present and ready. */
+val FrameVariant.isTypedArReady: Boolean
+    get() = ar?.status == ArAssetStatus.READY
