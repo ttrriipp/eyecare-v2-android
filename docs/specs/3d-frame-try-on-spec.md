@@ -1,7 +1,7 @@
 # Spec: Reservation-First 3D Frame Try-On
 
-Status: Draft — awaiting stakeholder approval
-Phase: Specify
+Status: Approved by stakeholder on 2026-08-15
+Phase: Implement
 Last updated: 2026-08-15
 
 ## Objective
@@ -627,4 +627,3 @@ These do not block the first feasibility slice:
   <https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html>
 - OWASP File Upload Cheat Sheet:
   <https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html>
-
