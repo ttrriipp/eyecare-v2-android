@@ -10,9 +10,9 @@ class BundledFrameAssetTest {
     fun `round frame applies the provisional device display scale`() {
         val scale = BundledFrameAsset.RoundFrame.scaleForPose(poseScale = 1f)
 
-        assertEquals(0.1845f, scale.x, SCALE_EPSILON)
-        assertEquals(0.2168475f, scale.y, SCALE_EPSILON)
-        assertEquals(0.1845f, scale.z, SCALE_EPSILON)
+        assertEquals(0.21525f, scale.x, SCALE_EPSILON)
+        assertEquals(0.25298875f, scale.y, SCALE_EPSILON)
+        assertEquals(0.21525f, scale.z, SCALE_EPSILON)
     }
 
     private companion object {

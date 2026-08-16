@@ -72,13 +72,14 @@ data class FacePoseCalibration(
 
     companion object {
         /**
-         * First bundled round-frame baseline: centimetre-to-metre conversion, no authored anchor
-         * correction, and the existing front-camera mirror convention.
+         * First bundled round-frame baseline: centimetre-to-metre conversion, a provisional upward
+         * bridge anchor, and the existing front-camera mirror convention.
          */
         val ProvisionalRoundFrame = FacePoseCalibration(
             translationScale = 0.01f,
             scaleMultiplier = 1f,
             mirrorFrontCamera = true,
+            anchorY = 0.01f,
         )
     }
 }

@@ -92,6 +92,17 @@ class FacePoseMapperTest {
     }
 
     @Test
+    fun provisionalRoundFrameLiftsTheModelAboveTheTransformOrigin() {
+        val pose = mapFacePose(
+            matrix = transformationMatrix(),
+            calibration = FacePoseCalibration.ProvisionalRoundFrame,
+        )
+
+        assertNotNull(pose)
+        assertEquals(0.01f, pose!!.translationY, EPSILON)
+    }
+
+    @Test
     fun rejectsNonAffineDegenerateAndReflectedMatrices() {
         val nonAffine = transformationMatrix().toMutableArray().also { it[3] = 0.25f }
         val degenerate = transformationMatrix().toMutableArray().also { it[0] = 0f; it[5] = 0f }
