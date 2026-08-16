@@ -72,6 +72,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -104,6 +105,7 @@ fun FrameDetailScreen(
 ) {
     val viewModel = hiltViewModel<FrameDetailViewModel, FrameDetailViewModel.Factory> { it.create(frameId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val locale = LocalLocale.current.platformLocale
     val snackbarHostState = remember { SnackbarHostState() }
     val message = (uiState as? FrameDetailUiState.Success)?.message
     var showVariantPicker by rememberSaveable { mutableStateOf(false) }
@@ -210,7 +212,7 @@ fun FrameDetailScreen(
                                     }
                                     Column {
                                         Text(
-                                            text = frame.brand.uppercase(),
+                                            text = frame.brand.uppercase(locale),
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             letterSpacing = 0.8.sp,
@@ -586,7 +588,7 @@ private fun FrameDetailImage(
         if (!imageLoaded) {
             FramePhotoPlaceholder(
                 frameName = frameName,
-                label = if (imageFailed) "Photo unavailable" else "Loading photo…",
+                label = if (imageFailed) "Photo unavailable" else "Loading photoï¿½",
                 showLoading = !imageFailed,
                 onRetry = if (imageFailed) {
                     {
@@ -695,7 +697,7 @@ private fun FrameCapabilityNotice(isArReady: Boolean) {
             )
             Text(
                 text = if (isArReady) {
-                    "AR-ready — see this option on your face before reserving."
+                    "AR-ready ï¿½ see this option on your face before reserving."
                 } else {
                     "Virtual try-on isn't available for this option. You can still reserve it."
                 },
@@ -772,8 +774,8 @@ private fun VariantPickerSheet(
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             )
                             Text(
-                                text = String.format(Locale.US, "?%.2f", variant.price) + " • " +
-                                    if (variant.isArReady) "AR-ready — Try on" else "Try-on unavailable",
+                                text = String.format(Locale.US, "?%.2f", variant.price) + " ï¿½ " +
+                                    if (variant.isArReady) "AR-ready ï¿½ Try on" else "Try-on unavailable",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

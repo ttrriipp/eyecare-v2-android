@@ -54,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -294,6 +295,7 @@ private fun ClinicHoursDay.rangeLabel(): String =
 private fun ClinicHoursCard(clinicHours: List<ClinicHoursDay>) {
     var expanded by remember { mutableStateOf(false) }
     val today = remember { LocalDate.now() }
+    val locale = LocalLocale.current.platformLocale
     val todayHours = remember(clinicHours, today) {
         clinicHours.firstOrNull { it.weekday == today.toCarbonWeekday() }
     }

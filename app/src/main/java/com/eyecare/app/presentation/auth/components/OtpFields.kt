@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import java.time.Instant
@@ -80,6 +81,7 @@ fun OtpExpiryRow(
     val secondsUntilExpiry = expiry?.let { secondsUntil(it, now) }
     val secondsUntilResend = secondsUntil(resendAvailableAt, now)
     val resendEnabled = canResend && secondsUntilResend == 0L
+    val locale = LocalLocale.current.platformLocale
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -95,13 +97,13 @@ fun OtpExpiryRow(
                 )
                 expiry != null && secondsUntilExpiry != null && secondsUntilExpiry > 0 -> Text(
                     text = "Code expires in ${formatCountdown(secondsUntilExpiry)} · " +
-                        formatOtpExpiry(expiry, ZoneId.systemDefault(), androidx.compose.ui.platform.LocalConfiguration.current.locales[0]),
+                        formatOtpExpiry(expiry, ZoneId.systemDefault(), locale),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 expiry != null -> Text(
                     text = "Code expired at " +
-                        formatOtpExpiry(expiry, ZoneId.systemDefault(), androidx.compose.ui.platform.LocalConfiguration.current.locales[0]),
+                        formatOtpExpiry(expiry, ZoneId.systemDefault(), locale),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )

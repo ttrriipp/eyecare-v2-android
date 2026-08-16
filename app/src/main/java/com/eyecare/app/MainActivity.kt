@@ -1,5 +1,6 @@
 package com.eyecare.app
 
+import android.annotation.SuppressLint
 import android.graphics.Color
 import android.annotation.SuppressLint
 import android.os.Bundle
@@ -73,6 +74,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Destination screens own their edge-to-edge insets; applying Scaffold padding
+                // here would double-pad screens that already handle system bars.
+                @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
                 Scaffold(
                     snackbarHost = {
                         SnackbarHost(hostState = snackbarHostState) { data ->
