@@ -33,16 +33,16 @@ the current try-on behavior.
 
 **Acceptance criteria:**
 
-- [ ] The version catalog declares SceneView 4.18.0 and the app consumes its
+- [x] The version catalog declares SceneView 4.18.0 and the app consumes its
   plain `sceneview` artifact.
-- [ ] Neither `arsceneview` nor ARCore is added.
-- [ ] Dependency resolution and the debug build succeed without forcing changes
+- [x] Neither `arsceneview` nor ARCore is added.
+- [x] Dependency resolution and the debug build succeed without forcing changes
   to AGP, Kotlin, Compose BOM, CameraX, or MediaPipe.
 
 **Verification:**
 
-- [ ] `.\gradlew :app:dependencyInsight --dependency sceneview --configuration debugRuntimeClasspath`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew :app:dependencyInsight --dependency sceneview --configuration debugRuntimeClasspath`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** None.
 
@@ -62,19 +62,19 @@ loading, ready, and failure states.
 
 **Acceptance criteria:**
 
-- [ ] `models/round_frame_textured.glb` reaches a visible ready state with a
+- [x] `models/round_frame_textured.glb` reaches a visible ready state with a
   camera and light on a physical device.
-- [ ] The renderer uses one remembered model instance and automatic Compose
+- [x] The renderer uses one remembered model instance and automatic Compose
   disposal; it never manually destroys a SceneView node.
-- [ ] A missing/invalid asset produces a recoverable failure signal rather than
+- [x] A missing/invalid asset produces a recoverable failure signal rather than
   a crash.
 
 **Verification:**
 
-- [ ] `.\gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.eyecare.app.presentation.ar.rendering.FrameModelRendererTest`
-- [ ] Manual: open the test harness on the POCO X8 Pro and confirm the model is
+- [x] `.\gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.eyecare.app.presentation.ar.rendering.FrameModelRendererTest`
+- [x] Manual: open the test harness on the POCO X8 Pro and confirm the model is
   textured, illuminated, and fully visible.
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 1.
 
@@ -88,11 +88,11 @@ loading, ready, and failure states.
 
 ## Checkpoint A: Static Renderer
 
-- [ ] SceneView resolves at the approved version.
-- [ ] The bundled GLB is visibly rendered on the POCO.
-- [ ] Existing AR behavior has not been replaced yet.
-- [ ] `.\gradlew testDebugUnitTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] SceneView resolves at the approved version.
+- [x] The bundled GLB is visibly rendered on the POCO.
+- [x] Existing AR behavior has not been replaced yet.
+- [x] `.\gradlew testDebugUnitTest`
+- [x] `.\gradlew assembleDebug`
 
 If this checkpoint fails because of a library/version incompatibility, stop and
 update the spec before changing the renderer version.
@@ -107,18 +107,18 @@ one-face, live-stream behavior and handle missing/malformed matrices safely.
 
 **Acceptance criteria:**
 
-- [ ] Face Landmarker explicitly requests facial transformation matrices.
-- [ ] A valid detection emits exactly one finite 4x4 raw matrix plus the minimal
+- [x] Face Landmarker explicitly requests facial transformation matrices.
+- [x] A valid detection emits exactly one finite 4x4 raw matrix plus the minimal
   landmarks/timestamp needed for scale and guidance.
-- [ ] No face or an absent/malformed matrix emits a safe non-tracking state and
+- [x] No face or an absent/malformed matrix emits a safe non-tracking state and
   never reaches renderer code.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *FaceTransformationTest --tests *FaceRotationTest`
-- [ ] Manual: camera analysis reports tracking/no-face transitions without a
+- [x] `.\gradlew testDebugUnitTest --tests *FaceTransformationTest --tests *FaceRotationTest`
+- [x] Manual: camera analysis reports tracking/no-face transitions without a
   crash on the POCO.
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 2.
 
@@ -139,17 +139,17 @@ front-camera mirror and axis conventions explicitly.
 
 **Acceptance criteria:**
 
-- [ ] Neutral, translated, yawed, pitched, and rolled fixture matrices map to
+- [x] Neutral, translated, yawed, pitched, and rolled fixture matrices map to
   deterministic renderer poses within declared tolerances.
-- [ ] Mirroring and provisional round-frame calibration are explicit inputs,
+- [x] Mirroring and provisional round-frame calibration are explicit inputs,
   not UI constants.
-- [ ] Non-finite or physically invalid input is rejected without producing a
+- [x] Non-finite or physically invalid input is rejected without producing a
   renderer pose.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *FacePoseMapperTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *FacePoseMapperTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 3.
 
@@ -168,16 +168,16 @@ jitter, reacts to normal movement, and resets after no-face or a large time gap.
 
 **Acceptance criteria:**
 
-- [ ] Small input jitter is measurably reduced while a deliberate step change
+- [x] Small input jitter is measurably reduced while a deliberate step change
   converges within the tested response window.
-- [ ] No-face, invalid input, or the configured timestamp gap resets history.
-- [ ] The stabilizer allocates no renderer/Android resource and is reusable
+- [x] No-face, invalid input, or the configured timestamp gap resets history.
+- [x] The stabilizer allocates no renderer/Android resource and is reusable
   across frames.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *PoseStabilizerTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *PoseStabilizerTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 4.
 
@@ -190,11 +190,11 @@ jitter, reacts to normal movement, and resets after no-face or a large time gap.
 
 ## Checkpoint B: Pose Foundation
 
-- [ ] Matrix extraction, mapping, mirroring, and stabilization tests pass.
-- [ ] Tracking models contain no SceneView, Filament, CameraX, or MediaPipe
+- [x] Matrix extraction, mapping, mirroring, and stabilization tests pass.
+- [x] Tracking models contain no SceneView, Filament, CameraX, or MediaPipe
   result types.
-- [ ] `.\gradlew testDebugUnitTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest`
+- [x] `.\gradlew assembleDebug`
 
 ## Phase 3: One-Frame Live Slice
 
@@ -206,18 +206,18 @@ recoverable fallback. Use only the bundled round-frame descriptor.
 
 **Acceptance criteria:**
 
-- [ ] One remembered GLB instance moves and rotates from live MediaPipe pose
+- [x] One remembered GLB instance moves and rotates from live MediaPipe pose
   while CameraX remains visible underneath.
-- [ ] The front-camera preview and model use the same mirror convention.
-- [ ] Model load/tracking failure hides 3D cleanly and preserves the existing
+- [x] The front-camera preview and model use the same mirror convention.
+- [x] Model load/tracking failure hides 3D cleanly and preserves the existing
   fallback instead of crashing or blocking exit.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *ArViewModelTest --tests *FacePoseMapperTest`
-- [ ] Manual: verify front view plus moderate yaw, pitch, roll, and distance
+- [x] `.\gradlew testDebugUnitTest --tests *ArViewModelTest --tests *FacePoseMapperTest`
+- [x] Manual: verify front view plus moderate yaw, pitch, roll, and distance
   changes on the POCO.
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Tasks 2–5.
 
@@ -238,16 +238,16 @@ must select fallback without attempting renderer initialization.
 
 **Acceptance criteria:**
 
-- [ ] Unit tests cover every declared feature-floor boundary and multiple
+- [x] Unit tests cover every declared feature-floor boundary and multiple
   simultaneous failures.
-- [ ] Unsupported capability includes a stable reason suitable for UI copy.
-- [ ] POCO facts resolve as supported, while the app's API 26–28 catalog path
+- [x] Unsupported capability includes a stable reason suitable for UI copy.
+- [x] POCO facts resolve as supported, while the app's API 26–28 catalog path
   remains available.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *ArCapabilityTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *ArCapabilityTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 6.
 
@@ -267,17 +267,17 @@ renderer/camera ownership in Compose while the view model owns transitions.
 
 **Acceptance criteria:**
 
-- [ ] Tests cover checking capability, permission, loading, searching, tracking,
+- [x] Tests cover checking capability, permission, loading, searching, tracking,
   recoverable error, unsupported, and variant selection transitions.
-- [ ] The view model exposes no mutable flow, DTO, MediaPipe result, or renderer
+- [x] The view model exposes no mutable flow, DTO, MediaPipe result, or renderer
   node.
-- [ ] A late asset/face result cannot move an unsupported or disposed session
+- [x] A late asset/face result cannot move an unsupported or disposed session
   back into tracking.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *ArViewModelTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *ArViewModelTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 7.
 
@@ -291,10 +291,10 @@ renderer/camera ownership in Compose while the view model owns transitions.
 
 ## Checkpoint C: Live State Pipeline
 
-- [ ] The bundled model follows live pose on the POCO.
-- [ ] Unsupported devices bypass renderer initialization.
-- [ ] State-transition tests and full unit suite pass.
-- [ ] `.\gradlew assembleDebug`
+- [x] The bundled model follows live pose on the POCO.
+- [x] Unsupported devices bypass renderer initialization.
+- [x] State-transition tests and full unit suite pass.
+- [x] `.\gradlew assembleDebug`
 
 ## Phase 4: Recovery, Lifecycle, and Gate
 
@@ -306,16 +306,16 @@ and show the approved non-clinical disclosure while tracking.
 
 **Acceptance criteria:**
 
-- [ ] Every specified state has distinct copy and an appropriate retry,
+- [x] Every specified state has distinct copy and an appropriate retry,
   settings, fallback, or exit action.
-- [ ] Tracking displays “Visual preview only. Final fit is confirmed at the
+- [x] Tracking displays “Visual preview only. Final fit is confirmed at the
   clinic.”
-- [ ] UI tests prove unsupported/error states retain a catalog-image path.
+- [x] UI tests prove unsupported/error states retain a catalog-image path.
 
 **Verification:**
 
-- [ ] `.\gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.eyecare.app.presentation.ar.ArTryOnScreenTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.eyecare.app.presentation.ar.ArTryOnScreenTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 8.
 
@@ -335,18 +335,18 @@ coverage for repeated entry/background/foreground.
 
 **Acceptance criteria:**
 
-- [ ] Camera analysis executor, MediaPipe landmarker, model instance, and
+- [x] Camera analysis executor, MediaPipe landmarker, model instance, and
   renderer resources are released exactly once at their lifecycle boundary.
-- [ ] Ten enter/exit cycles plus one background/foreground cycle do not create a
+- [x] Ten enter/exit cycles plus one background/foreground cycle do not create a
   duplicate camera, crash, or invalid-engine error.
-- [ ] The measured path performs no per-frame debug string formatting/logging.
+- [x] The measured path performs no per-frame debug string formatting/logging.
 
 **Verification:**
 
-- [ ] `.\gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.eyecare.app.presentation.ar.ArLifecycleTest`
-- [ ] Manual: repeat the lifecycle script on the POCO and inspect Logcat for
+- [x] `.\gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.eyecare.app.presentation.ar.ArLifecycleTest`
+- [x] Manual: repeat the lifecycle script on the POCO and inspect Logcat for
   camera/Filament failures.
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 9.
 
@@ -368,18 +368,18 @@ the composable.
 
 **Acceptance criteria:**
 
-- [ ] Front-view center, total width, outer height, and recognizable silhouette
+- [x] Front-view center, total width, outer height, and recognizable silhouette
   are compared against the recorded physical measurements.
-- [ ] Final finite calibration values live in one named descriptor and are
+- [x] Final finite calibration values live in one named descriptor and are
   traceable in the evidence record.
-- [ ] The physical comparison records pass/fail observations without claiming
+- [x] The physical comparison records pass/fail observations without claiming
   clinical fit.
 
 **Verification:**
 
-- [ ] Manual: run the calibration checklist on the POCO with the physical frame.
-- [ ] `.\gradlew testDebugUnitTest --tests *FacePoseMapperTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] Manual: run the calibration checklist on the POCO with the physical frame.
+- [x] `.\gradlew testDebugUnitTest --tests *FacePoseMapperTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 10; user must have the POCO and physical frame.
 
@@ -398,19 +398,19 @@ application behavior.
 
 **Acceptance criteria:**
 
-- [ ] Evidence records build, device, GLB checksum/version, initialization time,
+- [x] Evidence records build, device, GLB checksum/version, initialization time,
   median FPS, lifecycle result, movement observations, and elapsed project time.
-- [ ] PASS is recorded only at median FPS ≥24 with recognizable stable
+- [x] PASS is recorded only at median FPS ≥24 with recognizable stable
   attachment and no crash/leak/blocking failure.
-- [ ] The document selects exactly one next branch and does not weaken a failed
+- [x] The document selects exactly one next branch and does not weaken a failed
   criterion after measurement.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest`
-- [ ] `.\gradlew lintDebug`
-- [ ] `.\gradlew assembleDebug`
-- [ ] Manual: stakeholder reviews and signs off the recorded PASS/FAIL.
+- [x] `.\gradlew testDebugUnitTest`
+- [x] `.\gradlew lintDebug`
+- [x] `.\gradlew assembleDebug`
+- [x] Manual: stakeholder reviews and signs off the recorded PASS/FAIL.
 
 **Dependencies:** Task 11.
 
@@ -422,10 +422,10 @@ application behavior.
 
 ## Checkpoint D: Branch Gate
 
-- [ ] Tasks 1–12 are complete.
-- [ ] The five-day/20% time box is recorded.
-- [ ] Exactly one of PASS or FAIL is selected.
-- [ ] No remote/backend/multi-asset work started before this checkpoint.
+- [x] Tasks 1–12 are complete.
+- [x] The five-day/20% time box is recorded.
+- [x] Exactly one of PASS or FAIL is selected.
+- [x] No remote/backend/multi-asset work started before this checkpoint.
 
 ## PASS Branch: Remote 3D Delivery
 
@@ -439,17 +439,17 @@ release but never interpret the legacy reference as GLB.
 
 **Acceptance criteria:**
 
-- [ ] Ready, null, and malformed/bounded contract fixtures decode or fail as
+- [x] Ready, null, and malformed/bounded contract fixtures decode or fail as
   specified using Kotlinx Serialization.
-- [ ] DTOs map into immutable domain asset/calibration models only at the
+- [x] DTOs map into immutable domain asset/calibration models only at the
   repository boundary.
-- [ ] Existing cached/API frames without `ar` remain image-browsable and do
+- [x] Existing cached/API frames without `ar` remain image-browsable and do
   not become falsely AR-ready.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *FrameDtosTest --tests *FrameRepositoryArMappingTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *FrameDtosTest --tests *FrameRepositoryArMappingTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task 12 PASS and a frozen backend response example.
 
@@ -471,17 +471,17 @@ task contains no network implementation.
 
 **Acceptance criteria:**
 
-- [ ] Policy rejects non-HTTPS, invalid SHA-256, non-positive versions, declared
+- [x] Policy rejects non-HTTPS, invalid SHA-256, non-positive versions, declared
   oversize, actual oversize, and mismatched checksums.
-- [ ] A cache key is deterministic from variant ID, version, and checksum and
+- [x] A cache key is deterministic from variant ID, version, and checksum and
   cannot contain path traversal.
-- [ ] Results distinguish cached, downloaded, unsupported, and recoverable
+- [x] Results distinguish cached, downloaded, unsupported, and recoverable
   failure without exposing file implementation details to presentation.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *ArAssetPolicyTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *ArAssetPolicyTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task P1.
 
@@ -502,17 +502,17 @@ SHA-256, and promote atomically. Preserve the last known-good file.
 
 **Acceptance criteria:**
 
-- [ ] Network success returns only a fully verified local asset; interruption,
+- [x] Network success returns only a fully verified local asset; interruption,
   oversize, or checksum mismatch never promotes the temporary file.
-- [ ] A valid cached version works offline, while a corrupt cache entry is
+- [x] A valid cached version works offline, while a corrupt cache entry is
   evicted without touching unrelated cache data.
-- [ ] DI exposes the domain repository without Room or presentation depending on
+- [x] DI exposes the domain repository without Room or presentation depending on
   OkHttp/file internals.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *RemoteArAssetRepositoryTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *RemoteArAssetRepositoryTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task P2.
 
