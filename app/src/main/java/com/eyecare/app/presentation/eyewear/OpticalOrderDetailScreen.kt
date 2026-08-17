@@ -107,19 +107,15 @@ private fun OrderDetailContent(
             fontWeight = FontWeight.Bold,
         )
 
-        val statusColor = when (order.status) {
-            OpticalOrderStatus.QUEUED, OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
-            OpticalOrderStatus.READY_FOR_DISPENSING -> MaterialTheme.colorScheme.tertiary
-            OpticalOrderStatus.DISPENSED -> MaterialTheme.colorScheme.tertiary
-            OpticalOrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
-            OpticalOrderStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-        }
+        // Shared with OpticalOrderListScreen.kt's OrderCard so the same order never renders in
+        // contradictory colors between the list and its own detail screen.
+        val statusColor = orderStatusColor(order.status)
         Surface(shape = RoundedCornerShape(50), color = statusColor.copy(alpha = 0.12f)) {
             Text(
                 orderStatusLabel(order.status),
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelMedium,
-                color = statusColor,
+                color = orderStatusTextColor(order.status),
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -195,24 +191,32 @@ private fun OrderDetailContent(
         }
 
         // Payment summary
-        if (order.paymentSummary != null) {
-            val ps = order.paymentSummary
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Payment summary", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    DetailInfoRow("Status", paymentStatusLabel(ps.status))
-                    DetailInfoRow("Total", formatPeso(ps.totalAmount))
-                    DetailInfoRow("Paid", formatPeso(ps.amountPaid))
-                    DetailInfoRow("Balance", formatPeso(ps.balanceDue))
-                    ps.paymentDueDate?.let { DetailInfoRow("Due date", it) }
-                    if (ps.isOverdue) {
+        val paymentSummary = order.paymentSummary
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Payment summary", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                if (paymentSummary != null) {
+                    DetailInfoRow("Status", paymentStatusLabel(paymentSummary.status))
+                    DetailInfoRow("Total", formatPeso(paymentSummary.totalAmount))
+                    DetailInfoRow("Paid", formatPeso(paymentSummary.amountPaid))
+                    DetailInfoRow("Balance", formatPeso(paymentSummary.balanceDue))
+                    paymentSummary.paymentDueDate?.let { DetailInfoRow("Due date", it) }
+                    if (paymentSummary.isOverdue) {
                         Text("Overdue", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                     }
+                } else {
+                    // Explicit "unavailable" rather than omitting the whole section, so a patient
+                    // checking whether they owe money can't mistake missing data for nothing owed.
+                    Text(
+                        "Payment info unavailable",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

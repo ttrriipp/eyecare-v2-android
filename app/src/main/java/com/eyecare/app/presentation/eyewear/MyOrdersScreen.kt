@@ -64,6 +64,7 @@ fun MyOrdersScreen(
         Column(modifier = Modifier.padding(padding)) {
             OpticalOrderListContent(
                 uiState = orderState,
+                onRefresh = orderViewModel::refresh,
                 onRetry = orderViewModel::retry,
                 onLoadMore = orderViewModel::loadMore,
                 onNavigateToOrder = onNavigateToOrder,

@@ -6,23 +6,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -31,41 +28,38 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.domain.model.OpticalOrder
+import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.common.components.LoadingContent
+import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 
 @Composable
 fun OpticalOrderListContent(
     uiState: OrderListUiState,
+    onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onNavigateToOrder: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier.fillMaxSize()) {
+    // Loading covers the first, data-less load; a Success screen's own isRefreshing covers a
+    // pull-to-refresh or resume-triggered refresh that keeps existing items visible underneath.
+    val isRefreshing = uiState is OrderListUiState.Loading ||
+        (uiState as? OrderListUiState.Success)?.isRefreshing == true
+
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = modifier.fillMaxSize(),
+    ) {
         when (val state = uiState) {
-            is OrderListUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            is OrderListUiState.Empty -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Outlined.Receipt, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(48.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "No eyewear orders yet",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            is OrderListUiState.Error -> ErrorContent(
-                message = state.message,
-                onRetry = onRetry,
-            )
+            is OrderListUiState.Loading -> LoadingContent()
+            is OrderListUiState.Empty -> EmptyContent(message = "No eyewear orders yet")
+            is OrderListUiState.Error -> ErrorContent(message = state.message, onRetry = onRetry)
             is OrderListUiState.Success -> {
                 val listState = rememberLazyListState()
                 val shouldLoadMore by remember {
@@ -76,11 +70,17 @@ fun OpticalOrderListContent(
                         total > 0 && lastVisible >= total - 3
                     }
                 }
-                LaunchedEffect(shouldLoadMore, state.hasMorePages, state.isLoadingMore) {
-                    if (shouldLoadMore && state.hasMorePages && !state.isLoadingMore) onLoadMore()
+                // Gated on loadMoreError == null so a failed attempt doesn't immediately
+                // re-fire while the user is still scrolled near the bottom — only a genuine
+                // scroll-position change or an explicit Retry tap (below) triggers another try.
+                LaunchedEffect(shouldLoadMore, state.hasMorePages, state.isLoadingMore, state.loadMoreError) {
+                    if (shouldLoadMore && state.hasMorePages && !state.isLoadingMore && state.loadMoreError == null) {
+                        onLoadMore()
+                    }
                 }
 
                 LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
                     state = listState,
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -100,12 +100,19 @@ fun OpticalOrderListContent(
                     }
                     if (state.loadMoreError != null) {
                         item {
-                            Text(
-                                state.loadMoreError,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    state.loadMoreError,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                TextButton(onClick = onLoadMore) { Text("Retry") }
+                            }
                         }
                     }
                 }
@@ -131,28 +138,48 @@ private fun OrderCard(
                 orderCardTitle(order),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
 
             // Status and payment pills grouped together: the two most urgent facts on the card.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val statusColor = orderStatusColor(order.status)
+                val statusTextColor = orderStatusTextColor(order.status)
                 Surface(shape = RoundedCornerShape(50), color = statusColor.copy(alpha = 0.12f)) {
                     Text(
                         orderStatusLabel(order.status),
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = statusColor,
+                        color = statusTextColor,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                order.paymentSummary?.let { ps ->
-                    val payColor = paymentStatusColor(ps.status)
+                val paymentSummary = order.paymentSummary
+                if (paymentSummary != null) {
+                    val payColor = paymentStatusColor(paymentSummary.status)
+                    val payTextColor = paymentStatusTextColor(paymentSummary.status)
                     Surface(shape = RoundedCornerShape(50), color = payColor.copy(alpha = 0.12f)) {
                         Text(
-                            paymentStatusLabel(ps.status),
+                            paymentStatusLabel(paymentSummary.status),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = payColor,
+                            color = payTextColor,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                } else {
+                    // Explicit "unavailable" rather than silently showing nothing, so a patient
+                    // scanning for money owed can't mistake missing data for a paid-in-full order.
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                    ) {
+                        Text(
+                            "Payment info unavailable",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -185,6 +212,7 @@ private fun OrderCard(
                 "Total: ${formatPeso(order.totalAmount)}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
+                color = EyecareColors.current.accentText,
             )
         }
     }

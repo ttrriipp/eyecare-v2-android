@@ -73,6 +73,45 @@ class OpticalOrderListViewModelTest {
     }
 
     @Test
+    fun `refresh replaces items without resetting to Loading first`() = runTest {
+        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
+            PaginatedResult(listOf(createOrder(1)), 1, 1, 1)
+        )
+        val vm = OpticalOrderListViewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
+            PaginatedResult(listOf(createOrder(2)), 1, 1, 1)
+        )
+        vm.refresh()
+        // With an unconfined dispatcher the coroutine body runs immediately, but the assignment
+        // to isRefreshing = true still happens synchronously before the network call resolves.
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as OrderListUiState.Success
+        assertEquals(2, state.items.first().id)
+        assertFalse(state.isRefreshing)
+    }
+
+    @Test
+    fun `failed refresh keeps existing items visible instead of discarding them`() = runTest {
+        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
+            PaginatedResult(listOf(createOrder(1)), 1, 1, 1)
+        )
+        val vm = OpticalOrderListViewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coEvery { repository.getOpticalOrders(null, 1) } returns Result.failure(RuntimeException("offline"))
+        vm.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as OrderListUiState.Success
+        assertEquals(1, state.items.size)
+        assertEquals(1, state.items.first().id)
+        assertFalse(state.isRefreshing)
+    }
+
+    @Test
     fun `loadMore appends`() = runTest {
         coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
             PaginatedResult(listOf(createOrder(1)), 1, 2, 2)

@@ -52,7 +52,22 @@ fun orderStatusColor(status: OpticalOrderStatus): Color = when (status) {
     OpticalOrderStatus.READY_FOR_DISPENSING -> EyecareColors.current.statusPending
     OpticalOrderStatus.DISPENSED -> MaterialTheme.colorScheme.tertiary
     OpticalOrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
-    OpticalOrderStatus.UNKNOWN -> EyecareColors.current.statusCancelled
+    // Neutral, not statusCancelled: an unrecognized status isn't a confirmed cancellation
+    // and must not alarm the patient with the identical color (see orderStatusTextColor).
+    OpticalOrderStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+// Contrast-safe label color for orderStatusColor's fill. The raw fill hues fail WCAG AA as
+// text on their own 12%-tint background in light mode (see StatusPendingTextLight and
+// friends in Color.kt), so pill/chip label text must route through the *Text tokens
+// instead of reusing the fill color directly.
+@Composable
+fun orderStatusTextColor(status: OpticalOrderStatus): Color = when (status) {
+    OpticalOrderStatus.QUEUED, OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
+    OpticalOrderStatus.READY_FOR_DISPENSING -> EyecareColors.current.statusPendingText
+    OpticalOrderStatus.DISPENSED -> EyecareColors.current.statusConfirmedText
+    OpticalOrderStatus.CANCELLED -> EyecareColors.current.statusCancelledText
+    OpticalOrderStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 fun paymentStatusLabel(status: PaymentStatus): String = when (status) {
@@ -68,7 +83,17 @@ fun paymentStatusColor(status: PaymentStatus): Color = when (status) {
     PaymentStatus.PAID -> MaterialTheme.colorScheme.tertiary
     PaymentStatus.UNPAID, PaymentStatus.PARTIALLY_PAID -> MaterialTheme.colorScheme.error
     PaymentStatus.VOIDED -> MaterialTheme.colorScheme.onSurfaceVariant
-    PaymentStatus.UNKNOWN -> EyecareColors.current.statusCancelled
+    // Amber, not error: an unrecognized payment status isn't a confirmed balance due and
+    // must not collide with that alarm color (see paymentStatusTextColor).
+    PaymentStatus.UNKNOWN -> EyecareColors.current.statusPending
+}
+
+@Composable
+fun paymentStatusTextColor(status: PaymentStatus): Color = when (status) {
+    PaymentStatus.PAID -> EyecareColors.current.statusConfirmedText
+    PaymentStatus.UNPAID, PaymentStatus.PARTIALLY_PAID -> EyecareColors.current.statusCancelledText
+    PaymentStatus.VOIDED -> MaterialTheme.colorScheme.onSurfaceVariant
+    PaymentStatus.UNKNOWN -> EyecareColors.current.statusPendingText
 }
 
 fun orderCardTitle(order: OpticalOrder): String {

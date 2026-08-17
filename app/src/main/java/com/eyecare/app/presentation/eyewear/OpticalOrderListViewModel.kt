@@ -18,6 +18,7 @@ sealed interface OrderListUiState {
         val isLoadingMore: Boolean = false,
         val hasMorePages: Boolean = false,
         val loadMoreError: String? = null,
+        val isRefreshing: Boolean = false,
     ) : OrderListUiState
     data object Empty : OrderListUiState
     data class Error(val message: String) : OrderListUiState
@@ -37,8 +38,40 @@ class OpticalOrderListViewModel @Inject constructor(
     init { load() }
 
     fun refresh() {
-        currentPage = 1
-        load()
+        // A refresh while orders are already showing (pull-to-refresh, or returning to the
+        // screen) shouldn't wipe the list back to a bare spinner — only a genuine first load
+        // or an error retry resets to Loading.
+        val current = _uiState.value
+        if (current is OrderListUiState.Success) {
+            refreshInternal(current)
+        } else {
+            currentPage = 1
+            load()
+        }
+    }
+
+    private fun refreshInternal(current: OrderListUiState.Success) {
+        val seq = ++loadSequence
+        _uiState.value = current.copy(isRefreshing = true)
+        viewModelScope.launch {
+            repository.getOpticalOrders(filter = null, page = 1).fold(
+                onSuccess = { result ->
+                    if (seq != loadSequence) return@launch
+                    currentPage = result.currentPage
+                    _uiState.value = if (result.data.isEmpty()) {
+                        OrderListUiState.Empty
+                    } else {
+                        OrderListUiState.Success(items = result.data, hasMorePages = result.hasMorePages)
+                    }
+                },
+                onFailure = {
+                    if (seq != loadSequence) return@launch
+                    // Keep the existing items visible; a failed background refresh shouldn't
+                    // discard data the patient can already see.
+                    _uiState.value = current.copy(isRefreshing = false)
+                },
+            )
+        }
     }
 
     fun retry() {
