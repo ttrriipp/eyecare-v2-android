@@ -22,7 +22,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.ar.model.BundledFrameAsset
 import com.eyecare.app.presentation.ar.model.FacePose
-import com.eyecare.app.presentation.ar.model.FrameModelScale
 import io.github.sceneview.SceneView
 import io.github.sceneview.SurfaceType
 import io.github.sceneview.math.Position
@@ -232,9 +231,8 @@ private fun ModelScene(
             var downloadedInstance by remember(source.assetPath) {
                 mutableStateOf<com.google.android.filament.gltfio.FilamentInstance?>(null)
             }
-            val nodeScale = remember(pose?.scale) {
-                val s = pose?.scale ?: 1f
-                FrameModelScale(s, s, s)
+            val nodeScale = remember(source.assetPath, source.modelScale, pose?.scale) {
+                source.scaleForPose(pose?.scale ?: 1f)
             }
 
             LaunchedEffect(source.assetPath) {

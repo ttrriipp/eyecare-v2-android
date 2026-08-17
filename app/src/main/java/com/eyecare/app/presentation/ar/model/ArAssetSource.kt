@@ -21,7 +21,10 @@ sealed interface ArAssetSource {
     fun toFrameModelSource(): FrameModelSource? = when (this) {
         is NotLoaded -> null
         is Loading -> null
-        is Ready -> FrameModelSource.Downloaded(filePath = filePath)
+        is Ready -> FrameModelSource.Downloaded(
+            filePath = filePath,
+            modelScale = scale,
+        )
         is Failed -> null
     }
 }
