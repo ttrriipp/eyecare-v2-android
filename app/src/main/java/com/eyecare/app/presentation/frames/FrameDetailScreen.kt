@@ -86,7 +86,7 @@ import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import com.eyecare.app.domain.model.FrameVariant
-import com.eyecare.app.domain.model.isArReady
+import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.presentation.common.FeatureFlags
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
@@ -177,7 +177,7 @@ fun FrameDetailScreen(
                                 frameName = frame.name,
                                 images = images,
                                 pagerState = pagerState,
-                                onTryOn = if (selected.isArReady) {
+                                onTryOn = if (selected.isTypedArReady) {
                                     { onNavigateToAr(frame.id, selected.id) }
                                 } else {
                                     null
@@ -261,7 +261,7 @@ fun FrameDetailScreen(
                                     }
                                 }
 
-                                FrameCapabilityNotice(isArReady = selected.isArReady)
+                                FrameCapabilityNotice(isArReady = selected.isTypedArReady)
                             }
                         }
 
@@ -425,7 +425,7 @@ fun FrameDetailScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                if (selected.isArReady) {
+                                if (selected.isTypedArReady) {
                                     Button(
                                         onClick = { onNavigateToAr(frame.id, selected.id) },
                                         modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
@@ -436,7 +436,7 @@ fun FrameDetailScreen(
                                         Text("Try on")
                                     }
                                 }
-                                if (selected.isArReady) {
+                                if (selected.isTypedArReady) {
                                     OutlinedButton(
                                         onClick = { onNavigateToReserve(frame.id, selected.id) },
                                         modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
@@ -774,8 +774,8 @@ private fun VariantPickerSheet(
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             )
                             Text(
-                                text = String.format(Locale.US, "?%.2f", variant.price) + " � " +
-                                    if (variant.isArReady) "AR-ready � Try on" else "Try-on unavailable",
+                                text = String.format(Locale.US, "₱%.2f", variant.price) + " • " +
+                                    if (variant.isTypedArReady) "AR-ready — Try on" else "Try-on unavailable",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

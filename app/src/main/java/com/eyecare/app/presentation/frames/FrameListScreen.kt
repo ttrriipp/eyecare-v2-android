@@ -41,7 +41,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.eyecare.app.domain.model.isArReady
+import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.frames.components.FrameCatalogControls
@@ -192,7 +192,7 @@ fun FrameListScreen(
                                     frame = frame,
                                     onClick = { onNavigateToDetail(frame.id) },
                                     onTryOn = frame.variants
-                                        .firstOrNull { it.isArReady }
+                                        .firstOrNull { it.isTypedArReady }
                                         ?.let { variant ->
                                             { onNavigateToTryOn(frame.id, variant.id) }
                                         },

@@ -3,7 +3,7 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.Frame
-import com.eyecare.app.domain.model.isArReady
+import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.domain.repository.FrameRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -33,7 +33,7 @@ data class FrameListFilters(
     fun matches(frame: Frame): Boolean =
         (brand == null || frame.brand.equals(brand, ignoreCase = true)) &&
             (category == null || frame.category.equals(category, ignoreCase = true)) &&
-            (!arOnly || frame.variants.any { it.isArReady })
+            (!arOnly || frame.variants.any { it.isTypedArReady })
 }
 
 sealed interface FrameListUiState {

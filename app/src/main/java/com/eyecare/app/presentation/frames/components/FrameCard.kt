@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImagePainter
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.Frame
-import com.eyecare.app.domain.model.isArReady
+import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.presentation.common.FeatureFlags
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.ui.theme.EyecareColors
@@ -53,8 +53,8 @@ fun FrameCard(
     ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
     modifier: Modifier = Modifier,
 ) {
-    val hasAr = frame.variants.any { it.isArReady }
-    val firstArVariant = frame.variants.firstOrNull { it.isArReady }
+    val hasTypedAr = frame.variants.any { it.isTypedArReady }
+    val firstTypedArVariant = frame.variants.firstOrNull { it.isTypedArReady }
     val imageUrl = (frame.images.firstOrNull() ?: frame.variants.firstOrNull()?.images?.firstOrNull())
         ?.let { buildImageUrl(it) }
     val displayPrice = frame.variants.firstOrNull()?.price
@@ -96,7 +96,7 @@ fun FrameCard(
                         onState = { imageState = it },
                     )
                 }
-                if (hasAr) {
+                if (hasTypedAr) {
                     ArBadge(Modifier.align(Alignment.TopEnd).padding(8.dp))
                 }
             }
@@ -147,7 +147,7 @@ fun FrameCard(
                     },
                     fontWeight = if (formattedPrice != null) FontWeight.Bold else FontWeight.Normal,
                 )
-                if (onTryOn != null && firstArVariant != null) {
+                if (onTryOn != null && firstTypedArVariant != null) {
                     OutlinedButton(
                         onClick = onTryOn,
                         modifier = Modifier

@@ -2,6 +2,12 @@ package com.eyecare.app.presentation.frames
 
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
+import com.eyecare.app.domain.model.ArAsset
+import com.eyecare.app.domain.model.ArAssetFile
+import com.eyecare.app.domain.model.ArAssetFormat
+import com.eyecare.app.domain.model.ArAssetStatus
+import com.eyecare.app.domain.model.ArCalibration
+import com.eyecare.app.domain.model.ArVector
 import com.eyecare.app.domain.repository.FrameRepository
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -29,7 +35,24 @@ class FrameListViewModelTest {
         Dispatchers.setMain(dispatcher)
         repository = mockk()
         coEvery { repository.getFrames(1, null, null, null, "name") } returns
-            Result.success(listOf(frame(1, "Acme", "Full Rim", arReady = true), frame(2, "Vista", "Round", arReady = false)))
+            Result.success(
+                listOf(
+                    frame(
+                        1,
+                        "Acme",
+                        "Full Rim",
+                        legacyArReady = false,
+                        typedArReady = true,
+                    ),
+                    frame(
+                        2,
+                        "Vista",
+                        "Round",
+                        legacyArReady = true,
+                        typedArReady = false,
+                    ),
+                ),
+            )
         coEvery { repository.hasMorePages(1) } returns false
     }
 
@@ -44,6 +67,16 @@ class FrameListViewModelTest {
 
         viewModel.selectBrand("Acme")
         viewModel.selectCategory("Full Rim")
+        viewModel.setArOnly(true)
+
+        val state = viewModel.uiState.value as FrameListUiState.Success
+        assertEquals(listOf(1), state.visibleFrames.map { it.id })
+    }
+
+    @Test
+    fun `ar only filter uses typed readiness instead of legacy fields`() = runTest {
+        val viewModel = FrameListViewModel(repository)
+
         viewModel.setArOnly(true)
 
         val state = viewModel.uiState.value as FrameListUiState.Success
@@ -79,7 +112,8 @@ class FrameListViewModelTest {
         id: Int,
         brand: String,
         category: String,
-        arReady: Boolean,
+        legacyArReady: Boolean,
+        typedArReady: Boolean,
     ) = Frame(
         id = id,
         name = "Frame $id",
@@ -95,11 +129,34 @@ class FrameListViewModelTest {
                 price = BigDecimal("4500.00"),
                 compareAtPrice = null,
                 attributes = null,
-                arEligible = arReady,
-                arAssetReference = if (arReady) "frame-$id.glb" else null,
+                arEligible = legacyArReady,
+                arAssetReference = if (legacyArReady) "frame-$id.glb" else null,
                 images = emptyList(),
+                ar = if (typedArReady) typedArAsset() else null,
             ),
         ),
         images = emptyList(),
+    )
+
+    private fun typedArAsset() = ArAsset(
+        status = ArAssetStatus.READY,
+        asset = ArAssetFile(
+            url = "https://cdn.example.test/frame.glb",
+            format = ArAssetFormat.GLB,
+            version = 1,
+            byteSize = 1024,
+            sha256 = "a".repeat(64),
+        ),
+        calibration = ArCalibration(
+            frameWidthMm = 123.0,
+            outerFrameHeightMm = 48.0,
+            lensWidthMm = 50.0,
+            lensHeightMm = 45.0,
+            bridgeWidthMm = 20.0,
+            templeLengthMm = 140.0,
+            scale = ArVector(0.123, 0.144565, 0.123),
+            anchor = ArVector(0.0, 0.0, 0.0),
+            rotationDegrees = ArVector(0.0, 0.0, 0.0),
+        ),
     )
 }
