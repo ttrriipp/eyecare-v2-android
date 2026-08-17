@@ -212,6 +212,34 @@ class CreateFrameReservationViewModelTest {
     }
 
     @Test
+    fun `mergeOutcome allows room only below the coordinated maximum for counts zero through five`() {
+        for (count in 0..5) {
+            val reservation = createReservation(
+                items = (1..count).map { reservationItem(it) },
+            )
+
+            val outcome = mergeOutcome(reservation, 999)
+            if (count < 3) {
+                assertTrue(outcome is MergeOutcome.Mergeable, "count=$count should still accept an item")
+            } else {
+                assertTrue(outcome is MergeOutcome.Full, "count=$count should reject another item")
+            }
+        }
+    }
+
+    @Test
+    fun `legacy four and five item reservations remain intact and cannot accept another item`() {
+        for (count in 4..5) {
+            val items = (1..count).map { reservationItem(it) }
+            val reservation = createReservation(items = items)
+
+            assertEquals(count, reservation.items.size)
+            assertEquals(items, reservation.items)
+            assertTrue(mergeOutcome(reservation, 999) is MergeOutcome.Full)
+        }
+    }
+
+    @Test
     fun `mergeOutcome is Mergeable for an unheld reservation with room`() {
         val unheld = createReservation(isHeld = false, items = listOf(reservationItem(99)))
         assertTrue(mergeOutcome(unheld, 42) is MergeOutcome.Mergeable)
@@ -272,5 +300,48 @@ class CreateFrameReservationViewModelTest {
         assertEquals("This frame is already part of your reservation for this appointment.", state.itemFieldError)
         coVerify(exactly = 0) { reservationRepo.deleteReservation(any()) }
         coVerify(exactly = 0) { reservationRepo.createReservation(any(), any()) }
+    }
+
+    @Test
+    fun `submit at the new three item cap shows a derived error without calling the repository`() = runTest {
+        val existing = createReservation(
+            isHeld = false,
+            items = (1..3).map { reservationItem(it) },
+        )
+        val vm = vm(existingReservations = listOf(existing))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.selectAppointment(1)
+        vm.submit()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as CreateReservationUiState.Ready
+        assertEquals("This reservation already has the maximum of $MAX_RESERVATION_ITEMS frames.", state.itemFieldError)
+        coVerify(exactly = 0) { reservationRepo.addItem(any(), any()) }
+        coVerify(exactly = 0) { reservationRepo.createReservation(any(), any()) }
+    }
+
+    @Test
+    fun `server capacity validation is surfaced while retaining the selected appointment`() = runTest {
+        val existing = createReservation(
+            isHeld = false,
+            items = listOf(reservationItem(99), reservationItem(100)),
+        )
+        coEvery { reservationRepo.addItem(1, 42) } returns Result.failure(
+            FrameReservationError.ValidationError(
+                mapOf("items" to listOf("A reservation may contain no more than 3 frames.")),
+            ),
+        )
+        val vm = vm(existingReservations = listOf(existing))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.selectAppointment(1)
+        vm.submit()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as CreateReservationUiState.Ready
+        assertEquals(1, state.selectedAppointmentId)
+        assertEquals("A reservation may contain no more than 3 frames.", state.itemFieldError)
+        coVerify(exactly = 1) { reservationRepo.addItem(1, 42) }
     }
 }

@@ -2,9 +2,16 @@ package com.eyecare.app.presentation.reservations
 
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.FrameReservation
+import com.eyecare.app.domain.model.FrameReservationItem
+import com.eyecare.app.domain.model.ReservationAppointment
+import com.eyecare.app.domain.model.canAddItems
+import com.eyecare.app.domain.model.canRemoveItems
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -33,6 +40,40 @@ class FrameReservationEligibilityTest {
     private fun instantOf(year: Int, month: Int, day: Int, hour: Int, minute: Int): Instant {
         return OffsetDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.ofHours(8)).toInstant()
     }
+
+    private fun reservationItem(id: Int) = FrameReservationItem(
+        id = id,
+        productVariantId = id,
+        variantName = "Variant $id",
+        variantSku = "SKU-$id",
+        price = BigDecimal.TEN,
+        compareAtPrice = null,
+        frameId = id,
+        frameName = "Frame $id",
+        frameBrand = "Brand",
+        frameCategory = "Category",
+        frameDescription = null,
+        attributes = null,
+        images = emptyList(),
+    )
+
+    private fun reservation(
+        count: Int,
+        isHeld: Boolean = false,
+    ) = FrameReservation(
+        id = 1,
+        appointment = ReservationAppointment(
+            id = 1,
+            appointmentNumber = "APT-001",
+            status = AppointmentStatus.SCHEDULED,
+            scheduledAt = "2030-08-01T10:00:00+08:00",
+            durationMinutes = 30,
+        ),
+        isHeld = isHeld,
+        expiresAt = null,
+        createdAt = "2026-07-28T10:00:00+08:00",
+        items = (1..count).map(::reservationItem),
+    )
 
     @Test
     fun `scheduled future appointment is eligible`() {
@@ -121,5 +162,25 @@ class FrameReservationEligibilityTest {
         )
         val now = instantOf(2026, 8, 1, 10, 0)
         assertTrue(isReservationEligible(appointment, now))
+    }
+
+    @Test
+    fun `reservation add capability stops at three without truncating legacy items`() {
+        for (count in 0..5) {
+            val reservation = reservation(count)
+
+            assertEquals(count, reservation.items.size)
+            assertEquals(count < 3, reservation.canAddItems, "count=$count")
+            assertTrue(reservation.canRemoveItems, "count=$count should remain removable")
+        }
+    }
+
+    @Test
+    fun `held reservations remain readable but cannot be changed`() {
+        val reservation = reservation(count = 5, isHeld = true)
+
+        assertEquals(5, reservation.items.size)
+        assertFalse(reservation.canAddItems)
+        assertFalse(reservation.canRemoveItems)
     }
 }
