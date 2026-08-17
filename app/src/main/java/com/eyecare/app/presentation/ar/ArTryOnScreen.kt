@@ -140,7 +140,9 @@ private fun ActiveTryOnContent(
     onReserveFrame: (variantId: Int) -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
-    val frameUrl = state.selectedVariant?.arAssetReference?.let(::buildImageUrl)
+    val frameUrl = state.selectedVariant
+        ?.tryOnPreviewImageReference()
+        ?.let(::buildImageUrl)
     val rendererSource = assetSource.toFrameModelSource()
     val assetReady = rendererSource != null && state.assetState is ArAssetState.Ready
     val hasPose = state.face != null && state.pose != null
@@ -264,3 +266,5 @@ private fun FrameModelRenderState.toArAssetState(): ArAssetState = when (this) {
     FrameModelRenderState.Ready -> ArAssetState.Ready
     is FrameModelRenderState.Failed -> ArAssetState.Failed(message)
 }
+
+internal fun FrameVariant.tryOnPreviewImageReference(): String? = images.firstOrNull()
