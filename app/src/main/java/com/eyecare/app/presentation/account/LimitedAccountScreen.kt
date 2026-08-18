@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.domain.model.LinkState
@@ -47,6 +47,7 @@ import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.FieldError
 import com.eyecare.app.presentation.auth.components.OtpExpiryRow
 import com.eyecare.app.presentation.auth.components.OtpField
+import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
@@ -83,15 +84,11 @@ fun LimitedAccountScreen(
         }
         is LimitedAccountState.Error -> {
             Scaffold { padding ->
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(s.message)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { viewModel.load(account) }) { Text("Retry") }
-                }
+                ErrorContent(
+                    message = s.message,
+                    onRetry = { viewModel.load(account) },
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                )
             }
         }
     }
@@ -115,7 +112,9 @@ internal fun LimitedOverviewContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            // 20dp, not the file's routine 16dp field-to-field gap - this is the one "why
+            // before how" moment on the screen, for a first-time, possibly anxious decision.
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Text(
                 text = requestedFeatureLabel?.let { "Link your clinic record to open $it." }
@@ -157,7 +156,10 @@ private fun ConnectAccountCard(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // 16dp between the header and the picker+content group beneath it (senior to
+            // subordinate), 8dp inside that group (the Method-Choice picker and the crossfaded
+            // content it drives read as one fused unit, per DESIGN.md's Method-Choice Card).
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
                 text = "Connect your account",
@@ -165,81 +167,87 @@ private fun ConnectAccountCard(
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            if (showBothMethods) {
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    LinkMethod.entries.forEachIndexed { index, method ->
-                        SegmentedButton(
-                            selected = selectedMethod == method,
-                            onClick = { selectedMethod = method },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = LinkMethod.entries.size),
-                            colors = SegmentedButtonDefaults.colors(
-                                activeContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                                activeContentColor = EyecareColors.current.accentText,
-                                activeBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                inactiveContainerColor = MaterialTheme.colorScheme.surface,
-                                inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                            ),
-                            label = {
-                                Text(
-                                    if (method == LinkMethod.INVITATION_CODE) "Invitation code" else "Ask clinic",
-                                )
-                            },
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (showBothMethods) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        LinkMethod.entries.forEachIndexed { index, method ->
+                            SegmentedButton(
+                                selected = selectedMethod == method,
+                                onClick = { selectedMethod = method },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = LinkMethod.entries.size),
+                                colors = SegmentedButtonDefaults.colors(
+                                    activeContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                    activeContentColor = EyecareColors.current.accentText,
+                                    activeBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                    inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    inactiveBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                ),
+                                label = {
+                                    Text(
+                                        text = if (method == LinkMethod.INVITATION_CODE) "Invitation code" else "Ask clinic",
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Schedule,
+                            contentDescription = null,
+                            tint = EyecareColors.current.accentText,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = "Clinic review pending" + (pendingRequestNumber?.let { " · $it" } ?: ""),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
-            } else {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Schedule,
-                        contentDescription = null,
-                        tint = EyecareColors.current.accentText,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(
-                        text = "Clinic review pending" + (pendingRequestNumber?.let { " · $it" } ?: ""),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
 
-            Crossfade(
-                targetState = if (showBothMethods) selectedMethod else LinkMethod.INVITATION_CODE,
-                label = "link-method",
-            ) { method ->
-                when (method) {
-                    LinkMethod.INVITATION_CODE -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            text = if (showBothMethods) {
-                                "Enter the code from your clinic to link your account right away."
-                            } else {
-                                "You can still enter an invitation code while the clinic reviews your request."
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        AuthPrimaryButton(
-                            text = "Enter invitation code",
-                            onClick = onEnterInvite,
-                        )
-                    }
-                    LinkMethod.CLINIC_REQUEST -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            text = "The clinic reviews your account and links it to your record. This can take longer than an invitation code.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        AuthPrimaryButton(
-                            text = "Request clinic review",
-                            onClick = onRequestClinicLink,
-                            enabled = !isSubmittingLinkRequest,
-                            loading = isSubmittingLinkRequest,
-                        )
-                        FieldError(requestError)
+                Crossfade(
+                    targetState = if (showBothMethods) selectedMethod else LinkMethod.INVITATION_CODE,
+                    label = "link-method",
+                ) { method ->
+                    when (method) {
+                        LinkMethod.INVITATION_CODE -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text(
+                                text = if (showBothMethods) {
+                                    "Enter the code from your clinic to link your account right away."
+                                } else {
+                                    "You can still enter an invitation code while the clinic reviews your request."
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            AuthPrimaryButton(
+                                text = "Enter invitation code",
+                                onClick = onEnterInvite,
+                            )
+                        }
+                        LinkMethod.CLINIC_REQUEST -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text(
+                                text = "The clinic reviews your account and links it to your record. This can take longer than an invitation code.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Column {
+                                AuthPrimaryButton(
+                                    text = "Request clinic review",
+                                    onClick = onRequestClinicLink,
+                                    enabled = !isSubmittingLinkRequest,
+                                    loading = isSubmittingLinkRequest,
+                                )
+                                FieldError(requestError)
+                            }
+                        }
                     }
                 }
             }
@@ -282,7 +290,7 @@ private fun LimitedInviteOtpStep(
 ) {
     AuthStepScaffold(title = "Verify code", onBack = { viewModel.back() }, showGradientBar = false) {
         AuthIntro("Enter the 6-digit verification code sent to your phone.")
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         OtpField(
             value = state.code,
             onValueChange = { viewModel.updateOtpCode(it) },
