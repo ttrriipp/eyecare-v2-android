@@ -1,6 +1,8 @@
 package com.eyecare.app.presentation.reservations
 
 import app.cash.turbine.test
+import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.FrameReservationError
@@ -8,6 +10,7 @@ import com.eyecare.app.domain.model.FrameReservationItem
 import com.eyecare.app.domain.model.MAX_RESERVATION_ITEMS
 import com.eyecare.app.domain.model.ReservationAppointment
 import com.eyecare.app.domain.model.FrameReservation
+import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.FrameReservationRepository
 import com.eyecare.app.domain.repository.PaginatedResult
@@ -34,6 +37,31 @@ class CreateFrameReservationViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var reservationRepo: FrameReservationRepository
     private lateinit var appointmentRepo: AppointmentV1Repository
+    private lateinit var appointmentRequestRepo: AppointmentRequestRepository
+
+    private fun fakeRequest(
+        id: Int,
+        status: AppointmentRequestStatus,
+        scheduledAt: String = "2030-08-01T10:00:00+08:00",
+        createdAt: String = "2026-07-01T10:00:00+08:00",
+    ) = AppointmentRequest(
+        id = id,
+        requestNumber = "APR-${id.toString().padStart(6, '0')}",
+        status = status,
+        patientId = null,
+        appointmentType = null,
+        scheduledAt = scheduledAt,
+        alternativeScheduledTimes = emptyList(),
+        provisionalDurationMinutes = null,
+        reasonForVisit = "Checkup",
+        referringSource = null,
+        timePreferencesAreReserved = false,
+        expiresAt = null,
+        cancelledAt = null,
+        rejectionReason = null,
+        createdAt = createdAt,
+        appointmentId = null,
+    )
 
     private val scheduledFuture = AppointmentV1(
         id = 1, appointmentNumber = "APT-001", appointmentType = "New Patient",
@@ -69,6 +97,10 @@ class CreateFrameReservationViewModelTest {
         Dispatchers.setMain(dispatcher)
         reservationRepo = mockk()
         appointmentRepo = mockk()
+        appointmentRequestRepo = mockk()
+        coEvery { appointmentRequestRepo.getRequests(1, 15) } returns Result.success(
+            PaginatedResult(emptyList(), 1, 1, 0)
+        )
     }
 
     @AfterEach
@@ -79,7 +111,7 @@ class CreateFrameReservationViewModelTest {
             PaginatedResult(listOf(scheduledFuture, checkedIn, fulfilled), 1, 1, 3)
         )
         coEvery { reservationRepo.getReservations() } returns Result.success(existingReservations)
-        return CreateFrameReservationViewModel(reservationRepo, appointmentRepo, 1, 42)
+        return CreateFrameReservationViewModel(reservationRepo, appointmentRepo, appointmentRequestRepo, 1, 42)
     }
 
     @Test
@@ -145,7 +177,7 @@ class CreateFrameReservationViewModelTest {
             }
         }
         coEvery { reservationRepo.getReservations() } returns Result.success(emptyList())
-        val vm = CreateFrameReservationViewModel(reservationRepo, appointmentRepo, 1, 42)
+        val vm = CreateFrameReservationViewModel(reservationRepo, appointmentRepo, appointmentRequestRepo, 1, 42)
         dispatcher.scheduler.advanceUntilIdle()
 
         vm.selectAppointment(1)
@@ -176,11 +208,97 @@ class CreateFrameReservationViewModelTest {
     }
 
     @Test
-    fun `no eligible appointments shows empty state`() = runTest {
+    fun `no eligible appointments and no requests shows generic empty state`() = runTest {
         coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(
             PaginatedResult(listOf(checkedIn, fulfilled), 1, 1, 2)
         )
-        val vm = CreateFrameReservationViewModel(reservationRepo, appointmentRepo, 1, 42)
+        val vm = CreateFrameReservationViewModel(reservationRepo, appointmentRepo, appointmentRequestRepo, 1, 42)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.uiState.value is CreateReservationUiState.NoEligibleAppointments)
+    }
+
+    @Test
+    fun `no eligible appointments with a pending request shows RequestPending`() = runTest {
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(
+            PaginatedResult(listOf(checkedIn, fulfilled), 1, 1, 2)
+        )
+        coEvery { appointmentRequestRepo.getRequests(1, 15) } returns Result.success(
+            PaginatedResult(listOf(fakeRequest(7, AppointmentRequestStatus.PENDING)), 1, 1, 1)
+        )
+        val vm = CreateFrameReservationViewModel(reservationRepo, appointmentRepo, appointmentRequestRepo, 1, 42)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as CreateReservationUiState.RequestPending
+        assertEquals(7, state.primaryRequestId)
+        assertEquals(1, state.pendingCount)
+    }
+
+    @Test
+    fun `two pending requests report pendingCount 2 so booking another is hidden`() = runTest {
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(
+            PaginatedResult(emptyList(), 1, 1, 0)
+        )
+        coEvery { appointmentRequestRepo.getRequests(1, 15) } returns Result.success(
+            PaginatedResult(
+                listOf(
+                    fakeRequest(1, AppointmentRequestStatus.PENDING, scheduledAt = "2030-08-05T10:00:00+08:00"),
+                    fakeRequest(2, AppointmentRequestStatus.PENDING, scheduledAt = "2030-08-01T10:00:00+08:00"),
+                ),
+                1, 1, 2,
+            )
+        )
+        val vm = CreateFrameReservationViewModel(reservationRepo, appointmentRepo, appointmentRequestRepo, 1, 42)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as CreateReservationUiState.RequestPending
+        assertEquals(2, state.pendingCount)
+        // The soonest-scheduled pending request is the one linked, not just the first in list order.
+        assertEquals(2, state.primaryRequestId)
+    }
+
+    @Test
+    fun `no eligible appointments with only a rejected request shows PriorRequestStatus`() = runTest {
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(
+            PaginatedResult(emptyList(), 1, 1, 0)
+        )
+        coEvery { appointmentRequestRepo.getRequests(1, 15) } returns Result.success(
+            PaginatedResult(listOf(fakeRequest(3, AppointmentRequestStatus.REJECTED)), 1, 1, 1)
+        )
+        val vm = CreateFrameReservationViewModel(reservationRepo, appointmentRepo, appointmentRequestRepo, 1, 42)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as CreateReservationUiState.PriorRequestStatus
+        assertEquals(AppointmentRequestStatus.REJECTED, state.status)
+    }
+
+    @Test
+    fun `a pending request takes priority over an older rejected request`() = runTest {
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(
+            PaginatedResult(emptyList(), 1, 1, 0)
+        )
+        coEvery { appointmentRequestRepo.getRequests(1, 15) } returns Result.success(
+            PaginatedResult(
+                listOf(
+                    fakeRequest(4, AppointmentRequestStatus.REJECTED),
+                    fakeRequest(5, AppointmentRequestStatus.PENDING),
+                ),
+                1, 1, 2,
+            )
+        )
+        val vm = CreateFrameReservationViewModel(reservationRepo, appointmentRepo, appointmentRequestRepo, 1, 42)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.uiState.value is CreateReservationUiState.RequestPending)
+    }
+
+    @Test
+    fun `request lookup failure falls back to the generic empty state`() = runTest {
+        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(
+            PaginatedResult(emptyList(), 1, 1, 0)
+        )
+        coEvery { appointmentRequestRepo.getRequests(1, 15) } returns Result.failure(RuntimeException("offline"))
+        val vm = CreateFrameReservationViewModel(reservationRepo, appointmentRepo, appointmentRequestRepo, 1, 42)
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(vm.uiState.value is CreateReservationUiState.NoEligibleAppointments)

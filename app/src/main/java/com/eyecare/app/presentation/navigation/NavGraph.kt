@@ -364,6 +364,7 @@ fun EyecareNavGraph(
                                 }
                             },
                             onBookAppointment = { navigatePatientFeature(RequestAppointment(isFrameReservationOrigin = true)) },
+                            onViewRequest = { requestId -> navigatePatientFeature(AppointmentRequestDetail(requestId)) },
                         )
                     }
                     composable<RequestAppointment> { backStackEntry ->
@@ -469,6 +470,7 @@ fun EyecareNavGraph(
                             onViewConfirmedAppointment = { id ->
                                 navigatePatientFeature(AppointmentDetail(id))
                             },
+                            onNavigateToMessages = { navigatePatientFeature(Chat) },
                         )
                     }
                     composable<Profile> {

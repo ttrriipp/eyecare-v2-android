@@ -2,10 +2,12 @@
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.FrameReservationError
 import com.eyecare.app.domain.model.MAX_RESERVATION_ITEMS
+import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.FrameReservationRepository
 import dagger.assisted.Assisted
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.OffsetDateTime
 
 sealed interface CreateReservationUiState {
     data object LoadingAppointments : CreateReservationUiState
@@ -31,6 +34,19 @@ sealed interface CreateReservationUiState {
         val genericError: String? = null,
     ) : CreateReservationUiState
     data object NoEligibleAppointments : CreateReservationUiState
+    /**
+     * No scheduled visit yet, but the patient has at least one PENDING appointment request —
+     * reservations aren't available until the clinic confirms it into a scheduled visit, so
+     * this replaces the generic "book an appointment" prompt with a pointer to the existing
+     * request instead of inviting a duplicate one.
+     */
+    data class RequestPending(val primaryRequestId: Int, val pendingCount: Int) : CreateReservationUiState
+    /**
+     * No scheduled visit and no pending request, but the patient's most recent request ended
+     * without one (rejected/cancelled/expired) — show that outcome rather than silently
+     * falling back to the generic "no appointment on file" copy.
+     */
+    data class PriorRequestStatus(val status: AppointmentRequestStatus) : CreateReservationUiState
     data class Success(val reservation: FrameReservation) : CreateReservationUiState
 }
 
@@ -67,6 +83,7 @@ internal fun mergeOutcome(existingReservation: FrameReservation?, variantId: Int
 class CreateFrameReservationViewModel @AssistedInject constructor(
     private val reservationRepository: FrameReservationRepository,
     private val appointmentRepository: AppointmentV1Repository,
+    private val appointmentRequestRepository: AppointmentRequestRepository,
     @Assisted("frameId") val frameId: Int,
     @Assisted("variantId") val variantId: Int,
 ) : ViewModel() {
@@ -224,7 +241,7 @@ class CreateFrameReservationViewModel @AssistedInject constructor(
                     .sortedBy { it.scheduledAt }
 
                 if (eligible.isEmpty()) {
-                    _uiState.value = CreateReservationUiState.NoEligibleAppointments
+                    _uiState.value = resolveNoEligibleState()
                 } else {
                     // Best-effort: if this fails, the picker just falls back to the old
                     // behavior of discovering a conflict only when the create call rejects it.
@@ -244,4 +261,43 @@ class CreateFrameReservationViewModel @AssistedInject constructor(
             }
         }
     }
+
+    /**
+     * A patient with no eligible scheduled visit may still have an appointment request in
+     * flight (or one that recently ended without a visit) - reflect that instead of the
+     * generic "book an appointment" prompt, which would otherwise invite a duplicate request.
+     * Best-effort: any failure to load requests falls back to the generic empty state, the
+     * same degradation the appointment-load path already uses for reservation lookups.
+     */
+    private suspend fun resolveNoEligibleState(): CreateReservationUiState {
+        val requests = appointmentRequestRepository.getRequests(page = 1)
+            .getOrNull()?.data.orEmpty()
+
+        val pending = requests.filter { it.status == AppointmentRequestStatus.PENDING }
+        if (pending.isNotEmpty()) {
+            val primary = pending.minByOrNull { parseRequestInstant(it.scheduledAt) } ?: pending.first()
+            return CreateReservationUiState.RequestPending(
+                primaryRequestId = primary.id,
+                pendingCount = pending.size,
+            )
+        }
+
+        val unresolvedStatuses = setOf(
+            AppointmentRequestStatus.REJECTED,
+            AppointmentRequestStatus.CANCELLED,
+            AppointmentRequestStatus.EXPIRED,
+            AppointmentRequestStatus.UNKNOWN,
+        )
+        val mostRecentUnresolved = requests
+            .filter { it.status in unresolvedStatuses }
+            .maxByOrNull { parseRequestInstant(it.createdAt) }
+        if (mostRecentUnresolved != null) {
+            return CreateReservationUiState.PriorRequestStatus(mostRecentUnresolved.status)
+        }
+
+        return CreateReservationUiState.NoEligibleAppointments
+    }
 }
+
+private fun parseRequestInstant(value: String): Instant =
+    runCatching { OffsetDateTime.parse(value).toInstant() }.getOrElse { Instant.EPOCH }

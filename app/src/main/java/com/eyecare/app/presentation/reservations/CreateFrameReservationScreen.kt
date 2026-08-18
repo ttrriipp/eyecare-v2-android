@@ -19,9 +19,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -31,6 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -48,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.MAX_RESERVATION_ITEMS
+import com.eyecare.app.presentation.appointments.requests.requestStatusPresentation
 import com.eyecare.app.ui.theme.EyecareColors
 import com.eyecare.app.presentation.common.components.ErrorContent
 import java.time.OffsetDateTime
@@ -61,6 +66,7 @@ fun CreateFrameReservationScreen(
     onBack: () -> Unit,
     onSuccess: (reservationId: Int) -> Unit,
     onBookAppointment: () -> Unit = {},
+    onViewRequest: (requestId: Int) -> Unit = {},
 ) {
     val viewModel = hiltViewModel<CreateFrameReservationViewModel, CreateFrameReservationViewModel.Factory> {
         it.create(frameId, variantId)
@@ -105,78 +111,39 @@ fun CreateFrameReservationScreen(
                     )
                 }
                 is CreateReservationUiState.NoEligibleAppointments -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                    CircleShape,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CalendarMonth,
-                                contentDescription = null,
-                                tint = EyecareColors.current.accentText,
-                                modifier = Modifier.size(32.dp),
-                            )
-                        }
-
-                        Spacer(Modifier.height(20.dp))
-
-                        Text(
-                            text = "Scheduled visit required",
-                            style = MaterialTheme.typography.headlineSmall,
-                            textAlign = TextAlign.Center,
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Text(
-                            text = "You need a scheduled appointment to reserve a frame. " +
-                                "The clinic will prepare your frame for your visit.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 24.dp),
-                        )
-
-                        Spacer(Modifier.height(28.dp))
-
-                        Button(
-                            onClick = onBookAppointment,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            shape = RoundedCornerShape(50),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
-                        ) {
-                            Text(
-                                text = "Book an appointment",
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        }
-
-                        Spacer(Modifier.height(4.dp))
-
-                        TextButton(
-                            onClick = onBack,
-                            modifier = Modifier.height(48.dp),
-                        ) {
-                            Text(
-                                text = "Go back",
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        }
-                    }
+                    ReservationGateContent(
+                        icon = Icons.Outlined.CalendarMonth,
+                        title = "Scheduled visit required",
+                        body = "You need a scheduled appointment to reserve a frame. " +
+                            "The clinic will prepare your frame for your visit.",
+                        primaryActionLabel = "Book an appointment",
+                        onPrimaryAction = onBookAppointment,
+                        onBack = onBack,
+                    )
+                }
+                is CreateReservationUiState.RequestPending -> {
+                    ReservationGateContent(
+                        icon = Icons.Outlined.AccessTime,
+                        title = "Appointment request pending",
+                        body = "Your appointment request is pending. Frame reservations become " +
+                            "available after the clinic confirms a scheduled visit.",
+                        primaryActionLabel = "View appointment request",
+                        onPrimaryAction = { onViewRequest(state.primaryRequestId) },
+                        secondaryActionLabel = if (state.pendingCount < 2) "Book another appointment" else null,
+                        onSecondaryAction = onBookAppointment,
+                        onBack = onBack,
+                    )
+                }
+                is CreateReservationUiState.PriorRequestStatus -> {
+                    val presentation = requestStatusPresentation(state.status)
+                    ReservationGateContent(
+                        icon = Icons.Outlined.EventBusy,
+                        title = presentation.label,
+                        body = presentation.description,
+                        primaryActionLabel = "Submit a new request",
+                        onPrimaryAction = onBookAppointment,
+                        onBack = onBack,
+                    )
                 }
                 is CreateReservationUiState.Ready -> {
                     AppointmentSelectionContent(
@@ -189,6 +156,113 @@ fun CreateFrameReservationScreen(
                 }
                 is CreateReservationUiState.Success -> { /* handled above */ }
             }
+        }
+    }
+}
+
+/**
+ * Shared icon/title/body/actions layout for the states that block reservation until the
+ * patient has (or gets) a scheduled visit - no eligible appointment, a pending request, or a
+ * request that ended without one. Keeps the three variants visually identical apart from copy
+ * and which actions apply.
+ */
+@Composable
+private fun ReservationGateContent(
+    icon: ImageVector,
+    title: String,
+    body: String,
+    primaryActionLabel: String,
+    onPrimaryAction: () -> Unit,
+    onBack: () -> Unit,
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: () -> Unit = {},
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .background(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = EyecareColors.current.accentText,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            textAlign = TextAlign.Center,
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = body,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
+
+        Spacer(Modifier.height(28.dp))
+
+        Button(
+            onClick = onPrimaryAction,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        ) {
+            Text(
+                text = primaryActionLabel,
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+
+        if (secondaryActionLabel != null) {
+            Spacer(Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = onSecondaryAction,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(50),
+            ) {
+                Text(
+                    text = secondaryActionLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        TextButton(
+            onClick = onBack,
+            modifier = Modifier.height(48.dp),
+        ) {
+            Text(
+                text = "Go back",
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }
