@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -99,6 +100,22 @@ class AppointmentRequestListViewModelTest {
         val state = vm.state.value as RequestListState.Data
         assertEquals(1, state.requests.size)
         assertEquals(2, state.requests[0].id)
+    }
+
+    @Test
+    fun `failed refresh keeps existing requests visible instead of discarding them`() {
+        coEvery { repo.getRequests(1, 15) } returns Result.success(
+            PaginatedResult(listOf(fakeRequest(1)), 1, 1, 1)
+        )
+        vm = AppointmentRequestListViewModel(repo)
+
+        coEvery { repo.getRequests(1, 15) } returns Result.failure(Exception("offline"))
+        vm.refresh()
+
+        val state = vm.state.value as RequestListState.Data
+        assertEquals(1, state.requests.size)
+        assertEquals(1, state.requests[0].id)
+        assertFalse(state.isRefreshing)
     }
 
     @Test

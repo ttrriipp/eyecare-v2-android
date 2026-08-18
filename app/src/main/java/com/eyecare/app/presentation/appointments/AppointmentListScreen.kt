@@ -56,12 +56,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -121,7 +121,10 @@ fun AppointmentListScreen(
 
     Box(Modifier.fillMaxSize()) {
         PullToRefreshBox(
-            isRefreshing = uiState is AppointmentListUiState.Loading || requestState is RequestListState.Loading,
+            isRefreshing = uiState is AppointmentListUiState.Loading ||
+                (uiState as? AppointmentListUiState.Success)?.isRefreshing == true ||
+                requestState is RequestListState.Loading ||
+                (requestState as? RequestListState.Data)?.isRefreshing == true,
             onRefresh = {
                 viewModel.refresh(hasActivePatientLink)
                 requestViewModel.refresh()
@@ -160,6 +163,10 @@ fun AppointmentListScreen(
                 is AppointmentListUiState.Success -> AppointmentListContent(
                     appointments = state.appointments,
                     requestState = requestState,
+                    hasMoreAppointments = state.hasMorePages,
+                    isLoadingMoreAppointments = state.isLoadingMore,
+                    appointmentsLoadMoreError = state.loadMoreError,
+                    onLoadMoreAppointments = viewModel::loadMore,
                     onNavigateToDetail = onNavigateToDetail,
                     onNavigateToRequestDetail = onNavigateToRequestDetail,
                     onLoadMoreRequests = requestViewModel::loadMore,
@@ -393,8 +400,7 @@ private fun EmptyDayCard(selectedDate: LocalDate) {
         ) {
             Text(
                 "No appointments",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
@@ -419,8 +425,7 @@ private fun EmptyAppointmentTab(tab: AppointmentListTab) {
         ) {
             Text(
                 if (tab == AppointmentListTab.UPCOMING) "No upcoming appointments" else "No appointment history",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.headlineSmall,
             )
             Text(
                 if (tab == AppointmentListTab.UPCOMING) "Book an appointment when you're ready."
@@ -524,59 +529,6 @@ private fun AppointmentInfoRow(
     }
 }
 
-@Composable
-private fun AppointmentStatusPill(status: AppointmentStatus) {
-    val (label, color) = appointmentStatusLabelAndColor(status)
-
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = color.copy(alpha = 0.12f),
-    ) {
-        Text(
-            text = label.uppercase(Locale.US),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = color,
-        )
-    }
-}
-
-@Composable
-fun StatusChip(status: AppointmentStatus, textColor: Color = Color.Unspecified) {
-    val (label, color) = appointmentStatusLabelAndColor(status)
-    SuggestionChip(
-        onClick = {},
-        modifier = Modifier.width(110.dp),
-        label = {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = textColor,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-            )
-        },
-        colors = SuggestionChipDefaults.suggestionChipColors(
-            containerColor = color.copy(alpha = 0.15f),
-        ),
-        border = SuggestionChipDefaults.suggestionChipBorder(enabled = true, borderColor = color),
-    )
-}
-
-@Composable
-private fun appointmentStatusLabelAndColor(status: AppointmentStatus): Pair<String, Color> {
-    val colors = EyecareColors.current
-    return when (status) {
-        AppointmentStatus.SCHEDULED -> "Scheduled" to colors.statusPending
-        AppointmentStatus.CHECKED_IN -> "Checked in" to colors.statusInfo
-        AppointmentStatus.FULFILLED -> "Completed" to MaterialTheme.colorScheme.onSurfaceVariant
-        AppointmentStatus.NO_SHOW -> "No show" to colors.statusCancelled
-        AppointmentStatus.CANCELLED -> "Cancelled" to colors.statusCancelled
-        AppointmentStatus.UNKNOWN -> "Unknown" to MaterialTheme.colorScheme.onSurfaceVariant
-    }
-}
-
 internal fun formatAppointmentTitle(visitReason: String): String = visitReason
     .replace("_", " ")
     .trim()
@@ -607,9 +559,6 @@ internal fun appointmentWeekDays(selectedDate: LocalDate): List<LocalDate> {
     return List(6) { index -> weekStart.plusDays(index.toLong()) }
 }
 
-private fun appointmentCountsByDate(appointments: List<AppointmentV1>): Map<LocalDate, Int> =
-    appointments.mapNotNull { parseAppointmentDate(it.scheduledAt) }.groupingBy { it }.eachCount()
-
 internal fun appointmentsForTab(
     appointments: List<AppointmentV1>,
     tab: AppointmentListTab,
@@ -637,15 +586,22 @@ private fun AppointmentListContent(
     requestState: RequestListState,
     hasConfirmedError: Boolean = false,
     onRetryConfirmed: () -> Unit = {},
+    hasMoreAppointments: Boolean = false,
+    isLoadingMoreAppointments: Boolean = false,
+    appointmentsLoadMoreError: String? = null,
+    onLoadMoreAppointments: () -> Unit = {},
     onNavigateToDetail: (Int) -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit,
     onLoadMoreRequests: () -> Unit,
     onRefreshRequests: () -> Unit,
     onRateClick: (Int) -> Unit = {},
 ) {
-    var selectedTab by remember { mutableStateOf(AppointmentListTab.UPCOMING) }
-    var dateFilterEnabled by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    // rememberSaveable (not remember) so this survives the composable being torn down and
+    // recreated - e.g. across a process-death config change, or if a caller ever routes
+    // through a transient Loading state again in the future.
+    var selectedTab by rememberSaveable { mutableStateOf(AppointmentListTab.UPCOMING) }
+    var dateFilterEnabled by rememberSaveable { mutableStateOf(false) }
+    var selectedDate by rememberSaveable { mutableStateOf(LocalDate.now()) }
     val weekDays = remember(selectedDate) { appointmentWeekDays(selectedDate) }
     val requests = (requestState as? RequestListState.Data)?.requests.orEmpty()
     val confirmedAppointmentIds = remember(appointments) { appointments.map { it.id }.toSet() }
@@ -756,14 +712,12 @@ private fun AppointmentListContent(
             }
         }
         if (visibleAppointments.isNotEmpty()) {
-            if (visibleRequests.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Confirmed appointments",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+            item {
+                Text(
+                    text = "Confirmed appointments",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
             items(visibleAppointments, key = { "appointment-${it.id}" }) { appointment ->
                 AppointmentCard(
@@ -800,6 +754,25 @@ private fun AppointmentListContent(
                     ) {
                         if (requestData.isLoadingMore) CircularProgressIndicator(modifier = Modifier.size(18.dp))
                         else Text("Load more requests")
+                    }
+                }
+            }
+        }
+        if (hasMoreAppointments) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    appointmentsLoadMoreError?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                    OutlinedButton(
+                        onClick = onLoadMoreAppointments,
+                        enabled = !isLoadingMoreAppointments,
+                    ) {
+                        if (isLoadingMoreAppointments) CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                        else Text("Load more appointments")
                     }
                 }
             }

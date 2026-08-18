@@ -267,7 +267,7 @@ private fun AppointmentDetailContent(
                                 fontWeight = FontWeight.Bold,
                             )
                         }
-                        AppointmentDetailStatusBadge(appointment.status)
+                        AppointmentStatusPill(appointment.status)
                     }
 
                     Surface(
@@ -913,38 +913,6 @@ private fun AppointmentNoteItem(label: String, note: String) {
             note,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}
-
-@Composable
-private fun AppointmentDetailStatusBadge(status: AppointmentStatus) {
-    val colors = EyecareColors.current
-    val (label, color) = when (status) {
-        AppointmentStatus.SCHEDULED -> "Scheduled" to colors.statusPending
-        AppointmentStatus.CHECKED_IN -> "Checked in" to colors.statusInfo
-        AppointmentStatus.FULFILLED -> "Completed" to MaterialTheme.colorScheme.onSurfaceVariant
-        AppointmentStatus.CANCELLED -> "Cancelled" to colors.statusCancelled
-        AppointmentStatus.NO_SHOW -> "No show" to colors.statusCancelled
-        AppointmentStatus.UNKNOWN -> "Unknown" to MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val textColor = when (status) {
-        AppointmentStatus.CHECKED_IN -> colors.accentText
-        AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW -> MaterialTheme.colorScheme.error
-        AppointmentStatus.FULFILLED, AppointmentStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
-        AppointmentStatus.SCHEDULED -> MaterialTheme.colorScheme.onSurface
-    }
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = color.copy(alpha = 0.12f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.5f)),
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = textColor,
         )
     }
 }

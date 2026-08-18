@@ -74,7 +74,7 @@ class AppointmentListViewModelTest {
     }
 
     @Test
-    fun `refresh reloads appointments`() = runTest {
+    fun `refresh reloads appointments without resetting to Loading first`() = runTest {
         coEvery { repo.getAppointments(1) } returns Result.success(
             PaginatedResult(fakeList, 1, 1, 2),
         )
@@ -86,11 +86,33 @@ class AppointmentListViewModelTest {
             awaitItem() // Success (init result)
 
             vm.refresh()
-            assertInstanceOf(AppointmentListUiState.Loading::class.java, awaitItem())
+            // Stays a Success instance with isRefreshing=true - items remain visible
+            // underneath a pull-to-refresh indicator instead of a bare Loading spinner.
+            val refreshing = awaitItem() as AppointmentListUiState.Success
+            assertTrue(refreshing.isRefreshing)
             dispatcher.scheduler.advanceUntilIdle()
-            assertInstanceOf(AppointmentListUiState.Success::class.java, awaitItem())
+            val refreshed = awaitItem() as AppointmentListUiState.Success
+            assertFalse(refreshed.isRefreshing)
+            assertEquals(2, refreshed.appointments.size)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `failed refresh keeps existing appointments visible instead of discarding them`() = runTest {
+        coEvery { repo.getAppointments(1) } returns Result.success(
+            PaginatedResult(fakeList, 1, 1, 2),
+        )
+        val vm = AppointmentListViewModel(repo).also { it.load() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coEvery { repo.getAppointments(1) } returns Result.failure(RuntimeException("offline"))
+        vm.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as AppointmentListUiState.Success
+        assertEquals(2, state.appointments.size)
+        assertFalse(state.isRefreshing)
     }
 
     @Test

@@ -23,6 +23,7 @@ sealed interface AppointmentListUiState {
         val ratingAppointmentId: Int? = null,
         val isSubmittingRating: Boolean = false,
         val ratingError: String? = null,
+        val isRefreshing: Boolean = false,
     ) : AppointmentListUiState
     data object Empty : AppointmentListUiState
     data class Error(val message: String) : AppointmentListUiState
@@ -41,8 +42,42 @@ class AppointmentListViewModel @Inject constructor(
     private var hasActivePatientLink = true
 
     fun refresh(hasActivePatientLink: Boolean = this.hasActivePatientLink) {
-        currentPage = 1
-        load(hasActivePatientLink)
+        // A refresh while appointments are already showing (pull-to-refresh, or returning to
+        // the screen) shouldn't wipe the list back to a bare spinner — only a genuine first
+        // load or a linked-status change resets to Loading.
+        val current = _uiState.value
+        if (current is AppointmentListUiState.Success && hasActivePatientLink == this.hasActivePatientLink) {
+            currentPage = 1
+            refreshInternal(current)
+        } else {
+            currentPage = 1
+            load(hasActivePatientLink)
+        }
+    }
+
+    private fun refreshInternal(current: AppointmentListUiState.Success) {
+        _uiState.value = current.copy(isRefreshing = true)
+        viewModelScope.launch {
+            repository.getAppointments(page = 1).fold(
+                onSuccess = { result ->
+                    currentPage = result.currentPage
+                    lastPage = result.lastPage
+                    _uiState.value = if (result.data.isEmpty()) {
+                        AppointmentListUiState.Empty
+                    } else {
+                        AppointmentListUiState.Success(
+                            appointments = result.data.sortedByScheduledDesc(),
+                            hasMorePages = result.hasMorePages,
+                        )
+                    }
+                },
+                onFailure = {
+                    // Keep the existing appointments visible; a failed background refresh
+                    // shouldn't discard data the patient can already see.
+                    _uiState.value = current.copy(isRefreshing = false)
+                },
+            )
+        }
     }
 
     fun loadMore() {
@@ -127,10 +162,7 @@ class AppointmentListViewModel @Inject constructor(
                         _uiState.value = AppointmentListUiState.Empty
                     } else {
                         _uiState.value = AppointmentListUiState.Success(
-                            appointments = result.data.sortedByDescending {
-                                runCatching { java.time.Instant.parse(it.scheduledAt) }
-                                    .getOrElse { java.time.Instant.EPOCH }
-                            },
+                            appointments = result.data.sortedByScheduledDesc(),
                             hasMorePages = result.hasMorePages,
                         )
                     }
@@ -150,10 +182,7 @@ class AppointmentListViewModel @Inject constructor(
                     lastPage = result.lastPage
                     val all = current.appointments + result.data
                     _uiState.value = current.copy(
-                        appointments = all.sortedByDescending {
-                            runCatching { java.time.Instant.parse(it.scheduledAt) }
-                                .getOrElse { java.time.Instant.EPOCH }
-                        },
+                        appointments = all.sortedByScheduledDesc(),
                         isLoadingMore = false,
                         hasMorePages = result.hasMorePages,
                     )
@@ -167,4 +196,8 @@ class AppointmentListViewModel @Inject constructor(
             )
         }
     }
+}
+
+private fun List<AppointmentV1>.sortedByScheduledDesc(): List<AppointmentV1> = sortedByDescending {
+    runCatching { java.time.Instant.parse(it.scheduledAt) }.getOrElse { java.time.Instant.EPOCH }
 }

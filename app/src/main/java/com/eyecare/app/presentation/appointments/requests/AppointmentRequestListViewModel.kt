@@ -21,6 +21,7 @@ sealed interface RequestListState {
         val currentPage: Int = 1,
         val error: String? = null,
         val appendError: String? = null,
+        val isRefreshing: Boolean = false,
     ) : RequestListState
     data class Error(val message: String) : RequestListState
 }
@@ -102,11 +103,36 @@ class AppointmentRequestListViewModel @Inject constructor(
     }
 
     fun refresh() {
-        seenIds.clear()
-        loadInitial()
+        // A refresh while requests are already showing (pull-to-refresh, or resuming the
+        // screen) shouldn't wipe the list back to a bare loading row — only a genuine first
+        // load resets to Loading.
+        val current = _state.value
+        if (current is RequestListState.Data) {
+            refreshInternal(current)
+        } else {
+            seenIds.clear()
+            loadInitial()
+        }
     }
 
-    fun retryAppend() {
-        loadMore()
+    private fun refreshInternal(current: RequestListState.Data) {
+        _state.value = current.copy(isRefreshing = true)
+        viewModelScope.launch {
+            repository.getRequests(page = 1)
+                .onSuccess { paginated ->
+                    seenIds.clear()
+                    seenIds.addAll(paginated.data.map { it.id })
+                    _state.value = RequestListState.Data(
+                        requests = paginated.data,
+                        hasMore = paginated.hasMorePages,
+                        currentPage = 1,
+                    )
+                }
+                .onFailure {
+                    // Keep the existing requests visible; a failed background refresh
+                    // shouldn't discard data the patient can already see.
+                    _state.value = current.copy(isRefreshing = false)
+                }
+        }
     }
 }
