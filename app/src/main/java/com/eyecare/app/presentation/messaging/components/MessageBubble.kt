@@ -1,18 +1,24 @@
 package com.eyecare.app.presentation.messaging.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -21,8 +27,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
@@ -47,6 +55,9 @@ fun MessageBubble(
     message: Message,
     isOwn: Boolean,
     conversationAccessLevel: ConversationAccessLevel = ConversationAccessLevel.UNKNOWN,
+    onImageClick: (MessageAttachment) -> Unit = {},
+    onFileClick: (MessageAttachment) -> Unit = {},
+    onDownloadImageClick: (MessageAttachment) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
@@ -76,12 +87,19 @@ fun MessageBubble(
                 // Attachments - only render image previews for linked_patient conversations
                 message.attachments.forEach { attachment ->
                     Spacer(Modifier.height(4.dp))
-                    AttachmentContent(attachment, isOwn, conversationAccessLevel)
+                    AttachmentContent(
+                        attachment,
+                        isOwn,
+                        conversationAccessLevel,
+                        onImageClick,
+                        onFileClick,
+                        onDownloadImageClick,
+                    )
                 }
 
                 Text(
                     message.createdAt.take(16).replace("T", " "),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = if (isOwn) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.End),
                 )
@@ -91,39 +109,98 @@ fun MessageBubble(
 }
 
 @Composable
-private fun AttachmentContent(attachment: MessageAttachment, isOwn: Boolean, accessLevel: ConversationAccessLevel) {
+private fun AttachmentContent(
+    attachment: MessageAttachment,
+    isOwn: Boolean,
+    accessLevel: ConversationAccessLevel,
+    onImageClick: (MessageAttachment) -> Unit,
+    onFileClick: (MessageAttachment) -> Unit,
+    onDownloadImageClick: (MessageAttachment) -> Unit,
+) {
     // Only attempt image rendering for linked_patient conversations. The attachment ID is
     // sufficient to build the protected route; some upload responses omit download_url.
     val canLoadImage = shouldRenderImagePreview(attachment, accessLevel)
+    val contentColor = if (isOwn) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
 
     if (canLoadImage) {
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(buildAttachmentPreviewUrl(attachment.id, BuildConfig.API_BASE_URL))
-                .build(),
-            contentDescription = attachment.originalName,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop,
-            imageLoader = SingletonImageLoader.get(LocalContext.current),
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Fit, not Crop, and no fixed height - the whole image is visible at its own
+            // aspect ratio right in the bubble, not a cropped square peek that only reveals
+            // its full extent once the patient taps into the full-screen viewer.
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(buildAttachmentPreviewUrl(attachment.id, BuildConfig.API_BASE_URL))
+                    .build(),
+                contentDescription = attachment.originalName,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onImageClick(attachment) },
+                contentScale = ContentScale.Fit,
+                imageLoader = SingletonImageLoader.get(LocalContext.current),
+            )
+            // Outer Surface owns the 48dp touch target (DESIGN.md's floor); the visible black
+            // circle inside stays small so it doesn't dominate the photo underneath it.
+            Surface(
+                onClick = { onDownloadImageClick(attachment) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(2.dp)
+                    .size(48.dp),
+                shape = CircleShape,
+                color = Color.Transparent,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Surface(
+                        modifier = Modifier.size(28.dp),
+                        shape = CircleShape,
+                        color = Color.Black.copy(alpha = 0.45f),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = "Download image",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
     } else {
-        // Show safe metadata without requesting the protected route
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Same access gate as the image preview - only offer to open the file when this
+        // conversation is actually allowed to see attachment content.
+        val canOpen = accessLevel == ConversationAccessLevel.LINKED_PATIENT
+        Row(
+            modifier = if (canOpen) Modifier.clickable { onFileClick(attachment) } else Modifier,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
                 Icons.Default.Description,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = if (isOwn) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                tint = contentColor,
             )
             Spacer(Modifier.width(4.dp))
             Text(
-                attachment.originalName,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isOwn) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                attachment.originalName.ifBlank { "Attachment" },
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
+            if (canOpen) {
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    Icons.Default.OpenInNew,
+                    contentDescription = "Open in another app",
+                    modifier = Modifier.size(16.dp),
+                    tint = contentColor,
+                )
+            }
         }
     }
 }

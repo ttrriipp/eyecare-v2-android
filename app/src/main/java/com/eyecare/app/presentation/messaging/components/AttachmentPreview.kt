@@ -66,7 +66,9 @@ fun AttachmentPreview(
                 )
             }
         }
-        IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
+        // No explicit size override - IconButton's own 48dp default meets DESIGN.md's touch
+        // target floor; a 32dp override here previously fell short of it.
+        IconButton(onClick = onRemove) {
             Icon(Icons.Default.Close, contentDescription = "Remove attachment")
         }
     }
