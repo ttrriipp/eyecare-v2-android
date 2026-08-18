@@ -1,9 +1,12 @@
 package com.eyecare.app.presentation.messaging.components
 
 import com.eyecare.app.domain.model.ConversationAccessLevel
+import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
+import com.eyecare.app.domain.model.SenderType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.OffsetDateTime
@@ -153,4 +156,32 @@ class MessageBubbleAttachmentTest {
             buildAttachmentPreviewUrl(7, "http://10.0.2.2/api/v1/"),
         )
     }
+
+    @Test
+    fun `own message without read timestamp has sent receipt`() {
+        assertEquals("Sent", readReceiptLabel(message(readAt = null), isOwn = true))
+    }
+
+    @Test
+    fun `own message with read timestamp has read receipt`() {
+        assertEquals(
+            "Read",
+            readReceiptLabel(message(readAt = "2026-08-18T09:10:00Z"), isOwn = true),
+        )
+    }
+
+    @Test
+    fun `incoming message has no outgoing read receipt`() {
+        assertNull(readReceiptLabel(message(readAt = "2026-08-18T09:10:00Z"), isOwn = false))
+    }
+
+    private fun message(readAt: String?) = Message(
+        id = 1,
+        senderId = 42,
+        senderType = SenderType.PATIENT,
+        body = "Hello",
+        readAt = readAt,
+        createdAt = "2026-08-18T09:00:00Z",
+        attachments = emptyList(),
+    )
 }

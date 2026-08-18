@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.Icon
@@ -67,6 +69,12 @@ private fun isImageAttachment(attachment: MessageAttachment): Boolean {
 
 internal fun shouldShowMessageBody(body: String, hasAttachments: Boolean): Boolean =
     body.isNotBlank() && (!hasAttachments || !body.trim().equals("attachment", ignoreCase = true))
+
+internal fun readReceiptLabel(message: Message, isOwn: Boolean): String? = when {
+    !isOwn -> null
+    message.readAt.isNullOrBlank() -> "Sent"
+    else -> "Read"
+}
 
 internal fun buildAttachmentPreviewUrl(attachmentId: Int, apiBaseUrl: String): String =
     "${apiBaseUrl.trimEnd('/')}/conversation/attachments/$attachmentId"
@@ -146,12 +154,26 @@ fun MessageBubble(
                     )
                 }
 
-                Text(
-                    formatMessageTimestamp(message.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isOwn) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                val readReceipt = readReceiptLabel(message, isOwn)
+                Row(
                     modifier = Modifier.align(Alignment.End),
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        formatMessageTimestamp(message.createdAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isOwn) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (readReceipt != null) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (readReceipt == "Read") Icons.Default.DoneAll else Icons.Default.Done,
+                            contentDescription = readReceipt,
+                            tint = if (isOwn) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
             }
         }
     }

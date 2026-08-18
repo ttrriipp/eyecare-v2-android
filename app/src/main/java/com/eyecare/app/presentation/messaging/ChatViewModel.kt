@@ -135,7 +135,8 @@ class ChatViewModel @Inject constructor(
                 val latest = _uiState.value as? ChatUiState.Success ?: return@fold
                 val polledMessages = page.messages
                 val newMessages = polledMessages.filter { it.id !in timelineState.byId }
-                if (newMessages.isNotEmpty()) {
+                val changedMessages = polledMessages.filter { timelineState.byId[it.id] != it }
+                if (changedMessages.isNotEmpty()) {
                     val hadNewStaff = hasStaffMessages(
                         messages = newMessages,
                         currentUserId = latest.currentUserId,
@@ -328,7 +329,19 @@ class ChatViewModel @Inject constructor(
     fun openSearch() {
         val current = _uiState.value as? ChatUiState.Success ?: return
         if (current.searchState != null) return
-        _uiState.value = current.copy(searchDraft = "", searchState = null)
+        _uiState.value = current.copy(
+            searchDraft = "",
+            searchState = SearchState(
+                query = "",
+                results = emptyList(),
+                nextCursor = null,
+                hasMore = false,
+                isLoading = false,
+                isLoadingMore = false,
+                error = null,
+                generation = searchGeneration,
+            ),
+        )
     }
 
     fun closeSearch() {

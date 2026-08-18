@@ -71,6 +71,13 @@ fun MessageSearchContent(
                     onAction = onSubmit,
                 )
             }
+            searchState.query.isBlank() && searchState.results.isEmpty() -> {
+                SearchErrorOrEmpty(
+                    message = "Enter at least 3 characters to search.",
+                    isRetry = false,
+                    onAction = null,
+                )
+            }
             searchState.results.isEmpty() -> {
                 SearchErrorOrEmpty(
                     message = "No results found.",

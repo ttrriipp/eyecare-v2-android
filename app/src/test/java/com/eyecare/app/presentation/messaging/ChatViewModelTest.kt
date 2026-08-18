@@ -817,6 +817,114 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `polling refreshes read receipt for an existing message`() = runTest {
+        val unreadOwnMessage = fakeMessage.copy(readAt = null)
+        val readOwnMessage = unreadOwnMessage.copy(readAt = "2026-10-24T10:05:00Z")
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returnsMany listOf(
+            Result.success(MessagePage(listOf(unreadOwnMessage), null, false)),
+            Result.success(MessagePage(listOf(readOwnMessage), null, false)),
+        )
+        val vm = vm()
+        vm.setScreenVisible(true)
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            assertNull((vm.uiState.value as ChatUiState.Success).messages.single().readAt)
+
+            dispatcher.scheduler.advanceTimeBy(5_001)
+            dispatcher.scheduler.runCurrent()
+
+            assertEquals(
+                "2026-10-24T10:05:00Z",
+                (vm.uiState.value as ChatUiState.Success).messages.single().readAt,
+            )
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `download attachment stores result and intent for the screen`() = runTest {
+        val download = AttachmentDownload("receipt.pdf", "application/pdf", byteArrayOf(1, 2, 3))
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.downloadAttachment(9) } returns Result.success(download)
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.downloadAttachment(9)
+            dispatcher.scheduler.runCurrent()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            assertEquals(download, state.downloadedAttachment)
+            assertEquals(AttachmentDownloadIntent.OPEN_EXTERNALLY, state.downloadIntent)
+            assertNull(state.downloadingAttachmentId)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `download failure exposes safe retryable error`() = runTest {
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.downloadAttachment(9) } returns Result.failure(RuntimeException("Unable to resolve host"))
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.downloadAttachment(9, AttachmentDownloadIntent.SAVE_TO_GALLERY)
+            dispatcher.scheduler.runCurrent()
+
+            val failed = vm.uiState.value as ChatUiState.Success
+            assertEquals(
+                "We couldn't open that attachment. Check your connection and try again.",
+                failed.downloadError,
+            )
+            assertEquals(
+                FailedDownload(9, AttachmentDownloadIntent.SAVE_TO_GALLERY),
+                failed.lastFailedDownload,
+            )
+
+            val download = AttachmentDownload("photo.jpg", "image/jpeg", byteArrayOf(1))
+            coEvery { repo.downloadAttachment(9) } returns Result.success(download)
+            vm.retryDownload()
+            dispatcher.scheduler.runCurrent()
+
+            val retried = vm.uiState.value as ChatUiState.Success
+            assertEquals(download, retried.downloadedAttachment)
+            assertEquals(AttachmentDownloadIntent.SAVE_TO_GALLERY, retried.downloadIntent)
+            assertNull(retried.downloadError)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `consume downloaded attachment clears one-shot result`() = runTest {
+        val download = AttachmentDownload("receipt.pdf", "application/pdf", byteArrayOf(1))
+        coEvery { repo.getConversation() } returns Result.success(fakeConversation)
+        coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
+        coEvery { repo.downloadAttachment(9) } returns Result.success(download)
+        val vm = vm()
+
+        try {
+            dispatcher.scheduler.runCurrent()
+            vm.downloadAttachment(9)
+            dispatcher.scheduler.runCurrent()
+            vm.consumeDownloadedAttachment()
+
+            val state = vm.uiState.value as ChatUiState.Success
+            assertNull(state.downloadedAttachment)
+            assertNull(state.downloadIntent)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
     fun `send failure 429 preserves draft and shows safe copy`() = runTest {
         coEvery { repo.getConversation() } returns Result.success(fakeConversation)
         coEvery { repo.getMessages() } returns Result.success(MessagePage(emptyList(), null, false))
@@ -1089,6 +1197,25 @@ class ChatViewModelTest {
         val vm = vm()
         dispatcher.scheduler.runCurrent()
         return vm
+    }
+
+    @Test
+    fun `open search exposes search mode before query submission`() = runTest {
+        val vm = setupVmWithSuccess()
+
+        try {
+            vm.openSearch()
+            dispatcher.scheduler.runCurrent()
+
+            val searchState = (vm.uiState.value as ChatUiState.Success).searchState
+            assertNotNull(searchState)
+            assertEquals("", searchState!!.query)
+            assertFalse(searchState.isLoading)
+            assertFalse(searchState.isLoadingMore)
+            assertNull(searchState.error)
+        } finally {
+            vm.viewModelScope.cancel()
+        }
     }
 
     @Test
