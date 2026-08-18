@@ -33,6 +33,15 @@ import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
 import com.eyecare.app.domain.model.SenderType
 
+internal fun shouldRenderImagePreview(
+    attachment: MessageAttachment,
+    accessLevel: ConversationAccessLevel,
+): Boolean = accessLevel == ConversationAccessLevel.LINKED_PATIENT &&
+    attachment.mimeType.trim().lowercase().startsWith("image/")
+
+internal fun buildAttachmentPreviewUrl(attachmentId: Int, apiBaseUrl: String): String =
+    "${apiBaseUrl.trimEnd('/')}/conversation/attachments/$attachmentId"
+
 @Composable
 fun MessageBubble(
     message: Message,
@@ -83,15 +92,14 @@ fun MessageBubble(
 
 @Composable
 private fun AttachmentContent(attachment: MessageAttachment, isOwn: Boolean, accessLevel: ConversationAccessLevel) {
-    // Only attempt image rendering for linked_patient conversations
-    val canLoadImage = accessLevel == ConversationAccessLevel.LINKED_PATIENT &&
-        attachment.mimeType.startsWith("image/") &&
-        attachment.downloadUrl != null
+    // Only attempt image rendering for linked_patient conversations. The attachment ID is
+    // sufficient to build the protected route; some upload responses omit download_url.
+    val canLoadImage = shouldRenderImagePreview(attachment, accessLevel)
 
     if (canLoadImage) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
-                .data("${BuildConfig.API_BASE_URL}/conversation/attachments/${attachment.id}")
+                .data(buildAttachmentPreviewUrl(attachment.id, BuildConfig.API_BASE_URL))
                 .build(),
             contentDescription = attachment.originalName,
             modifier = Modifier
