@@ -40,6 +40,10 @@ import com.eyecare.app.domain.model.ConversationAccessLevel
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
 import com.eyecare.app.domain.model.SenderType
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 internal fun shouldRenderImagePreview(
     attachment: MessageAttachment,
@@ -49,6 +53,35 @@ internal fun shouldRenderImagePreview(
 
 internal fun buildAttachmentPreviewUrl(attachmentId: Int, apiBaseUrl: String): String =
     "${apiBaseUrl.trimEnd('/')}/conversation/attachments/$attachmentId"
+
+private val messageTimeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
+private val messageDateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, h:mm a", Locale.US)
+private val messageDateTimeWithYearFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy, h:mm a", Locale.US)
+
+/**
+ * "2:32 PM" for today, "Yesterday, 2:32 PM", then a date once it's further back - shown in the
+ * device's own time zone (this is when the patient sent/received it, not a clinic-time value)
+ * rather than the raw ISO instant that used to render verbatim in the bubble.
+ */
+internal fun formatMessageTimestamp(
+    iso: String,
+    now: OffsetDateTime = OffsetDateTime.now(),
+    zone: ZoneId = ZoneId.systemDefault(),
+): String {
+    val parsed = runCatching { OffsetDateTime.parse(iso) }.getOrNull()
+        ?: return iso.take(16).replace("T", " ")
+
+    val local = parsed.atZoneSameInstant(zone)
+    val messageDate = local.toLocalDate()
+    val today = now.atZoneSameInstant(zone).toLocalDate()
+
+    return when {
+        messageDate == today -> local.format(messageTimeFormatter)
+        messageDate == today.minusDays(1) -> "Yesterday, ${local.format(messageTimeFormatter)}"
+        messageDate.year == today.year -> local.format(messageDateTimeFormatter)
+        else -> local.format(messageDateTimeWithYearFormatter)
+    }
+}
 
 @Composable
 fun MessageBubble(
@@ -98,7 +131,7 @@ fun MessageBubble(
                 }
 
                 Text(
-                    message.createdAt.take(16).replace("T", " "),
+                    formatMessageTimestamp(message.createdAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (isOwn) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.End),

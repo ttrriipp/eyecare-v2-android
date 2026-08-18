@@ -6,8 +6,53 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 class MessageBubbleAttachmentTest {
+
+    // Fixed at UTC so results don't depend on the machine running the test.
+    private val now = OffsetDateTime.parse("2026-08-18T15:00:00Z")
+
+    @Test
+    fun `timestamp from today shows time only`() {
+        assertEquals(
+            "9:05 AM",
+            formatMessageTimestamp("2026-08-18T09:05:00Z", now = now, zone = ZoneOffset.UTC),
+        )
+    }
+
+    @Test
+    fun `timestamp from yesterday is prefixed`() {
+        assertEquals(
+            "Yesterday, 9:05 AM",
+            formatMessageTimestamp("2026-08-17T09:05:00Z", now = now, zone = ZoneOffset.UTC),
+        )
+    }
+
+    @Test
+    fun `timestamp from earlier this year shows the date without a year`() {
+        assertEquals(
+            "Aug 1, 9:05 AM",
+            formatMessageTimestamp("2026-08-01T09:05:00Z", now = now, zone = ZoneOffset.UTC),
+        )
+    }
+
+    @Test
+    fun `timestamp from a prior year includes the year`() {
+        assertEquals(
+            "Aug 18, 2025, 9:05 AM",
+            formatMessageTimestamp("2025-08-18T09:05:00Z", now = now, zone = ZoneOffset.UTC),
+        )
+    }
+
+    @Test
+    fun `unparseable timestamp falls back to a truncated raw string`() {
+        assertEquals(
+            "not a real times",
+            formatMessageTimestamp("not a real timestamp", now = now, zone = ZoneOffset.UTC),
+        )
+    }
 
     @Test
     fun `image attachment remains previewable when response omits download url`() {
