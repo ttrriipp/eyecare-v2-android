@@ -114,7 +114,7 @@ class MessageBubbleAttachmentTest {
     }
 
     @Test
-    fun `image preview remains disabled outside linked patient conversations`() {
+    fun `general inquiry image preview is allowed for account-owned attachments`() {
         val attachment = MessageAttachment(
             id = 9,
             originalName = "eye-photo.png",
@@ -123,7 +123,27 @@ class MessageBubbleAttachmentTest {
             downloadUrl = "/api/v1/conversation/attachments/9",
         )
 
-        assertFalse(shouldRenderImagePreview(attachment, ConversationAccessLevel.GENERAL_INQUIRY))
+        assertTrue(shouldRenderImagePreview(attachment, ConversationAccessLevel.GENERAL_INQUIRY))
+    }
+
+    @Test
+    fun `unknown conversation access keeps attachment content disabled`() {
+        val attachment = MessageAttachment(
+            id = 12,
+            originalName = "eye-photo.png",
+            mimeType = "image/png",
+            fileSize = 1024,
+            downloadUrl = "/api/v1/conversation/attachments/12",
+        )
+
+        assertFalse(canAccessAttachments(ConversationAccessLevel.UNKNOWN))
+        assertFalse(shouldRenderImagePreview(attachment, ConversationAccessLevel.UNKNOWN))
+    }
+
+    @Test
+    fun `linked and general inquiry conversations can open account-owned attachments`() {
+        assertTrue(canAccessAttachments(ConversationAccessLevel.LINKED_PATIENT))
+        assertTrue(canAccessAttachments(ConversationAccessLevel.GENERAL_INQUIRY))
     }
 
     @Test

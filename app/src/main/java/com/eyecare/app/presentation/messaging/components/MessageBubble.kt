@@ -45,10 +45,15 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/** Attachment downloads are account-owned now; unknown access values still fail closed. */
+internal fun canAccessAttachments(accessLevel: ConversationAccessLevel): Boolean =
+    accessLevel == ConversationAccessLevel.LINKED_PATIENT ||
+        accessLevel == ConversationAccessLevel.GENERAL_INQUIRY
+
 internal fun shouldRenderImagePreview(
     attachment: MessageAttachment,
     accessLevel: ConversationAccessLevel,
-): Boolean = accessLevel == ConversationAccessLevel.LINKED_PATIENT && isImageAttachment(attachment)
+): Boolean = canAccessAttachments(accessLevel) && isImageAttachment(attachment)
 
 private fun isImageAttachment(attachment: MessageAttachment): Boolean {
     val mimeType = attachment.mimeType.trim().lowercase(Locale.ROOT)
@@ -161,8 +166,8 @@ private fun AttachmentContent(
     onFileClick: (MessageAttachment) -> Unit,
     onDownloadImageClick: (MessageAttachment) -> Unit,
 ) {
-    // Only attempt image rendering for linked_patient conversations. The attachment ID is
-    // sufficient to build the protected route; some upload responses omit download_url.
+    // The attachment ID is sufficient to build the authenticated route; some upload responses
+    // omit download_url. Unknown conversation access values remain metadata-only.
     val canLoadImage = shouldRenderImagePreview(attachment, accessLevel)
     val contentColor = if (isOwn) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
 
@@ -214,9 +219,8 @@ private fun AttachmentContent(
             }
         }
     } else {
-        // Same access gate as the image preview - only offer to open the file when this
-        // conversation is actually allowed to see attachment content.
-        val canOpen = accessLevel == ConversationAccessLevel.LINKED_PATIENT
+        // Use the same account-owned access gate as the image preview.
+        val canOpen = canAccessAttachments(accessLevel)
         Row(
             modifier = if (canOpen) Modifier.clickable { onFileClick(attachment) } else Modifier,
             verticalAlignment = Alignment.CenterVertically,
