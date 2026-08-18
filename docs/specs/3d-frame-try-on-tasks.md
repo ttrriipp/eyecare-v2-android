@@ -607,9 +607,9 @@ ear, lens, or temple occlusion.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *TempleVisibilityPolicyTest`
-- [ ] `.\gradlew lintDebug`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *TempleVisibilityPolicyTest`
+- [x] `.\gradlew lintDebug`
+- [x] `.\gradlew assembleDebug`
 - [ ] Manual POCO check: frontal, left-yaw, right-yaw, and return-to-frontal
   views; confirm no flicker or black preview during node visibility changes.
 

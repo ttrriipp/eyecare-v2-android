@@ -13,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -170,6 +171,9 @@ private fun ModelScene(
         lookAt(Position(x = 0f, y = 0f, z = 0f))
     }
     val mainLightNode = rememberMainLightNode(engine)
+    val templeVisibilityPolicy = remember(source.assetPath) { TempleVisibilityPolicy() }
+    val templeVisibility = templeVisibilityPolicy.update(pose?.yawDeg)
+    val currentTempleVisibility = rememberUpdatedState(templeVisibility)
 
     when (source) {
         is FrameModelSource.Bundled -> {
@@ -222,6 +226,11 @@ private fun ModelScene(
                         } ?: Rotation(0f),
                         scale = Scale(scale.x, scale.y, scale.z),
                         isVisible = showModelWithoutPose || pose != null,
+                        apply = {
+                            installTempleVisibilityUpdater {
+                                currentTempleVisibility.value
+                            }
+                        },
                     )
                 }
             }
@@ -283,12 +292,43 @@ private fun ModelScene(
                         } ?: Rotation(0f),
                         scale = Scale(nodeScale.x, nodeScale.y, nodeScale.z),
                         isVisible = showModelWithoutPose || pose != null,
+                        apply = {
+                            installTempleVisibilityUpdater {
+                                currentTempleVisibility.value
+                            }
+                        },
                     )
                 }
             }
         }
     }
 }
+
+private fun ModelNode.installTempleVisibilityUpdater(
+    currentVisibility: () -> TempleVisibility,
+) {
+    val frontFrame = renderableNodes.firstOrNull { it.name == FRONT_FRAME_NODE }
+    val leftTemple = renderableNodes.firstOrNull { it.name == LEFT_TEMPLE_NODE }
+    val rightTemple = renderableNodes.firstOrNull { it.name == RIGHT_TEMPLE_NODE }
+
+    // A combined or partially named asset is intentionally left unchanged. This preserves the
+    // existing renderer behavior while allowing the separated asset to opt into the polish.
+    if (frontFrame == null || leftTemple == null || rightTemple == null) return
+
+    var appliedVisibility: TempleVisibility? = null
+    onFrame = {
+        val visibility = currentVisibility()
+        if (visibility != appliedVisibility) {
+            leftTemple.isVisible = visibility != TempleVisibility.RightOnly
+            rightTemple.isVisible = visibility != TempleVisibility.LeftOnly
+            appliedVisibility = visibility
+        }
+    }
+}
+
+private const val FRONT_FRAME_NODE = "frame_front"
+private const val LEFT_TEMPLE_NODE = "temple_left"
+private const val RIGHT_TEMPLE_NODE = "temple_right"
 
 private fun validateFileAsset(filePath: String): Result<Unit> = runCatching {
     val file = java.io.File(filePath)
