@@ -55,6 +55,13 @@ class MessageBubbleAttachmentTest {
     }
 
     @Test
+    fun `attachment placeholder body is hidden regardless of capitalization`() {
+        assertFalse(shouldShowMessageBody("attachment", hasAttachments = true))
+        assertFalse(shouldShowMessageBody(" Attachment ", hasAttachments = true))
+        assertTrue(shouldShowMessageBody("Please review the attachment", hasAttachments = true))
+    }
+
+    @Test
     fun `image attachment remains previewable when response omits download url`() {
         val attachment = MessageAttachment(
             id = 7,
@@ -68,11 +75,37 @@ class MessageBubbleAttachmentTest {
     }
 
     @Test
+    fun `image preview falls back to a known image filename when mime type is generic`() {
+        val attachment = MessageAttachment(
+            id = 10,
+            originalName = "Screenshot_2026-08-16-18-54-140_com.tcare.jpg",
+            mimeType = "application/octet-stream",
+            fileSize = 1024,
+            downloadUrl = null,
+        )
+
+        assertTrue(shouldRenderImagePreview(attachment, ConversationAccessLevel.LINKED_PATIENT))
+    }
+
+    @Test
     fun `non-image attachment is not previewed as an image`() {
         val attachment = MessageAttachment(
             id = 8,
             originalName = "receipt.pdf",
             mimeType = "application/pdf",
+            fileSize = 1024,
+            downloadUrl = null,
+        )
+
+        assertFalse(shouldRenderImagePreview(attachment, ConversationAccessLevel.LINKED_PATIENT))
+    }
+
+    @Test
+    fun `pdf filename is not previewed as an image when mime type is generic`() {
+        val attachment = MessageAttachment(
+            id = 11,
+            originalName = "mwd_g2_chapter4_draft-1.pdf",
+            mimeType = "application/octet-stream",
             fileSize = 1024,
             downloadUrl = null,
         )

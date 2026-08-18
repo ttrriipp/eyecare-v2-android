@@ -48,8 +48,20 @@ import java.util.Locale
 internal fun shouldRenderImagePreview(
     attachment: MessageAttachment,
     accessLevel: ConversationAccessLevel,
-): Boolean = accessLevel == ConversationAccessLevel.LINKED_PATIENT &&
-    attachment.mimeType.trim().lowercase().startsWith("image/")
+): Boolean = accessLevel == ConversationAccessLevel.LINKED_PATIENT && isImageAttachment(attachment)
+
+private fun isImageAttachment(attachment: MessageAttachment): Boolean {
+    val mimeType = attachment.mimeType.trim().lowercase(Locale.ROOT)
+    if (mimeType.startsWith("image/")) return true
+
+    // Some staff-uploaded files arrive as application/octet-stream even though the
+    // validated filename is an image. Keep the fallback limited to known image extensions.
+    val extension = attachment.originalName.substringAfterLast('.', "").lowercase(Locale.ROOT)
+    return extension in setOf("jpg", "jpeg", "png", "webp")
+}
+
+internal fun shouldShowMessageBody(body: String, hasAttachments: Boolean): Boolean =
+    body.isNotBlank() && (!hasAttachments || !body.trim().equals("attachment", ignoreCase = true))
 
 internal fun buildAttachmentPreviewUrl(attachmentId: Int, apiBaseUrl: String): String =
     "${apiBaseUrl.trimEnd('/')}/conversation/attachments/$attachmentId"
@@ -106,9 +118,8 @@ fun MessageBubble(
             modifier = Modifier.widthIn(max = 280.dp),
         ) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                // Show body text unless it's a pure attachment placeholder AND attachments are present
-                val showBody = message.body.isNotBlank() &&
-                    (message.body != "Attachment" || message.attachments.isEmpty())
+                // Hide the server's attachment placeholder, including lowercase variants.
+                val showBody = shouldShowMessageBody(message.body, message.attachments.isNotEmpty())
                 if (showBody) {
                     Text(
                         message.body,
@@ -117,7 +128,7 @@ fun MessageBubble(
                     )
                 }
 
-                // Attachments - only render image previews for linked_patient conversations
+                // Attachments - only fetch protected image previews for linked_patient conversations.
                 message.attachments.forEach { attachment ->
                     Spacer(Modifier.height(4.dp))
                     AttachmentContent(
