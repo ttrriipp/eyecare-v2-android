@@ -150,6 +150,7 @@ fun ReservationDetailContent(
 ) {
     val reservation = state.reservation
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var pendingRemoveItem by remember { mutableStateOf<FrameReservationItem?>(null) }
 
     if (showDeleteDialog) {
         AppConfirmationDialog(
@@ -166,6 +167,27 @@ fun ReservationDetailContent(
                 onDelete()
             },
             onDismissRequest = { showDeleteDialog = false },
+        )
+    }
+
+    pendingRemoveItem?.let { item ->
+        AppConfirmationDialog(
+            icon = Icons.Outlined.Cancel,
+            iconTint = MaterialTheme.colorScheme.error,
+            isDestructive = true,
+            title = "Remove frame?",
+            message = if (reservation.items.size == 1) {
+                "Remove ${item.frameName} from this reservation? This will also cancel the reservation."
+            } else {
+                "Remove ${item.frameName} from this reservation?"
+            },
+            confirmLabel = "Remove frame",
+            dismissLabel = "Keep frame",
+            onConfirm = {
+                pendingRemoveItem = null
+                onRemoveItem(item.id)
+            },
+            onDismissRequest = { pendingRemoveItem = null },
         )
     }
 
@@ -201,7 +223,7 @@ fun ReservationDetailContent(
                     onViewFrame = { onViewFrame(item.frameId) },
                     showRemove = reservation.canRemoveItems,
                     isRemoving = state.removingItemId == item.id,
-                    onRemove = { onRemoveItem(item.id) },
+                    onRemove = { pendingRemoveItem = item },
                 )
             }
         }

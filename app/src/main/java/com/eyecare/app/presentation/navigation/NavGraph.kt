@@ -401,7 +401,12 @@ fun EyecareNavGraph(
                             onBack = { navController.popBackStack() },
                             onViewAppointment = { id -> navigatePatientFeature(AppointmentDetail(id)) },
                             onViewFrame = { id -> navigatePatientFeature(FrameDetail(id)) },
-                            onAddFrame = { navigateMainTab(Frames) },
+                            onAddFrame = {
+                                navigatePatientFeature(Frames) {
+                                    popUpTo<FrameReservationDetail> { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
                         )
                     }
                     composable<ArTryOn> { backStackEntry ->

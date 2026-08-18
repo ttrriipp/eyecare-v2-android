@@ -48,10 +48,45 @@ class FrameReservationDetailScreenTest {
             .assertIsDisplayed()
             .performClick()
 
+        composeRule.onNodeWithText("Remove frame?").assertIsDisplayed()
+        composeRule.onNodeWithText("Remove frame").performClick()
+
         composeRule.runOnIdle {
             check(addFrameClicks == 1)
             check(repository.removedItemId == 11)
         }
+    }
+
+    @Test
+    fun removingAFrame_requiresConfirmation() {
+        val repository = RecordingReservationRepository(testReservation())
+        val viewModel = FrameReservationDetailViewModel(
+            repository = repository,
+            savedStateHandle = SavedStateHandle(mapOf("reservationId" to 1)),
+        )
+
+        composeRule.setContent {
+            EyecareTheme {
+                FrameReservationDetailScreen(
+                    onBack = {},
+                    onViewAppointment = {},
+                    onViewFrame = {},
+                    onAddFrame = {},
+                    viewModel = viewModel,
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithContentDescription("Remove Classic Rectangle")
+            .assertIsDisplayed()
+            .performClick()
+
+        composeRule.onNodeWithText("Remove frame?").assertIsDisplayed()
+        composeRule.runOnIdle { check(repository.removedItemId == null) }
+
+        composeRule.onNodeWithText("Keep frame").performClick()
+        composeRule.runOnIdle { check(repository.removedItemId == null) }
     }
 
     private class RecordingReservationRepository(
