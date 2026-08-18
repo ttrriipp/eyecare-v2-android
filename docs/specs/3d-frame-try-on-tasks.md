@@ -585,6 +585,45 @@ only when the matching model reaches ready/tracking.
 
 **Estimated scope:** Medium (2 files).
 
+### Task P5a: Add conservative temple visibility polish
+
+**Description:** Improve the perceived side-view realism of an approved asset
+whose GLB contains separately addressable `frame_front`, `temple_left`, and
+`temple_right` nodes. Hide only the far-side temple after a smoothed head-yaw
+threshold, while preserving the existing behavior for combined or incompatible
+assets. This is an optional polish task and does not claim perfect face, hair,
+ear, lens, or temple occlusion.
+
+**Acceptance criteria:**
+
+- [ ] Both temples remain visible in the frontal range and the far-side temple
+  hides only after the configured yaw threshold is crossed.
+- [ ] Hysteresis/smoothing prevents temple flicker near the threshold and a
+  transient node lookup failure never hides the whole frame.
+- [ ] Combined GLBs and GLBs without the named nodes continue rendering as they
+  did before.
+- [ ] The separated fixture preserves its measured scale, materials, and
+  existing calibration.
+
+**Verification:**
+
+- [ ] `.\gradlew testDebugUnitTest --tests *TempleVisibilityPolicyTest`
+- [ ] `.\gradlew lintDebug`
+- [ ] `.\gradlew assembleDebug`
+- [ ] Manual POCO check: frontal, left-yaw, right-yaw, and return-to-frontal
+  views; confirm no flicker or black preview during node visibility changes.
+
+**Dependencies:** Task P5 and an approved separated GLB fixture.
+
+**Files likely touched:**
+
+- `app/src/main/assets/models/round_frame_separated.glb`
+- `app/src/main/java/com/eyecare/app/presentation/ar/rendering/TempleVisibilityPolicy.kt`
+- `app/src/main/java/com/eyecare/app/presentation/ar/rendering/FrameModelRenderer.kt`
+- `app/src/test/java/com/eyecare/app/presentation/ar/rendering/TempleVisibilityPolicyTest.kt`
+
+**Estimated scope:** Medium (4 files plus the separated asset).
+
 ### Task P6: Produce and approve the other two pilot assets
 
 **Description:** After exact catalog variants are selected, run the approved
