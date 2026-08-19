@@ -1,6 +1,5 @@
 package com.eyecare.app.presentation.appointments.requests
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -323,7 +322,6 @@ private fun RequestDetailDataContent(
                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
                     color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = 8.dp,
                 ) {
                     Column(

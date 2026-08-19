@@ -20,6 +20,7 @@ sealed interface RequestDetailState {
         val isCancelling: Boolean = false,
         val cancelError: String? = null,
         val isLinked: Boolean = false,
+        val isRefreshing: Boolean = false,
     ) : RequestDetailState
     data class Error(val message: String) : RequestDetailState
     data object NotFound : RequestDetailState
@@ -91,6 +92,34 @@ class AppointmentRequestDetailViewModel @Inject constructor(
                             )
                         }
                     }
+                }
+        }
+    }
+
+    /**
+     * Re-checks the request's status in place, keeping the current data (and its scroll
+     * position) on screen instead of dropping to the full-screen [RequestDetailState.Loading]
+     * spinner `load` uses for the first fetch.
+     */
+    fun refresh() {
+        val id = lastRequestId ?: return
+        val current = _state.value
+        if (current !is RequestDetailState.Data) {
+            load(id)
+            return
+        }
+
+        _state.value = current.copy(isRefreshing = true)
+        viewModelScope.launch {
+            repository.getRequest(id)
+                .onSuccess { request ->
+                    _state.value = RequestDetailState.Data(
+                        request = request,
+                        isLinked = linkedContext,
+                    )
+                }
+                .onFailure {
+                    _state.value = current.copy(isRefreshing = false)
                 }
         }
     }

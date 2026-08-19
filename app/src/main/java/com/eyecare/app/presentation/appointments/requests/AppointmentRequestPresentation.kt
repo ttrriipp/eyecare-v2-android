@@ -28,7 +28,10 @@ data class RequestStatusPresentation(
 @Composable
 fun AppointmentRequestStatusPill(status: AppointmentRequestStatus, label: String) {
     val colors = EyecareColors.current
-    val color = when (status) {
+    // Fill stays on the brand hue; label text uses the deeper text-safe variant of that same
+    // hue — the raw hue as text on its own 12%-tint fails contrast in light mode (see
+    // StatusPendingTextLight and friends in Color.kt).
+    val fillColor = when (status) {
         AppointmentRequestStatus.PENDING -> colors.statusPending
         AppointmentRequestStatus.ACCEPTED -> colors.statusConfirmed
         AppointmentRequestStatus.REJECTED,
@@ -36,13 +39,21 @@ fun AppointmentRequestStatusPill(status: AppointmentRequestStatus, label: String
         AppointmentRequestStatus.EXPIRED -> colors.statusCancelled
         AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.12f)) {
+    val textColor = when (status) {
+        AppointmentRequestStatus.PENDING -> colors.statusPendingText
+        AppointmentRequestStatus.ACCEPTED -> colors.statusConfirmedText
+        AppointmentRequestStatus.REJECTED,
+        AppointmentRequestStatus.CANCELLED,
+        AppointmentRequestStatus.EXPIRED -> colors.statusCancelledText
+        AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(shape = RoundedCornerShape(50), color = fillColor.copy(alpha = 0.12f)) {
         Text(
             text = label.uppercase(Locale.US),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = color,
+            color = textColor,
         )
     }
 }
