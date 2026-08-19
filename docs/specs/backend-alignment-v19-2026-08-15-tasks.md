@@ -596,7 +596,7 @@ mark-one reconciliation, success-only mark-all, and typed one-shot navigation ef
 coordination without direct NavController or global ViewModel access.
 
 **Acceptance criteria:**
-
+ 
 - [x] Screen/content render initial loading/error/retry, empty, populated, pull-refresh, load-more, and
   inline load-more error while keeping successful rows.
 - [x] Rows show title/body/time and a non-color-only unread semantic; Mark all is available only when

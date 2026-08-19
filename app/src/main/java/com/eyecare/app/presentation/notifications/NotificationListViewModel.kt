@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+private const val NO_DESTINATION_MESSAGE = "No further details for this notification."
+
 sealed interface NotificationListUiState {
     data object Loading : NotificationListUiState
 
@@ -25,6 +27,7 @@ sealed interface NotificationListUiState {
         val inlineError: String?,
         val isRefreshing: Boolean = false,
         val isMarkAllInFlight: Boolean = false,
+        val infoMessage: String? = null,
     ) : NotificationListUiState
 
     data class Error(val patientSafeMessage: String) : NotificationListUiState
@@ -166,12 +169,15 @@ class NotificationListViewModel @Inject constructor(
             notificationRepository.markOneRead(notification.id).fold(
                 onSuccess = {
                     val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
+                    val hasDestination = notification.mobileAction != null &&
+                        notification.mobileAction != MobileDestination.UNKNOWN
                     _uiState.value = latest.copy(
                         mutationInFlight = latest.mutationInFlight - notification.id,
                         inlineError = null,
+                        infoMessage = if (hasDestination) null else NO_DESTINATION_MESSAGE,
                     )
                     _effects.send(NotificationEffect.NotificationRead)
-                    if (notification.mobileAction != null && notification.mobileAction != MobileDestination.UNKNOWN) {
+                    if (hasDestination) {
                         _effects.send(NotificationEffect.Navigate(notification.mobileAction))
                     }
                 },
@@ -224,13 +230,24 @@ class NotificationListViewModel @Inject constructor(
     fun onNotificationTap(notification: AppNotification) {
         if (notification.readAt == null) {
             markOneRead(notification)
-        } else {
-            if (notification.mobileAction != null && notification.mobileAction != MobileDestination.UNKNOWN) {
-                viewModelScope.launch {
-                    _effects.send(NotificationEffect.Navigate(notification.mobileAction))
-                }
-            }
+            return
         }
+        val hasDestination = notification.mobileAction != null &&
+            notification.mobileAction != MobileDestination.UNKNOWN
+        if (hasDestination) {
+            viewModelScope.launch {
+                _effects.send(NotificationEffect.Navigate(notification.mobileAction))
+            }
+        } else {
+            val current = _uiState.value as? NotificationListUiState.Success ?: return
+            _uiState.value = current.copy(infoMessage = NO_DESTINATION_MESSAGE)
+        }
+    }
+
+    /** Clears the one-shot info message after the screen has shown it. */
+    fun clearInfoMessage() {
+        val current = _uiState.value as? NotificationListUiState.Success ?: return
+        _uiState.value = current.copy(infoMessage = null)
     }
 
     private fun mapError(throwable: Throwable): String = "Unable to load notifications. Please try again."
