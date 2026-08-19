@@ -72,6 +72,22 @@ import com.eyecare.app.presentation.notifications.NotificationListUiState
 import com.eyecare.app.presentation.notifications.NotificationEffect
 import com.eyecare.app.presentation.profile.ProfileScreen
 
+internal fun shouldShowBottomNav(route: String): Boolean =
+    !route.contains("Login") && !route.contains("Register") &&
+        !route.contains("SessionGate") && !route.contains("Welcome") &&
+        !route.contains("CreateAccount") && !route.contains("RecoverPassword") &&
+        !route.contains("LimitedAccount") && !route.contains("AccountSecurity") &&
+        !route.contains("Chat") && !route.contains("Notifications") && !route.contains("AppointmentDetail") &&
+        !route.contains("AppointmentRequest") &&
+        !route.contains("BookAppointment") && !route.contains("CreateFrameReservation") &&
+        !route.contains("FrameReservation") && !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
+        !route.contains("Prescription") &&
+        !route.contains("EditProfile") &&
+        !route.contains("PatientProfile") &&
+        !route.contains("PatientIntake") && !route.contains("Quotation") &&
+        !route.contains("OpticalOrderDetail") &&
+        !route.contains("JobOrder") && !route.contains("MyOrders")
+
 @Composable
 fun EyecareNavGraph(
     tokenManager: TokenManager,
@@ -123,22 +139,8 @@ fun EyecareNavGraph(
 
     var pendingPatientFeature by remember { mutableStateOf<PatientFeatureIntent?>(null) }
 
-    // Hide bottom nav on auth/limited screens and chat
-    val showBottomNav = currentDest?.route?.let { route ->
-        !route.contains("Login") && !route.contains("Register") &&
-            !route.contains("SessionGate") && !route.contains("Welcome") &&
-            !route.contains("CreateAccount") && !route.contains("RecoverPassword") &&
-            !route.contains("LimitedAccount") && !route.contains("AccountSecurity") &&
-            !route.contains("Chat") && !route.contains("Notifications") && !route.contains("AppointmentDetail") &&
-            !route.contains("AppointmentRequest") &&
-            !route.contains("BookAppointment") && !route.contains("CreateFrameReservation") &&
-            !route.contains("FrameReservation") && !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
-            !route.contains("Prescription") &&
-            !route.contains("EditProfile") &&
-            !route.contains("PatientProfile") &&
-            !route.contains("PatientIntake") && !route.contains("Quotation") &&
-            !route.contains("JobOrder") && !route.contains("MyOrders")
-    } ?: false
+    // Hide bottom nav on auth/limited screens and detail/sub-destination screens.
+    val showBottomNav = currentDest?.route?.let(::shouldShowBottomNav) ?: false
 
     val currentRoute = if (showBottomNav) when {
         currentDest.route?.contains("Home") == true -> Home
@@ -442,11 +444,10 @@ fun EyecareNavGraph(
                             onNavigateToOrder = { id -> navigatePatientFeature(OpticalOrderDetail(id)) },
                         )
                     }
-                    composable<OpticalOrderDetail> { back ->
-                        val route = back.toRoute<OpticalOrderDetail>()
+                    composable<OpticalOrderDetail> {
                         OpticalOrderDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onRateItem = { /* Rating handled within screen via dialog */ },
+                            onNavigateToMessages = { navigatePatientFeature(Chat) },
                         )
                     }
                     composable<Appointments> {
@@ -554,6 +555,7 @@ fun EyecareNavGraph(
                             onLoadMore = { notificationViewModel.loadMore() },
                             onRefresh = { notificationViewModel.refresh() },
                             onRetry = { notificationViewModel.loadInitial() },
+                            onDismissMessage = { notificationViewModel.clearInfoMessage() },
                         )
                     }
                 }
