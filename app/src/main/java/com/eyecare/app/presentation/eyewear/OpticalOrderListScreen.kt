@@ -142,77 +142,43 @@ private fun OrderCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            // Status and payment pills grouped together: the two most urgent facts on the card.
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val statusColor = orderStatusColor(order.status)
-                val statusTextColor = orderStatusTextColor(order.status)
-                Surface(shape = RoundedCornerShape(50), color = statusColor.copy(alpha = 0.12f)) {
-                    Text(
-                        orderStatusLabel(order.status),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = statusTextColor,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                val paymentSummary = order.paymentSummary
-                if (paymentSummary != null) {
-                    val payColor = paymentStatusColor(paymentSummary.status)
-                    val payTextColor = paymentStatusTextColor(paymentSummary.status)
-                    Surface(shape = RoundedCornerShape(50), color = payColor.copy(alpha = 0.12f)) {
-                        Text(
-                            paymentStatusLabel(paymentSummary.status),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = payTextColor,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                } else {
-                    // Explicit "unavailable" rather than silently showing nothing, so a patient
-                    // scanning for money owed can't mistake missing data for a paid-in-full order.
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                    ) {
-                        Text(
-                            "Payment info unavailable",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
+            // Status pill only - payment state is communicated through balance due line
+            val statusColor = orderStatusColor(order.status)
+            val statusTextColor = orderStatusTextColor(order.status)
+            Surface(shape = RoundedCornerShape(50), color = statusColor.copy(alpha = 0.12f)) {
+                Text(
+                    orderStatusLabel(order.status),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = statusTextColor,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
 
-            order.paymentSummary?.takeIf { it.balanceDue > BigDecimal.ZERO }?.let { ps ->
+            // One money line: balance due when exists, otherwise total
+            val balanceDue = order.paymentSummary?.balanceDue?.takeIf { it > BigDecimal.ZERO }
+            if (balanceDue != null) {
                 Text(
-                    "Balance due: ${formatPeso(ps.balanceDue)}",
+                    "Balance due: ${formatPeso(balanceDue)}",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.error,
                 )
+            } else {
+                Text(
+                    "Total: ${formatPeso(order.totalAmount)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EyecareColors.current.accentText,
+                )
             }
 
-            Text(
-                "Ref: ${order.orderNumber}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
+            // Reference and date merged into one de-emphasized line
             val (dateLabel, dateValue) = orderDateLabel(order)
             Text(
-                "$dateLabel: $dateValue",
+                "$dateLabel $dateValue · Ref ${order.orderNumber}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Text(
-                "Total: ${formatPeso(order.totalAmount)}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = EyecareColors.current.accentText,
             )
         }
     }
