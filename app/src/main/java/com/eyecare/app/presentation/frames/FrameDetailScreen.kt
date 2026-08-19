@@ -391,7 +391,7 @@ fun FrameDetailScreen(
                                     )
                                 }
 
-                                selected.attributes?.filterValues { it.isNotBlank() }?.takeIf { it.isNotEmpty() }?.let { specs ->
+                                selected.attributes?.filterValues { it.isNotBlank() && it != "null" }?.takeIf { it.isNotEmpty() }?.let { specs ->
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     Text(
                                         text = "Specifications",
