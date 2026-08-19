@@ -74,6 +74,16 @@ val StatusConfirmed = Color(0xFF38A169)
 val StatusCancelled = Color(0xFFE53E3E)
 val StatusInfo = Primary
 
+// A status hue read as *text* directly on a 12%-alpha tint of that same hue over a light
+// (white/warm-canvas) surface measures 1.8-3.5:1 — the identical failure pattern Primary hits
+// as text on its own container, just with different hues. These deeper, same-family variants
+// are that pairing's "accentText" equivalent, used only for status-pill/chip label color on a
+// light surface; the pill's *fill* keeps the brand hue unchanged. Dark mode needs no analog:
+// the raw hues already clear 5.7:1+ against a 12%-tint-over-near-black background.
+val StatusPendingTextLight = Color(0xFFB45309) // ~4.7:1 on StatusPending @ 12% over white
+val StatusConfirmedTextLight = Color(0xFF047857) // ~4.8:1 on StatusConfirmed @ 12% over white
+val StatusCancelledTextLight = Color(0xFFB91C1C) // ~5.5:1 on StatusCancelled @ 12% over white
+
 // Dark-mode variants for the two status hues that also back Material's error/tertiary
 // roles, lightened so they hold WCAG AA as text directly on a near-black surface —
 // the base StatusPending/StatusConfirmed/StatusCancelled hex values are left untouched.

@@ -72,6 +72,11 @@ data class EyecareExtendedColors(
     val statusConfirmed: Color,
     val statusCancelled: Color,
     val statusInfo: Color,
+    // Status-pill/chip *label* color on that status's own light tint background — see
+    // StatusPendingTextLight and friends in Color.kt for why this differs from the fill color.
+    val statusPendingText: Color,
+    val statusConfirmedText: Color,
+    val statusCancelledText: Color,
     val cardBorder: Color,
     // Cyan used as text/icon color on a light surface — Primary itself fails WCAG AA in
     // that role (~2.0-2.3:1 against white, its own container, or warm-canvas). Resolves
@@ -88,6 +93,9 @@ private val LightExtendedColors = EyecareExtendedColors(
     // Every current usage of statusInfo is pill/status text on a light tint, so it shares
     // accentText's accessible value rather than the unreadable raw brand cyan.
     statusInfo = AccentTextLight,
+    statusPendingText = StatusPendingTextLight,
+    statusConfirmedText = StatusConfirmedTextLight,
+    statusCancelledText = StatusCancelledTextLight,
     cardBorder = CardBorder,
     accentText = AccentTextLight,
 )
@@ -100,6 +108,11 @@ private val DarkExtendedColors = EyecareExtendedColors(
     statusConfirmed = TertiaryDark,
     statusCancelled = ErrorDark,
     statusInfo = Primary,
+    // Dark mode needs no deeper text variant: each raw hue already clears 5.7:1+ as text on
+    // its own 12%-tint over the near-black surface, unlike the light-theme pairing.
+    statusPendingText = StatusPending,
+    statusConfirmedText = TertiaryDark,
+    statusCancelledText = ErrorDark,
     cardBorder = CardBorderDark,
     accentText = Primary,
 )
