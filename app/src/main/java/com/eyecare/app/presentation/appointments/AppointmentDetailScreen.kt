@@ -170,6 +170,16 @@ fun AppointmentDetailScreen(
                 errorMessage = state.ratingError,
             )
         }
+        if (state.showRatingSuccessDialog) {
+            AppConfirmationDialog(
+                icon = Icons.Outlined.RateReview,
+                title = "Thanks for your feedback",
+                message = "Your rating helps the clinic and other patients.",
+                confirmLabel = "Got it",
+                onConfirm = viewModel::dismissRatingSuccessDialog,
+                onDismissRequest = viewModel::dismissRatingSuccessDialog,
+            )
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -451,7 +461,7 @@ private fun VisitFeedbackCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
@@ -484,6 +494,13 @@ private fun VisitFeedbackCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                visitRating.createdAt?.takeIf { it.isNotBlank() }?.let { createdAt ->
+                    Text(
+                        text = "Rated on ${formatAppointmentDate(createdAt)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 TextButton(onClick = onRateClick) {
                     Text("Update rating")
                 }
@@ -506,9 +523,10 @@ private fun VisitFeedbackCard(
                 }
                 Button(
                     onClick = onRateClick,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(50),
                 ) {
-                    Text("Rate your visit")
+                    Text("Rate now")
                 }
             }
         }

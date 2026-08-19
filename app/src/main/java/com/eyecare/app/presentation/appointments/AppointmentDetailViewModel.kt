@@ -52,6 +52,7 @@ sealed interface AppointmentDetailUiState {
         val showRatingDialog: Boolean = false,
         val isSubmittingRating: Boolean = false,
         val ratingError: String? = null,
+        val showRatingSuccessDialog: Boolean = false,
         val actionMessage: String? = null,
     ) : AppointmentDetailUiState
 
@@ -330,21 +331,29 @@ class AppointmentDetailViewModel @Inject constructor(
                         isRateable = true,
                         visitRating = visitRating,
                     )
-                    _uiState.value = current.copy(
+                    val latest = _uiState.value as? AppointmentDetailUiState.Success ?: current
+                    _uiState.value = latest.copy(
                         appointment = updatedAppointment,
                         isSubmittingRating = false,
                         showRatingDialog = false,
-                        actionMessage = "Thanks for sharing your feedback.",
+                        showRatingSuccessDialog = true,
                     )
                 },
                 onFailure = { error ->
-                    _uiState.value = current.copy(
+                    val latest = _uiState.value as? AppointmentDetailUiState.Success ?: current
+                    _uiState.value = latest.copy(
                         isSubmittingRating = false,
                         ratingError = patientSafeAppointmentError(AppointmentAction.RATE, error),
                     )
                 },
             )
         }
+    }
+
+    fun dismissRatingSuccessDialog() {
+        val current = _uiState.value
+        if (current !is AppointmentDetailUiState.Success) return
+        _uiState.value = current.copy(showRatingSuccessDialog = false)
     }
 
     fun dismissActionMessage() {
@@ -358,6 +367,10 @@ class AppointmentDetailViewModel @Inject constructor(
         availabilityGeneration++
         weekJob?.cancel()
         weekGeneration++
+        // A refresh re-fetches over an already-loaded screen (e.g. the status-guidance "Retry"
+        // action) - preserve any open dialog/transient UI state instead of defaulting it away,
+        // so refreshing doesn't silently close a dialog and discard what the patient typed.
+        val previous = _uiState.value as? AppointmentDetailUiState.Success
         viewModelScope.launch {
             val appointmentResult = repository.getAppointment(appointmentId)
             appointmentResult.fold(
@@ -365,15 +378,23 @@ class AppointmentDetailViewModel @Inject constructor(
                     val reservations = reservationRepository.getReservations()
                         .getOrElse { emptyList() }
                         .filter { it.appointment.id == appointmentId }
-                    _uiState.value = AppointmentDetailUiState.Success(
+                    _uiState.value = previous?.copy(
+                        appointment = appointment,
+                        frameReservations = reservations,
+                    ) ?: AppointmentDetailUiState.Success(
                         appointment = appointment,
                         frameReservations = reservations,
                     )
                 },
                 onFailure = { error ->
-                    _uiState.value = AppointmentDetailUiState.Error(
-                        patientSafeAppointmentError(AppointmentAction.LOAD, error),
-                    )
+                    // Only the first load has no prior state to fall back on; a background
+                    // refresh failure over an already-loaded screen keeps that screen visible
+                    // rather than replacing it with a full-page error.
+                    if (previous == null) {
+                        _uiState.value = AppointmentDetailUiState.Error(
+                            patientSafeAppointmentError(AppointmentAction.LOAD, error),
+                        )
+                    }
                 },
             )
         }

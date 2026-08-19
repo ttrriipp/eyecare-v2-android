@@ -1,6 +1,6 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-15) — direct messaging hardening complete: patient mark-read, staff read watermark, inbox archiving, activity ordering, navigation badge, notification feed routing, sender_type/download_url on messages, contexts removed, send throttle (10/min), conversation-scoped message search, cursor pagination on messages. Previous: optical commerce and dispensing implementation complete, with resilient patient invitation linking, appointment-request account-link synchronization, additive API rate-limit errors, simplified frame reservations, and commerce model simplification.
+> **Backend version:** Current repository state (2026-08-17) — remote frame 3D assets and reservation maximum three complete: `ar_assets` table with versioned GLB lifecycle, typed patient `ar` response on frame variants, secure upload/quarantine/GLB validation, independent review/publication/rollback, and reservation item cap changed from five to three. Previous: direct messaging hardening, optical commerce and dispensing, resilient patient invitation linking, simplified frame reservations, and commerce model simplification.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
@@ -1471,7 +1471,11 @@ Upsert semantics: 201 on create, 200 on revise.
 
 ### GET `/frames`
 
-Paginated list of active AR-eligible frames. Frame browsing is available to any authenticated account, including an account that has not been linked to a clinic Patient record.
+Paginated list of active frame catalog entries. Existing frame visibility and
+legacy AR compatibility rules remain in place; a frame variant with a
+published 3D asset is also eligible for this catalog. Frame browsing is
+available to any authenticated account, including an account that has not been
+linked to a clinic Patient record.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
@@ -1508,6 +1512,27 @@ Paginated list of active AR-eligible frames. Frame browsing is available to any 
           "attributes": { "color": "black", "size": "52mm" },
           "ar_eligible": true,
           "ar_asset_reference": "rb-cr-blk-52.usdz",
+          "ar": {
+            "status": "ready",
+            "asset": {
+              "url": "https://cdn.example.com/ar/variants/42/v1/model.glb",
+              "format": "glb",
+              "version": 1,
+              "byte_size": 5256552,
+              "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+            },
+            "calibration": {
+              "frame_width_mm": 123.0,
+              "outer_frame_height_mm": 48.0,
+              "lens_width_mm": 50.0,
+              "lens_height_mm": 45.0,
+              "bridge_width_mm": 20.0,
+              "temple_length_mm": 140.0,
+              "scale": { "x": 0.123, "y": 0.144565, "z": 0.123 },
+              "anchor": { "x": 0.0, "y": 0.0, "z": 0.0 },
+              "rotation_degrees": { "x": 0.0, "y": 0.0, "z": 0.0 }
+            }
+          },
           "images": []
         }
       ],
@@ -1518,6 +1543,54 @@ Paginated list of active AR-eligible frames. Frame browsing is available to any 
   "meta": { ... }
 }
 ```
+
+`ar` is always present on every frame variant and is either the ready object
+shown above or `null`. The backend exposes no other AR status. In particular,
+quarantine paths, validation errors, processing state, staff identities, and
+internal failure details never appear in patient responses.
+
+The ready object is emitted only when the current published asset is valid,
+unexpired, present in published storage, and its downloaded bytes still match
+the stored `byte_size` and `sha256`. The URL is an immutable HTTPS URL; a new
+asset must use a new `version` and URL. The `format` is always `glb`.
+
+`calibration` is model-specific metadata reviewed by staff. Its physical
+measurements are in millimetres; `scale`, `anchor`, and `rotation_degrees` are
+the coordinate transforms calibrated for that particular model. The sample
+values above are the current round-frame measurements and must not be copied
+to a model whose coordinate system has not been physically reviewed.
+
+When no approved and published 3D asset exists, or when an asset is missing,
+invalid, expired, or corrupted, the response returns `"ar": null`. Android
+must retain the existing image-preview fallback in that case. Disabling or
+rolling back AR changes only `ar`; normal frame images and reservation
+functionality remain available. Patients have no 3D upload API.
+
+**Android migration requirements:**
+
+- Gate the 3D action on `ar != null && ar.status == "ready"`. The legacy
+  `ar_eligible` and `ar_asset_reference` fields remain for older clients, but
+  may be unset or contain a legacy model reference and are not the 3D loading
+  contract.
+- Use the variant's `images` array for the 2D preview fallback. The backend
+  does not repurpose `ar_asset_reference` as an image URL and does not copy a
+  published GLB URL into that legacy field.
+- Apply `ar.calibration.scale`, `ar.calibration.anchor`, and
+  `ar.calibration.rotation_degrees` to the downloaded model renderer. These
+  values are model-specific and are not applied server-side to the GLB.
+
+**Variant `ar` fields:**
+
+| Field | Type | Contract |
+|---|---|---|
+| `ar` | object or `null` | Always present; `null` unless the current published asset passes readiness and integrity checks |
+| `ar.status` | string | Patient-facing value is always `ready` |
+| `ar.asset.url` | string | Immutable HTTPS download URL |
+| `ar.asset.format` | string | Always `glb` |
+| `ar.asset.version` | integer | Immutable asset version for the variant |
+| `ar.asset.byte_size` | integer | Exact downloaded file size in bytes |
+| `ar.asset.sha256` | string | Exact lowercase 64-character SHA-256 digest of the downloaded file |
+| `ar.calibration` | object | Per-model physical dimensions and reviewed scale/anchor/rotation transforms |
 
 **Excluded fields:** `cost_price`, `stock_quantity`, `low_stock_threshold`.
 
@@ -1538,12 +1611,16 @@ ratings, collected via `POST /optical-order-items/{id}/rating`.
 
 ### GET `/frames/{id}`
 
-Single frame detail. Returns `404` for non-frame products or non-AR-eligible frames.
+Single frame detail. Returns `404` for non-frame products or frames excluded by
+the existing frame-catalog visibility rules.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
 Browsing the catalog does not grant access to frame reservations. Reservation
 endpoints remain restricted to accounts with an active patient link.
+
+The `variants` array uses the same additive shape documented for `GET /frames`,
+including the nullable `ar` field and the same image-preview fallback rules.
 
 ---
 
@@ -1633,7 +1710,7 @@ Creates a new frame reservation. Requires an active patient link and a confirmed
 
 **Validation:**
 - `appointment_id`: required; must belong to the authenticated patient's Patient record; must be `scheduled` and not past end time.
-- `items`: `required`, `array`, `min:1`, `max:5`.
+- `items`: `required`, `array`, `min:1`, `max:3`.
 - Each `product_variant_id` must reference an active frame variant (product_type = frame, is_active = true, variant is_active = true).
 - Duplicate variants within a reservation are rejected.
 - No window check — a request may be submitted any time before the visit.
@@ -1685,7 +1762,7 @@ Adds a frame to an existing unaccepted reservation. Only allowed when `is_held` 
 - `product_variant_id`: required; must reference an active frame variant.
 - Variant must not already be in the reservation.
 - Reservation must not be accepted (`is_held` must be `false`).
-- Reservation must have fewer than 5 items.
+- Reservation must have fewer than 3 items.
 
 **Response (200):**
 ```json
@@ -1696,7 +1773,7 @@ Adds a frame to an existing unaccepted reservation. Only allowed when `is_held` 
 
 **Errors:**
 - `403`: Reservation does not belong to the authenticated patient.
-- `422`: Variant is not an active frame, is a duplicate, reservation is accepted, or max 5 items reached.
+- `422`: Variant is not an active frame, is a duplicate, reservation is accepted, or max 3 items reached.
 
 ---
 
@@ -1966,7 +2043,7 @@ Returns a single optical order with items and payment summary.
 
 Creates or revises the patient's rating for a rateable item from a dispensed
 Optical Order. This endpoint is an upsert: the first POST creates the rating;
-later POSTs update the current rating in place. There is no separate PATCH
+later POSTs append a revision to the same rating. There is no separate PATCH
 route.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
@@ -2027,9 +2104,10 @@ Linked and unlinked accounts can send text messages. Message contexts have
 been retired; legacy `contexts` input is rejected with HTTP 422. Messages are
 plain text only, maximum 5,000 characters.
 
-Attachment uploads and downloads require an active patient link. Unlinked
+Attachment uploads require an active patient link. Unlinked
 accounts receive `can_upload_attachments: false` and upload attempts return
-HTTP 422.
+HTTP 422. Attachment downloads are available to any authenticated account
+that owns the conversation, regardless of patient link status.
 
 ### GET `/conversation`
 
@@ -2071,17 +2149,12 @@ Returns (or creates) the account's single conversation.
 
 ### GET `/conversation/messages`
 
-Returns messages in the conversation, cursor-paginated (newest-first, fixed
-page size 50). Results are ordered by `created_at` descending with `id`
+Returns messages in the conversation, cursor-paginated (newest-first, default
+50 per page). Results are ordered by `created_at` descending with `id`
 descending as the unique tie-breaker, so messages created in the same second
 are not skipped across cursors.
 
 **Auth:** Required (Sanctum token). No active patient link required.
-
-**Query parameters:**
-- `cursor` (optional, string): Opaque cursor from a previous `meta.next_cursor`.
-  Omit on the first request. Android stores and returns the value unchanged;
-  it never decodes, constructs, or fabricates a cursor.
 
 **Response (200):**
 ```json
@@ -2104,19 +2177,9 @@ are not skipped across cursors.
         }
       ]
     }
-  ],
-  "meta": {
-    "next_cursor": null,
-    "has_more": false
-  }
+  ]
 }
 ```
-
-**Cursor rules:**
-- Page size is fixed at 50.
-- `next_cursor` is opaque and nullable. Android stores and returns it unchanged.
-- `has_more: false` is terminal even if `next_cursor` is unexpectedly non-null.
-- Missing or malformed `meta` is a protocol failure, not permission to fabricate a cursor.
 
 **Field definitions:**
 
@@ -2137,51 +2200,20 @@ are not skipped across cursors.
 
 ### POST `/conversation/messages`
 
-Sends a text message or a text message with one attachment. Context input is
-prohibited.
+Sends a plain text message. Context input is prohibited.
 
-**Auth:** Required (Sanctum token). Active patient link required for
-attachment-only; text-only messages require no active link.
+**Auth:** Required (Sanctum token). No active patient link required.
 
-**Encoding 1 — JSON text message:**
-
-**Request:**
+**Request (JSON):**
 ```json
 {
   "body": "Do you have the Vista Classic frame available?"
 }
 ```
 
-**Encoding 2 — Multipart text + optional attachment:**
-
-Content-Type: `multipart/form-data`
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `body` | string | yes | Message text, maximum 5,000 characters |
-| `attachment` | file | no | Single file: PDF, PNG, JPG, JPEG, DOC, or DOCX, max 10 MB |
-
-Multiple files require separate messages.
-
-**Validation (both encodings):**
+**Validation:**
 - `body`: required, string, maximum 5,000 characters
 - `contexts`: retired legacy input; prohibited (returns 422)
-- `attachment`: optional, singular, allowed types PDF/PNG/JPG/JPEG/DOC/DOCX, max 10 MB
-
-**Response (201):**
-```json
-{
-  "data": {
-    "id": 42,
-    "sender_id": 1,
-    "sender_type": "patient",
-    "body": "Do you have the Vista Classic frame available?",
-    "read_at": null,
-    "created_at": "2026-08-15T10:30:00+08:00",
-    "attachments": []
-  }
-}
-```
 
 **Rate limit:** 10 requests per minute per account. Throttled requests return
 HTTP 429 without creating a partial message.
@@ -2247,17 +2279,20 @@ constraint, not an application bug.
 
 ### GET `/conversation/attachments/{attachment}`
 
-Downloads a message attachment. Requires an active patient link.
+Downloads a message attachment. Requires authentication and conversation
+ownership. Does not require an active patient link — both linked and unlinked
+accounts can download attachments from their own conversation.
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+**Auth:** Required (Sanctum token). No active patient link required.
 
-Returns 404 for unlinked accounts, missing files, or attachments from
-other conversations (non-disclosing).
+Returns 404 for missing files or attachments from other conversations
+(non-disclosing).
 
-**Response:** Binary file download with appropriate `Content-Type` and `Content-Disposition` headers.
+**Response:** Binary file download with `Content-Type` and
+`Content-Disposition: attachment` headers.
 
 **Errors:**
-- `404`: Attachment not found or not owned by patient's conversation.
+- `404`: Attachment not found or not owned by account's conversation.
 
 ---
 
@@ -2282,13 +2317,13 @@ Returns paginated notifications for the authenticated account.
 {
   "data": [
     {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "kind": "new_message",
+      "id": "uuid",
+      "type": "App\\Notifications\\NewMessageReceived",
       "title": "New Message",
       "body": "Dr. Santos sent a message.",
-      "mobile_action": {
-        "type": "conversation"
-      },
+      "action_url": "/admin/conversations/1",
+      "related_type": null,
+      "related_id": null,
       "read_at": null,
       "created_at": "2026-08-15T10:00:00+08:00"
     }
@@ -2297,28 +2332,6 @@ Returns paginated notifications for the authenticated account.
   "meta": { "current_page": 1, "last_page": 1, "per_page": 20, "total": 1 }
 }
 ```
-
-**Notification resource fields:**
-
-| Field | Type | Nullable | Description |
-|---|---|---|---|
-| `id` | string | no | UUID identifier (string end-to-end, never coerced to integer) |
-| `kind` | string | no | Stable snake-case product enum (e.g. `new_message`). Never a PHP namespace or class name. |
-| `title` | string | no | Patient-safe display title |
-| `body` | string | no | Patient-safe display body |
-| `mobile_action` | object | yes | Discriminated by `type`. Null when no mobile action applies. |
-| `mobile_action.type` | string | no | `conversation` (v19). Unknown values → `UNKNOWN` on client. |
-| `mobile_action.id` | integer | yes | Absent for `conversation` (account owns one). Future action types may add it. |
-| `read_at` | string | yes | ISO 8601 when marked read |
-| `created_at` | string | no | ISO 8601 creation timestamp |
-
-**Mobile action rules:**
-- V19 supports `mobile_action.type = conversation` only.
-- A `new_message` notification must return the `conversation` action.
-- The action has no ID because the authenticated account owns one conversation.
-- Android treats unknown `kind` or action `type` as `UNKNOWN`; the row remains readable, but tapping it performs no navigation.
-- Android does not parse, render as a link, or open `action_url`.
-- Legacy `type`, `action_url`, `related_type`, and `related_id` fields may remain in the response for compatibility but are ignored by Android for navigation.
 
 ### GET `/notifications/unread-count`
 
@@ -2490,7 +2503,7 @@ authoritative in §§15 and 15b.
 | `GET /conversation/messages/search` | Search messages within the authenticated account's conversation |
 | `POST /conversation/messages` | Send a plain text conversation message |
 | `POST /conversation/messages/read` | Mark received conversation messages as read |
-| `GET /conversation/attachments/{attachment}` | Download an attachment with an active patient link |
+| `GET /conversation/attachments/{attachment}` | Download an attachment |
 | `GET /notifications` | List account notifications |
 | `GET /notifications/unread-count` | Get the account's unread notification count |
 | `PATCH /notifications/{notification}/read` | Mark one notification as read |
@@ -2507,6 +2520,8 @@ authoritative in §§15 and 15b.
 | `GET /appointments/{id}` | Requires active patient link |
 | `POST /appointments/{id}/cancel` | Requires active patient link |
 | `POST /appointments/{id}/reschedule` | Duration derived from appointment |
+| `GET /frames` | Frame variants now include additive nullable `ar` metadata for the current validated and published remote GLB asset; legacy AR fields remain unchanged |
+| `GET /frames/{id}` | Same additive `ar` variant metadata and safe `null` fallback as the frame list |
 
 ---
 
@@ -2590,8 +2605,9 @@ current rating summary. Only dispensed Product items with a linked variant have
 non-dispensed orders have `is_rateable: false`.
 
 `POST /api/v1/optical-order-items/{id}/rating` is an upsert. The first POST
-creates the rating (`201`); subsequent POSTs update the current rating in place
-(`200`). There is no PATCH route and no duplicate-rating conflict response.
+creates the rating (`201`); subsequent POSTs revise the current rating and
+append a moderation-history revision (`200`). There is no PATCH route and no
+duplicate-rating conflict response.
 
 ### Machine-readable payment status
 
@@ -2656,6 +2672,7 @@ GET    /api/v1/conversation/messages          List messages
 GET    /api/v1/conversation/messages/search   Search messages
 POST   /api/v1/conversation/messages          Send message
 POST   /api/v1/conversation/messages/read     Mark messages read
+GET    /api/v1/conversation/attachments/{attachment}  Download attachment
 GET    /api/v1/notifications                  List notifications
 GET    /api/v1/notifications/unread-count     Unread count
 PATCH  /api/v1/notifications/{notification}/read Mark read
@@ -2708,9 +2725,7 @@ GET    /api/v1/prescriptions/{id}             Get prescription
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
 
-GET    /api/v1/conversation/attachments/{attachment}  Download attachment
-
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 36 account-only + 17 active-link = **61 routes total.**
+**Route count:** 8 public + 37 account-only + 16 active-link = **61 routes total.**
