@@ -35,6 +35,12 @@ data class PendingAttachment(
     val fileSize: Long,
 )
 
+/** What a completed attachment download should be handed to once the bytes arrive. */
+enum class AttachmentDownloadIntent { OPEN_EXTERNALLY, SAVE_TO_GALLERY }
+
+/** Enough information to retry the most recent failed attachment download. */
+data class FailedDownload(val attachmentId: Int, val intent: AttachmentDownloadIntent)
+
 data class SearchState(
     val query: String,
     val results: List<Message>,
@@ -45,12 +51,6 @@ data class SearchState(
     val error: String?,
     val generation: Long,
 )
-
-/** What a completed [AttachmentDownload] should be handed to once the bytes arrive. */
-enum class AttachmentDownloadIntent { OPEN_EXTERNALLY, SAVE_TO_GALLERY }
-
-/** Enough to replay a failed [ChatViewModel.downloadAttachment] call from a Retry action. */
-data class FailedDownload(val attachmentId: Int, val intent: AttachmentDownloadIntent)
 
 sealed interface ChatUiState {
     data object Loading : ChatUiState
@@ -63,7 +63,6 @@ sealed interface ChatUiState {
         val pendingAttachment: PendingAttachment? = null,
         val attachmentError: String? = null,
         val sendError: String? = null,
-        val lastFailedMessageBody: String? = null,
         val nextCursor: String? = null,
         val hasMore: Boolean = false,
         val isLoadingOlder: Boolean = false,
@@ -236,16 +235,17 @@ class ChatViewModel @Inject constructor(
 
     fun onDraftChanged(text: String) {
         val current = _uiState.value as? ChatUiState.Success ?: return
-        _uiState.value = current.copy(inputText = text)
+        // Editing the draft after a failed send is itself a form of retry intent - clear the
+        // stale error rather than leaving it pinned under a message the patient is rewriting.
+        _uiState.value = current.copy(inputText = text, sendError = null)
     }
 
-    fun sendMessage(body: String? = null) {
+    fun sendMessage() {
         val current = _uiState.value as? ChatUiState.Success ?: return
-        val submittedDraft = current.inputText
-        val trimmed = (body ?: submittedDraft).trim()
+        val trimmed = current.inputText.trim()
         if (trimmed.isBlank()) return
         if (current.isSending) return
-        _uiState.value = current.copy(isSending = true, sendError = null, lastFailedMessageBody = null)
+        _uiState.value = current.copy(isSending = true, sendError = null)
         viewModelScope.launch {
             chatRepository.sendMessage(trimmed).fold(
                 onSuccess = { msg ->
@@ -254,7 +254,7 @@ class ChatViewModel @Inject constructor(
                     _uiState.value = latest.copy(
                         messages = timelineState.chronological,
                         isSending = false,
-                        inputText = if (body == null && latest.inputText == submittedDraft) "" else latest.inputText,
+                        inputText = "",
                     )
                 },
                 onFailure = {
@@ -262,18 +262,10 @@ class ChatViewModel @Inject constructor(
                     _uiState.value = latest.copy(
                         isSending = false,
                         sendError = mapSendError(it),
-                        lastFailedMessageBody = trimmed,
                     )
                 },
             )
         }
-    }
-
-    /** Resends the body from the most recent failed [sendMessage] call. */
-    fun retrySendMessage() {
-        val current = _uiState.value as? ChatUiState.Success ?: return
-        val body = current.lastFailedMessageBody ?: return
-        sendMessage(body)
     }
 
     fun setPendingAttachment(attachment: PendingAttachment?) {
@@ -321,9 +313,51 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun clearSendError() {
+    /** Downloads an attachment for opening externally or saving an image to the gallery. */
+    fun downloadAttachment(
+        attachmentId: Int,
+        intent: AttachmentDownloadIntent = AttachmentDownloadIntent.OPEN_EXTERNALLY,
+    ) {
         val current = _uiState.value as? ChatUiState.Success ?: return
-        _uiState.value = current.copy(sendError = null)
+        if (current.downloadingAttachmentId != null) return
+        _uiState.value = current.copy(
+            downloadingAttachmentId = attachmentId,
+            downloadIntent = intent,
+            downloadError = null,
+            lastFailedDownload = null,
+        )
+        viewModelScope.launch {
+            chatRepository.downloadAttachment(attachmentId).fold(
+                onSuccess = { download ->
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        downloadingAttachmentId = null,
+                        downloadedAttachment = download,
+                    )
+                },
+                onFailure = {
+                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
+                    _uiState.value = latest.copy(
+                        downloadingAttachmentId = null,
+                        downloadIntent = null,
+                        downloadError = "We couldn't open that attachment. Check your connection and try again.",
+                        lastFailedDownload = FailedDownload(attachmentId, intent),
+                    )
+                },
+            )
+        }
+    }
+
+    fun retryDownload() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        val failed = current.lastFailedDownload ?: return
+        downloadAttachment(failed.attachmentId, failed.intent)
+    }
+
+    /** Clears the one-shot download result after the caller hands it off to the platform. */
+    fun consumeDownloadedAttachment() {
+        val current = _uiState.value as? ChatUiState.Success ?: return
+        _uiState.value = current.copy(downloadedAttachment = null, downloadIntent = null)
     }
 
     fun openSearch() {
@@ -482,58 +516,6 @@ class ChatViewModel @Inject constructor(
         val nextCursor = page.nextCursor?.takeIf { it.isNotBlank() }
         val hasMore = page.hasMore && nextCursor != null && nextCursor != requestedCursor
         return if (hasMore) nextCursor to true else null to false
-    }
-
-    /**
-     * Downloads an attachment for one of two purposes: handing a non-image (or an image from
-     * the gallery viewer's own "open externally" action) to another app via FileOpener, or
-     * saving an image straight to the device's Photos/Gallery via MediaSaver. The app has no
-     * in-house viewer for anything but images, hence "open externally" as the default.
-     */
-    fun downloadAttachment(
-        attachmentId: Int,
-        intent: AttachmentDownloadIntent = AttachmentDownloadIntent.OPEN_EXTERNALLY,
-    ) {
-        val current = _uiState.value as? ChatUiState.Success ?: return
-        if (current.downloadingAttachmentId != null) return
-        _uiState.value = current.copy(
-            downloadingAttachmentId = attachmentId,
-            downloadIntent = intent,
-            downloadError = null,
-            lastFailedDownload = null,
-        )
-        viewModelScope.launch {
-            chatRepository.downloadAttachment(attachmentId).fold(
-                onSuccess = { download ->
-                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
-                    _uiState.value = latest.copy(downloadingAttachmentId = null, downloadedAttachment = download)
-                },
-                onFailure = {
-                    val latest = _uiState.value as? ChatUiState.Success ?: return@fold
-                    // Same reasoning as sendMessage: no raw exception text, and remember enough
-                    // to replay the exact same call from a Retry action.
-                    _uiState.value = latest.copy(
-                        downloadingAttachmentId = null,
-                        downloadIntent = null,
-                        downloadError = "We couldn't open that attachment. Check your connection and try again.",
-                        lastFailedDownload = FailedDownload(attachmentId, intent),
-                    )
-                },
-            )
-        }
-    }
-
-    /** Retries the most recent failed [downloadAttachment] call with the same intent. */
-    fun retryDownload() {
-        val current = _uiState.value as? ChatUiState.Success ?: return
-        val failed = current.lastFailedDownload ?: return
-        downloadAttachment(failed.attachmentId, failed.intent)
-    }
-
-    /** Clears the one-shot download result once the caller has handed it off. */
-    fun consumeDownloadedAttachment() {
-        val current = _uiState.value as? ChatUiState.Success ?: return
-        _uiState.value = current.copy(downloadedAttachment = null, downloadIntent = null)
     }
 
     private fun load() {

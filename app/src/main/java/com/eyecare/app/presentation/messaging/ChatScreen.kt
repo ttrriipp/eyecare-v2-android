@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,7 +38,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -52,18 +53,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.ConversationAccessLevel
+import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
 import com.eyecare.app.domain.model.SenderType
-import com.eyecare.app.presentation.common.components.EmptyContent
-import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.openDownloadedAttachment
 import com.eyecare.app.presentation.common.saveImageToGallery
+import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.messaging.components.AttachmentGalleryViewer
 import com.eyecare.app.presentation.messaging.components.AttachmentPreview
 import com.eyecare.app.presentation.messaging.components.MessageBubble
@@ -79,9 +81,8 @@ fun ChatScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var galleryAttachmentId by remember { mutableStateOf<Int?>(null) }
     val listState = rememberLazyListState()
-    val successState = uiState as? ChatUiState.Success
+    var galleryAttachmentId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.effects.collect { effect ->
@@ -127,6 +128,8 @@ fun ChatScreen(
         viewModel.setPendingAttachment(PendingAttachment(uri, mimeType, fileName, fileSize))
     }
 
+    val successState = uiState as? ChatUiState.Success
+
     // Auto-scroll to newest message on initial load
     val messages = successState?.messages
     var hasScrolledToBottom by rememberSaveable { mutableStateOf(false) }
@@ -138,15 +141,44 @@ fun ChatScreen(
         }
     }
 
-    // Older-page prepend viewport anchoring
-    val isLoadingOlder = successState?.isLoadingOlder == true
-    OlderPageAnchorEffect(listState, messages?.size, isLoadingOlder)
+    // After the initial jump, keep following the conversation: an incoming reply only pulls
+    // the view down if the patient was already near the bottom, so scrolling up to reread
+    // history isn't yanked out from under them.
+    var lastMessageCount by rememberSaveable { mutableStateOf(0) }
+    LaunchedEffect(messages?.size) {
+        val size = messages?.size ?: return@LaunchedEffect
+        if (hasScrolledToBottom && lastMessageCount > 0 && size > lastMessageCount) {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            if (lastVisible >= lastMessageCount - 2) {
+                listState.animateScrollToItem(size - 1)
+            }
+        }
+        lastMessageCount = size
+    }
 
-    // Load-older trigger when reaching the top
-    LoadOlderTrigger(listState, successState, viewModel::loadOlder)
+    // A message the patient just sent is always revealed, regardless of scroll position.
+    var wasSending by remember { mutableStateOf(false) }
+    LaunchedEffect(successState?.isSending) {
+        val isSending = successState?.isSending == true
+        val justSentSuccessfully = wasSending && !isSending && successState?.sendError == null
+        wasSending = isSending
+        if (justSentSuccessfully) {
+            val size = messages?.size ?: return@LaunchedEffect
+            if (size > 0) listState.animateScrollToItem(size - 1)
+        }
+    }
 
-    // A completed download is handed off per its intent, then cleared so it can't re-fire on
-    // the next recomposition.
+    // One-shot navigation from a tapped search result to its place in the thread, paginating
+    // older pages in first if the message hasn't been loaded into the visible window yet.
+    var pendingScrollToMessageId by remember { mutableStateOf<Int?>(null) }
+    ScrollToMessageEffect(
+        listState = listState,
+        targetMessageId = pendingScrollToMessageId,
+        state = successState,
+        onLoadOlder = viewModel::loadOlder,
+        onHandled = { pendingScrollToMessageId = null },
+    )
+
     LaunchedEffect(successState?.downloadedAttachment) {
         val download = successState?.downloadedAttachment ?: return@LaunchedEffect
         when (successState.downloadIntent) {
@@ -155,6 +187,13 @@ fun ChatScreen(
         }
         viewModel.consumeDownloadedAttachment()
     }
+
+    // Older-page prepend viewport anchoring
+    val isLoadingOlder = successState?.isLoadingOlder == true
+    OlderPageAnchorEffect(listState, messages?.size, isLoadingOlder)
+
+    // Load-older trigger when reaching the top
+    LoadOlderTrigger(listState, successState, viewModel::loadOlder)
 
     Column(
         Modifier
@@ -196,6 +235,10 @@ fun ChatScreen(
                             onSubmit = viewModel::submitSearch,
                             onClose = viewModel::closeSearch,
                             onLoadMore = viewModel::loadMoreSearchResults,
+                            onResultClick = { message ->
+                                viewModel.closeSearch()
+                                pendingScrollToMessageId = message.id
+                            },
                         )
                     } else {
                         ChatContent(
@@ -205,29 +248,41 @@ fun ChatScreen(
                             onImageClick = { attachment -> galleryAttachmentId = attachment.id },
                             onFileClick = { attachment -> viewModel.downloadAttachment(attachment.id) },
                             onDownloadImageClick = { attachment ->
-                                viewModel.downloadAttachment(attachment.id, AttachmentDownloadIntent.SAVE_TO_GALLERY)
+                                viewModel.downloadAttachment(
+                                    attachment.id,
+                                    AttachmentDownloadIntent.SAVE_TO_GALLERY,
+                                )
                             },
                         )
                     }
 
-                    galleryAttachmentId?.let { attachmentId ->
-                        val imageAttachments = remember(state.messages) {
-                            state.messages.flatMap { msg ->
-                                msg.attachments.filter { shouldRenderImagePreview(it, state.conversation.accessLevel) }
+                    if (search == null) {
+                        galleryAttachmentId?.let { attachmentId ->
+                            val imageAttachments = remember(state.messages) {
+                                state.messages.flatMap { message ->
+                                    message.attachments.filter {
+                                        shouldRenderImagePreview(it, state.conversation.accessLevel)
+                                    }
+                                }
                             }
+                            AttachmentGalleryViewer(
+                                attachments = imageAttachments,
+                                initialAttachmentId = attachmentId,
+                                downloadingAttachmentId = state.downloadingAttachmentId,
+                                downloadError = state.downloadError,
+                                onOpenExternally = { attachment ->
+                                    viewModel.downloadAttachment(attachment.id)
+                                },
+                                onDownload = { attachment ->
+                                    viewModel.downloadAttachment(
+                                        attachment.id,
+                                        AttachmentDownloadIntent.SAVE_TO_GALLERY,
+                                    )
+                                },
+                                onRetryDownload = viewModel::retryDownload,
+                                onDismiss = { galleryAttachmentId = null },
+                            )
                         }
-                        AttachmentGalleryViewer(
-                            attachments = imageAttachments,
-                            initialAttachmentId = attachmentId,
-                            downloadingAttachmentId = state.downloadingAttachmentId,
-                            downloadError = state.downloadError,
-                            onOpenExternally = { attachment -> viewModel.downloadAttachment(attachment.id) },
-                            onDownload = { attachment ->
-                                viewModel.downloadAttachment(attachment.id, AttachmentDownloadIntent.SAVE_TO_GALLERY)
-                            },
-                            onRetryDownload = viewModel::retryDownload,
-                            onDismiss = { galleryAttachmentId = null },
-                        )
                     }
                 }
             }
@@ -248,12 +303,16 @@ fun ChatScreen(
             successState?.sendError?.let { error ->
                 ChatInlineError(
                     message = error,
-                    onRetry = successState.lastFailedMessageBody?.let { { viewModel.retrySendMessage() } },
+                    onRetry = {
+                        if (successState.pendingAttachment != null) {
+                            viewModel.sendPendingAttachment()
+                        } else {
+                            viewModel.sendMessage()
+                        }
+                    },
                 )
             }
 
-            // Attachment open/download error - only visible when the gallery viewer isn't the one
-            // covering the screen; see AttachmentGalleryViewer's own error banner for that case.
             successState?.downloadError?.let { error ->
                 ChatInlineError(
                     message = error,
@@ -267,6 +326,14 @@ fun ChatScreen(
             val canUpload = successState?.conversation?.let {
                 it.accessLevel == ConversationAccessLevel.LINKED_PATIENT && it.capabilities.canUploadAttachments
             } == true
+            val hasPendingAttachment = successState?.pendingAttachment != null && successState.attachmentError == null
+            val canSend = (inputText.isNotBlank() || hasPendingAttachment) && !isSending
+            val onSendClick = {
+                when {
+                    hasPendingAttachment -> viewModel.sendPendingAttachment()
+                    else -> viewModel.sendMessage()
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -289,7 +356,7 @@ fun ChatScreen(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         enabled = !isSending,
-                        modifier = Modifier.size(44.dp),
+                        modifier = Modifier.size(48.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.Add, contentDescription = "Add attachment", tint = EyecareColors.current.accentText)
@@ -310,19 +377,13 @@ fun ChatScreen(
                     maxLines = 4,
                     modifier = Modifier.weight(1f),
                     enabled = !isSending,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { if (canSend) onSendClick() }),
                 )
                 Spacer(Modifier.width(8.dp))
 
-                val hasPendingAttachment = successState?.pendingAttachment != null && successState.attachmentError == null
-                val canSend = (inputText.isNotBlank() || hasPendingAttachment) && !isSending
-
                 Surface(
-                    onClick = {
-                        when {
-                            hasPendingAttachment -> viewModel.sendPendingAttachment()
-                            else -> viewModel.sendMessage()
-                        }
-                    },
+                    onClick = onSendClick,
                     shape = CircleShape,
                     color = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                     enabled = canSend,
@@ -356,7 +417,13 @@ private fun ChatContent(
     onDownloadImageClick: (MessageAttachment) -> Unit,
 ) {
     if (state.messages.isEmpty() && !state.isLoadingOlder && state.olderPageError == null) {
-        EmptyContent(message = "No messages yet. Say hello!")
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                "No messages yet. Say hello!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     } else {
         LazyColumn(
             state = listState,
@@ -407,6 +474,24 @@ private fun ChatContent(
 }
 
 @Composable
+private fun ChatInlineError(message: String, onRetry: (() -> Unit)?) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.weight(1f),
+        )
+        if (onRetry != null) {
+            androidx.compose.material3.TextButton(onClick = onRetry) { Text("Retry") }
+        }
+    }
+}
+
+@Composable
 private fun OlderPageAnchorEffect(
     listState: LazyListState,
     messageCount: Int?,
@@ -436,6 +521,31 @@ private fun OlderPageAnchorEffect(
 }
 
 @Composable
+private fun ScrollToMessageEffect(
+    listState: LazyListState,
+    targetMessageId: Int?,
+    state: ChatUiState.Success?,
+    onLoadOlder: () -> Unit,
+    onHandled: () -> Unit,
+) {
+    LaunchedEffect(targetMessageId, state?.messages, state?.hasMore, state?.isLoadingOlder) {
+        if (targetMessageId == null || state == null) return@LaunchedEffect
+        val index = state.messages.indexOfFirst { it.id == targetMessageId }
+        when {
+            index >= 0 -> {
+                listState.animateScrollToItem(index)
+                onHandled()
+            }
+            // Not loaded into the visible window yet - page older messages in and let this
+            // effect re-run once the new page merges in.
+            state.hasMore && !state.isLoadingOlder -> onLoadOlder()
+            // Pagination is exhausted and the message still isn't there - give up quietly.
+            else -> onHandled()
+        }
+    }
+}
+
+@Composable
 private fun LoadOlderTrigger(
     listState: LazyListState,
     state: ChatUiState.Success?,
@@ -449,30 +559,5 @@ private fun LoadOlderTrigger(
                     loadOlder()
                 }
             }
-    }
-}
-
-/**
- * Inline send/download error row. Uses statusCancelledText rather than the raw error hue -
- * the same fill/text split already applied to status pills elsewhere in the app, since
- * colorScheme.error measures under the 4.5:1 body-text floor as plain text on a light surface
- * (DESIGN.md's own documented contrast gap for this hue). Retry is optional since not every
- * error is safely replayable from stored state.
- */
-@Composable
-private fun ChatInlineError(message: String, onRetry: (() -> Unit)?) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = EyecareColors.current.statusCancelledText,
-            modifier = Modifier.weight(1f),
-        )
-        if (onRetry != null) {
-            TextButton(onClick = onRetry) { Text("Retry") }
-        }
     }
 }

@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
@@ -30,12 +32,24 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.SenderType
+import com.eyecare.app.presentation.messaging.components.formatMessageTimestamp
+import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
 fun MessageSearchContent(
@@ -46,6 +60,7 @@ fun MessageSearchContent(
     onSubmit: () -> Unit,
     onClose: () -> Unit,
     onLoadMore: () -> Unit,
+    onResultClick: (Message) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -88,6 +103,7 @@ fun MessageSearchContent(
             else -> {
                 SearchResultList(
                     results = searchState.results,
+                    query = searchState.query,
                     currentUserId = currentUserId,
                     listState = listState,
                     hasMore = searchState.hasMore,
@@ -95,6 +111,7 @@ fun MessageSearchContent(
                     loadMoreError = if (searchState.error != null && searchState.results.isNotEmpty()) searchState.error else null,
                     onLoadMore = onLoadMore,
                     onRetryLoadMore = onLoadMore,
+                    onResultClick = onResultClick,
                 )
             }
         }
@@ -111,6 +128,9 @@ private fun SearchBar(
     onSubmit: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -129,7 +149,9 @@ private fun SearchBar(
                     Icon(Icons.Default.Search, contentDescription = "Search")
                 }
             },
-            modifier = Modifier.weight(1f),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
+            modifier = Modifier.weight(1f).focusRequester(focusRequester),
         )
     }
 }
@@ -137,6 +159,7 @@ private fun SearchBar(
 @Composable
 private fun SearchResultList(
     results: List<Message>,
+    query: String,
     currentUserId: Int?,
     listState: LazyListState,
     hasMore: Boolean,
@@ -144,13 +167,19 @@ private fun SearchResultList(
     loadMoreError: String?,
     onLoadMore: () -> Unit,
     onRetryLoadMore: () -> Unit,
+    onResultClick: (Message) -> Unit,
 ) {
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize().padding(vertical = 8.dp),
     ) {
         items(results, key = { "search-${it.id}" }) { msg ->
-            SearchResultRow(message = msg, currentUserId = currentUserId)
+            SearchResultRow(
+                message = msg,
+                query = query,
+                currentUserId = currentUserId,
+                onClick = { onResultClick(msg) },
+            )
         }
 
         if (isLoadingMore) {
@@ -201,13 +230,16 @@ private fun SearchResultList(
 @Composable
 private fun SearchResultRow(
     message: Message,
+    query: String,
     currentUserId: Int?,
+    onClick: () -> Unit,
 ) {
     val isOwn = currentUserId?.let { it == message.senderId }
         ?: (message.senderType == SenderType.PATIENT)
     val senderLabel = if (isOwn) "You" else "Staff"
 
     Surface(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -216,13 +248,14 @@ private fun SearchResultRow(
             Text(
                 senderLabel,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = EyecareColors.current.accentText,
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                message.body,
+                highlightSearchMatch(message.body, query),
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
             )
             if (message.attachments.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
@@ -245,11 +278,33 @@ private fun SearchResultRow(
             }
             Spacer(Modifier.height(2.dp))
             Text(
-                message.createdAt.take(16).replace("T", " "),
+                formatMessageTimestamp(message.createdAt),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.End),
             )
+        }
+    }
+}
+
+/** Bolds every case-insensitive occurrence of [query] inside [text], same as any search result. */
+private fun highlightSearchMatch(text: String, query: String): AnnotatedString {
+    if (query.isBlank()) return AnnotatedString(text)
+    return buildAnnotatedString {
+        var index = 0
+        val lowerText = text.lowercase()
+        val lowerQuery = query.lowercase()
+        while (index < text.length) {
+            val matchIndex = lowerText.indexOf(lowerQuery, index)
+            if (matchIndex < 0) {
+                append(text.substring(index))
+                break
+            }
+            append(text.substring(index, matchIndex))
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                append(text.substring(matchIndex, matchIndex + query.length))
+            }
+            index = matchIndex + query.length
         }
     }
 }
@@ -278,7 +333,7 @@ private fun SearchErrorOrEmpty(
                 Text(
                     "Tap to retry",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = EyecareColors.current.accentText,
                 )
             }
         }

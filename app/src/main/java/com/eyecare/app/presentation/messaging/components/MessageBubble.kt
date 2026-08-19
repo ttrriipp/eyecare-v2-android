@@ -41,7 +41,6 @@ import com.eyecare.app.BuildConfig
 import com.eyecare.app.domain.model.ConversationAccessLevel
 import com.eyecare.app.domain.model.Message
 import com.eyecare.app.domain.model.MessageAttachment
-import com.eyecare.app.domain.model.SenderType
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
