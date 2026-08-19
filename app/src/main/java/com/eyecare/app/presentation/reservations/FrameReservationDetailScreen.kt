@@ -1,19 +1,19 @@
 package com.eyecare.app.presentation.reservations
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -22,19 +22,17 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Cancel
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,12 +41,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +66,8 @@ import com.eyecare.app.domain.model.FrameReservationItem
 import com.eyecare.app.domain.model.canAddItems
 import com.eyecare.app.domain.model.canRemoveItems
 import com.eyecare.app.domain.model.isCancellable
+import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
+import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.EmptyContent
@@ -191,157 +195,203 @@ fun ReservationDetailContent(
         )
     }
 
-    Column(
-        modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        ReservationSummaryCard(reservation)
+    val showBottomBar = reservation.canAddItems || reservation.isCancellable
+    var bottomActionBarHeightPx by remember { mutableIntStateOf(0) }
+    val bottomActionBarHeight = with(LocalDensity.current) { bottomActionBarHeightPx.toDp() }
 
-        reservation.expiresAt?.let { expiresAt ->
-            HoldNotice(expiresAt = expiresAt, isHeld = reservation.isHeld)
-        }
+    Box(modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // Always visible, mirroring the status-guidance banner on the appointment, request,
+            // and order detail screens - unlike the old HoldNotice, which only appeared when
+            // expiresAt was set and always painted itself "confirmed" green regardless of
+            // whether the reservation was actually held.
+            ReservationStatusGuidance(reservation)
 
-        ReservationAppointmentCard(
-            reservation = reservation,
-            onViewAppointment = onViewAppointment,
-        )
+            ReservationSummaryCard(reservation)
 
-        if (reservation.items.isNotEmpty()) {
-            Text(
-                text = if (reservation.items.size == 1) "Reserved frame" else "Reserved frames",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 4.dp),
+            ReservationAppointmentCard(
+                reservation = reservation,
+                onViewAppointment = onViewAppointment,
             )
 
-            reservation.items.forEach { item ->
-                ReservedFrameCard(
-                    item = item,
-                    onViewFrame = { onViewFrame(item.frameId) },
-                    showRemove = reservation.canRemoveItems,
-                    isRemoving = state.removingItemId == item.id,
-                    onRemove = { pendingRemoveItem = item },
-                )
-            }
-        }
-
-        if (reservation.canAddItems) {
-            OutlinedButton(
-                onClick = onAddFrame,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(50),
-            ) {
-                Icon(Icons.Outlined.Inventory2, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Add frame")
-            }
-        } else if (reservation.isHeld) {
-            Text(
-                text = "The clinic has already set these frames aside. Ask at your visit to make changes.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        state.removeItemError?.let { error ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            if (reservation.items.isNotEmpty()) {
                 Text(
-                    text = error,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    text = if (reservation.items.size == 1) "Reserved frame" else "Reserved frames",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
-                TextButton(onClick = onDismissRemoveItemError) { Text("Dismiss") }
-            }
-        }
 
-        state.deleteError?.let { error ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = error,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                TextButton(onClick = onDismissDeleteError) { Text("Dismiss") }
-            }
-        }
-
-        if (reservation.isCancellable) {
-            OutlinedButton(
-                onClick = { showDeleteDialog = true },
-                enabled = !state.isDeleting,
-                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-            ) {
-                if (state.isDeleting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = MaterialTheme.colorScheme.error,
+                reservation.items.forEach { item ->
+                    ReservedFrameCard(
+                        item = item,
+                        onViewFrame = { onViewFrame(item.frameId) },
+                        showRemove = reservation.canRemoveItems,
+                        isRemoving = state.removingItemId == item.id,
+                        onRemove = { pendingRemoveItem = item },
                     )
-                } else {
-                    Icon(Icons.Outlined.Cancel, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Cancel reservation")
                 }
             }
+
+            if (!reservation.canAddItems && reservation.isHeld) {
+                Text(
+                    text = "The clinic has already set these frames aside. Ask at your visit to make changes.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            state.removeItemError?.let { error ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = error,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    TextButton(onClick = onDismissRemoveItemError) { Text("Dismiss") }
+                }
+            }
+
+            state.deleteError?.let { error ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = error,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    TextButton(onClick = onDismissDeleteError) { Text("Dismiss") }
+                }
+            }
+
+            Spacer(
+                Modifier
+                    .testTag("reservation-bottom-spacer")
+                    .height(if (showBottomBar) bottomActionBarHeight + 16.dp else 24.dp),
+            )
         }
 
-        Spacer(Modifier.height(24.dp))
+        if (showBottomBar) {
+            // Keep the action surface lifted from the content while measuring its real height so
+            // the scroll column can reserve exactly enough space for this variable action set.
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .onSizeChanged { bottomActionBarHeightPx = it.height },
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reservation-action-bar"),
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                    shadowElevation = 8.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        if (reservation.canAddItems) {
+                            AppointmentPrimaryButton(
+                                text = "Add frame",
+                                onClick = onAddFrame,
+                                icon = Icons.Outlined.Inventory2,
+                            )
+                        }
+                        if (reservation.isCancellable) {
+                            AppointmentOutlinedButton(
+                                text = "Cancel reservation",
+                                onClick = { showDeleteDialog = true },
+                                enabled = !state.isDeleting,
+                                loading = state.isDeleting,
+                                icon = Icons.Outlined.Cancel,
+                                isDestructive = true,
+                            )
+                        }
+                    }
+                }
+
+                // Keep the gesture area on the same surface without drawing the action sheet's
+                // outline or shadow directly against the system gesture handle.
+                Spacer(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .navigationBarsPadding(),
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun ReservationSummaryCard(reservation: FrameReservation) {
-    DetailCard {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            IconBadge(Icons.Outlined.Inventory2)
-            Column(Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
                 Text(
                     text = "Reservation #${reservation.id}",
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
-                Text(
-                    text = "Requested ${formatReservationDate(reservation.createdAt)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                StatusPill(reservation.isHeld)
             }
-            StatusPill(reservation.isHeld)
-        }
 
-        Text(
-            text = reservationExplanation(reservation.isHeld, reservation.expiresAt),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DetailFactRow("Requested", formatReservationDate(reservation.createdAt))
+                    reservation.expiresAt?.let { expiresAt ->
+                        DetailFactRow(
+                            if (reservation.isHeld) "Set aside until" else "Expected by",
+                            formatReservationDateTime(expiresAt),
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun HoldNotice(expiresAt: String, isHeld: Boolean) {
+private fun ReservationStatusGuidance(reservation: FrameReservation) {
+    val isHeld = reservation.isHeld
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = EyecareColors.current.statusConfirmed.copy(alpha = 0.10f),
+        color = reservationStatusColor(isHeld).copy(alpha = 0.10f),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -349,18 +399,17 @@ private fun HoldNotice(expiresAt: String, isHeld: Boolean) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Outlined.Schedule,
+                imageVector = if (isHeld) Icons.Outlined.EventAvailable else Icons.Outlined.Schedule,
                 contentDescription = null,
-                tint = EyecareColors.current.statusConfirmed,
+                tint = reservationStatusTextColor(isHeld),
                 modifier = Modifier.size(20.dp),
             )
-            Column {
-                Text(
-                    text = reservationExplanation(isHeld, expiresAt),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
+            Text(
+                text = reservationExplanation(isHeld, reservation.expiresAt),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }
@@ -422,7 +471,10 @@ private fun ReservedFrameCard(
     isRemoving: Boolean = false,
     onRemove: () -> Unit = {},
 ) {
-    DetailCard(contentPadding = 0.dp) {
+    DetailCard(
+        modifier = Modifier.testTag("reservation-frame-card-${item.id}"),
+        contentPadding = 0.dp,
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -527,14 +579,12 @@ private fun FrameThumbnail(item: FrameReservationItem) {
 
 @Composable
 private fun StatusPill(isHeld: Boolean) {
-    val label = reservationChipLabel(isHeld)
-    val color = if (isHeld) EyecareColors.current.statusConfirmed else EyecareColors.current.statusPending
-    Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.12f)) {
+    Surface(shape = RoundedCornerShape(50), color = reservationStatusColor(isHeld).copy(alpha = 0.12f)) {
         Text(
-            text = label,
+            text = reservationChipLabel(isHeld),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
-            color = color,
+            color = reservationStatusTextColor(isHeld),
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -560,6 +610,7 @@ private fun IconBadge(icon: androidx.compose.ui.graphics.vector.ImageVector) {
 
 @Composable
 private fun DetailCard(
+    modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     contentPadding: androidx.compose.ui.unit.Dp = 16.dp,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
@@ -578,7 +629,7 @@ private fun DetailCard(
     if (onClick != null) {
         Card(
             onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = modifier.fillMaxWidth(),
             shape = shape,
             colors = colors,
             border = border,
@@ -586,7 +637,7 @@ private fun DetailCard(
         )
     } else {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = modifier.fillMaxWidth(),
             shape = shape,
             colors = colors,
             border = border,

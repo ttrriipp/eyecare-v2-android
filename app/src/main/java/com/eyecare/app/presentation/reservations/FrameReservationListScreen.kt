@@ -18,10 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.FrameReservationItem
+import com.eyecare.app.domain.model.totalValue
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.EyecareColors
@@ -158,7 +157,7 @@ private fun EmptyReservations() {
     }
 }
 
-private const val VISIBLE_ITEM_LIMIT = 3
+private const val VISIBLE_ITEM_LIMIT = 2
 
 @Composable
 private fun ReservationCard(
@@ -176,51 +175,26 @@ private fun ReservationCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            val appointment = reservation.appointment
-            val hasAppointment = appointment.id > 0
+            // Status + schedule row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(
-                        Icons.Outlined.CalendarMonth,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Column {
-                        Text(
-                            appointment.appointmentNumber
-                                ?: if (hasAppointment) "Appointment #${appointment.id}" else "Appointment unavailable",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            if (appointment.scheduledAt.isNotBlank()) {
-                                formatReservationSchedule(appointment.scheduledAt, appointment.durationMinutes)
-                            } else {
-                                "Schedule TBD"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
                 StatusChip(reservation.isHeld)
+                val appointment = reservation.appointment
+                Text(
+                    if (appointment.scheduledAt.isNotBlank()) {
+                        formatReservationSchedule(appointment.scheduledAt, appointment.durationMinutes)
+                    } else {
+                        "Schedule TBD"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
-            if (reservation.isHeld) {
-                reservation.expiresAt?.let { expiresAt -> HoldExpiryNotice(expiresAt) }
-            } else {
-                ReservationExplanation()
-            }
-
+            // Frame items list
             reservation.items.take(VISIBLE_ITEM_LIMIT).forEach { item ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -237,18 +211,13 @@ private fun ReservationCard(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            listOf(item.frameBrand, item.variantName).filter { it.isNotBlank() }.joinToString(" · "),
+                            item.frameBrand,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    Text(
-                        formatReservationPrice(item.price),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
                 }
             }
             val hiddenItemCount = reservation.items.size - VISIBLE_ITEM_LIMIT
@@ -260,39 +229,21 @@ private fun ReservationCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
+            // Total value
+            if (reservation.items.isNotEmpty()) {
+                Text(
+                    formatReservationPrice(reservation.totalValue),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EyecareColors.current.accentText,
+                )
+            }
         }
     }
 }
 
-@Composable
-private fun HoldExpiryNotice(expiresAt: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Icon(
-            Icons.Outlined.Schedule,
-            contentDescription = null,
-            tint = EyecareColors.current.statusConfirmed,
-            modifier = Modifier.size(14.dp),
-        )
-        Text(
-            reservationExplanation(true, expiresAt),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
-            color = EyecareColors.current.statusConfirmed,
-        )
-    }
-}
 
-@Composable
-private fun ReservationExplanation() {
-    Text(
-        reservationExplanation(false, null),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
 
 @Composable
 private fun FrameThumbnail(item: FrameReservationItem) {

@@ -3,8 +3,10 @@ package com.eyecare.app.presentation.reservations
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.SavedStateHandle
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.FrameReservation
@@ -87,6 +89,50 @@ class FrameReservationDetailScreenTest {
 
         composeRule.onNodeWithText("Keep frame").performClick()
         composeRule.runOnIdle { check(repository.removedItemId == null) }
+    }
+
+    @Test
+    fun lastReservedFrame_scrollsAboveFixedActions() {
+        val baseReservation = testReservation()
+        val reservation = baseReservation.copy(
+            items = baseReservation.items + baseReservation.items.single().copy(
+                id = 12,
+                frameId = 8,
+                frameName = "Round Metal Frame",
+            ),
+        )
+        val viewModel = FrameReservationDetailViewModel(
+            repository = RecordingReservationRepository(reservation),
+            savedStateHandle = SavedStateHandle(mapOf("reservationId" to 1)),
+        )
+
+        composeRule.setContent {
+            EyecareTheme {
+                FrameReservationDetailScreen(
+                    onBack = {},
+                    onViewAppointment = {},
+                    onViewFrame = {},
+                    onAddFrame = {},
+                    viewModel = viewModel,
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("reservation-bottom-spacer").performScrollTo()
+        composeRule.runOnIdle {
+            val frameBounds = composeRule
+                .onNodeWithTag("reservation-frame-card-12")
+                .fetchSemanticsNode()
+                .boundsInRoot
+            val actionBarBounds = composeRule
+                .onNodeWithTag("reservation-action-bar")
+                .fetchSemanticsNode()
+                .boundsInRoot
+
+            check(frameBounds.bottom <= actionBarBounds.top) {
+                "Last frame bottom ${frameBounds.bottom} is behind action bar top ${actionBarBounds.top}"
+            }
+        }
     }
 
     private class RecordingReservationRepository(
