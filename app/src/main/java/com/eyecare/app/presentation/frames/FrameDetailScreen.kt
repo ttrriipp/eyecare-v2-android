@@ -245,14 +245,14 @@ fun FrameDetailScreen(
                                     )
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text(
-                                            text = String.format(Locale.US, "?%.2f", selected.price),
+                                            text = String.format(Locale.US, "₱%.2f", selected.price),
                                             style = MaterialTheme.typography.headlineMedium,
                                             color = EyecareColors.current.accentText,
                                             fontWeight = FontWeight.Bold,
                                         )
                                         selected.compareAtPrice?.let { original ->
                                             Text(
-                                                text = String.format(Locale.US, "?%.2f", original),
+                                                text = String.format(Locale.US, "₱%.2f", original),
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 textDecoration = TextDecoration.LineThrough,
@@ -588,7 +588,7 @@ private fun FrameDetailImage(
         if (!imageLoaded) {
             FramePhotoPlaceholder(
                 frameName = frameName,
-                label = if (imageFailed) "Photo unavailable" else "Loading photo�",
+                label = if (imageFailed) "Photo unavailable" else "Loading photo…",
                 showLoading = !imageFailed,
                 onRetry = if (imageFailed) {
                     {
@@ -697,7 +697,7 @@ private fun FrameCapabilityNotice(isArReady: Boolean) {
             )
             Text(
                 text = if (isArReady) {
-                    "AR-ready � see this option on your face before reserving."
+                    "AR-ready — see this option on your face before reserving."
                 } else {
                     "Virtual try-on isn't available for this option. You can still reserve it."
                 },

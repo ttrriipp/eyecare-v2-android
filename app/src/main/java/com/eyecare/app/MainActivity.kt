@@ -2,7 +2,6 @@ package com.eyecare.app
 
 import android.annotation.SuppressLint
 import android.graphics.Color
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity

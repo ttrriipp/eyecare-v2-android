@@ -71,7 +71,7 @@ class MessageBubbleAttachmentTest {
             originalName = "eye-photo.jpg",
             mimeType = "image/jpeg",
             fileSize = 1024,
-            downloadUrl = null,
+            downloadUrl = "",
         )
 
         assertTrue(shouldRenderImagePreview(attachment, ConversationAccessLevel.LINKED_PATIENT))
@@ -84,7 +84,7 @@ class MessageBubbleAttachmentTest {
             originalName = "Screenshot_2026-08-16-18-54-140_com.tcare.jpg",
             mimeType = "application/octet-stream",
             fileSize = 1024,
-            downloadUrl = null,
+            downloadUrl = "",
         )
 
         assertTrue(shouldRenderImagePreview(attachment, ConversationAccessLevel.LINKED_PATIENT))
@@ -97,7 +97,7 @@ class MessageBubbleAttachmentTest {
             originalName = "receipt.pdf",
             mimeType = "application/pdf",
             fileSize = 1024,
-            downloadUrl = null,
+            downloadUrl = "",
         )
 
         assertFalse(shouldRenderImagePreview(attachment, ConversationAccessLevel.LINKED_PATIENT))
@@ -110,7 +110,7 @@ class MessageBubbleAttachmentTest {
             originalName = "mwd_g2_chapter4_draft-1.pdf",
             mimeType = "application/octet-stream",
             fileSize = 1024,
-            downloadUrl = null,
+            downloadUrl = "",
         )
 
         assertFalse(shouldRenderImagePreview(attachment, ConversationAccessLevel.LINKED_PATIENT))
