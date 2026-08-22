@@ -33,12 +33,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImagePainter
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.Frame
+import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.presentation.common.FeatureFlags
 import com.eyecare.app.presentation.common.buildImageUrl
@@ -57,7 +59,7 @@ fun FrameCard(
     val firstTypedArVariant = frame.variants.firstOrNull { it.isTypedArReady }
     val imageUrl = (frame.images.firstOrNull() ?: frame.variants.firstOrNull()?.images?.firstOrNull())
         ?.let { buildImageUrl(it) }
-    val displayPrice = frame.variants.firstOrNull()?.price
+    val displayVariant = frame.variants.firstOrNull()
 
     Card(
         onClick = onClick,
@@ -128,25 +130,36 @@ fun FrameCard(
                         ratingCount = frame.ratingCount,
                     )
                 }
-                val formattedPrice = displayPrice?.let { String.format(Locale.US, "₱%.2f", it) }
-                Text(
-                    text = when {
-                        formattedPrice == null -> "Price unavailable"
-                        frame.variants.size > 1 -> "From $formattedPrice"
-                        else -> formattedPrice
-                    },
-                    style = if (formattedPrice != null) {
-                        MaterialTheme.typography.titleSmall
-                    } else {
-                        MaterialTheme.typography.bodySmall
-                    },
-                    color = if (formattedPrice != null) {
-                        EyecareColors.current.accentText
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    fontWeight = if (formattedPrice != null) FontWeight.Bold else FontWeight.Normal,
-                )
+                val formattedPrice = displayVariant?.formattedPrice()
+                val formattedCompareAtPrice = displayVariant?.formattedCompareAtPrice()
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(
+                        text = formattedPrice ?: "Price unavailable",
+                        style = if (formattedPrice != null) {
+                            MaterialTheme.typography.titleLarge
+                        } else {
+                            MaterialTheme.typography.bodySmall
+                        },
+                        color = if (formattedPrice != null) {
+                            EyecareColors.current.accentText
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        fontWeight = if (formattedPrice != null) FontWeight.Bold else FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (formattedCompareAtPrice != null) {
+                        Text(
+                            text = "From $formattedCompareAtPrice",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textDecoration = TextDecoration.LineThrough,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
                 if (onTryOn != null && firstTypedArVariant != null) {
                     OutlinedButton(
                         onClick = onTryOn,
@@ -168,6 +181,11 @@ fun FrameCard(
         }
     }
 }
+
+internal fun FrameVariant.formattedPrice(): String = String.format(Locale.US, "₱%.2f", price)
+
+internal fun FrameVariant.formattedCompareAtPrice(): String? =
+    compareAtPrice?.let { String.format(Locale.US, "₱%.2f", it) }
 
 @Composable
 private fun FrameImagePlaceholder(

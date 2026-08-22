@@ -1,11 +1,7 @@
 package com.eyecare.app.presentation.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,8 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.ExpandLess
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.HorizontalDivider
@@ -48,12 +42,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -284,7 +277,7 @@ private fun formatClinicTime(hhmm: String): String = runCatching {
     LocalTime.parse(hhmm).format(clinicTimeFormatter)
 }.getOrDefault(hhmm)
 
-private fun ClinicHoursDay.rangeLabel(): String =
+internal fun ClinicHoursDay.rangeLabel(): String =
     if (enabled && openTime != null && closeTime != null) {
         "${formatClinicTime(openTime)} – ${formatClinicTime(closeTime)}"
     } else {
@@ -293,7 +286,6 @@ private fun ClinicHoursDay.rangeLabel(): String =
 
 @Composable
 private fun ClinicHoursCard(clinicHours: List<ClinicHoursDay>) {
-    var expanded by remember { mutableStateOf(false) }
     val today = remember { LocalDate.now() }
     val locale = LocalLocale.current.platformLocale
     val todayHours = remember(clinicHours, today) {
@@ -301,93 +293,73 @@ private fun ClinicHoursCard(clinicHours: List<ClinicHoursDay>) {
     }
     val todayDayName = todayHours?.dayName
         ?: today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, locale)
+    val isClosedToday = todayHours == null || !todayHours.enabled
 
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             Row(
-                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.Schedule,
+                            contentDescription = null,
+                            tint = EyecareColors.current.accentText,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = "Clinic Hours",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = todayDayName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.size(36.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Outlined.Schedule,
-                                contentDescription = null,
-                                tint = EyecareColors.current.accentText,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    }
-                    Column {
-                        Text(
-                            text = "Clinic Hours",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = todayHours?.let { "$todayDayName · ${it.rangeLabel()}" } ?: todayDayName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                Icon(
-                    imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(
+                    text = "TODAY",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 0.8.sp,
                 )
-            }
-
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(top = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    clinicHours.forEach { day ->
-                        val isToday = day.weekday == todayHours?.weekday
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                text = day.dayName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isToday) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
-                            Text(
-                                text = day.rangeLabel(),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Medium,
-                            )
-                        }
-                    }
-                }
+                Text(
+                    text = todayHours?.rangeLabel() ?: "Closed",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isClosedToday) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                )
             }
         }
     }
@@ -434,12 +406,12 @@ private fun VisitTicket(
                         text = month,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = Color.White,
                     )
                     Text(
                         text = day,
                         style = MaterialTheme.typography.displayLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = Color.White,
                     )
                 }
             }

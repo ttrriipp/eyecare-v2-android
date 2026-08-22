@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.home
 
+import com.eyecare.app.domain.model.ClinicHoursDay
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.time.LocalTime
@@ -24,5 +25,31 @@ class HomeScreenTest {
         assertEquals("Good evening", timeOfDayGreeting(LocalTime.of(23, 59)))
         assertEquals("Good evening", timeOfDayGreeting(LocalTime.of(0, 0)))
         assertEquals("Good evening", timeOfDayGreeting(LocalTime.of(4, 59)))
+    }
+
+    private fun clinicDay(
+        enabled: Boolean = true,
+        openTime: String? = "09:00",
+        closeTime: String? = "17:00",
+    ) = ClinicHoursDay(
+        weekday = 3,
+        dayName = "Wednesday",
+        enabled = enabled,
+        openTime = openTime,
+        closeTime = closeTime,
+    )
+
+    @Test
+    fun `rangeLabel formats open and close time for an enabled day`() {
+        val day = clinicDay(openTime = "09:00", closeTime = "17:00")
+
+        assertEquals("9:00 AM – 5:00 PM", day.rangeLabel())
+    }
+
+    @Test
+    fun `rangeLabel reports Closed for a disabled day`() {
+        val day = clinicDay(enabled = false, openTime = null, closeTime = null)
+
+        assertEquals("Closed", day.rangeLabel())
     }
 }

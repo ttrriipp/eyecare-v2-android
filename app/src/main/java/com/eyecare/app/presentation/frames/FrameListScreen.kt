@@ -75,7 +75,7 @@ fun FrameListScreen(
             Text(
                 text = "Frames",
                 style = MaterialTheme.typography.displayLarge,
-                modifier = Modifier.padding(horizontal = 24.dp),
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
 
             val filters = (uiState as? FrameListUiState.Success)?.filters ?: FrameListFilters()

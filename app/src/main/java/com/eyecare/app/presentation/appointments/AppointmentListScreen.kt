@@ -106,7 +106,7 @@ fun AppointmentListScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(hasActivePatientLink) {
-        viewModel.load(hasActivePatientLink)
+        viewModel.refresh(hasActivePatientLink)
     }
 
     DisposableEffect(lifecycleOwner, requestViewModel) {
@@ -121,9 +121,7 @@ fun AppointmentListScreen(
 
     Box(Modifier.fillMaxSize()) {
         PullToRefreshBox(
-            isRefreshing = uiState is AppointmentListUiState.Loading ||
-                (uiState as? AppointmentListUiState.Success)?.isRefreshing == true ||
-                requestState is RequestListState.Loading ||
+            isRefreshing = (uiState as? AppointmentListUiState.Success)?.isRefreshing == true ||
                 (requestState as? RequestListState.Data)?.isRefreshing == true,
             onRefresh = {
                 viewModel.refresh(hasActivePatientLink)
@@ -232,7 +230,7 @@ private fun AppointmentListHeader(
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
     ) {
         Text("Appointments", style = MaterialTheme.typography.displayLarge)
         IconButton(
@@ -454,7 +452,7 @@ private fun AppointmentCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             AppointmentStatusPill(appointment.status)
 
@@ -828,12 +826,13 @@ private fun AppointmentRequestCard(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Row(
+            AppointmentRequestStatusPill(request.status, presentation.label)
+
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(9.dp),
             ) {
                 Text(
                     text = "Request ${request.requestNumber}",
@@ -841,26 +840,25 @@ private fun AppointmentRequestCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                AppointmentRequestStatusPill(request.status, presentation.label)
+                val durationMinutes = request.provisionalDurationMinutes
+                    ?: request.appointmentType?.durationMinutes
+                val requestSummary = listOfNotNull(
+                    request.appointmentType?.name,
+                    durationMinutes?.let { "$it min" },
+                ).joinToString(" · ")
+                Text(
+                    text = requestSummary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Preferred time",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                AppointmentInfoRow(Icons.Outlined.CalendarMonth, formatAppointmentDate(request.scheduledAt))
+                AppointmentInfoRow(Icons.Outlined.AccessTime, formatAppointmentTime(request.scheduledAt))
             }
-            val durationMinutes = request.provisionalDurationMinutes
-                ?: request.appointmentType?.durationMinutes
-            val requestSummary = listOfNotNull(
-                request.appointmentType?.name,
-                durationMinutes?.let { "$it min" },
-            ).joinToString(" · ")
-            Text(
-                text = requestSummary,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = "Preferred time",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            AppointmentInfoRow(Icons.Outlined.CalendarMonth, formatAppointmentDate(request.scheduledAt))
-            AppointmentInfoRow(Icons.Outlined.AccessTime, formatAppointmentTime(request.scheduledAt))
         }
     }
 }
