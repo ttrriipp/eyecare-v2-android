@@ -1,6 +1,6 @@
 # Spec: Face-Mesh Depth Occlusion v1
 
-**Status:** Draft for approval
+**Status:** Approved on 2026-08-23
 
 **Parent feature:** `docs/specs/3d-frame-try-on-spec.md`
 
