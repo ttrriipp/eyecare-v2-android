@@ -598,9 +598,9 @@ ear, lens, or temple occlusion.
 
 - [ ] Both temples remain visible in the frontal range and the far-side temple
   hides only after the configured yaw threshold is crossed.
-- [ ] Hysteresis/smoothing prevents temple flicker near the threshold and a
+- [x] Hysteresis/smoothing prevents temple flicker near the threshold and a
   transient node lookup failure never hides the whole frame.
-- [ ] Combined GLBs and GLBs without the named nodes continue rendering as they
+- [x] Combined GLBs and GLBs without the named nodes continue rendering as they
   did before.
 - [ ] The separated fixture preserves its measured scale, materials, and
   existing calibration.
@@ -612,6 +612,10 @@ ear, lens, or temple occlusion.
 - [x] `.\gradlew assembleDebug`
 - [ ] Manual POCO check: frontal, left-yaw, right-yaw, and return-to-frontal
   views; confirm no flicker or black preview during node visibility changes.
+
+**Reconciled 2026-08-23:** policy tests and renderer fallback behavior are
+verified. Far-side direction and the final separated-asset calibration remain
+manual POCO checks and are intentionally not marked complete.
 
 **Dependencies:** Task P5 and an approved separated GLB fixture.
 
@@ -657,11 +661,11 @@ publication capability.
 
 ## Checkpoint E-PASS: Remote Three-Variant Slice
 
-- [ ] Android consumes only typed ready GLB assets.
-- [ ] Downloads are bounded, checksummed, atomic, and cacheable.
-- [ ] Switching is identity-safe.
+- [x] Android consumes only typed ready GLB assets.
+- [x] Downloads are bounded, checksummed, atomic, and cacheable.
+- [x] Switching is identity-safe.
 - [ ] Up to three approved physical variants are published.
-- [ ] Full unit suite, lint, and debug build pass.
+- [x] Full unit suite, lint, and debug build pass.
 
 ## FAIL Branch: Bounded 2D/2.5D Delivery
 
@@ -743,17 +747,17 @@ five-item reservations and surface the server's `422` validation.
 
 **Acceptance criteria:**
 
-- [ ] New/add flows stop at three and use consistent copy derived from the
+- [x] New/add flows stop at three and use consistent copy derived from the
   domain constant.
-- [ ] Existing reservations with four/five items remain readable and removable,
+- [x] Existing reservations with four/five items remain readable and removable,
   are never truncated, and cannot accept another item.
-- [ ] Tests cover counts 0–5, duplicate items, held reservations, and server
+- [x] Tests cover counts 0–5, duplicate items, held reservations, and server
   validation.
 
 **Verification:**
 
-- [ ] `.\gradlew testDebugUnitTest --tests *CreateFrameReservationViewModelTest --tests *FrameReservationEligibilityTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *CreateFrameReservationViewModelTest --tests *FrameReservationEligibilityTest`
+- [x] `.\gradlew assembleDebug`
 
 **Dependencies:** Task C1 and the deployed/tested backend maximum-three change.
 
@@ -776,15 +780,19 @@ only the reservation change and leave remote AR unclaimed.
 
 - [ ] Every documented field/validation rule is backed by implemented backend
   tests and an Android consumer test.
-- [ ] PASS and FAIL documentation accurately reflect the selected branch.
-- [ ] No staff-only processing error, quarantine path, or private metadata is
+- [x] PASS and FAIL documentation accurately reflect the selected branch.
+- [x] No staff-only processing error, quarantine path, or private metadata is
   shown in the patient response.
 
 **Verification:**
 
 - [ ] Compare backend contract-test fixtures with `docs/API_CONTRACT.md`.
-- [ ] `.\gradlew testDebugUnitTest --tests *FrameDtosTest --tests *FrameReservationDtosTest`
-- [ ] `.\gradlew assembleDebug`
+- [x] `.\gradlew testDebugUnitTest --tests *FrameDtosTest --tests *FrameReservationDtosTest`
+- [x] `.\gradlew assembleDebug`
+
+**Reconciled 2026-08-23:** Android DTO/consumer tests and the documented PASS
+shape are verified. Direct comparison with backend contract-test fixtures is
+still open because the backend test source is not present in this workspace.
 
 **Dependencies:** Task C2; on PASS also Tasks P1–P5 and backend publication.
 
