@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.camera.core.ImageProxy
 import com.eyecare.app.presentation.ar.model.ArFaceState
 import com.eyecare.app.presentation.ar.model.FaceFrame
+import com.eyecare.app.presentation.ar.model.FaceMeshLandmarks
 import com.eyecare.app.presentation.ar.tracking.extractSingleFaceTransformationMatrix
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
@@ -82,7 +83,20 @@ class FaceLandmarkerHelper(
         }
         val w = input.width
         val h = input.height
-        if (w <= 0 || h <= 0 || landmarks.size <= RIGHT_TEMPLE) {
+        if (w <= 0 || h <= 0 || landmarks.size != FaceMeshLandmarks.LANDMARK_COUNT) {
+            onResult(ArFaceState.NoFace)
+            return
+        }
+
+        val meshValues = FloatArray(FaceMeshLandmarks.VALUE_COUNT)
+        landmarks.forEachIndexed { index, landmark ->
+            val offset = index * 3
+            meshValues[offset] = landmark.x()
+            meshValues[offset + 1] = landmark.y()
+            meshValues[offset + 2] = landmark.z()
+        }
+        val faceMesh = FaceMeshLandmarks.from(meshValues)
+        if (faceMesh == null) {
             onResult(ArFaceState.NoFace)
             return
         }
@@ -119,13 +133,6 @@ class FaceLandmarkerHelper(
             return
         }
 
-        // FPS counter and landmark debug log
-        val now = System.currentTimeMillis()
-        val fps = if (lastFrameTime > 0) 1000f / (now - lastFrameTime) else 0f
-        lastFrameTime = now
-        Log.d("FaceLandmarker", "face detected | nose=(%.2f,%.2f) width=%.3f rot=%.1f° FPS=%.0f"
-            .format(noseBridgeX, noseBridgeY, faceWidth, rotationDeg, fps))
-
         onResult(
             ArFaceState.Detected(
                 FaceFrame(
@@ -135,12 +142,11 @@ class FaceLandmarkerHelper(
                     imageWidth = w, imageHeight = h,
                     transformationMatrix = transformationMatrix,
                     timestampMs = timestampMs,
+                    faceMesh = faceMesh,
                 )
             )
         )
     }
-
-    private var lastFrameTime: Long = 0
 
     private fun Bitmap.rotate(degrees: Float): Bitmap {
         if (degrees == 0f) return this

@@ -62,6 +62,8 @@ data class FaceFrame(
     val transformationMatrix: FaceTransformationMatrix,
     /** MediaPipe timestamp associated with this detection. */
     val timestampMs: Long,
+    /** Complete validated face surface used by the optional depth occluder. */
+    val faceMesh: FaceMeshLandmarks? = null,
 )
 
 sealed interface ArFaceState {
