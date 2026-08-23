@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.ar.rendering
 
+import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,12 +25,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.ar.model.BundledFrameAsset
+import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FacePose
+import com.eyecare.app.presentation.ar.tracking.FaceOccluderViewport
+import com.eyecare.app.presentation.ar.tracking.mapFaceOccluder
+import com.eyecare.app.presentation.ar.tracking.loadMediaPipeFaceMeshTopology
+import io.github.sceneview.SceneScope
 import io.github.sceneview.SceneView
 import io.github.sceneview.SurfaceType
 import io.github.sceneview.math.Position
 import io.github.sceneview.math.Rotation
 import io.github.sceneview.math.Scale
+import io.github.sceneview.node.CameraNode
 import io.github.sceneview.node.ModelNode
 import io.github.sceneview.rememberCameraNode
 import io.github.sceneview.rememberEngine
@@ -57,6 +66,7 @@ private sealed interface AssetCheck {
 fun FrameModelRenderer(
     modifier: Modifier = Modifier,
     source: FrameModelSource = FrameModelSource.Bundled(BundledFrameAsset.RoundFrame),
+    face: FaceFrame? = null,
     pose: FacePose? = null,
     showModelWithoutPose: Boolean = true,
     transparent: Boolean = false,
@@ -122,6 +132,7 @@ fun FrameModelRenderer(
             AssetCheck.Valid -> {
                 ModelScene(
                     source = source,
+                    face = face,
                     pose = pose,
                     showModelWithoutPose = showModelWithoutPose,
                     transparent = transparent,
@@ -156,6 +167,7 @@ fun FrameModelRenderer(
 @Composable
 private fun ModelScene(
     source: FrameModelSource,
+    face: FaceFrame?,
     pose: FacePose?,
     showModelWithoutPose: Boolean,
     transparent: Boolean,
@@ -174,6 +186,18 @@ private fun ModelScene(
     val templeVisibilityPolicy = remember(source.assetPath) { TempleVisibilityPolicy() }
     val templeVisibility = templeVisibilityPolicy.update(pose?.yawDeg)
     val currentTempleVisibility = rememberUpdatedState(templeVisibility)
+    val faceOcclusionPolicy = remember { FaceOcclusionPolicy() }
+    val faceOcclusionTopology = remember { loadMediaPipeFaceMeshTopology() }
+    val faceOccluderNode = remember(engine, source.assetPath, faceOcclusionTopology) {
+        faceOcclusionTopology?.let { topology ->
+            FaceOccluderNode.create(
+                engine = engine,
+                materialLoader = materialLoader,
+                topology = topology,
+            )
+        }
+    }
+    val faceOcclusionActive = remember(source.assetPath) { mutableStateOf(false) }
 
     when (source) {
         is FrameModelSource.Bundled -> {
@@ -206,6 +230,14 @@ private fun ModelScene(
                 mainLightNode = mainLightNode,
                 fillLightNode = null,
             ) {
+                FaceOcclusionNodeContent(
+                    node = faceOccluderNode,
+                    face = face,
+                    pose = pose,
+                    cameraNode = cameraNode,
+                    policy = faceOcclusionPolicy,
+                    activeState = faceOcclusionActive,
+                )
                 modelInstance?.let { instance ->
                     ModelNode(
                         modelInstance = instance,
@@ -228,7 +260,11 @@ private fun ModelScene(
                         isVisible = showModelWithoutPose || pose != null,
                         apply = {
                             installTempleVisibilityUpdater {
-                                currentTempleVisibility.value
+                                if (faceOcclusionActive.value) {
+                                    TempleVisibility.Both
+                                } else {
+                                    currentTempleVisibility.value
+                                }
                             }
                         },
                     )
@@ -272,6 +308,14 @@ private fun ModelScene(
                 mainLightNode = mainLightNode,
                 fillLightNode = null,
             ) {
+                FaceOcclusionNodeContent(
+                    node = faceOccluderNode,
+                    face = face,
+                    pose = pose,
+                    cameraNode = cameraNode,
+                    policy = faceOcclusionPolicy,
+                    activeState = faceOcclusionActive,
+                )
                 downloadedInstance?.let { instance ->
                     ModelNode(
                         modelInstance = instance,
@@ -294,13 +338,75 @@ private fun ModelScene(
                         isVisible = showModelWithoutPose || pose != null,
                         apply = {
                             installTempleVisibilityUpdater {
-                                currentTempleVisibility.value
+                                if (faceOcclusionActive.value) {
+                                    TempleVisibility.Both
+                                } else {
+                                    currentTempleVisibility.value
+                                }
                             }
                         },
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+@Suppress("RestrictedApi")
+private fun SceneScope.FaceOcclusionNodeContent(
+    node: FaceOccluderNode?,
+    face: FaceFrame?,
+    pose: FacePose?,
+    cameraNode: CameraNode,
+    policy: FaceOcclusionPolicy,
+    activeState: MutableState<Boolean>,
+) {
+    node ?: return
+
+    // SceneView exposes NodeLifecycle as the extension point for custom nodes, although
+    // the pinned artifact marks it library-group restricted. Keep that suppression scoped here.
+    NodeLifecycle(node = node, content = null)
+    SideEffect {
+        val view = cameraNode.view
+        val geometry = if (face != null && pose != null && view != null) {
+            val viewport = view.viewport
+            if (viewport.width > 0 && viewport.height > 0) {
+                face.faceMesh?.let { mesh ->
+                    mapFaceOccluder(
+                        landmarks = mesh,
+                        imageWidth = face.imageWidth,
+                        imageHeight = face.imageHeight,
+                        faceWidthNorm = face.faceWidthNorm,
+                        viewport = FaceOccluderViewport(
+                            widthPx = viewport.width.toFloat(),
+                            heightPx = viewport.height.toFloat(),
+                        ),
+                    )
+                }
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+
+        val mode = policy.select(
+            faceTimestampMs = face?.timestampMs,
+            nowTimestampMs = SystemClock.uptimeMillis(),
+            geometry = geometry,
+        )
+        val active = if (mode == FaceOcclusionMode.Depth && pose != null) {
+            node.update(
+                geometry = geometry,
+                view = view,
+                referencePlaneZ = pose.translationZ,
+            )
+        } else {
+            node.hide()
+            false
+        }
+        activeState.value = active
     }
 }
 

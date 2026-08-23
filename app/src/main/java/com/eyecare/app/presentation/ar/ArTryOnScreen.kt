@@ -158,6 +158,7 @@ private fun ActiveTryOnContent(
             FrameModelRenderer(
                 modifier = Modifier.fillMaxSize(),
                 source = rendererSource,
+                face = state.face,
                 pose = if (state.face != null) state.pose else null,
                 showModelWithoutPose = false,
                 transparent = true,
