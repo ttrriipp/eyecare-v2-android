@@ -6,15 +6,19 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -43,17 +47,18 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.eyecare.app.domain.model.toPhilippineE164
+import com.eyecare.app.presentation.auth.components.AuthAccentMid
 import com.eyecare.app.presentation.auth.components.AuthIntro
 import com.eyecare.app.presentation.auth.components.AuthPrimaryButton
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.ContactField
 import com.eyecare.app.presentation.auth.components.ContactMethod
 import com.eyecare.app.presentation.auth.components.FieldError
+import com.eyecare.app.presentation.auth.components.FormSection
 import com.eyecare.app.presentation.auth.components.OtpExpiryRow
 import com.eyecare.app.presentation.auth.components.OtpField
 import com.eyecare.app.presentation.auth.components.PasswordField
 import com.eyecare.app.presentation.auth.components.PolicyConsentRow
-import com.eyecare.app.presentation.auth.components.SectionLabel
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -210,6 +215,8 @@ private fun RegisterDetailsStep(
         },
     )
 
+    var showInvitationCode by remember { mutableStateOf(state.invitationCode.isNotBlank()) }
+
     AuthStepScaffold(title = "Your details") {
         // Maya pattern: bold conversational heading, generous spacing
         Text(
@@ -221,152 +228,186 @@ private fun RegisterDetailsStep(
         )
         Spacer(modifier = Modifier.height(8.dp))
         AuthIntro("A few details so we can keep your account accurate and secure.")
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            SectionLabel("Personal details")
-            OutlinedTextField(
-                value = state.firstName,
-                onValueChange = { viewModel.updateDetails(firstName = it) },
-                label = { Text("First name *") },
-                singleLine = true,
-                isError = state.errors.containsKey("firstName"),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            FieldError(state.errors["firstName"])
-
-            OutlinedTextField(
-                value = state.middleName,
-                onValueChange = { viewModel.updateDetails(middleName = it) },
-                label = { Text("Middle name (optional)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            OutlinedTextField(
-                value = state.lastName,
-                onValueChange = { viewModel.updateDetails(lastName = it) },
-                label = { Text("Last name *") },
-                singleLine = true,
-                isError = state.errors.containsKey("lastName"),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            FieldError(state.errors["lastName"])
-
-            OutlinedTextField(
-                value = state.dateOfBirth,
-                onValueChange = {},
-                label = { Text("Date of birth *") },
-                placeholder = { Text("Select date") },
-                readOnly = true,
-                isError = state.errors.containsKey("dateOfBirth"),
-                trailingIcon = {
-                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .pointerInput(Unit) {
-                        awaitEachGesture {
-                            awaitFirstDown(pass = PointerEventPass.Initial)
-                            showDatePicker = true
-                        }
-                    },
-            )
-            FieldError(state.errors["dateOfBirth"])
-
-            SectionLabel("Optional contact")
-            OutlinedTextField(
-                value = state.email,
-                onValueChange = { viewModel.updateDetails(email = it) },
-                label = { Text("Email (optional)") },
-                singleLine = true,
-                isError = state.errors.containsKey("email"),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            FieldError(state.errors["email"])
-
-            SectionLabel("Account security")
-            PasswordField(
-                value = state.password,
-                onValueChange = { viewModel.updateDetails(password = it) },
-                label = "Password *",
-                error = state.errors["password"],
-            )
-
-            PasswordField(
-                value = state.passwordConfirmation,
-                onValueChange = { viewModel.updateDetails(passwordConfirmation = it) },
-                label = "Confirm password *",
-                error = state.errors["passwordConfirmation"],
-            )
-
-            SectionLabel("Optional invitation")
-            OutlinedTextField(
-                value = state.invitationCode,
-                onValueChange = { viewModel.updateDetails(invitationCode = it) },
-                label = { Text("Invitation code (optional)") },
-                singleLine = true,
-                isError = state.errors.containsKey("invitationCode"),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            FieldError(state.errors["invitationCode"])
-
-            SectionLabel("Agreements")
-            if (state.policies != null) {
-                PolicyConsentRow(
-                    label = "I accept the",
-                    linkText = "Terms of Service",
-                    checked = state.termsAccepted,
-                    onCheckedChange = { viewModel.updateDetails(termsAccepted = it) },
-                    onLinkClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.policies.termsUrl)))
-                    },
-                )
-                FieldError(state.errors["terms"])
-
-                PolicyConsentRow(
-                    label = "I accept the",
-                    linkText = "Privacy Policy",
-                    checked = state.privacyAccepted,
-                    onCheckedChange = { viewModel.updateDetails(privacyAccepted = it) },
-                    onLinkClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.policies.privacyPolicyUrl)))
-                    },
-                )
-                FieldError(state.errors["privacy"])
-            } else if (state.isLoadingPolicies) {
+            FormSection(
+                title = "Personal details",
+                icon = Icons.Outlined.Person,
+                badgeColor = AuthAccentMid,
+            ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Text("Loading agreements…", style = MaterialTheme.typography.bodyMedium)
+                    Column(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = state.firstName,
+                            onValueChange = { viewModel.updateDetails(firstName = it) },
+                            label = { Text("First name *") },
+                            singleLine = true,
+                            isError = state.errors.containsKey("firstName"),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        FieldError(state.errors["firstName"])
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = state.lastName,
+                            onValueChange = { viewModel.updateDetails(lastName = it) },
+                            label = { Text("Last name *") },
+                            singleLine = true,
+                            isError = state.errors.containsKey("lastName"),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        FieldError(state.errors["lastName"])
+                    }
                 }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Could not load policy information.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
+
+                OutlinedTextField(
+                    value = state.middleName,
+                    onValueChange = { viewModel.updateDetails(middleName = it) },
+                    label = { Text("Middle name (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                OutlinedTextField(
+                    value = state.dateOfBirth,
+                    onValueChange = {},
+                    label = { Text("Date of birth *") },
+                    placeholder = { Text("Select date") },
+                    readOnly = true,
+                    isError = state.errors.containsKey("dateOfBirth"),
+                    trailingIcon = {
+                        Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(pass = PointerEventPass.Initial)
+                                showDatePicker = true
+                            }
+                        },
+                )
+                FieldError(state.errors["dateOfBirth"])
+
+                OutlinedTextField(
+                    value = state.email,
+                    onValueChange = { viewModel.updateDetails(email = it) },
+                    label = { Text("Email (optional)") },
+                    leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null) },
+                    singleLine = true,
+                    isError = state.errors.containsKey("email"),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                FieldError(state.errors["email"])
+            }
+
+            FormSection(
+                title = "Account security",
+                icon = Icons.Outlined.Lock,
+                badgeColor = AuthAccentMid,
+            ) {
+                PasswordField(
+                    value = state.password,
+                    onValueChange = { viewModel.updateDetails(password = it) },
+                    label = "Password *",
+                    error = state.errors["password"],
+                )
+
+                PasswordField(
+                    value = state.passwordConfirmation,
+                    onValueChange = { viewModel.updateDetails(passwordConfirmation = it) },
+                    label = "Confirm password *",
+                    error = state.errors["passwordConfirmation"],
+                )
+
+                // Progressive disclosure: most patients don't have an invitation code, so it
+                // starts collapsed behind a link instead of always taking up a field's worth
+                // of space.
+                if (showInvitationCode) {
+                    OutlinedTextField(
+                        value = state.invitationCode,
+                        onValueChange = { viewModel.updateDetails(invitationCode = it) },
+                        label = { Text("Invitation code (optional)") },
+                        singleLine = true,
+                        isError = state.errors.containsKey("invitationCode"),
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    TextButton(onClick = viewModel::retryLoadPolicies) {
-                        Text("Retry")
+                    FieldError(state.errors["invitationCode"])
+                } else {
+                    TextButton(
+                        onClick = { showInvitationCode = true },
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        Text("Have an invitation code?")
+                    }
+                }
+            }
+
+            FormSection(
+                title = "Agreements",
+                icon = Icons.AutoMirrored.Outlined.Article,
+                badgeColor = AuthAccentMid,
+            ) {
+                if (state.policies != null) {
+                    PolicyConsentRow(
+                        label = "I accept the",
+                        linkText = "Terms of Service",
+                        checked = state.termsAccepted,
+                        onCheckedChange = { viewModel.updateDetails(termsAccepted = it) },
+                        onLinkClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.policies.termsUrl)))
+                        },
+                    )
+                    FieldError(state.errors["terms"])
+
+                    PolicyConsentRow(
+                        label = "I accept the",
+                        linkText = "Privacy Policy",
+                        checked = state.privacyAccepted,
+                        onCheckedChange = { viewModel.updateDetails(privacyAccepted = it) },
+                        onLinkClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.policies.privacyPolicyUrl)))
+                        },
+                    )
+                    FieldError(state.errors["privacy"])
+                } else if (state.isLoadingPolicies) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Text("Loading agreements…", style = MaterialTheme.typography.bodyMedium)
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Could not load policy information.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        TextButton(onClick = viewModel::retryLoadPolicies) {
+                            Text("Retry")
+                        }
                     }
                 }
             }
 
             FieldError(state.errors["_"])
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             AuthPrimaryButton(
                 text = "Create account",
                 onClick = viewModel::submitRegistration,
                 enabled = state.policies != null,
             )
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
