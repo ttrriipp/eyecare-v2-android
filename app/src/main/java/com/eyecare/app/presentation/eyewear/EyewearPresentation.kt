@@ -114,6 +114,20 @@ fun orderDateLabel(order: OpticalOrder): Pair<String, String> {
     return label to formatTimestamp(ts)
 }
 
+// Current stage timestamp for the detail screen's reference box - terminal states (cancelled,
+// released) take priority since the tracker below already shows the full progression.
+fun orderDateLabelFull(order: OpticalOrder): Pair<String, String> {
+    val ts = order.cancelledAt ?: order.dispensedAt ?: order.readyAt ?: order.startedAt ?: order.createdAt
+    val label = when {
+        order.cancelledAt != null -> "Cancelled"
+        order.dispensedAt != null -> "Released"
+        order.readyAt != null -> "Ready"
+        order.startedAt != null -> "Started"
+        else -> "Created"
+    }
+    return label to formatTimestamp(ts)
+}
+
 fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
     return when (status) {
         OpticalOrderStatus.QUEUED -> TrackerState(

@@ -192,12 +192,12 @@ private fun OrderDetailContent(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
                     ) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Only the reference number plus the current stage - the tracker
+                            // below already shows the full prep/ready/released progression, so
+                            // listing every past timestamp here would just repeat it as text.
                             DetailInfoRow("Reference", order.orderNumber)
-                            if (order.createdAt.isNotBlank()) DetailInfoRow("Created", formatTimestamp(order.createdAt))
-                            order.startedAt?.let { DetailInfoRow("Started", formatTimestamp(it)) }
-                            order.readyAt?.let { DetailInfoRow("Ready", formatTimestamp(it)) }
-                            order.dispensedAt?.let { DetailInfoRow("Released", formatTimestamp(it)) }
-                            order.cancelledAt?.let { DetailInfoRow("Cancelled", formatTimestamp(it)) }
+                            val (stageLabel, stageValue) = orderDateLabelFull(order)
+                            DetailInfoRow(stageLabel, stageValue)
                         }
                     }
                 }
