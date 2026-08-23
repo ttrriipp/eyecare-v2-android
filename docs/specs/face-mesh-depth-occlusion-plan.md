@@ -1,6 +1,6 @@
 # Implementation Plan: Face-Mesh Depth Occlusion v1
 
-**Status:** Draft for approval
+**Status:** Approved on 2026-08-23
 
 **Approved specification:** `docs/specs/face-mesh-depth-occlusion-spec.md`
 
@@ -31,10 +31,12 @@ the current pose and 2D fallback behavior do not change.
 ### 2. Derive topology once from the pinned official constant
 
 MediaPipe 0.10.35 exposes
-`FaceLandmarker.FACE_LANDMARKS_TESSELATION` as landmark connections. A pure
-topology builder will normalize the undirected edges, enumerate closed
-three-edge cycles, remove duplicate triangles, validate indices against the
-478-point model, and return a deterministic index order.
+`FaceLandmarker.FACE_LANDMARKS_TESSELATION` as directed landmark connections.
+Inspection of the pinned artifact confirms that it is initialized from 2,556
+directed connections: three edges per intended triangle. A pure topology
+builder will preserve direction, enumerate closed `a -> b -> c -> a` cycles,
+remove duplicate cyclic representations, validate indices against the
+478-point model, and return a deterministic 852-triangle index order.
 
 The topology is built once per process or renderer lifetime. It is not rebuilt
 per camera frame. Because SceneView's occlusion material is double-sided,
@@ -42,7 +44,9 @@ triangle winding is not a visual dependency for the spike; deterministic
 winding/order remains useful for tests and diagnostics.
 
 This avoids copying a large undocumented triangle table into the repository
-while keeping the runtime tied to the exact pinned MediaPipe package.
+while keeping the runtime tied to the exact pinned MediaPipe package. If the
+runtime connection set does not produce the pinned 852-triangle invariant, the
+adapter fails closed and the existing temple policy remains active.
 
 ### 3. Split projection into testable stages
 
@@ -270,7 +274,7 @@ the POCO spike.
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Edge-set triangle derivation includes invalid faces | Incorrect depth surface | Deterministic graph tests, bounds checks, and visible debug mesh only during local spike diagnostics |
+| Directed-cycle triangle derivation violates pinned invariants | Incorrect depth surface | Require 852 unique directed cycles with bounded indices; fail closed to temple fallback |
 | Preview/render crop mismatch | Occlusion shifted from the glasses | Test aspect-fill mapping first; fail the gate rather than add arbitrary offsets |
 | Landmark `z` is not metric depth | Nose/cheek depth is exaggerated or flat | Normalize by detected face width and use a tightly bounded, documented multiplier |
 | `Geometry.update` allocates buffers per result | FPS or thermal regression | Measure first; reuse node/topology, then optimize only the vertex upload if required |
