@@ -26,6 +26,7 @@ data class FrameVariant(
     val arAssetReference: String?,
     val images: List<String>,
     val ar: ArAsset? = null,
+    val isSaved: Boolean = false,
 )
 
 val FrameVariant.isArReady: Boolean

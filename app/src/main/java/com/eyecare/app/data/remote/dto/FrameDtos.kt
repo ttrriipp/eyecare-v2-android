@@ -53,6 +53,7 @@ object FrameDtos {
         val attributes: JsonElement? = null,
         @SerialName("ar_eligible") val arEligible: Boolean = false,
         @SerialName("ar_asset_reference") val arAssetReference: String? = null,
+        @SerialName("is_saved") val isSaved: Boolean = false,
         val ar: ArAssetDto? = null,
         val images: List<String> = emptyList(),
     )

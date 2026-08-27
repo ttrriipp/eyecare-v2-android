@@ -84,7 +84,7 @@ class FrameRepositoryImpl @Inject constructor(
         description = description,
         brandName = brand,
         categoryName = category.orEmpty(),
-        variantsJson = json.encodeToString(variants),
+        variantsJson = json.encodeToString(variants.map { it.copy(isSaved = false) }),
         imagesJson = json.encodeToString(images),
         averageRating = averageRating,
         ratingCount = ratingCount,
@@ -135,6 +135,7 @@ class FrameRepositoryImpl @Inject constructor(
         arAssetReference = arAssetReference,
         images = images,
         ar = ar?.toDomain(),
+        isSaved = isSaved,
     )
 
     private fun FrameDtos.ArAssetDto.toDomain() = ArAsset(
