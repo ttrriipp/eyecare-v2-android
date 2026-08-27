@@ -253,4 +253,125 @@ class ApiContractFixturesTest {
 
         assertEquals("All notifications marked as read.", envelope.getValue("message").jsonPrimitive.content)
     }
+
+    // --- Saved Frames fixtures ---
+
+    @Test
+    fun `saved frames page has product variant ID identity and newest-first timestamps`() {
+        val envelope = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.savedFramesPageAvailable)
+            .jsonObject
+
+        val item = envelope.getValue("data").jsonArray[0].jsonObject
+        assertEquals(42, item.getValue("product_variant_id").jsonPrimitive.content.toInt())
+        assertTrue(item.getValue("saved_at").jsonPrimitive.content.startsWith("2026-08-27"))
+        assertEquals("available", item.getValue("availability").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `saved frames page has numeric page metadata`() {
+        val envelope = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.savedFramesPageAvailable)
+            .jsonObject
+
+        val meta = envelope.getValue("meta").jsonObject
+        assertEquals(1, meta.getValue("current_page").jsonPrimitive.content.toInt())
+        assertEquals(1, meta.getValue("last_page").jsonPrimitive.content.toInt())
+        assertEquals(15, meta.getValue("per_page").jsonPrimitive.content.toInt())
+        assertEquals(1, meta.getValue("total").jsonPrimitive.content.toInt())
+    }
+
+    @Test
+    fun `saved frames variant has nested product and string price`() {
+        val envelope = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.savedFramesPageAvailable)
+            .jsonObject
+
+        val variant = envelope.getValue("data").jsonArray[0].jsonObject.getValue("variant").jsonObject
+        assertEquals(42, variant.getValue("id").jsonPrimitive.content.toInt())
+        assertEquals("Black / 52mm", variant.getValue("name").jsonPrimitive.content)
+        assertEquals("4500.00", variant.getValue("price").jsonPrimitive.content)
+
+        val product = variant.getValue("product").jsonObject
+        assertEquals(7, product.getValue("id").jsonPrimitive.content.toInt())
+        assertEquals("Classic Rectangle", product.getValue("name").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `saved frames variant has typed AR when available`() {
+        val envelope = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.savedFramesPageAvailable)
+            .jsonObject
+
+        val variant = envelope.getValue("data").jsonArray[0].jsonObject.getValue("variant").jsonObject
+        val ar = variant.getValue("ar").jsonObject
+        assertEquals("ready", ar.getValue("status").jsonPrimitive.content)
+        assertEquals("glb", ar.getValue("asset").jsonObject.getValue("format").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `saved frames variant has null AR when unavailable`() {
+        val envelope = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.savedFramesPageUnavailable)
+            .jsonObject
+
+        val variant = envelope.getValue("data").jsonArray[0].jsonObject.getValue("variant").jsonObject
+        assertTrue(variant.getValue("ar") is JsonNull)
+    }
+
+    @Test
+    fun `saved frames has number price and compare_at_price`() {
+        val envelope = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.savedFramesPageUnavailable)
+            .jsonObject
+
+        val variant = envelope.getValue("data").jsonArray[0].jsonObject.getValue("variant").jsonObject
+        // price is number, compare_at_price is number
+        assertEquals(5200, variant.getValue("price").jsonPrimitive.content.toInt())
+        assertEquals(6000.00, variant.getValue("compare_at_price").jsonPrimitive.content.toDouble())
+    }
+
+    @Test
+    fun `saved frames has no reservation or stock count fields`() {
+        val envelope = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.savedFramesPageAvailable)
+            .jsonObject
+
+        val item = envelope.getValue("data").jsonArray[0].jsonObject
+        assertFalse(item.containsKey("id"), "Saved Frame has no client-facing ID")
+        assertFalse(item.containsKey("status"), "Saved Frame has no reservation status")
+        assertFalse(item.containsKey("appointment_id"), "Saved Frame has no appointment coupling")
+        assertFalse(item.containsKey("expires_at"), "Saved Frame has no expiry")
+        assertFalse(item.containsKey("stock_quantity"), "Saved Frame exposes no stock count")
+    }
+
+    @Test
+    fun `save response wraps single resource`() {
+        val envelope = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.savedFrameSaveResponse)
+            .jsonObject
+
+        val item = envelope.getValue("data").jsonObject
+        assertEquals(42, item.getValue("product_variant_id").jsonPrimitive.content.toInt())
+        assertEquals("available", item.getValue("availability").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `frame catalog variant has is_saved boolean`() {
+        val variant = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.frameCatalogVariantWithSaved)
+            .jsonObject
+
+        assertTrue(variant.getValue("is_saved").jsonPrimitive.content.toBoolean())
+    }
+
+    @Test
+    fun `legacy frame catalog variant without is_saved defaults to false`() {
+        val variant = ApiContractFixtures.json
+            .parseToJsonElement(ApiContractFixtures.frameCatalogVariantLegacy)
+            .jsonObject
+
+        // Legacy cache rows omit is_saved; Kotlinx Serialization defaults to false
+        assertFalse(variant.containsKey("is_saved"), "Legacy variant omits is_saved")
+    }
 }

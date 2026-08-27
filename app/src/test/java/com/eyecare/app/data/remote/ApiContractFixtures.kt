@@ -205,6 +205,165 @@ internal object ApiContractFixtures {
         }
     """.trimIndent()
 
+    // --- Saved Frames fixtures ---
+
+    // Saved Frames page (available item, string price, typed AR)
+    val savedFramesPageAvailable = """
+        {
+          "data": [
+            {
+              "product_variant_id": 42,
+              "saved_at": "2026-08-27T10:00:00+08:00",
+              "availability": "available",
+              "variant": {
+                "id": 42,
+                "name": "Black / 52mm",
+                "sku": "RB-CR-BLK-52",
+                "price": "4500.00",
+                "compare_at_price": null,
+                "attributes": { "color": "black", "size": "52mm" },
+                "images": ["/storage/variants/42/front.jpg"],
+                "ar": {
+                  "status": "ready",
+                  "asset": {
+                    "url": "https://cdn.example.com/ar/variants/42/v1/model.glb",
+                    "format": "glb",
+                    "version": 1,
+                    "byte_size": 5256552,
+                    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                  },
+                  "calibration": {
+                    "frame_width_mm": 123.0,
+                    "scale": { "x": 0.123, "y": 0.123, "z": 0.123 },
+                    "anchor": { "x": 0.0, "y": 0.0, "z": 0.0 },
+                    "rotation_degrees": { "x": 0.0, "y": 0.0, "z": 0.0 }
+                  }
+                },
+                "product": {
+                  "id": 7,
+                  "name": "Classic Rectangle",
+                  "brand": "Ray-Ban",
+                  "category": "Full Rim"
+                }
+              }
+            }
+          ],
+          "links": {
+            "first": "https://example.test/api/v1/saved-frames?page=1",
+            "last": "https://example.test/api/v1/saved-frames?page=1",
+            "prev": null,
+            "next": null
+          },
+          "meta": {
+            "current_page": 1,
+            "last_page": 1,
+            "per_page": 15,
+            "total": 1
+          }
+        }
+    """.trimIndent()
+
+    // Saved Frames page (unavailable item, number price, null AR)
+    val savedFramesPageUnavailable = """
+        {
+          "data": [
+            {
+              "product_variant_id": 99,
+              "saved_at": "2026-08-26T15:30:00+08:00",
+              "availability": "unavailable",
+              "variant": {
+                "id": 99,
+                "name": "Tortoise / 54mm",
+                "sku": "RB-CR-TORT-54",
+                "price": 5200,
+                "compare_at_price": 6000.00,
+                "attributes": { "color": "tortoise", "size": "54mm" },
+                "images": [],
+                "ar": null,
+                "product": {
+                  "id": 7,
+                  "name": "Classic Rectangle",
+                  "brand": "Ray-Ban",
+                  "category": "Full Rim"
+                }
+              }
+            }
+          ],
+          "links": {
+            "first": "https://example.test/api/v1/saved-frames?page=1",
+            "last": "https://example.test/api/v1/saved-frames?page=1",
+            "prev": null,
+            "next": null
+          },
+          "meta": {
+            "current_page": 1,
+            "last_page": 1,
+            "per_page": 15,
+            "total": 1
+          }
+        }
+    """.trimIndent()
+
+    // Save response (PUT returns single resource)
+    val savedFrameSaveResponse = """
+        {
+          "data": {
+            "product_variant_id": 42,
+            "saved_at": "2026-08-27T10:00:00+08:00",
+            "availability": "available",
+            "variant": {
+              "id": 42,
+              "name": "Black / 52mm",
+              "sku": "RB-CR-BLK-52",
+              "price": "4500.00",
+              "compare_at_price": null,
+              "attributes": { "color": "black", "size": "52mm" },
+              "images": [],
+              "ar": null,
+              "product": {
+                "id": 7,
+                "name": "Classic Rectangle",
+                "brand": "Ray-Ban",
+                "category": "Full Rim"
+              }
+            }
+          }
+        }
+    """.trimIndent()
+
+    // Frame catalog variant with is_saved field
+    val frameCatalogVariantWithSaved = """
+        {
+          "id": 1,
+          "name": "Black / 52mm",
+          "sku": "RB-CR-BLK-52",
+          "price": 4500.00,
+          "compare_at_price": null,
+          "attributes": { "color": "black", "size": "52mm" },
+          "ar_eligible": true,
+          "ar_asset_reference": "rb-cr-blk-52.usdz",
+          "is_saved": true,
+          "ar": null,
+          "images": []
+        }
+    """.trimIndent()
+
+    // Frame catalog variant without is_saved (legacy cache fallback)
+    val frameCatalogVariantLegacy = """
+        {
+          "id": 2,
+          "name": "Tortoise / 54mm",
+          "sku": "RB-CR-TORT-54",
+          "price": 5200.00,
+          "compare_at_price": null,
+          "attributes": { "color": "tortoise", "size": "54mm" },
+          "ar_eligible": false,
+          "ar_asset_reference": null,
+          "ar": null,
+          "images": []
+        }
+    """.trimIndent()
+
     val errorResponses: Map<Int, String> = mapOf(
         401 to """
             {
