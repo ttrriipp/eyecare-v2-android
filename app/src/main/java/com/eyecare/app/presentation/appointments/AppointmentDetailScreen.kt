@@ -59,13 +59,10 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.eyecare.app.ui.theme.EyecareTheme
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.appointments.components.VisitFeedbackDialog
@@ -83,14 +80,7 @@ fun AppointmentDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showCancelDialog by remember { mutableStateOf(false) }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
+    RefreshOnResumeEffect(onRefresh = viewModel::refresh)
 
     if (showCancelDialog) {
         val appointment = (uiState as? AppointmentDetailUiState.Success)?.appointment
