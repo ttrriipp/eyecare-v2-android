@@ -1521,6 +1521,7 @@ linked to a clinic Patient record.
           "attributes": { "color": "black", "size": "52mm" },
           "ar_eligible": true,
           "ar_asset_reference": "rb-cr-blk-52.usdz",
+          "is_saved": false,
           "ar": {
             "status": "ready",
             "asset": {
@@ -2222,6 +2223,7 @@ paginated with the same cursor shape as the messages endpoint.
 
 **Query parameters:**
 - `q` (required, string, max 500): Search term.
+- `cursor` (optional, string): Opaque cursor from a previous response. Omitted on the first page; returned unchanged on subsequent requests.
 
 **Validation:**
 - `q`: required, string, maximum 500 characters
