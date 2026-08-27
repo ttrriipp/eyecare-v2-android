@@ -325,7 +325,7 @@ fun EyecareNavGraph(
                             onNavigateToAppointments = {
                                 navigateMainTab(Appointments)
                             },
-                            onNavigateToBooking = { navigatePatientFeature(RequestAppointment()) },
+                            onNavigateToBooking = { navigatePatientFeature(RequestAppointment) },
                             onNavigateToFrames = {
                                 navigateMainTab(Frames)
                             },
@@ -365,12 +365,11 @@ fun EyecareNavGraph(
                                     popUpTo<CreateFrameReservation> { inclusive = true }
                                 }
                             },
-                            onBookAppointment = { navigatePatientFeature(RequestAppointment(isFrameReservationOrigin = true)) },
+                            onBookAppointment = { navigatePatientFeature(RequestAppointment) },
                             onViewRequest = { requestId -> navigatePatientFeature(AppointmentRequestDetail(requestId)) },
                         )
                     }
-                    composable<RequestAppointment> { backStackEntry ->
-                        val route = backStackEntry.toRoute<RequestAppointment>()
+                    composable<RequestAppointment> {
                         val requestAccount = when (val state = sessionState) {
                             is SessionState.Linked -> state.account
                             is SessionState.Limited -> state.account
@@ -389,7 +388,6 @@ fun EyecareNavGraph(
                             onViewRequests = { navController.popBackStack() },
                             requestIdentity = requestIdentity,
                             identityDetailsRequired = identityDetailsRequired,
-                            isFrameReservationOrigin = route.isFrameReservationOrigin,
                         )
                     }
                     composable<FrameReservationList> {
@@ -453,7 +451,7 @@ fun EyecareNavGraph(
                     composable<Appointments> {
                         AppointmentListScreen(
                             onNavigateToDetail = { id -> navigatePatientFeature(AppointmentDetail(id)) },
-                            onNavigateToRequest = { navigatePatientFeature(RequestAppointment()) },
+                            onNavigateToRequest = { navigatePatientFeature(RequestAppointment) },
                             onNavigateToRequestDetail = { id ->
                                 navigatePatientFeature(AppointmentRequestDetail(id))
                             },

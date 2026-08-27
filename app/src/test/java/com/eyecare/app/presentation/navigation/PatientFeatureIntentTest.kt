@@ -11,7 +11,7 @@ class PatientFeatureIntentTest {
         val intents = listOf(
             PatientFeatureIntent.AppointmentsTab to Appointments,
             PatientFeatureIntent.FramesTab to Frames,
-            PatientFeatureIntent.RequestAppointment to RequestAppointment(),
+            PatientFeatureIntent.RequestAppointment to RequestAppointment,
             PatientFeatureIntent.AppointmentDetail(42) to AppointmentDetail(42),
             PatientFeatureIntent.FrameDetail(7) to FrameDetail(7),
             PatientFeatureIntent.CreateFrameReservation(7, 3) to CreateFrameReservation(7, 3),

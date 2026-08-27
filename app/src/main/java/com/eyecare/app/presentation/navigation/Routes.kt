@@ -24,7 +24,7 @@ import kotlinx.serialization.Serializable
 
 // Appointment sub-destinations
 @Serializable data class AppointmentDetail(val appointmentId: Int)
-@Serializable data class RequestAppointment(val isFrameReservationOrigin: Boolean = false)
+@Serializable data object RequestAppointment
 @Serializable data class AppointmentRequestDetail(val requestId: Int)
 
 // Frame sub-destinations

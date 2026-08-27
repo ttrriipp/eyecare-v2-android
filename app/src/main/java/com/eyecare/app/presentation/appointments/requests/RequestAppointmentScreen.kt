@@ -60,7 +60,6 @@ fun RequestAppointmentScreen(
     onViewRequests: () -> Unit = onBack,
     requestIdentity: AppointmentRequestIdentity? = null,
     identityDetailsRequired: Boolean = false,
-    isFrameReservationOrigin: Boolean = false,
     viewModel: RequestAppointmentViewModel = hiltViewModel(),
 ) {
     val step by viewModel.step.collectAsState()
@@ -148,7 +147,7 @@ fun RequestAppointmentScreen(
         is RequestStep.Review -> RequestReviewContent(
             state = s,
             onEdit = viewModel::editFromReview,
-            onSubmit = { viewModel.submit(isFrameReservationOrigin) },
+            onSubmit = { viewModel.submit() },
             onBack = goBack,
         )
 

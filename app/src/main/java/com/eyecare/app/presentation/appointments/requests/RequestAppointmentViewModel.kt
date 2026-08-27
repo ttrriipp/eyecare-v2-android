@@ -160,7 +160,6 @@ sealed interface RequestStep {
 
     data class Success(
         val request: AppointmentRequest,
-        val isFrameReservationOrigin: Boolean = false,
     ) : RequestStep
 
     data class SubmissionError(
@@ -784,7 +783,7 @@ class RequestAppointmentViewModel @Inject constructor(
         }
     }
 
-    fun submit(isFrameReservationOrigin: Boolean = false) {
+    fun submit() {
         val current = _step.value as? RequestStep.Review ?: return
         if (current.isSubmitting) return
         // A stale/restored review state must never smuggle identity into a linked request.
@@ -804,7 +803,6 @@ class RequestAppointmentViewModel @Inject constructor(
                 draft = RequestDraft()
                 _step.value = RequestStep.Success(
                     request = request,
-                    isFrameReservationOrigin = isFrameReservationOrigin,
                 )
             }.onFailure { error ->
                 val apiError = error as? ApiDomainError

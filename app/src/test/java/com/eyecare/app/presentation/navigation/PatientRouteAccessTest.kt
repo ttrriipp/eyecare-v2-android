@@ -86,7 +86,7 @@ class PatientRouteAccessTest {
         assertTrue(canAccessRoute(FrameDetail(frameId = 7), linkStatus))
         assertTrue(canAccessRoute(ArTryOn(frameId = 7, variantId = 3), linkStatus))
         assertTrue(canAccessRoute(Appointments, linkStatus))
-        assertTrue(canAccessRoute(RequestAppointment(), linkStatus))
+        assertTrue(canAccessRoute(RequestAppointment, linkStatus))
     }
 
     @Test

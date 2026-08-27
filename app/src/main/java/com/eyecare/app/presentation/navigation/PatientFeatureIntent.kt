@@ -25,7 +25,7 @@ sealed interface PatientFeatureIntent {
 fun PatientFeatureIntent.toRoute(): Any = when (this) {
     PatientFeatureIntent.FramesTab -> Frames
     PatientFeatureIntent.AppointmentsTab -> Appointments
-    PatientFeatureIntent.RequestAppointment -> RequestAppointment()
+    PatientFeatureIntent.RequestAppointment -> RequestAppointment
     PatientFeatureIntent.FrameReservationList -> FrameReservationList
     PatientFeatureIntent.PrescriptionList -> PrescriptionList
     PatientFeatureIntent.MyOrders -> MyOrders
