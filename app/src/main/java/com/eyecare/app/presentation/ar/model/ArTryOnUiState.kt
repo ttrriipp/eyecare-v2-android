@@ -27,12 +27,16 @@ sealed interface ArTryOnUiState {
         val variants: List<FrameVariant>,
         val selectedVariant: FrameVariant?,
         val assetState: ArAssetState,
+        val isSaving: Boolean = false,
+        val saveError: String? = null,
     ) : ArTryOnUiState
 
     data class Searching(
         val variants: List<FrameVariant>,
         val selectedVariant: FrameVariant?,
         val assetState: ArAssetState,
+        val isSaving: Boolean = false,
+        val saveError: String? = null,
     ) : ArTryOnUiState
 
     data class Tracking(
@@ -41,6 +45,8 @@ sealed interface ArTryOnUiState {
         val face: FaceFrame,
         val pose: FacePose?,
         val assetState: ArAssetState,
+        val isSaving: Boolean = false,
+        val saveError: String? = null,
     ) : ArTryOnUiState
 
     data class Unsupported(

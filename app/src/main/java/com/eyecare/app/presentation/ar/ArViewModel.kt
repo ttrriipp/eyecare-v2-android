@@ -8,6 +8,7 @@ import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.domain.repository.ArAssetRepository
 import com.eyecare.app.domain.repository.FrameRepository
+import com.eyecare.app.domain.repository.SavedFrameRepository
 import com.eyecare.app.presentation.ar.capability.ArCapability
 import com.eyecare.app.presentation.ar.capability.ArCapabilityProvider
 import com.eyecare.app.presentation.ar.model.ArAssetSource
@@ -40,6 +41,7 @@ class ArViewModel @AssistedInject constructor(
     private val frameRepository: FrameRepository,
     private val arAssetRepository: ArAssetRepository,
     private val capabilityProvider: ArCapabilityProvider,
+    private val savedFrameRepository: SavedFrameRepository,
     @Assisted("frameId") private val frameId: Int,
     @Assisted("variantId") private val initialVariantId: Int,
 ) : ViewModel() {
@@ -144,6 +146,86 @@ class ArViewModel @AssistedInject constructor(
             else -> return
         }
         loadAssetForVariant(selected)
+    }
+
+    fun toggleSaved() {
+        val variant = selectedVariant ?: return
+        val current = _uiState.value
+        val isSaving = when (current) {
+            is ArTryOnUiState.Loading -> current.isSaving
+            is ArTryOnUiState.Searching -> current.isSaving
+            is ArTryOnUiState.Tracking -> current.isSaving
+            else -> return
+        }
+        if (isSaving) return
+
+        _uiState.value = when (current) {
+            is ArTryOnUiState.Loading -> current.copy(isSaving = true, saveError = null)
+            is ArTryOnUiState.Searching -> current.copy(isSaving = true, saveError = null)
+            is ArTryOnUiState.Tracking -> current.copy(isSaving = true, saveError = null)
+            else -> return
+        }
+
+        viewModelScope.launch {
+            val result = if (variant.isSaved) {
+                savedFrameRepository.remove(variant.id)
+            } else {
+                savedFrameRepository.save(variant.id)
+            }
+            result.fold(
+                onSuccess = {
+                    val updatedVariant = variant.copy(isSaved = !variant.isSaved)
+                    selectedVariant = updatedVariant
+                    loadedVariants = loadedVariants.map {
+                        if (it.id == variant.id) updatedVariant else it
+                    }
+                    _uiState.value = when (val latest = _uiState.value) {
+                        is ArTryOnUiState.Loading -> latest.copy(
+                            variants = loadedVariants,
+                            selectedVariant = updatedVariant,
+                            isSaving = false,
+                        )
+                        is ArTryOnUiState.Searching -> latest.copy(
+                            variants = loadedVariants,
+                            selectedVariant = updatedVariant,
+                            isSaving = false,
+                        )
+                        is ArTryOnUiState.Tracking -> latest.copy(
+                            variants = loadedVariants,
+                            selectedVariant = updatedVariant,
+                            isSaving = false,
+                        )
+                        else -> return@launch
+                    }
+                },
+                onFailure = {
+                    _uiState.value = when (val latest = _uiState.value) {
+                        is ArTryOnUiState.Loading -> latest.copy(
+                            isSaving = false,
+                            saveError = "Couldn't update saved state. Try again.",
+                        )
+                        is ArTryOnUiState.Searching -> latest.copy(
+                            isSaving = false,
+                            saveError = "Couldn't update saved state. Try again.",
+                        )
+                        is ArTryOnUiState.Tracking -> latest.copy(
+                            isSaving = false,
+                            saveError = "Couldn't update saved state. Try again.",
+                        )
+                        else -> return@launch
+                    }
+                },
+            )
+        }
+    }
+
+    fun clearSaveError() {
+        _uiState.value = when (val current = _uiState.value) {
+            is ArTryOnUiState.Loading -> current.copy(saveError = null)
+            is ArTryOnUiState.Searching -> current.copy(saveError = null)
+            is ArTryOnUiState.Tracking -> current.copy(saveError = null)
+            else -> return
+        }
     }
 
     fun retry() {
