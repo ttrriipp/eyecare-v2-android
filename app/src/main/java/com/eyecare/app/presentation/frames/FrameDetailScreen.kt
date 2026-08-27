@@ -108,12 +108,19 @@ fun FrameDetailScreen(
     val locale = LocalLocale.current.platformLocale
     val snackbarHostState = remember { SnackbarHostState() }
     val message = (uiState as? FrameDetailUiState.Success)?.message
+    val saveError = (uiState as? FrameDetailUiState.Success)?.saveError
     var showVariantPicker by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(message) {
         message?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearMessage()
+        }
+    }
+    LaunchedEffect(saveError) {
+        saveError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSaveError()
         }
     }
 
@@ -428,12 +435,42 @@ fun FrameDetailScreen(
                                 if (selected.isTypedArReady) {
                                     Button(
                                         onClick = { onNavigateToAr(frame.id, selected.id) },
-                                        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
+                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                                         shape = RoundedCornerShape(24.dp),
                                     ) {
                                         Icon(Icons.Outlined.FaceRetouchingNatural, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(6.dp))
                                         Text("Try on")
+                                    }
+                                }
+                                val successState = uiState as? FrameDetailUiState.Success
+                                val isSaving = successState?.isSavingVariant == true
+                                if (selected.isSaved) {
+                                    OutlinedButton(
+                                        onClick = viewModel::toggleSaved,
+                                        enabled = !isSaving,
+                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                                        shape = RoundedCornerShape(24.dp),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                                    ) {
+                                        if (isSaving) {
+                                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                        } else {
+                                            Text("Remove from saved")
+                                        }
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = viewModel::toggleSaved,
+                                        enabled = !isSaving,
+                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                                        shape = RoundedCornerShape(24.dp),
+                                    ) {
+                                        if (isSaving) {
+                                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                        } else {
+                                            Text("Save frame")
+                                        }
                                     }
                                 }
                             }
