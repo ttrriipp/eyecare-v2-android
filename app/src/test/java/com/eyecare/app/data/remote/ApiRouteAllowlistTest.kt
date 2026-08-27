@@ -14,18 +14,18 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `account-only routes match expected count`() {
-        assertEquals(36, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
+        assertEquals(40, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
     }
 
     @Test
     fun `active-link routes match expected count`() {
-        assertEquals(17, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes")
+        assertEquals(11, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes")
     }
 
     @Test
-    fun `total approved routes is exactly 61`() {
-        // 8 public + 36 account-only + 17 active-link = 61 canonical callable
-        assertEquals(61, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
+    fun `total approved routes is exactly 59`() {
+        // 8 public + 40 account-only + 11 active-link = 59 canonical callable
+        assertEquals(59, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test
@@ -98,10 +98,10 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
-    fun `conversation attachment download remains active-link`() {
+    fun `conversation attachment download is account-only`() {
         assertTrue(
-            "GET /api/v1/conversation/attachments/{attachment}" in ApprovedApiRoutes.activeLinkRoutes,
-            "attachment download must remain active-link protected",
+            "GET /api/v1/conversation/attachments/{attachment}" in ApprovedApiRoutes.accountOnlyRoutes,
+            "attachment download must be account-only",
         )
     }
 
@@ -154,6 +154,32 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
+    fun `saved frames routes are account-only`() {
+        assertTrue(
+            "GET /api/v1/saved-frames" in ApprovedApiRoutes.accountOnlyRoutes,
+            "saved-frames list must be account-only",
+        )
+        assertTrue(
+            "PUT /api/v1/saved-frames/{productVariant}" in ApprovedApiRoutes.accountOnlyRoutes,
+            "saved-frames save must be account-only",
+        )
+        assertTrue(
+            "DELETE /api/v1/saved-frames/{productVariant}" in ApprovedApiRoutes.accountOnlyRoutes,
+            "saved-frames remove must be account-only",
+        )
+    }
+
+    @Test
+    fun `frame reservation routes are rejected`() {
+        assertTrue("GET /api/v1/frame-reservations" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("POST /api/v1/frame-reservations" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("DELETE /api/v1/frame-reservations/{reservation}" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("POST /api/v1/frame-reservations/{reservation}/items" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("DELETE /api/v1/frame-reservations/{reservation}/items/{item}" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("POST /api/v1/frame-reservations/{reservation}/cancel" in ApprovedApiRoutes.rejectedRoutes)
+    }
+
+    @Test
     fun `all Retrofit service annotations are accounted for`() {
         val serviceDir = File("src/main/java/com/eyecare/app/data/remote/api")
         assertTrue(serviceDir.exists(), "API service directory not found")
@@ -202,9 +228,7 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""appointments/\{id\}/reschedule"""), "appointments/{appointment}/reschedule")
             .replace(Regex("""appointments/\{id\}/rating"""), "appointments/{appointment}/rating")
             .replace(Regex("""frames/\{id\}"""), "frames/{frame}")
-            .replace(Regex("""frame-reservations/\{id\}/cancel"""), "frame-reservations/{reservation}/cancel")
-            .replace(Regex("""frame-reservations/\{id\}/items/\{itemId\}"""), "frame-reservations/{reservation}/items/{item}")
-            .replace(Regex("""frame-reservations/\{id\}"""), "frame-reservations/{reservation}")
+            .replace(Regex("""saved-frames/\{id\}"""), "saved-frames/{productVariant}")
             .replace(Regex("""prescriptions/\{id\}"""), "prescriptions/{prescription}")
             .replace(Regex("""quotations/\{id\}"""), "quotations/{quotation}")
             .replace(Regex("""optical-orders/\{id\}"""), "optical-orders/{opticalOrder}")
@@ -222,7 +246,7 @@ class ApiRouteAllowlistTest {
         return route
             .replace("{appointment}", "{var}")
             .replace("{frame}", "{var}")
-            .replace("{reservation}", "{var}")
+            .replace("{productVariant}", "{var}")
             .replace("{prescription}", "{var}")
             .replace("{quotation}", "{var}")
             .replace("{opticalOrder}", "{var}")

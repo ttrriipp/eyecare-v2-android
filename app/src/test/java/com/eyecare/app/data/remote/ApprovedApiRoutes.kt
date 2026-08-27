@@ -1,18 +1,19 @@
 package com.eyecare.app.data.remote
 
 /**
- * V19 route governance — 61-route contract.
+ * V20 route governance — 59-route contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
- * 2. Account-only routes (36) — authenticated, no patient link required
- * 3. Active-link routes (17) — require active patient link
+ * 2. Account-only routes (40) — authenticated, no patient link required
+ * 3. Active-link routes (11) — require active patient link
  *
- * Total canonical callable routes: 8 + 36 + 17 = 61.
+ * Total canonical callable routes: 8 + 40 + 11 = 59.
  *
- * Conversation read/list/send/search/read-mark are account-only; attachment download remains active-link.
+ * Conversation read/list/send/search/read-mark are account-only; attachment download is account-only.
+ * Saved Frames (GET/PUT/DELETE) are account-only.
  * Notification list/count/mark-one/mark-all are account-only.
- * Retired routes (eyewear, job-orders, billing-records, quotations, legacy aliases) are rejected.
+ * Retired routes (eyewear, job-orders, billing-records, quotations, legacy aliases, frame-reservations) are rejected.
  */
 internal object ApprovedApiRoutes {
     private const val BASE = "/api/v1"
@@ -29,7 +30,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/auth/policies",
     )
 
-    /** Account-only routes — authenticated, no patient link required. (36) */
+    /** Account-only routes — authenticated, no patient link required. (40) */
     val accountOnlyRoutes: Set<String> = setOf(
         "POST $BASE/logout",
         "POST $BASE/logout-all",
@@ -58,12 +59,17 @@ internal object ApprovedApiRoutes {
         "POST $BASE/appointment-requests/{appointmentRequest}/cancel",
         "GET $BASE/frames",
         "GET $BASE/frames/{frame}",
+        // Saved Frames — account-owned preferences
+        "GET $BASE/saved-frames",
+        "PUT $BASE/saved-frames/{productVariant}",
+        "DELETE $BASE/saved-frames/{productVariant}",
         // Conversation — account-owned text messaging
         "GET $BASE/conversation",
         "GET $BASE/conversation/messages",
         "POST $BASE/conversation/messages",
         "GET $BASE/conversation/messages/search",
         "POST $BASE/conversation/messages/read",
+        "GET $BASE/conversation/attachments/{attachment}",
         // Notifications — account-only inbox
         "GET $BASE/notifications",
         "GET $BASE/notifications/unread-count",
@@ -71,7 +77,7 @@ internal object ApprovedApiRoutes {
         "PATCH $BASE/notifications/read-all",
     )
 
-    /** Active-link routes — require active patient link. (17) */
+    /** Active-link routes — require active patient link. (11) */
     val activeLinkRoutes: Set<String> = setOf(
         "GET $BASE/appointment-availability",
         "GET $BASE/appointments",
@@ -79,16 +85,10 @@ internal object ApprovedApiRoutes {
         "POST $BASE/appointments/{appointment}/cancel",
         "POST $BASE/appointments/{appointment}/reschedule",
         "POST $BASE/appointments/{appointment}/rating",
-        "GET $BASE/frame-reservations",
-        "POST $BASE/frame-reservations",
-        "DELETE $BASE/frame-reservations/{reservation}",
-        "POST $BASE/frame-reservations/{reservation}/items",
-        "DELETE $BASE/frame-reservations/{reservation}/items/{item}",
         "GET $BASE/prescriptions",
         "GET $BASE/prescriptions/{prescription}",
         "GET $BASE/optical-orders",
         "GET $BASE/optical-orders/{opticalOrder}",
-        "GET $BASE/conversation/attachments/{attachment}",
         "POST $BASE/optical-order-items/{item}/rating",
     )
 
@@ -110,7 +110,12 @@ internal object ApprovedApiRoutes {
         "GET $BASE/appointments/{appointment}/intake",
         "PUT $BASE/appointments/{appointment}/intake",
         "POST $BASE/appointments/{appointment}/intake/submit",
-        // Reservation cancel (replaced by DELETE /frame-reservations/{id})
+        // Frame reservations (replaced by Saved Frames)
+        "GET $BASE/frame-reservations",
+        "POST $BASE/frame-reservations",
+        "DELETE $BASE/frame-reservations/{reservation}",
+        "POST $BASE/frame-reservations/{reservation}/items",
+        "DELETE $BASE/frame-reservations/{reservation}/items/{item}",
         "POST $BASE/frame-reservations/{reservation}/cancel",
         // Quotations (deleted from server)
         "GET $BASE/quotations",
