@@ -88,6 +88,13 @@ class PatientRouteAccessTest {
     }
 
     @Test
+    fun `saved frames is account-only and accessible to unlinked accounts`() {
+        assertTrue(classifyRouteAccess("SavedFrames") is PatientRouteAccess.AccountOnly)
+        assertTrue(canAccessRoute(SavedFrames, PatientLinkStatus.UNLINKED))
+        assertTrue(canAccessRoute(SavedFrames, PatientLinkStatus.LINKED))
+    }
+
+    @Test
     fun `limited session redirects active-link destinations to the link hub`() {
         val sessionState = SessionState.Limited(testAccount())
 
