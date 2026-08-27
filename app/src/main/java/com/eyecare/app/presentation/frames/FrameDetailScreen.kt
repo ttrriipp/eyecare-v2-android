@@ -98,11 +98,12 @@ import java.util.Locale
 @Composable
 fun FrameDetailScreen(
     frameId: Int,
+    variantId: Int? = null,
     onBack: () -> Unit,
     onNavigateToAr: (frameId: Int, variantId: Int) -> Unit,
     ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
 ) {
-    val viewModel = hiltViewModel<FrameDetailViewModel, FrameDetailViewModel.Factory> { it.create(frameId) }
+    val viewModel = hiltViewModel<FrameDetailViewModel, FrameDetailViewModel.Factory> { it.create(frameId, variantId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val locale = LocalLocale.current.platformLocale
     val snackbarHostState = remember { SnackbarHostState() }

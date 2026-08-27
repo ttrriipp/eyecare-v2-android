@@ -346,6 +346,7 @@ fun EyecareNavGraph(
                         val route = backStackEntry.toRoute<FrameDetail>()
                         FrameDetailScreen(
                             frameId = route.frameId,
+                            variantId = route.variantId,
                             onBack = { navController.popBackStack() },
                             onNavigateToAr = { fId, vId -> navigatePatientFeature(ArTryOn(fId, vId)) },
                         )

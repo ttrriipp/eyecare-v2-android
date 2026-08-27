@@ -48,7 +48,7 @@ class FrameDetailViewModelTest {
             if (callCount++ == 0) Result.success(initial) else refreshResult.await()
         }
 
-        val viewModel = FrameDetailViewModel(repository, frameId = 7)
+        val viewModel = FrameDetailViewModel(repository, frameId = 7, requestedVariantId = null)
         advanceUntilIdle()
         viewModel.selectVariant(initial.variants[1])
 
@@ -75,7 +75,7 @@ class FrameDetailViewModelTest {
             Result.failure(IllegalStateException("offline")),
         )
 
-        val viewModel = FrameDetailViewModel(repository, frameId = 7)
+        val viewModel = FrameDetailViewModel(repository, frameId = 7, requestedVariantId = null)
         advanceUntilIdle()
 
         viewModel.refresh()

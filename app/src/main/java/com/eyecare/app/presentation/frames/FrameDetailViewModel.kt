@@ -31,11 +31,12 @@ sealed interface FrameDetailUiState {
 class FrameDetailViewModel @AssistedInject constructor(
     private val repository: FrameRepository,
     @Assisted private val frameId: Int,
+    @Assisted private val requestedVariantId: Int?,
 ) : ViewModel() {
 
     @AssistedFactory
     interface Factory {
-        fun create(frameId: Int): FrameDetailViewModel
+        fun create(frameId: Int, requestedVariantId: Int?): FrameDetailViewModel
     }
 
     private val _uiState = MutableStateFlow<FrameDetailUiState>(FrameDetailUiState.Loading)
@@ -83,6 +84,7 @@ class FrameDetailViewModel @AssistedInject constructor(
                         }
                     val previousVariantId = (previous as? FrameDetailUiState.Success)?.selectedVariant?.id
                     val selectedVariant = frame.variants.firstOrNull { it.id == previousVariantId }
+                        ?: frame.variants.firstOrNull { it.id == requestedVariantId }
                         ?: frame.variants.firstOrNull { it.name == (previous as? FrameDetailUiState.Success)?.selectedVariant?.name }
                         ?: firstVariant
                     FrameDetailUiState.Success(
