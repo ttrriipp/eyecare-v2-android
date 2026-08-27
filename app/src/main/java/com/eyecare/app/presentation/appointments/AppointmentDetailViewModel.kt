@@ -7,10 +7,8 @@ import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
-import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.domain.repository.AppointmentV1Repository
-import com.eyecare.app.domain.repository.FrameReservationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -39,7 +37,6 @@ sealed interface AppointmentDetailUiState {
 
     data class Success(
         val appointment: AppointmentV1,
-        val frameReservations: List<FrameReservation> = emptyList(),
         val isCancelling: Boolean = false,
         val cancelError: String? = null,
         val showRescheduleSheet: Boolean = false,
@@ -62,7 +59,6 @@ sealed interface AppointmentDetailUiState {
 @HiltViewModel
 class AppointmentDetailViewModel @Inject constructor(
     private val repository: AppointmentV1Repository,
-    private val reservationRepository: FrameReservationRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -375,15 +371,10 @@ class AppointmentDetailViewModel @Inject constructor(
             val appointmentResult = repository.getAppointment(appointmentId)
             appointmentResult.fold(
                 onSuccess = { appointment ->
-                    val reservations = reservationRepository.getReservations()
-                        .getOrElse { emptyList() }
-                        .filter { it.appointment.id == appointmentId }
                     _uiState.value = previous?.copy(
                         appointment = appointment,
-                        frameReservations = reservations,
                     ) ?: AppointmentDetailUiState.Success(
                         appointment = appointment,
-                        frameReservations = reservations,
                     )
                 },
                 onFailure = { error ->

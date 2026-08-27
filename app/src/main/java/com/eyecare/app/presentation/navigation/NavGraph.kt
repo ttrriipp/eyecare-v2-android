@@ -463,8 +463,6 @@ fun EyecareNavGraph(
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
-                            onOpenReservation = { id -> navigatePatientFeature(FrameReservationDetail(id)) },
                         )
                     }
                     composable<AppointmentRequestDetail> { backStackEntry ->

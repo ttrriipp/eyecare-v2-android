@@ -1,12 +1,10 @@
 package com.eyecare.app.presentation.appointments
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,22 +15,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.EventAvailable
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.EditCalendar
+import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.RateReview
-import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Button
@@ -77,18 +71,13 @@ import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.appointments.components.VisitFeedbackDialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentStatus
-import com.eyecare.app.domain.model.FrameReservation
 import com.eyecare.app.domain.model.VisitRating
-import com.eyecare.app.presentation.common.buildImageUrl
-import coil3.compose.AsyncImage
 import com.eyecare.app.ui.theme.EyecareColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppointmentDetailScreen(
     onBack: () -> Unit,
-    onNavigateToReservations: () -> Unit = {},
-    onOpenReservation: (Int) -> Unit = {},
     viewModel: AppointmentDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -203,7 +192,6 @@ fun AppointmentDetailScreen(
                     state = state,
                     onReschedule = viewModel::showRescheduleSheet,
                     onCancel = { showCancelDialog = true },
-                    onOpenReservation = onOpenReservation,
                     onRateVisit = viewModel::showRatingDialog,
                     onRetry = viewModel::refresh,
                 )
@@ -217,7 +205,6 @@ private fun AppointmentDetailContent(
     state: AppointmentDetailUiState.Success,
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
-    onOpenReservation: (Int) -> Unit = {},
     onRateVisit: () -> Unit = {},
     onRetry: () -> Unit = {},
 ) {
@@ -327,13 +314,6 @@ private fun AppointmentDetailContent(
             }
 
             rescheduleReason?.let { StaffRescheduleNotice(it) }
-
-            if (state.frameReservations.isNotEmpty()) {
-                ReservedFramesSection(
-                    reservations = state.frameReservations,
-                    onOpenReservation = onOpenReservation,
-                )
-            }
 
             if (customerNote != null || clinicNote != null) {
                 AppointmentNotesSection(
@@ -654,112 +634,6 @@ private fun AppointmentStatusGuidance(
         }
     }
 }
-@Composable
-private fun ReservedFramesSection(
-    reservations: List<FrameReservation>,
-    onOpenReservation: (Int) -> Unit,
-) {
-    val reservation = reservations.firstOrNull() ?: return
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Outlined.Visibility,
-                            contentDescription = null,
-                            tint = EyecareColors.current.accentText,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-                Text(
-                    text = "Reserved Frames",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-
-            reservation.items.forEach { item ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val imageUrl = item.images.firstOrNull()?.let(::buildImageUrl)
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(56.dp),
-                    ) {
-                        if (imageUrl != null) {
-                            AsyncImage(
-                                model = imageUrl,
-                                contentDescription = item.frameName,
-                                modifier = Modifier.padding(6.dp),
-                                contentScale = ContentScale.Fit,
-                            )
-                        } else {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Visibility,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = EyecareColors.current.accentText,
-                                )
-                            }
-                        }
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = item.frameName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            text = "${item.frameBrand} · ${item.variantName}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            TextButton(
-                onClick = { onOpenReservation(reservation.id) },
-                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-            ) {
-                Text(
-                    text = "View reservation",
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Spacer(Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                )
-            }
-        }
-    }
-}
-
 @Composable
 private fun AppointmentMetadataRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,

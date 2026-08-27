@@ -6,7 +6,6 @@ import com.eyecare.app.domain.model.AppointmentSlot
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.repository.AppointmentV1Repository
-import com.eyecare.app.domain.repository.FrameReservationRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -32,7 +31,6 @@ class AppointmentDetailViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var appointments: AppointmentV1Repository
-    private lateinit var reservations: FrameReservationRepository
     private lateinit var viewModel: AppointmentDetailViewModel
 
     private val appointment = AppointmentV1(
@@ -71,16 +69,13 @@ class AppointmentDetailViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         appointments = mockk()
-        reservations = mockk()
         coEvery { appointments.getAppointment(4) } returns Result.success(appointment)
-        coEvery { reservations.getReservations() } returns Result.success(emptyList())
         // Week-strip prefetch fans out to every visible date; a catch-all keeps tests
         // independent of which real-world week "today" falls in.
         coEvery { appointments.getAppointmentAvailability(any(), any()) } returns
             Result.success(fakeAvailability())
         viewModel = AppointmentDetailViewModel(
             repository = appointments,
-            reservationRepository = reservations,
             savedStateHandle = SavedStateHandle(mapOf("appointmentId" to 4)),
         )
         dispatcher.scheduler.advanceUntilIdle()
@@ -143,7 +138,6 @@ class AppointmentDetailViewModelTest {
         coEvery { appointments.getAppointment(4) } returns Result.failure(RuntimeException("Network error"))
         val vm = AppointmentDetailViewModel(
             repository = appointments,
-            reservationRepository = reservations,
             savedStateHandle = SavedStateHandle(mapOf("appointmentId" to 4)),
         )
         dispatcher.scheduler.advanceUntilIdle()
@@ -187,7 +181,6 @@ class AppointmentDetailViewModelTest {
     fun `missing appointmentId shows error state`() = runTest {
         val vm = AppointmentDetailViewModel(
             repository = appointments,
-            reservationRepository = reservations,
             savedStateHandle = SavedStateHandle(emptyMap()),
         )
         dispatcher.scheduler.advanceUntilIdle()
