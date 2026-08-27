@@ -3,6 +3,7 @@ package com.eyecare.app.presentation.frames
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.repository.FrameRepository
+import com.eyecare.app.domain.repository.SavedFrameRepository
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.math.BigDecimal
@@ -27,11 +28,13 @@ class FrameDetailViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repository: FrameRepository
+    private lateinit var savedFrameRepository: SavedFrameRepository
 
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repository = mockk()
+        savedFrameRepository = mockk()
     }
 
     @AfterEach
@@ -48,7 +51,7 @@ class FrameDetailViewModelTest {
             if (callCount++ == 0) Result.success(initial) else refreshResult.await()
         }
 
-        val viewModel = FrameDetailViewModel(repository, frameId = 7, requestedVariantId = null)
+        val viewModel = FrameDetailViewModel(repository, savedFrameRepository, frameId = 7, requestedVariantId = null)
         advanceUntilIdle()
         viewModel.selectVariant(initial.variants[1])
 
@@ -75,7 +78,7 @@ class FrameDetailViewModelTest {
             Result.failure(IllegalStateException("offline")),
         )
 
-        val viewModel = FrameDetailViewModel(repository, frameId = 7, requestedVariantId = null)
+        val viewModel = FrameDetailViewModel(repository, savedFrameRepository, frameId = 7, requestedVariantId = null)
         advanceUntilIdle()
 
         viewModel.refresh()

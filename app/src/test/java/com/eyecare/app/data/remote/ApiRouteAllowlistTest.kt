@@ -229,6 +229,7 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""appointments/\{id\}/rating"""), "appointments/{appointment}/rating")
             .replace(Regex("""frames/\{id\}"""), "frames/{frame}")
             .replace(Regex("""saved-frames/\{id\}"""), "saved-frames/{productVariant}")
+            .replace(Regex("""saved-frames/\{productVariantId\}"""), "saved-frames/{productVariant}")
             .replace(Regex("""prescriptions/\{id\}"""), "prescriptions/{prescription}")
             .replace(Regex("""quotations/\{id\}"""), "quotations/{quotation}")
             .replace(Regex("""optical-orders/\{id\}"""), "optical-orders/{opticalOrder}")

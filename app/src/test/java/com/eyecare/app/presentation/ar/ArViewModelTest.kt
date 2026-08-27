@@ -482,7 +482,7 @@ class ArViewModelTest {
                 coEvery { repo.load(any(), any()) } returns arAssetResult
             }
         }
-        return ArViewModel(repository, arRepo, capabilityProvider, frameId = 1, initialVariantId = 11)
+        return ArViewModel(repository, arRepo, capabilityProvider, mockk(), frameId = 1, initialVariantId = 11)
     }
 
     private fun drain() {
