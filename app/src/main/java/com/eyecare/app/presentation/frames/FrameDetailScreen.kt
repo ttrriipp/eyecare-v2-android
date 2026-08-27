@@ -100,7 +100,6 @@ fun FrameDetailScreen(
     frameId: Int,
     onBack: () -> Unit,
     onNavigateToAr: (frameId: Int, variantId: Int) -> Unit,
-    onNavigateToReserve: (frameId: Int, variantId: Int) -> Unit,
     ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
 ) {
     val viewModel = hiltViewModel<FrameDetailViewModel, FrameDetailViewModel.Factory> { it.create(frameId) }
@@ -428,32 +427,12 @@ fun FrameDetailScreen(
                                 if (selected.isTypedArReady) {
                                     Button(
                                         onClick = { onNavigateToAr(frame.id, selected.id) },
-                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                                        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
                                         shape = RoundedCornerShape(24.dp),
                                     ) {
                                         Icon(Icons.Outlined.FaceRetouchingNatural, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(6.dp))
                                         Text("Try on")
-                                    }
-                                }
-                                if (selected.isTypedArReady) {
-                                    OutlinedButton(
-                                        onClick = { onNavigateToReserve(frame.id, selected.id) },
-                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
-                                        shape = RoundedCornerShape(24.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                                    ) {
-                                        Text("Reserve")
-                                    }
-                                } else {
-                                    Button(
-                                        onClick = { onNavigateToReserve(frame.id, selected.id) },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .defaultMinSize(minHeight = 48.dp),
-                                        shape = RoundedCornerShape(24.dp),
-                                    ) {
-                                        Text("Reserve")
                                     }
                                 }
                             }

@@ -66,7 +66,6 @@ import com.eyecare.app.ui.theme.EyecareColors
 fun ProfileScreen(
     onLogout: () -> Unit,
     onNavigateToPrescriptions: () -> Unit = {},
-    onNavigateToReservations: () -> Unit = {},
     onNavigateToEyewear: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     onNavigateToPatientProfile: () -> Unit = {},
@@ -116,7 +115,6 @@ fun ProfileScreen(
             unreadMessageCount = unreadMessageCount,
             onNavigateToMessages = onNavigateToMessages,
             onNavigateToPrescriptions = onNavigateToPrescriptions,
-            onNavigateToReservations = onNavigateToReservations,
             onNavigateToEyewear = onNavigateToEyewear,
             onNavigateToPatientProfile = onNavigateToPatientProfile,
             onNavigateToAccountSecurity = onNavigateToAccountSecurity,
@@ -150,7 +148,6 @@ fun ProfileContent(
     modifier: Modifier = Modifier,
     onNavigateToMessages: () -> Unit = {},
     onNavigateToPrescriptions: () -> Unit = {},
-    onNavigateToReservations: () -> Unit = {},
     onNavigateToEyewear: () -> Unit = {},
     onNavigateToPatientProfile: () -> Unit = {},
     onNavigateToAccountSecurity: () -> Unit = {},
@@ -200,12 +197,6 @@ fun ProfileContent(
                         icon = Icons.Outlined.LocalHospital,
                         label = "Prescriptions",
                         onClick = onNavigateToPrescriptions,
-                    )
-                    ProfileDivider()
-                    ProfileNavRow(
-                        icon = Icons.Outlined.Bookmark,
-                        label = "Reservations",
-                        onClick = onNavigateToReservations,
                     )
                     ProfileDivider()
                     ProfileNavRow(

@@ -56,7 +56,6 @@ fun ArTryOnScreen(
     frameId: Int,
     initialVariantId: Int,
     onBack: () -> Unit,
-    onReserveFrame: (frameId: Int, variantId: Int) -> Unit,
     onOpenCatalog: () -> Unit = onBack,
 ) {
     val viewModel = hiltViewModel<ArViewModel, ArViewModel.Factory> {
@@ -104,7 +103,6 @@ fun ArTryOnScreen(
                 onFaceResult = viewModel::onFaceResult,
                 onAssetStateChanged = viewModel::onAssetStateChanged,
                 onSelectVariant = viewModel::selectVariant,
-                onReserveFrame = { variantId -> onReserveFrame(frameId, variantId) },
                 onOpenCatalog = onOpenCatalog,
             )
         } else {
@@ -137,7 +135,6 @@ private fun ActiveTryOnContent(
     onFaceResult: (ArFaceState) -> Unit,
     onAssetStateChanged: (ArAssetState) -> Unit,
     onSelectVariant: (FrameVariant) -> Unit,
-    onReserveFrame: (variantId: Int) -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
     val frameUrl = state.selectedVariant
@@ -222,20 +219,6 @@ private fun ActiveTryOnContent(
                 .padding(bottom = 24.dp, top = 12.dp),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                val selectedVariant = state.selectedVariant
-                val canReserve = selectedVariant != null &&
-                    state.assetState !is ArAssetState.Loading &&
-                    state.assetState !is ArAssetState.Checking
-                if (canReserve) {
-                    Button(
-                        onClick = { onReserveFrame(selectedVariant.id) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                        ),
-                    ) {
-                        Text("Reserve this frame")
-                    }
-                }
                 OutlinedButton(
                     onClick = onOpenCatalog,
                     colors = ButtonDefaults.outlinedButtonColors(

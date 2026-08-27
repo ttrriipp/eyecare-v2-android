@@ -59,9 +59,6 @@ import com.eyecare.app.presentation.eyewear.MyOrdersScreen
 import com.eyecare.app.presentation.eyewear.OpticalOrderDetailScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
 import com.eyecare.app.presentation.frames.FrameListScreen
-import com.eyecare.app.presentation.reservations.CreateFrameReservationScreen
-import com.eyecare.app.presentation.reservations.FrameReservationDetailScreen
-import com.eyecare.app.presentation.reservations.FrameReservationListScreen
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.profile.EditProfileScreen
 import com.eyecare.app.presentation.profile.PatientProfileScreen
@@ -79,8 +76,8 @@ internal fun shouldShowBottomNav(route: String): Boolean =
         !route.contains("LimitedAccount") && !route.contains("AccountSecurity") &&
         !route.contains("Chat") && !route.contains("Notifications") && !route.contains("AppointmentDetail") &&
         !route.contains("AppointmentRequest") &&
-        !route.contains("BookAppointment") && !route.contains("CreateFrameReservation") &&
-        !route.contains("FrameReservation") && !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
+        !route.contains("BookAppointment") &&
+        !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
         !route.contains("Prescription") &&
         !route.contains("EditProfile") &&
         !route.contains("PatientProfile") &&
@@ -351,22 +348,6 @@ fun EyecareNavGraph(
                             frameId = route.frameId,
                             onBack = { navController.popBackStack() },
                             onNavigateToAr = { fId, vId -> navigatePatientFeature(ArTryOn(fId, vId)) },
-                            onNavigateToReserve = { fId, vId -> navigatePatientFeature(CreateFrameReservation(fId, vId)) },
-                        )
-                    }
-                    composable<CreateFrameReservation> { backStackEntry ->
-                        val route = backStackEntry.toRoute<CreateFrameReservation>()
-                        CreateFrameReservationScreen(
-                            frameId = route.frameId,
-                            variantId = route.variantId,
-                            onBack = { navController.popBackStack() },
-                            onSuccess = { reservationId ->
-                                navigatePatientFeature(FrameReservationDetail(reservationId)) {
-                                    popUpTo<CreateFrameReservation> { inclusive = true }
-                                }
-                            },
-                            onBookAppointment = { navigatePatientFeature(RequestAppointment) },
-                            onViewRequest = { requestId -> navigatePatientFeature(AppointmentRequestDetail(requestId)) },
                         )
                     }
                     composable<RequestAppointment> {
@@ -390,34 +371,12 @@ fun EyecareNavGraph(
                             identityDetailsRequired = identityDetailsRequired,
                         )
                     }
-                    composable<FrameReservationList> {
-                        FrameReservationListScreen(
-                            onBack = { navController.popBackStack() },
-                            onOpenReservation = { id -> navigatePatientFeature(FrameReservationDetail(id)) },
-                        )
-                    }
-                    composable<FrameReservationDetail> {
-                        FrameReservationDetailScreen(
-                            onBack = { navController.popBackStack() },
-                            onViewAppointment = { id -> navigatePatientFeature(AppointmentDetail(id)) },
-                            onViewFrame = { id -> navigatePatientFeature(FrameDetail(id)) },
-                            onAddFrame = {
-                                navigatePatientFeature(Frames) {
-                                    popUpTo<FrameReservationDetail> { inclusive = true }
-                                    launchSingleTop = true
-                                }
-                            },
-                        )
-                    }
                     composable<ArTryOn> { backStackEntry ->
                         val route = backStackEntry.toRoute<ArTryOn>()
                         ArTryOnScreen(
                             frameId = route.frameId,
                             initialVariantId = route.variantId,
                             onBack = { navController.popBackStack() },
-                            onReserveFrame = { fId, vId ->
-                                navigatePatientFeature(CreateFrameReservation(fId, vId))
-                            },
                         )
                     }
                     composable<PrescriptionList> {
@@ -493,7 +452,6 @@ fun EyecareNavGraph(
                                 }
                             },
                             onNavigateToPrescriptions = { navigatePatientFeature(PrescriptionList) },
-                            onNavigateToReservations = { navigatePatientFeature(FrameReservationList) },
                             onNavigateToEyewear = { navigatePatientFeature(MyOrders) },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
                             onNavigateToPatientProfile = { navigatePatientFeature(PatientProfile) },
