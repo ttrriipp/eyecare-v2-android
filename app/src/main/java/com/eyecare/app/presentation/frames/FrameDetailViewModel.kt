@@ -2,6 +2,7 @@
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.repository.FrameRepository
@@ -46,12 +47,13 @@ class FrameDetailViewModel @AssistedInject constructor(
     private val _uiState = MutableStateFlow<FrameDetailUiState>(FrameDetailUiState.Loading)
     val uiState: StateFlow<FrameDetailUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
+    private var saveJob: Job? = null
 
     init { load() }
 
     fun selectVariant(variant: FrameVariant) {
         val current = _uiState.value as? FrameDetailUiState.Success ?: return
-        _uiState.value = current.copy(selectedVariant = variant, message = null)
+        _uiState.value = current.copy(selectedVariant = variant, message = null, saveError = null)
     }
 
     fun refresh() {
@@ -71,12 +73,12 @@ class FrameDetailViewModel @AssistedInject constructor(
 
     fun toggleSaved() {
         val current = _uiState.value as? FrameDetailUiState.Success ?: return
-        if (current.isSavingVariant) return
+        if (current.isSavingVariant || saveJob?.isActive == true) return
 
         val variant = current.selectedVariant
         _uiState.value = current.copy(isSavingVariant = true, saveError = null)
 
-        viewModelScope.launch {
+        saveJob = viewModelScope.launch {
             val result = if (variant.isSaved) {
                 savedFrameRepository.remove(variant.id)
             } else {
@@ -91,21 +93,26 @@ class FrameDetailViewModel @AssistedInject constructor(
                             if (it.id == variant.id) updatedVariant else it
                         },
                     )
+                    val selectedVariant = updatedFrame.variants
+                        .firstOrNull { it.id == latest.selectedVariant.id }
+                        ?: latest.selectedVariant
                     _uiState.value = latest.copy(
                         frame = updatedFrame,
-                        selectedVariant = updatedVariant,
+                        selectedVariant = selectedVariant,
                         isSavingVariant = false,
                     )
                 },
-                onFailure = {
+                onFailure = { error ->
                     val latest = _uiState.value as? FrameDetailUiState.Success ?: return@launch
+                    val message = when {
+                        !variant.isSaved && (error as? ApiDomainError)?.httpStatus == 422 ->
+                            "This option can no longer be saved. Try refreshing."
+                        variant.isSaved -> "Couldn't remove this frame. Try again."
+                        else -> "Couldn't save this frame. Try again."
+                    }
                     _uiState.value = latest.copy(
                         isSavingVariant = false,
-                        saveError = if (!variant.isSaved) {
-                            "This option can no longer be saved. Try refreshing."
-                        } else {
-                            "Couldn't remove this frame. Try again."
-                        },
+                        saveError = message,
                     )
                 },
             )
@@ -142,6 +149,7 @@ class FrameDetailViewModel @AssistedInject constructor(
                     FrameDetailUiState.Success(
                         frame = frame,
                         selectedVariant = selectedVariant,
+                        isSavingVariant = saveJob?.isActive == true,
                     )
                 },
                 onFailure = {

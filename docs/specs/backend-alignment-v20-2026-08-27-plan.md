@@ -1,10 +1,10 @@
 # Plan: Backend Alignment v20 — Saved Frames Cutover
 
-> Status: **Approved 2026-08-27**  
-> Phase: **Plan**  
+> Status: **Complete 2026-08-27**
+> Phase: **Complete**
 > Spec: `docs/specs/backend-alignment-v20-2026-08-27-spec.md` — approved 2026-08-27  
-> Tasks: `docs/specs/backend-alignment-v20-2026-08-27-tasks.md` — Phase 3 draft  
-> Baseline: `assembleDebug` green after the v20 spec was added  
+> Tasks: `docs/specs/backend-alignment-v20-2026-08-27-tasks.md` — complete 2026-08-27
+> Verification: `ktlintFormat`, `testDebugUnitTest`, `lintDebug`, `assembleDebug`, and `assembleDebugAndroidTest` passed
 > Date: 2026-08-27
 
 This document defines architecture, dependency order, risks, parallelization boundaries, and
@@ -407,7 +407,7 @@ more than roughly five files unless a coordinated deletion/cutover cannot compil
 
 - Saved Frame fixtures cover list/save/availability/AR/price shapes.
 - Service signatures prove PUT/DELETE have no body.
-- Governance tests express 59-route target and fail only because implementation is not yet present.
+- Governance tests express and pass the 59-route target.
 - Existing unrelated unit tests remain green.
 
 ### Checkpoint B — Data boundary
@@ -506,6 +506,5 @@ available emulator/device and is reported honestly when unavailable.
 
 ## Open Questions
 
-1. **Approval gate:** Approve this dependency order and architecture so Phase 3 can create the discrete
-   implementation task checklist. No production implementation starts before both plan and task
-   checklist are reviewed.
+1. **Resolved 2026-08-27:** The dependency order and architecture were approved, implemented, and
+   verified. No open implementation questions remain.

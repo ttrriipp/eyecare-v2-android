@@ -13,6 +13,7 @@ import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.repository.ArAssetRepository
 import com.eyecare.app.domain.repository.FrameRepository
+import com.eyecare.app.domain.repository.SavedFrameRepository
 import com.eyecare.app.presentation.ar.capability.ArCapabilityProvider
 import com.eyecare.app.presentation.ar.capability.ArCapabilityRequirements
 import com.eyecare.app.presentation.ar.capability.ArDeviceFacts
@@ -24,16 +25,19 @@ import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FaceTransformationMatrix
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import java.math.BigDecimal
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -465,6 +469,74 @@ class ArViewModelTest {
         assertEquals(ArAssetSource.NotLoaded, viewModel.assetSource.value)
     }
 
+    @Test
+    fun `save response updates target variant without reselecting it after switch`() {
+        val saveResult = CompletableDeferred<Result<com.eyecare.app.domain.model.SavedFrame>>()
+        val savedRepository = mockk<SavedFrameRepository>()
+        coEvery { savedRepository.save(11) } coAnswers { saveResult.await() }
+        val viewModel = viewModel(savedFrameRepository = savedRepository)
+        drain()
+        viewModel.onPermissionResult(granted = true)
+
+        val current = viewModel.uiState.value as ArTryOnUiState.Searching
+        viewModel.toggleSaved()
+        viewModel.selectVariant(current.variants[1])
+        saveResult.complete(Result.success(mockk()))
+        drain()
+
+        val state = viewModel.uiState.value as ArTryOnUiState.Searching
+        assertEquals(12, state.selectedVariant?.id)
+        assertTrue(state.variants.first { it.id == 11 }.isSaved)
+        assertFalse(state.selectedVariant?.isSaved ?: true)
+        assertEquals("Saved as a preference. Availability is not guaranteed.", state.saveMessage)
+    }
+
+    @Test
+    fun `save remains single flight across a face phase transition`() {
+        val saveResult = CompletableDeferred<Result<com.eyecare.app.domain.model.SavedFrame>>()
+        val savedRepository = mockk<SavedFrameRepository>()
+        coEvery { savedRepository.save(11) } coAnswers { saveResult.await() }
+        val viewModel = viewModel(savedFrameRepository = savedRepository)
+        drain()
+        viewModel.onPermissionResult(granted = true)
+
+        viewModel.toggleSaved()
+        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 1L)))
+        viewModel.toggleSaved()
+        dispatcher.scheduler.runCurrent()
+
+        coVerify(exactly = 1) { savedRepository.save(11) }
+
+        saveResult.complete(Result.success(mockk()))
+        drain()
+    }
+
+    @Test
+    fun `refresh reconciles saved state without restarting the selected asset`() {
+        val initial = frame()
+        val refreshed = frame(
+            variants = initial.variants.map { variant ->
+                if (variant.id == 11) variant.copy(isSaved = true) else variant
+            },
+        )
+        val frameRepository = mockk<FrameRepository>()
+        coEvery { frameRepository.getFrame(1) } returnsMany listOf(
+            Result.success(initial),
+            Result.success(refreshed),
+        )
+        val viewModel = viewModel(frameRepository = frameRepository)
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        val initialSource = viewModel.assetSource.value
+
+        viewModel.refreshSavedState()
+        drain()
+
+        val state = viewModel.uiState.value as ArTryOnUiState.Searching
+        assertTrue(state.selectedVariant?.isSaved == true)
+        assertEquals(initialSource, viewModel.assetSource.value)
+    }
+
     private fun viewModel(
         capabilityProvider: ArCapabilityProvider = ArCapabilityProvider { supportedFacts() },
         repositoryResult: Result<Frame> = Result.success(frame()),
@@ -472,17 +544,27 @@ class ArViewModelTest {
         pendingResult: CompletableDeferred<Result<Frame>>? = null,
         arAssetResult: ArAssetLoadResult? = null,
         arAssetRepository: ArAssetRepository? = null,
+        frameRepository: FrameRepository? = null,
+        savedFrameRepository: SavedFrameRepository? = null,
     ): ArViewModel {
-        val repository = mockk<FrameRepository>()
-        coEvery { repository.getFrame(1) } coAnswers {
-            pendingResult?.await() ?: (frameResult ?: repositoryResult)
+        val repository = frameRepository ?: mockk<FrameRepository>().also { repo ->
+            coEvery { repo.getFrame(1) } coAnswers {
+                pendingResult?.await() ?: (frameResult ?: repositoryResult)
+            }
         }
         val arRepo = arAssetRepository ?: mockk<ArAssetRepository>().also { repo ->
             if (arAssetResult != null) {
                 coEvery { repo.load(any(), any()) } returns arAssetResult
             }
         }
-        return ArViewModel(repository, arRepo, capabilityProvider, mockk(), frameId = 1, initialVariantId = 11)
+        return ArViewModel(
+            repository,
+            arRepo,
+            capabilityProvider,
+            savedFrameRepository ?: mockk(),
+            frameId = 1,
+            initialVariantId = 11,
+        )
     }
 
     private fun drain() {

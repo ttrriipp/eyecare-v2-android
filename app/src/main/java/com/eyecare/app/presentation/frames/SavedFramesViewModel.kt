@@ -22,6 +22,7 @@ sealed interface SavedFramesUiState {
         val isRefreshing: Boolean = false,
         val isLoadingMore: Boolean = false,
         val inlineError: String? = null,
+        val canRetryLoadMore: Boolean = false,
     ) : SavedFramesUiState
 
     data class Error(val patientSafeMessage: String) : SavedFramesUiState
@@ -40,7 +41,11 @@ class SavedFramesViewModel @Inject constructor(
     fun refresh() {
         val current = _uiState.value
         if (current is SavedFramesUiState.Success) {
-            _uiState.value = current.copy(isRefreshing = true, inlineError = null)
+            _uiState.value = current.copy(
+                isRefreshing = true,
+                inlineError = null,
+                canRetryLoadMore = false,
+            )
         } else {
             _uiState.value = SavedFramesUiState.Loading
         }
@@ -51,7 +56,7 @@ class SavedFramesViewModel @Inject constructor(
         val current = _uiState.value as? SavedFramesUiState.Success ?: return
         if (!current.canLoadMore || current.isLoadingMore) return
 
-        _uiState.value = current.copy(isLoadingMore = true, inlineError = null)
+        _uiState.value = current.copy(isLoadingMore = true, inlineError = null, canRetryLoadMore = false)
         viewModelScope.launch {
             repository.getSavedFrames(page = current.currentPage + 1).fold(
                 onSuccess = { page ->
@@ -63,6 +68,7 @@ class SavedFramesViewModel @Inject constructor(
                         currentPage = page.currentPage,
                         canLoadMore = page.currentPage < page.lastPage,
                         isLoadingMore = false,
+                        canRetryLoadMore = false,
                     )
                 },
                 onFailure = {
@@ -70,6 +76,7 @@ class SavedFramesViewModel @Inject constructor(
                     _uiState.value = latest.copy(
                         isLoadingMore = false,
                         inlineError = "Couldn't load more. Try again.",
+                        canRetryLoadMore = true,
                     )
                 },
             )
@@ -83,6 +90,7 @@ class SavedFramesViewModel @Inject constructor(
         _uiState.value = current.copy(
             removingVariantIds = current.removingVariantIds + productVariantId,
             inlineError = null,
+            canRetryLoadMore = false,
         )
         viewModelScope.launch {
             repository.remove(productVariantId).fold(
@@ -91,6 +99,7 @@ class SavedFramesViewModel @Inject constructor(
                     _uiState.value = latest.copy(
                         items = latest.items.filter { it.productVariantId != productVariantId },
                         removingVariantIds = latest.removingVariantIds - productVariantId,
+                        canRetryLoadMore = false,
                     )
                 },
                 onFailure = {
@@ -98,6 +107,7 @@ class SavedFramesViewModel @Inject constructor(
                     _uiState.value = latest.copy(
                         removingVariantIds = latest.removingVariantIds - productVariantId,
                         inlineError = "Couldn't remove this frame. Try again.",
+                        canRetryLoadMore = false,
                     )
                 },
             )
@@ -106,7 +116,7 @@ class SavedFramesViewModel @Inject constructor(
 
     fun clearInlineError() {
         val current = _uiState.value as? SavedFramesUiState.Success ?: return
-        _uiState.value = current.copy(inlineError = null)
+        _uiState.value = current.copy(inlineError = null, canRetryLoadMore = false)
     }
 
     private fun load() {
@@ -137,6 +147,7 @@ class SavedFramesViewModel @Inject constructor(
                         _uiState.value = previous.copy(
                             isRefreshing = false,
                             inlineError = "Couldn't refresh. Try again.",
+                            canRetryLoadMore = false,
                         )
                     } else {
                         _uiState.value = SavedFramesUiState.Error(

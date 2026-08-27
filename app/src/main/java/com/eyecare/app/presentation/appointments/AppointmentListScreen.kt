@@ -106,7 +106,10 @@ fun AppointmentListScreen(
         viewModel.refresh(hasActivePatientLink)
     }
 
-    RefreshOnResumeEffect(onRefresh = requestViewModel::onScreenResumed)
+    RefreshOnResumeEffect(
+        onRefresh = requestViewModel::onScreenResumed,
+        skipInitialResume = false,
+    )
 
     Box(Modifier.fillMaxSize()) {
         PullToRefreshBox(

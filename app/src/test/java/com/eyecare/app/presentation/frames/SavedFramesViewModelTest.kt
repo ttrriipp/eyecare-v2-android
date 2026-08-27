@@ -165,6 +165,24 @@ class SavedFramesViewModelTest {
     }
 
     @Test
+    fun `loadMore failure keeps rows and exposes a retry action`() = runTest {
+        val page1 = savedFramePage(listOf(savedFrame(1)), currentPage = 1, lastPage = 2)
+        coEvery { repository.getSavedFrames(1) } returns Result.success(page1)
+        coEvery { repository.getSavedFrames(2) } returns Result.failure(RuntimeException("Network"))
+
+        viewModel = SavedFramesViewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.loadMore()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as SavedFramesUiState.Success
+        assertEquals(listOf(1), state.items.map { it.productVariantId })
+        assertTrue(state.canRetryLoadMore)
+        assertEquals("Couldn't load more. Try again.", state.inlineError)
+    }
+
+    @Test
     fun `removeSavedFrame removes item on success`() = runTest {
         val items = listOf(savedFrame(1), savedFrame(2))
         coEvery { repository.getSavedFrames(1) } returns Result.success(savedFramePage(items))

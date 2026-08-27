@@ -27,6 +27,7 @@ class ProfileScreenTest {
                     unreadMessageCount = 0,
                     onNavigateToMessages = { destination = "messages" },
                     onNavigateToPrescriptions = { destination = "prescriptions" },
+                    onNavigateToSavedFrames = { destination = "saved" },
                     onNavigateToEyewear = { destination = "eyewear" },
                     onLogoutClick = { destination = "logout" },
                 )
@@ -42,7 +43,8 @@ class ProfileScreenTest {
         listOf(
             "Messages" to "messages",
             "Prescriptions" to "prescriptions",
-            "My Eyewear" to "eyewear",
+            "Saved Frames" to "saved",
+            "My Orders" to "eyewear",
             "Log out" to "logout",
         ).forEach { (label, expectedDestination) ->
             composeRule.onNodeWithText(label).performClick()

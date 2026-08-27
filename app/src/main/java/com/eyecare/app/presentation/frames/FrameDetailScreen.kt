@@ -88,8 +88,10 @@ import coil3.request.ImageRequest
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.presentation.common.FeatureFlags
+import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.common.components.SavedFrameDisclaimer
 import com.eyecare.app.presentation.frames.components.RatingSummary
 import com.eyecare.app.ui.theme.EyecareColors
 import java.util.Locale
@@ -110,6 +112,8 @@ fun FrameDetailScreen(
     val message = (uiState as? FrameDetailUiState.Success)?.message
     val saveError = (uiState as? FrameDetailUiState.Success)?.saveError
     var showVariantPicker by rememberSaveable { mutableStateOf(false) }
+
+    RefreshOnResumeEffect(onRefresh = viewModel::refresh)
 
     LaunchedEffect(message) {
         message?.let {
@@ -428,52 +432,16 @@ fun FrameDetailScreen(
                                 .navigationBarsPadding(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                if (selected.isTypedArReady) {
-                                    Button(
-                                        onClick = { onNavigateToAr(frame.id, selected.id) },
-                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
-                                        shape = RoundedCornerShape(24.dp),
-                                    ) {
-                                        Icon(Icons.Outlined.FaceRetouchingNatural, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("Try on")
-                                    }
-                                }
-                                val successState = uiState as? FrameDetailUiState.Success
-                                val isSaving = successState?.isSavingVariant == true
-                                if (selected.isSaved) {
-                                    OutlinedButton(
-                                        onClick = viewModel::toggleSaved,
-                                        enabled = !isSaving,
-                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
-                                        shape = RoundedCornerShape(24.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                                    ) {
-                                        if (isSaving) {
-                                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                                        } else {
-                                            Text("Remove from saved")
-                                        }
-                                    }
+                            FrameDetailSaveControls(
+                                selected = selected,
+                                isSaving = state.isSavingVariant,
+                                onTryOn = if (selected.isTypedArReady) {
+                                    { onNavigateToAr(frame.id, selected.id) }
                                 } else {
-                                    Button(
-                                        onClick = viewModel::toggleSaved,
-                                        enabled = !isSaving,
-                                        modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
-                                        shape = RoundedCornerShape(24.dp),
-                                    ) {
-                                        if (isSaving) {
-                                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                                        } else {
-                                            Text("Save frame")
-                                        }
-                                    }
-                                }
-                            }
+                                    null
+                                },
+                                onToggleSaved = viewModel::toggleSaved,
+                            )
                         }
                     }
                 }
@@ -499,6 +467,70 @@ fun FrameDetailScreen(
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = 16.dp, vertical = 88.dp),
         )
+    }
+}
+
+@Composable
+internal fun FrameDetailSaveControls(
+    selected: FrameVariant,
+    isSaving: Boolean,
+    onTryOn: (() -> Unit)?,
+    onToggleSaved: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        SavedFrameDisclaimer()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            onTryOn?.let { tryOn ->
+                Button(
+                    onClick = tryOn,
+                    modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                ) {
+                    Icon(
+                        Icons.Outlined.FaceRetouchingNatural,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Try on")
+                }
+            }
+            if (selected.isSaved) {
+                OutlinedButton(
+                    onClick = onToggleSaved,
+                    enabled = !isSaving,
+                    modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text("Remove from saved")
+                }
+            } else {
+                Button(
+                    onClick = onToggleSaved,
+                    enabled = !isSaving,
+                    modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text("Save frame")
+                }
+            }
+        }
     }
 }
 
@@ -714,9 +746,9 @@ private fun FrameCapabilityNotice(isArReady: Boolean) {
             )
             Text(
                 text = if (isArReady) {
-                    "AR-ready — see this option on your face before reserving."
+                    "AR-ready — see this option on your face before saving."
                 } else {
-                    "Virtual try-on isn't available for this option. You can still reserve it."
+                    "Virtual try-on isn't available for this option. You can still save it for later."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (isArReady) {
@@ -754,7 +786,7 @@ private fun VariantPickerSheet(
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
             Text(
-                text = "Select a variant before trying on or reserving.",
+                text = "Select a variant before trying on or saving.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),

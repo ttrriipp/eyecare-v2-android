@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.isTypedArReady
+import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.frames.components.FrameCatalogControls
@@ -58,6 +59,8 @@ fun FrameListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val message = (uiState as? FrameListUiState.Success)?.message
+
+    RefreshOnResumeEffect(onRefresh = viewModel::refresh)
 
     LaunchedEffect(message) {
         message?.let {

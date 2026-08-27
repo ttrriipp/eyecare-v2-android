@@ -33,6 +33,20 @@ class ArTryOnContentStateTest {
         }
     }
 
+    @Test
+    fun `save feedback is preserved when active state is mapped`() {
+        val content = ArTryOnUiState.Searching(
+            variants = emptyList(),
+            selectedVariant = null,
+            assetState = ArAssetState.Ready,
+            saveError = "Couldn't update saved state. Try again.",
+            saveMessage = "Saved as a preference. Availability is not guaranteed.",
+        ).toActiveTryOnContentState()
+
+        assertEquals("Couldn't update saved state. Try again.", content?.saveError)
+        assertEquals("Saved as a preference. Availability is not guaranteed.", content?.saveMessage)
+    }
+
     private fun faceFrame() = FaceFrame(
         noseBridgeX = 0.5f,
         noseBridgeY = 0.5f,

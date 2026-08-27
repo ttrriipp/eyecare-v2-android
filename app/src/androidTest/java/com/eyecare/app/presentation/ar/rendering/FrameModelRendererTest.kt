@@ -24,7 +24,10 @@ class FrameModelRendererTest {
         )
 
         composeRule.setContent {
-            FrameModelRenderer(asset = asset, onStateChanged = state::set)
+            FrameModelRenderer(
+                source = FrameModelSource.Bundled(asset),
+                onStateChanged = state::set,
+            )
         }
 
         waitForState(timeoutMillis = 5_000) {

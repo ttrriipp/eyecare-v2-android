@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ArAssetFailureReason
 import com.eyecare.app.domain.model.ArAssetLoadResult
+import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.domain.repository.ArAssetRepository
@@ -64,6 +65,8 @@ class ArViewModel @AssistedInject constructor(
     private var poseCalibration = FacePoseCalibration.ProvisionalRoundFrame
     private var loadJob: Job? = null
     private var assetLoadJob: Job? = null
+    private var saveJob: Job? = null
+    private var refreshJob: Job? = null
     private var assetGeneration = 0
     private var sessionActive = true
     private var capabilityPassed = false
@@ -140,9 +143,21 @@ class ArViewModel @AssistedInject constructor(
         val selected = loadedVariants.firstOrNull { it.id == variant.id } ?: return
         selectedVariant = selected
         _uiState.value = when (val current = _uiState.value) {
-            is ArTryOnUiState.Loading -> current.copy(selectedVariant = selected)
-            is ArTryOnUiState.Searching -> current.copy(selectedVariant = selected)
-            is ArTryOnUiState.Tracking -> current.copy(selectedVariant = selected)
+            is ArTryOnUiState.Loading -> current.copy(
+                selectedVariant = selected,
+                saveError = null,
+                saveMessage = null,
+            )
+            is ArTryOnUiState.Searching -> current.copy(
+                selectedVariant = selected,
+                saveError = null,
+                saveMessage = null,
+            )
+            is ArTryOnUiState.Tracking -> current.copy(
+                selectedVariant = selected,
+                saveError = null,
+                saveMessage = null,
+            )
             else -> return
         }
         loadAssetForVariant(selected)
@@ -150,6 +165,7 @@ class ArViewModel @AssistedInject constructor(
 
     fun toggleSaved() {
         val variant = selectedVariant ?: return
+        val wasSaved = variant.isSaved
         val current = _uiState.value
         val isSaving = when (current) {
             is ArTryOnUiState.Loading -> current.isSaving
@@ -157,43 +173,63 @@ class ArViewModel @AssistedInject constructor(
             is ArTryOnUiState.Tracking -> current.isSaving
             else -> return
         }
-        if (isSaving) return
+        if (isSaving || saveJob?.isActive == true) return
 
         _uiState.value = when (current) {
-            is ArTryOnUiState.Loading -> current.copy(isSaving = true, saveError = null)
-            is ArTryOnUiState.Searching -> current.copy(isSaving = true, saveError = null)
-            is ArTryOnUiState.Tracking -> current.copy(isSaving = true, saveError = null)
-            else -> return
+            is ArTryOnUiState.Loading -> current.copy(isSaving = true, saveError = null, saveMessage = null)
+            is ArTryOnUiState.Searching -> current.copy(isSaving = true, saveError = null, saveMessage = null)
+            is ArTryOnUiState.Tracking -> current.copy(isSaving = true, saveError = null, saveMessage = null)
         }
 
-        viewModelScope.launch {
-            val result = if (variant.isSaved) {
+        saveJob = viewModelScope.launch {
+            val result = if (wasSaved) {
                 savedFrameRepository.remove(variant.id)
             } else {
                 savedFrameRepository.save(variant.id)
             }
             result.fold(
                 onSuccess = {
-                    val updatedVariant = variant.copy(isSaved = !variant.isSaved)
-                    selectedVariant = updatedVariant
-                    loadedVariants = loadedVariants.map {
+                    val updatedVariant = variant.copy(isSaved = !wasSaved)
+                    val updatedVariants = loadedVariants.map {
                         if (it.id == variant.id) updatedVariant else it
                     }
-                    _uiState.value = when (val latest = _uiState.value) {
+                    loadedVariants = updatedVariants
+                    val latest = _uiState.value
+                    val latestSelectedId = when (latest) {
+                        is ArTryOnUiState.Loading -> latest.selectedVariant?.id
+                        is ArTryOnUiState.Searching -> latest.selectedVariant?.id
+                        is ArTryOnUiState.Tracking -> latest.selectedVariant?.id
+                        else -> null
+                    }
+                    val reconciledSelected = updatedVariants.firstOrNull { it.id == latestSelectedId }
+                        ?: updatedVariants.firstOrNull { it.id == variant.id }
+                    selectedVariant = reconciledSelected
+                    val saveMessage = if (!wasSaved) {
+                        "Saved as a preference. Availability is not guaranteed."
+                    } else {
+                        "Removed from saved frames."
+                    }
+                    _uiState.value = when (latest) {
                         is ArTryOnUiState.Loading -> latest.copy(
                             variants = loadedVariants,
-                            selectedVariant = updatedVariant,
+                            selectedVariant = reconciledSelected,
                             isSaving = false,
+                            saveError = null,
+                            saveMessage = saveMessage,
                         )
                         is ArTryOnUiState.Searching -> latest.copy(
                             variants = loadedVariants,
-                            selectedVariant = updatedVariant,
+                            selectedVariant = reconciledSelected,
                             isSaving = false,
+                            saveError = null,
+                            saveMessage = saveMessage,
                         )
                         is ArTryOnUiState.Tracking -> latest.copy(
                             variants = loadedVariants,
-                            selectedVariant = updatedVariant,
+                            selectedVariant = reconciledSelected,
                             isSaving = false,
+                            saveError = null,
+                            saveMessage = saveMessage,
                         )
                         else -> return@launch
                     }
@@ -226,6 +262,70 @@ class ArViewModel @AssistedInject constructor(
             is ArTryOnUiState.Tracking -> current.copy(saveError = null)
             else -> return
         }
+    }
+
+    fun clearSaveMessage() {
+        _uiState.value = when (val current = _uiState.value) {
+            is ArTryOnUiState.Loading -> current.copy(saveMessage = null)
+            is ArTryOnUiState.Searching -> current.copy(saveMessage = null)
+            is ArTryOnUiState.Tracking -> current.copy(saveMessage = null)
+            else -> return
+        }
+    }
+
+    /** Reconciles account-owned saved state without restarting the camera or active asset. */
+    fun refreshSavedState() {
+        if (!sessionActive || !capabilityPassed || loadedVariants.isEmpty()) return
+        if (loadJob?.isActive == true || refreshJob?.isActive == true) return
+        val canRefresh = when (val state = _uiState.value) {
+            is ArTryOnUiState.Loading -> !state.isSaving
+            is ArTryOnUiState.Searching -> !state.isSaving
+            is ArTryOnUiState.Tracking -> !state.isSaving
+            else -> false
+        }
+        if (!canRefresh) return
+
+        refreshJob = viewModelScope.launch {
+            val result = try {
+                frameRepository.getFrame(frameId)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                Result.failure<Frame>(error)
+            }
+            if (!sessionActive || !isActive) return@launch
+            result.onSuccess(::reconcileSavedState)
+        }
+    }
+
+    private fun reconcileSavedState(frame: Frame) {
+        val refreshedVariants = frame.variants
+        if (refreshedVariants.isEmpty()) return
+
+        val previousSelectedId = selectedVariant?.id
+        loadedVariants = refreshedVariants
+        val reconciledSelected = refreshedVariants.firstOrNull { it.id == previousSelectedId }
+            ?: refreshedVariants.first()
+        val selectionChanged = reconciledSelected.id != previousSelectedId
+        selectedVariant = reconciledSelected
+
+        _uiState.value = when (val current = _uiState.value) {
+            is ArTryOnUiState.Loading -> current.copy(
+                variants = refreshedVariants,
+                selectedVariant = reconciledSelected,
+            )
+            is ArTryOnUiState.Searching -> current.copy(
+                variants = refreshedVariants,
+                selectedVariant = reconciledSelected,
+            )
+            is ArTryOnUiState.Tracking -> current.copy(
+                variants = refreshedVariants,
+                selectedVariant = reconciledSelected,
+            )
+            else -> return
+        }
+
+        if (selectionChanged) loadAssetForVariant(reconciledSelected)
     }
 
     fun retry() {
@@ -397,6 +497,12 @@ class ArViewModel @AssistedInject constructor(
     private fun moveToFacePhase() {
         if (!permissionGranted || loadedVariants.isEmpty() || !sessionActive) return
 
+        val (isSaving, saveError, saveMessage) = when (val current = _uiState.value) {
+            is ArTryOnUiState.Loading -> Triple(current.isSaving, current.saveError, current.saveMessage)
+            is ArTryOnUiState.Searching -> Triple(current.isSaving, current.saveError, current.saveMessage)
+            is ArTryOnUiState.Tracking -> Triple(current.isSaving, current.saveError, current.saveMessage)
+            else -> Triple(false, null, null)
+        }
         _uiState.value = latestFace?.let { face ->
             ArTryOnUiState.Tracking(
                 variants = loadedVariants,
@@ -404,11 +510,17 @@ class ArViewModel @AssistedInject constructor(
                 face = face,
                 pose = latestPose,
                 assetState = assetState,
+                isSaving = isSaving,
+                saveError = saveError,
+                saveMessage = saveMessage,
             )
         } ?: ArTryOnUiState.Searching(
             variants = loadedVariants,
             selectedVariant = selectedVariant,
             assetState = assetState,
+            isSaving = isSaving,
+            saveError = saveError,
+            saveMessage = saveMessage,
         )
     }
 
@@ -437,6 +549,8 @@ class ArViewModel @AssistedInject constructor(
         sessionActive = false
         loadJob?.cancel()
         assetLoadJob?.cancel()
+        saveJob?.cancel()
+        refreshJob?.cancel()
         clearTracking()
         super.onCleared()
     }

@@ -48,8 +48,11 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.SavedFrame
 import com.eyecare.app.domain.model.SavedFrameAvailability
+import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.presentation.common.components.SavedFrameDisclaimer
 import com.eyecare.app.ui.theme.EyecareColors
+import com.eyecare.app.presentation.eyewear.formatTimestamp
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
@@ -65,6 +68,8 @@ fun SavedFramesScreen(
     onOpenFrame: (frameId: Int, variantId: Int) -> Unit,
     onClearError: () -> Unit,
 ) {
+    RefreshOnResumeEffect(onRefresh = onRefresh)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -142,7 +147,7 @@ private fun SavedFramesContent(
             ),
         ) {
             item {
-                PreferenceDisclaimer()
+                SavedFrameDisclaimer()
             }
 
             items(
@@ -197,30 +202,16 @@ private fun SavedFramesContent(
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.weight(1f),
                             )
-                            TextButton(onClick = onClearError) {
-                                Text("Dismiss")
+                            TextButton(
+                                onClick = if (state.canRetryLoadMore) onLoadMore else onClearError,
+                            ) {
+                                Text(if (state.canRetryLoadMore) "Retry" else "Dismiss")
                             }
                         }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun PreferenceDisclaimer() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-    ) {
-        Text(
-            text = "Saved frames are preferences only. Availability is not guaranteed until your purchase is confirmed.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(12.dp),
-        )
     }
 }
 
@@ -288,7 +279,12 @@ private fun SavedFrameCard(
                     fontWeight = FontWeight.SemiBold,
                     color = EyecareColors.current.accentText,
                 )
-                if (savedFrame.availability == SavedFrameAvailability.UNAVAILABLE) {
+                Text(
+                    text = "Saved ${formatTimestamp(savedFrame.savedAt)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (savedFrame.availability != SavedFrameAvailability.AVAILABLE) {
                     UnavailableBadge()
                 }
             }
@@ -336,6 +332,7 @@ private fun EmptySavedFrames() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
+        SavedFrameDisclaimer(modifier = Modifier.padding(bottom = 24.dp))
         Icon(
             Icons.Outlined.BookmarkBorder,
             contentDescription = null,

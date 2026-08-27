@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,11 +25,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,7 +55,9 @@ import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderer
 import com.eyecare.app.presentation.ar.rendering.FrameModelSource
+import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.presentation.common.components.SavedFrameDisclaimer
 
 @Composable
 fun ArTryOnScreen(
@@ -67,6 +73,7 @@ fun ArTryOnScreen(
     val assetSource by viewModel.assetSource.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val imageLoader = SingletonImageLoader.get(context)
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -87,6 +94,22 @@ fun ArTryOnScreen(
         }
     }
 
+    RefreshOnResumeEffect(onRefresh = viewModel::refreshSavedState)
+
+    val activeContentState = uiState.toActiveTryOnContentState()
+    LaunchedEffect(activeContentState?.saveError) {
+        activeContentState?.saveError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSaveError()
+        }
+    }
+    LaunchedEffect(activeContentState?.saveMessage) {
+        activeContentState?.saveMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSaveMessage()
+        }
+    }
+
     val openSettings = {
         context.startActivity(
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -96,7 +119,6 @@ fun ArTryOnScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        val activeContentState = uiState.toActiveTryOnContentState()
         if (activeContentState != null) {
             ActiveTryOnContent(
                 state = activeContentState,
@@ -127,6 +149,13 @@ fun ArTryOnScreen(
         ) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close", tint = Color.White)
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(start = 16.dp, end = 16.dp, bottom = 112.dp),
+        )
     }
 }
 
@@ -222,11 +251,12 @@ private fun ActiveTryOnContent(
                 .background(Color.Black.copy(alpha = 0.4f))
                 .padding(bottom = 24.dp, top = 12.dp),
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 val selectedVariant = state.selectedVariant
-                val canSave = selectedVariant != null &&
-                    state.assetState !is ArAssetState.Loading &&
-                    state.assetState !is ArAssetState.Checking
+                val canSave = selectedVariant != null
                 if (canSave) {
                     Button(
                         onClick = onToggleSaved,
@@ -241,10 +271,13 @@ private fun ActiveTryOnContent(
                                 strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.onPrimary,
                             )
-                        } else {
-                            Text(if (selectedVariant!!.isSaved) "Remove from saved" else "Save this frame")
+                            Spacer(Modifier.size(6.dp))
                         }
+                        Text(if (selectedVariant.isSaved) "Remove from saved" else "Save this frame")
                     }
+                    SavedFrameDisclaimer(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
                 }
                 OutlinedButton(
                     onClick = onOpenCatalog,

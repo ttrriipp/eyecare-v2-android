@@ -175,13 +175,13 @@ private fun ArTryOnUiState.toStatusCopy(): ArStatusCopy? = when (this) {
         title = "3D try-on isn't available",
         message = buildString {
             append(failures.firstOrNull()?.message ?: "This device does not meet the 3D preview requirements.")
-            append(" You can still view frame images and reserve this frame from the catalog.")
+            append(" You can still view frame images and save this frame as a preference from the catalog.")
         },
     )
 
     is ArTryOnUiState.Error -> ArStatusCopy(
         title = "3D preview unavailable",
-        message = "$message You can still view frame images and reserve this frame from the catalog.",
+        message = "$message You can still view frame images and save this frame as a preference from the catalog.",
         primaryAction = ArPrimaryAction.Retry,
         primaryLabel = "Retry",
     )

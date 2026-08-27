@@ -1,7 +1,7 @@
 # Spec: Backend Alignment v20 — Saved Frames Cutover
 
 **Date:** 2026-08-27  
-**Status:** Approved 2026-08-27 — Phase 3 task decomposition in progress  
+**Status:** Complete 2026-08-27 — Saved Frames cutover shipped and verified
 **Authoritative inputs:** `CONTEXT.md`, `docs/BACKEND_CONTEXT.md` (2026-08-26),
 `docs/API_CONTRACT.md` (2026-08-26), and the implemented Android source tree
 
@@ -495,6 +495,5 @@ Each condition is independently testable.
 
 ## Open Questions
 
-1. **Approval gate:** Confirm the assumptions and scope above, especially the Frame Detail + AR mutation
-   surfaces and optional variant ID on the typed Frame Detail route. After approval, Phase 2 will create
-   a separate implementation plan; no production code changes begin before then.
+1. **Resolved 2026-08-27:** The assumptions and scope were approved, implemented, and verified. No
+   open implementation questions remain.

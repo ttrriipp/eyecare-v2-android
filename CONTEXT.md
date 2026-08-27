@@ -305,7 +305,7 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   when unsaved and **Remove from saved** when saved. Available to linked and unlinked accounts.
   Mutation is single-flight; success updates only the matching variant's `isSaved` value.
   422 save failure explains the option can no longer be saved.
-- **AR Try-On save toggle:** Replaces the former Reserve action. Save/remove is independent of
+- **AR Try-On save toggle:** Provides save/remove actions for the selected variant. This is independent of
   appointment and patient-link state. AR asset loading, calibration, fallback, camera capability,
   and renderer behavior are unchanged.
 - **Navigation:** Typed `FrameDetail(frameId, variantId?)` with optional variant ID for exact
@@ -441,9 +441,9 @@ Source of truth: `docs/API_CONTRACT.md`.
 Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 
 - Home: next appointment, current prescription summary, featured frames preview
-- Frames: searchable/paged catalog, detail, AR, reservation entry
+- Frames: searchable/paged catalog, detail, AR, Saved Frames
 - Appointments: list, detail, booking, reschedule, cancel, intake
-- Profile: hub for Messages, Prescriptions, Reservations, My Orders
+- Profile: hub for Messages, Prescriptions, Saved Frames, My Orders
 
 ## My Orders
 
@@ -526,6 +526,10 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 
 ## Active Specs
 
+- `docs/specs/backend-alignment-v20-2026-08-27-spec.md` — Complete: Saved Frames cutover and
+  reservation retirement
+- `docs/specs/backend-alignment-v20-2026-08-27-plan.md` — Complete: implementation plan
+- `docs/specs/backend-alignment-v20-2026-08-27-tasks.md` — Complete: implementation tasks + checkpoints
 - `docs/specs/backend-alignment-v19-2026-08-15-spec.md` — Complete: Messaging Hardening, Search, and Notifications
 - `docs/specs/backend-alignment-v19-2026-08-15-plan.md` — Complete: implementation plan (7 phases)
 - `docs/specs/backend-alignment-v19-2026-08-15-tasks.md` — Complete: 22 tasks + 6 checkpoints

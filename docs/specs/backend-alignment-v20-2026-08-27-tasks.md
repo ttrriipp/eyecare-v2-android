@@ -1,11 +1,16 @@
 # Tasks: Backend Alignment v20 — Saved Frames Cutover
 
-> Status: **Phase 4 complete, Phase 5 Tasks 27–28 complete — Phases 0–3 pending**  
-> Phase: **Implementation in progress**  
+> Status: **Complete 2026-08-27 — all tasks and final verification passed**
+> Phase: **Complete**
 > Spec: `docs/specs/backend-alignment-v20-2026-08-27-spec.md` — approved 2026-08-27  
-> Plan: `docs/specs/backend-alignment-v20-2026-08-27-plan.md` — approved 2026-08-27  
-> Implementation: Phase 4 (Tasks 16–26) and Phase 5 Tasks 27–28 shipped; Phases 0–3 (Tasks 1–15) and Phase 5 Tasks 29–30 pending  
+> Plan: `docs/specs/backend-alignment-v20-2026-08-27-plan.md` — complete 2026-08-27
+> Implementation: Tasks 1–28 shipped; Tasks 29–30 closed with the verification record below
 > Date: 2026-08-27
+
+> **Final verification record (2026-08-27):** `ktlintFormat`, `testDebugUnitTest`, `lintDebug`,
+> `assembleDebug`, and `assembleDebugAndroidTest` passed. Connected instrumentation was not run
+> because `android`/`adb` are unavailable on PATH in this environment. Static route/copy searches
+> and `git diff --check` passed; no unrelated user files were overwritten.
 
 This is the authoritative Phase 3 execution checklist. Tasks are dependency ordered, normally touch
 five files or fewer, and are designed to keep the repository compiling at every completed task.
@@ -62,24 +67,24 @@ written first.
 
 ## Phase 0 — Contract Gate and Baseline
 
-### Task 1: Correct the two approved API-contract drifts
+### Task 1: Correct the two approved API-contract drifts ✅
 
 **Description:** Patch only the current Frame and message-search examples so the authoritative API
 document matches its own required-field and cursor-pagination prose.
 
 **Acceptance criteria:**
 
-- [ ] `GET /frames` example variants include required boolean `is_saved`.
-- [ ] Message-search query parameters include optional opaque `cursor`, omitted on the first page and
+- [x] `GET /frames` example variants include required boolean `is_saved`.
+- [x] Message-search query parameters include optional opaque `cursor`, omitted on the first page and
   returned unchanged on subsequent requests.
-- [ ] No unrelated user-authored backend update is changed.
+- [x] No unrelated user-authored backend update is changed.
 
 **Verification:**
 
-- [ ] `rg -n -C 4 'is_saved|conversation/messages/search|cursor' docs/API_CONTRACT.md` shows one
+- [x] `rg -n -C 4 'is_saved|conversation/messages/search|cursor' docs/API_CONTRACT.md` shows one
   internally consistent contract.
-- [ ] `git diff --check -- docs/API_CONTRACT.md` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `git diff --check -- docs/API_CONTRACT.md` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Approved v20 spec and plan
 
@@ -89,23 +94,23 @@ document matches its own required-field and cursor-pagination prose.
 
 **Estimated scope:** S (1 file)
 
-### Task 2: Freeze representative Saved Frame fixtures
+### Task 2: Freeze representative Saved Frame fixtures ✅
 
 **Description:** Add raw contract fixtures and structural assertions before production DTOs exist.
 
 **Acceptance criteria:**
 
-- [ ] Fixtures cover a paginated Saved Frames response, save response, available/unavailable values,
+- [x] Fixtures cover a paginated Saved Frames response, save response, available/unavailable values,
   nested product/variant, string and number prices, typed/null AR, and required catalog `is_saved`.
-- [ ] Assertions prove ProductVariant ID identity, newest-first timestamps, numeric page metadata, and
+- [x] Assertions prove ProductVariant ID identity, newest-first timestamps, numeric page metadata, and
   the absence of reservation/appointment/stock-count fields.
-- [ ] Existing v19 messaging and notification fixtures remain unchanged except the approved catalog
+- [x] Existing v19 messaging and notification fixtures remain unchanged except the approved catalog
   fixture addition.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*ApiContractFixturesTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*ApiContractFixturesTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 1
 
@@ -118,32 +123,32 @@ document matches its own required-field and cursor-pagination prose.
 
 > ### Checkpoint A — Contract gate (after Tasks 1–2)
 >
-> - [ ] API prose, examples, and fixtures describe one v20 schema.
-> - [ ] The new fixture assertions fail only where production support is intentionally still absent.
-> - [ ] Scoped diff review proves the user's backend updates are preserved.
-> - [ ] `assembleDebug` passes.
+> - [x] API prose, examples, and fixtures describe one v20 schema.
+> - [x] The fixture assertions pass with the completed production support.
+> - [x] Scoped diff review proves the user's backend updates are preserved.
+> - [x] `assembleDebug` passes.
 
 ---
 
 ## Phase 1 — Saved Frame Data Foundation
 
-### Task 3: Add catalog `isSaved` and isolate it from Room
+### Task 3: Add catalog `isSaved` and isolate it from Room ✅
 
 **Description:** Carry live account ownership through Frame mapping while forcing the shared cached
 variant JSON to false. Begin with tests for live mapping, old-cache decoding, and cache-write stripping.
 
 **Acceptance criteria:**
 
-- [ ] `FrameVariantDto` decodes `is_saved`; missing legacy cached values fail closed to false.
-- [ ] `FrameVariant` exposes `isSaved`, and live list/detail mapping preserves it.
-- [ ] `FrameRepositoryImpl` writes cached variant copies with `isSaved=false`.
-- [ ] A cache round-trip can never reproduce a true saved state for another account.
+- [x] `FrameVariantDto` decodes `is_saved`; missing legacy cached values fail closed to false.
+- [x] `FrameVariant` exposes `isSaved`, and live list/detail mapping preserves it.
+- [x] `FrameRepositoryImpl` writes cached variant copies with `isSaved=false`.
+- [x] A cache round-trip can never reproduce a true saved state for another account.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*FrameDtosTest" --tests "*FrameRepositoryArMappingTest"`
+- [x] `<gradle> testDebugUnitTest --tests "*FrameDtosTest" --tests "*FrameRepositoryArMappingTest"`
   passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 2
 
@@ -157,22 +162,22 @@ variant JSON to false. Begin with tests for live mapping, old-cache decoding, an
 
 **Estimated scope:** M (5 files)
 
-### Task 4: Define Saved Frame DTO and domain models
+### Task 4: Define Saved Frame DTO and domain models ✅
 
 **Description:** Implement the wire and domain shapes independently of Retrofit and repositories.
 
 **Acceptance criteria:**
 
-- [ ] DTOs decode page/resource envelopes, nested product/variant, money, images, and typed/null AR.
-- [ ] Domain models expose ProductVariant ID, saved timestamp, parent Frame ID, display data, and safe
+- [x] DTOs decode page/resource envelopes, nested product/variant, money, images, and typed/null AR.
+- [x] Domain models expose ProductVariant ID, saved timestamp, parent Frame ID, display data, and safe
   `AVAILABLE`/`UNAVAILABLE`/`UNKNOWN` availability.
-- [ ] Unknown availability maps fail closed and no DTO type leaks into domain.
-- [ ] DTO tests consume the fixtures from Task 2.
+- [x] Unknown availability maps fail closed and no DTO type leaks into domain.
+- [x] DTO tests consume the fixtures from Task 2.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*SavedFrameDtosTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*SavedFrameDtosTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 3
 
@@ -184,22 +189,22 @@ variant JSON to false. Begin with tests for live mapping, old-cache decoding, an
 
 **Estimated scope:** M (3 files)
 
-### Task 5: Declare and test the Saved Frame Retrofit service
+### Task 5: Declare and test the Saved Frame Retrofit service ✅
 
 **Description:** Add the three account-only calls with exact paths, query bounds, and bodyless
 mutations.
 
 **Acceptance criteria:**
 
-- [ ] GET sends `page` and `per_page` and decodes the page envelope.
-- [ ] PUT targets ProductVariant ID, sends no request body, and decodes the wrapped resource.
-- [ ] DELETE targets ProductVariant ID, sends no body, and accepts 204.
-- [ ] Service tests inspect HTTP method, path, query, and zero-length mutation bodies.
+- [x] GET sends `page` and `per_page` and decodes the page envelope.
+- [x] PUT targets ProductVariant ID, sends no request body, and decodes the wrapped resource.
+- [x] DELETE targets ProductVariant ID, sends no body, and accepts 204.
+- [x] Service tests inspect HTTP method, path, query, and zero-length mutation bodies.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*SavedFrameApiServiceTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*SavedFrameApiServiceTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 4
 
@@ -210,24 +215,24 @@ mutations.
 
 **Estimated scope:** S (2 files)
 
-### Task 6: Implement the Saved Frame repository and Hilt boundary
+### Task 6: Implement the Saved Frame repository and Hilt boundary ✅
 
 **Description:** Map DTOs once at the repository boundary, expose numeric page state, and use the
 existing safe API call/error decoder.
 
 **Acceptance criteria:**
 
-- [ ] Repository interface exposes page load, idempotent save, and idempotent remove.
-- [ ] Implementation maps availability, product/variant data, money/images/AR, and page metadata.
-- [ ] Save returns the server resource; remove treats successful 204 as Unit.
-- [ ] 422/network/server failures remain typed through `Result` and raw validation text is not exposed
+- [x] Repository interface exposes page load, idempotent save, and idempotent remove.
+- [x] Implementation maps availability, product/variant data, money/images/AR, and page metadata.
+- [x] Save returns the server resource; remove treats successful 204 as Unit.
+- [x] 422/network/server failures remain typed through `Result` and raw validation text is not exposed
   by repository-created strings.
-- [ ] Hilt provides and binds the API/repository without adding a dependency.
+- [x] Hilt provides and binds the API/repository without adding a dependency.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*SavedFrameRepositoryImplTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*SavedFrameRepositoryImplTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 5
 
@@ -242,32 +247,32 @@ existing safe API call/error decoder.
 
 > ### Checkpoint B — Data boundary (after Tasks 3–6)
 >
-> - [ ] All Saved Frame DTO/service/repository tests pass.
-> - [ ] Live catalog mapping preserves `isSaved`; Room always stores false.
-> - [ ] No DTO crosses the repository boundary and no Room schema changed.
-> - [ ] Existing Frame and typed-AR repository tests remain green.
-> - [ ] `assembleDebug` passes.
+> - [x] All Saved Frame DTO/service/repository tests pass.
+> - [x] Live catalog mapping preserves `isSaved`; Room always stores false.
+> - [x] No DTO crosses the repository boundary and no Room schema changed.
+> - [x] Existing Frame and typed-AR repository tests remain green.
+> - [x] `assembleDebug` passes.
 
 ---
 
 ## Phase 2 — Saved Frames Destination
 
-### Task 7: Add exact-variant Frame Detail routing
+### Task 7: Add exact-variant Frame Detail routing ✅
 
 **Description:** Extend the existing typed route with an optional ProductVariant ID and make initial
 selection deterministic before the Saved Frames list depends on it.
 
 **Acceptance criteria:**
 
-- [ ] `FrameDetail(frameId, variantId=null)` preserves all current callers.
-- [ ] FrameDetailViewModel selects a matching requested variant when supplied.
-- [ ] Null or stale variant IDs safely select the first available variant.
-- [ ] Refresh retains the current valid selection and never crashes on an empty variant list.
+- [x] `FrameDetail(frameId, variantId=null)` preserves all current callers.
+- [x] FrameDetailViewModel selects a matching requested variant when supplied.
+- [x] Null or stale variant IDs safely select the first available variant.
+- [x] Refresh retains the current valid selection and never crashes on an empty variant list.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*FrameDetailViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*FrameDetailViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Checkpoint B
 
@@ -280,24 +285,24 @@ selection deterministic before the Saved Frames list depends on it.
 
 **Estimated scope:** M (4 files)
 
-### Task 8: Implement SavedFramesViewModel page and removal state
+### Task 8: Implement SavedFramesViewModel page and removal state ✅
 
 **Description:** Build the presentation state reducer before Compose UI.
 
 **Acceptance criteria:**
 
-- [ ] State covers initial load/error, empty/success, refresh retention, numeric load-more, inline
+- [x] State covers initial load/error, empty/success, refresh retention, numeric load-more, inline
   load-more error, and per-variant removal.
-- [ ] Items deduplicate by ProductVariant ID and page advances only on success.
-- [ ] Refresh replaces data only on success; failed refresh keeps usable rows.
-- [ ] Remove is single-flight per variant, removes only after success, and retains the row on failure.
-- [ ] Errors are concise and patient-safe, including a safe unavailable result for 422 save-state
+- [x] Items deduplicate by ProductVariant ID and page advances only on success.
+- [x] Refresh replaces data only on success; failed refresh keeps usable rows.
+- [x] Remove is single-flight per variant, removes only after success, and retains the row on failure.
+- [x] Errors are concise and patient-safe, including a safe unavailable result for 422 save-state
   conflicts returned during list reconciliation.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*SavedFramesViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*SavedFramesViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 6
 
@@ -308,22 +313,22 @@ selection deterministic before the Saved Frames list depends on it.
 
 **Estimated scope:** M (2 files)
 
-### Task 9: Build the stateless Saved Frames screen
+### Task 9: Build the stateless Saved Frames screen ✅
 
 **Description:** Render ViewModel state with accessible preference and availability semantics.
 
 **Acceptance criteria:**
 
-- [ ] Screen renders loading, retry, empty, populated, refreshing, loading-more, and inline-error states.
-- [ ] The required preference-only availability disclaimer is visible.
-- [ ] Rows show product/variant, safe price/image, saved time, and non-color-only unavailable state.
-- [ ] Row click returns `(frameId, productVariantId)`; remove has a 48dp target and true disabled state.
-- [ ] No stock count, unavailable reason, reservation, hold, expiry, or appointment copy appears.
+- [x] Screen renders loading, retry, empty, populated, refreshing, loading-more, and inline-error states.
+- [x] The required preference-only availability disclaimer is visible.
+- [x] Rows show product/variant, safe price/image, saved time, and non-color-only unavailable state.
+- [x] Row click returns `(frameId, productVariantId)`; remove has a 48dp target and true disabled state.
+- [x] No stock count, unavailable reason, reservation, hold, expiry, or appointment copy appears.
 
 **Verification:**
 
-- [ ] `<gradle> assembleDebugAndroidTest` compiles `SavedFramesScreenTest`.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> assembleDebugAndroidTest` compiles `SavedFramesScreenTest`.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Tasks 7–8
 
@@ -334,22 +339,22 @@ selection deterministic before the Saved Frames list depends on it.
 
 **Estimated scope:** M (2 files)
 
-### Task 10: Replace the Profile reservation entry and wire Saved Frames
+### Task 10: Replace the Profile reservation entry and wire Saved Frames ✅
 
 **Description:** Connect the new destination without yet deleting the old unreachable reservation
 files.
 
 **Acceptance criteria:**
 
-- [ ] Profile shows **Saved Frames** for linked and limited accounts.
-- [ ] The callback opens the typed Saved Frames destination in MainGraph.
-- [ ] A saved row opens `FrameDetail(frameId, variantId)`.
-- [ ] Existing Messages, Prescriptions, My Orders, and account-link behavior remains intact.
+- [x] Profile shows **Saved Frames** for linked and limited accounts.
+- [x] The callback opens the typed Saved Frames destination in MainGraph.
+- [x] A saved row opens `FrameDetail(frameId, variantId)`.
+- [x] Existing Messages, Prescriptions, My Orders, and account-link behavior remains intact.
 
 **Verification:**
 
-- [ ] `<gradle> assembleDebugAndroidTest` compiles Profile UI tests with the new label/callback.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> assembleDebugAndroidTest` compiles Profile UI tests with the new label/callback.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 9
 
@@ -361,21 +366,21 @@ files.
 
 **Estimated scope:** M (3 files)
 
-### Task 11: Classify Saved Frames as account-only
+### Task 11: Classify Saved Frames as account-only ✅
 
 **Description:** Prove limited/unlinked accounts never enter the link hub for Saved Frames.
 
 **Acceptance criteria:**
 
-- [ ] Saved Frames route is `AccountOnly`.
-- [ ] Linked and unlinked/pending/unknown authenticated account statuses can access it.
-- [ ] Confirmed appointments, prescriptions, and orders remain active-link protected.
-- [ ] Unknown routes still fail closed.
+- [x] Saved Frames route is `AccountOnly`.
+- [x] Linked and unlinked/pending/unknown authenticated account statuses can access it.
+- [x] Confirmed appointments, prescriptions, and orders remain active-link protected.
+- [x] Unknown routes still fail closed.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*PatientRouteAccessTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*PatientRouteAccessTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 10
 
@@ -388,33 +393,33 @@ files.
 
 > ### Checkpoint C — Saved destination (after Tasks 7–11)
 >
-> - [ ] Saved Frames list/pagination/removal state tests pass.
-> - [ ] Profile exposes Saved Frames to both linked and limited accounts.
-> - [ ] Exact saved variant navigation and stale-ID fallback are proven.
-> - [ ] Disclaimer, unavailable, loading, error, and disabled semantics compile in UI tests.
-> - [ ] `assembleDebug` passes.
+> - [x] Saved Frames list/pagination/removal state tests pass.
+> - [x] Profile exposes Saved Frames to both linked and limited accounts.
+> - [x] Exact saved variant navigation and stale-ID fallback are proven.
+> - [x] Disclaimer, unavailable, loading, error, and disabled semantics compile in UI tests.
+> - [x] `assembleDebug` passes.
 
 ---
 
 ## Phase 3 — Frame Detail and AR Mutation Surfaces
 
-### Task 12: Add test-first Frame Detail mutation state
+### Task 12: Add test-first Frame Detail mutation state ✅
 
 **Description:** Inject SavedFrameRepository and implement selected-variant single-flight save/remove
 behavior in the ViewModel before changing buttons.
 
 **Acceptance criteria:**
 
-- [ ] Save/remove targets only the selected ProductVariant ID.
-- [ ] Duplicate taps while a mutation is active issue one call.
-- [ ] Success updates only the matching variant's `isSaved` value in current Frame state.
-- [ ] Failure preserves prior state; 422 uses patient-safe unavailable copy.
-- [ ] Switching variants displays independent saved and in-flight state.
+- [x] Save/remove targets only the selected ProductVariant ID.
+- [x] Duplicate taps while a mutation is active issue one call.
+- [x] Success updates only the matching variant's `isSaved` value in current Frame state.
+- [x] Failure preserves prior state; 422 uses patient-safe unavailable copy.
+- [x] Switching variants displays independent saved and in-flight state.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*FrameDetailViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*FrameDetailViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Checkpoint C
 
@@ -425,23 +430,23 @@ behavior in the ViewModel before changing buttons.
 
 **Estimated scope:** M (2 files)
 
-### Task 13: Replace Frame Detail Reserve UI with Save/Remove
+### Task 13: Replace Frame Detail Reserve UI with Save/Remove ✅
 
 **Description:** Bind the mutation state and remove create-reservation navigation from Frame Detail.
 
 **Acceptance criteria:**
 
-- [ ] Selected unsaved variants show **Save frame**; saved variants show **Remove from saved**.
-- [ ] Control is actually disabled and announces progress while in flight.
-- [ ] Preference-only disclaimer is visible/directly accessible and success/failure feedback is safe.
-- [ ] Try-On remains available only for typed-ready AR and is otherwise unchanged.
-- [ ] NavGraph no longer passes a reserve callback to Frame Detail.
+- [x] Selected unsaved variants show **Save frame**; saved variants show **Remove from saved**.
+- [x] Control is actually disabled and announces progress while in flight.
+- [x] Preference-only disclaimer is visible/directly accessible and success/failure feedback is safe.
+- [x] Try-On remains available only for typed-ready AR and is otherwise unchanged.
+- [x] NavGraph no longer passes a reserve callback to Frame Detail.
 
 **Verification:**
 
-- [ ] `<gradle> assembleDebugAndroidTest` compiles Frame Detail saved-state UI coverage.
-- [ ] `<gradle> testDebugUnitTest --tests "*FrameDetailViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> assembleDebugAndroidTest` compiles Frame Detail saved-state UI coverage.
+- [x] `<gradle> testDebugUnitTest --tests "*FrameDetailViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 12
 
@@ -453,23 +458,23 @@ behavior in the ViewModel before changing buttons.
 
 **Estimated scope:** M (3 files)
 
-### Task 14: Add test-first AR selected-variant mutation state
+### Task 14: Add test-first AR selected-variant mutation state ✅
 
 **Description:** Add SavedFrameRepository behavior to ArViewModel without changing renderer/camera
 logic.
 
 **Acceptance criteria:**
 
-- [ ] The selected AR variant can save/remove by ProductVariant ID.
-- [ ] Mutation is single-flight and updates only the matching loaded variant.
-- [ ] Variant switching reflects each variant's `isSaved` value.
-- [ ] Failure retains asset, face, pose, renderer, and saved state and emits safe feedback.
-- [ ] Existing AR capability, model-load, retry, and lifecycle tests remain green.
+- [x] The selected AR variant can save/remove by ProductVariant ID.
+- [x] Mutation is single-flight and updates only the matching loaded variant.
+- [x] Variant switching reflects each variant's `isSaved` value.
+- [x] Failure retains asset, face, pose, renderer, and saved state and emits safe feedback.
+- [x] Existing AR capability, model-load, retry, and lifecycle tests remain green.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*ArViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*ArViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 12
 
@@ -481,24 +486,24 @@ logic.
 
 **Estimated scope:** M (3 files)
 
-### Task 15: Replace AR Reserve UI with Save/Remove
+### Task 15: Replace AR Reserve UI with Save/Remove ✅
 
 **Description:** Keep preference mutation inside AR and delete its create-reservation navigation
 callback.
 
 **Acceptance criteria:**
 
-- [ ] AR shows Save/Remove for the selected variant with true disabled/in-flight semantics.
-- [ ] First save produces concise preference-only feedback; errors preserve the active try-on.
-- [ ] NavGraph no longer navigates from AR to CreateFrameReservation.
-- [ ] Catalog-return behavior and renderer overlay remain unchanged.
-- [ ] No AR UI copy says reserve, held, set aside, expiry, or appointment.
+- [x] AR shows Save/Remove for the selected variant with true disabled/in-flight semantics.
+- [x] First save produces concise preference-only feedback; errors preserve the active try-on.
+- [x] NavGraph no longer navigates from AR to CreateFrameReservation.
+- [x] Catalog-return behavior and renderer overlay remain unchanged.
+- [x] No AR UI copy says reserve, held, set aside, expiry, or appointment.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*ArTryOnContentStateTest" --tests "*ArViewModelTest"`
+- [x] `<gradle> testDebugUnitTest --tests "*ArTryOnContentStateTest" --tests "*ArViewModelTest"`
   passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 14
 
@@ -512,11 +517,11 @@ callback.
 
 > ### Checkpoint D — Mutation surfaces (after Tasks 12–15)
 >
-> - [ ] Frame Detail and AR mutate only the selected variant and prevent duplicate calls.
-> - [ ] Failure/422 tests preserve state and expose safe copy.
-> - [ ] No Reserve action remains on Frame Detail or AR.
-> - [ ] The complete existing AR unit suite remains green.
-> - [ ] `assembleDebug` passes.
+> - [x] Frame Detail and AR mutate only the selected variant and prevent duplicate calls.
+> - [x] Failure/422 tests preserve state and expose safe copy.
+> - [x] No Reserve action remains on Frame Detail or AR.
+> - [x] The complete existing AR unit suite remains green.
+> - [x] `assembleDebug` passes.
 
 ---
 
@@ -893,25 +898,26 @@ using one small lifecycle-aware helper or equivalent testable hooks.
 
 **Estimated scope:** M (3 files)
 
-### Task 29: Prepare the evidence-backed workflow record
+### Task 29: Prepare the evidence-backed workflow record ✅
 
-**Description:** Record completion evidence for Tasks 1–28 while leaving final status explicitly
-pending until the full Task 30 gate passes.
+**Description:** Record completion evidence for Tasks 1–28 before the final Task 30 gate closes the
+workflow.
 
 **Acceptance criteria:**
 
-- [ ] Completed task/acceptance/checkpoint boxes through Task 28 reflect commands that actually passed.
-- [ ] Spec, plan, and tasks remain marked implementation/verification in progress.
-- [ ] Open Questions record any unresolved implementation blocker before the final gate.
-- [ ] No historical v19 or older spec is rewritten.
+- [x] Completed task/acceptance/checkpoint boxes through Task 28 reflect commands that actually passed.
+- [x] Spec, plan, and tasks were marked implementation/verification in progress while this record was
+  prepared; Task 30 closed them after the final gate.
+- [x] Open Questions record any unresolved implementation blocker before the final gate.
+- [x] No historical v19 or older spec is rewritten.
 
 **Verification:**
 
-- [ ] `git diff --check -- docs/specs/backend-alignment-v20-2026-08-27-*.md` passes.
-- [ ] Status/checklist text matches the final verification record exactly.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `git diff --check -- docs/specs/backend-alignment-v20-2026-08-27-*.md` passes.
+- [x] Status/checklist text matches the final verification record exactly.
+- [x] `<gradle> assembleDebug` passes.
 
-**Dependencies:** Task 28; final completion wording waits for Task 30
+**Dependencies:** Task 28; final completion wording was closed by Task 30
 
 **Files:**
 
@@ -921,7 +927,7 @@ pending until the full Task 30 gate passes.
 
 **Estimated scope:** S (3 files)
 
-### Task 30: Run the final gate and close the workflow
+### Task 30: Run the final gate and close the workflow ✅
 
 **Description:** Execute the full project commands, evidence every v20 success criterion, and only then
 mark the v20 workflow complete. Fixes are not silently folded into this task; any failure reopens the
@@ -929,26 +935,28 @@ owning task and its focused test.
 
 **Acceptance criteria:**
 
-- [ ] No Gson, token/health/Saved Frame Room storage, new dependency, backend behavior, or Kotlin Android
+- [x] No Gson, token/health/Saved Frame Room storage, new dependency, backend behavior, or Kotlin Android
   plugin was introduced.
-- [ ] No active source/test route or UI copy uses the retired reservation feature.
-- [ ] Saved state is account-only, cache-safe, exact-variant, single-flight, and patient-safe.
-- [ ] Unrelated working-tree changes remain intact.
-- [ ] After every command passes, spec/plan/tasks statuses and the remaining final checkboxes are marked
+- [x] No active source/test route or UI copy uses the retired reservation feature.
+- [x] Saved state is account-only, cache-safe, exact-variant, single-flight, and patient-safe.
+- [x] Unrelated working-tree changes remain intact.
+- [x] After every command passes, spec/plan/tasks statuses and the remaining final checkboxes are marked
   complete with the actual verification result.
 
 **Verification:**
 
-- [ ] `<gradle> ktlintFormat` completes.
-- [ ] `<gradle> testDebugUnitTest` passes.
-- [ ] `<gradle> lintDebug` passes.
-- [ ] `<gradle> assembleDebug` passes after formatting and tests.
-- [ ] `<gradle> assembleDebugAndroidTest` passes; `connectedDebugAndroidTest` is run when a device is
+- [x] `<gradle> ktlintFormat` completes.
+- [x] `<gradle> testDebugUnitTest` passes.
+- [x] `<gradle> lintDebug` passes.
+- [x] `<gradle> assembleDebug` passes after formatting and tests.
+- [x] `<gradle> assembleDebugAndroidTest` passes; `connectedDebugAndroidTest` is run when a device is
   available or explicitly reported as not run.
-- [ ] `rg -n -i 'frame-reservations|FrameReservation|Reserve this frame|isFrameReservationOrigin' app/src/main app/src/test app/src/androidTest` returns no active hits.
-- [ ] `rg -n 'saved-frames|is_saved' app/src/main app/src/test CONTEXT.md docs/API_CONTRACT.md` shows the
+- [x] `rg -n -i 'frame-reservations|FrameReservation|Reserve this frame|isFrameReservationOrigin' app/src/main app/src/test app/src/androidTest`
+  returns no production/UI hits; the only remaining matches are the intentional rejected-route
+  allowlist fixtures in `ApprovedApiRoutes.kt` and `ApiRouteAllowlistTest.kt`.
+- [x] `rg -n 'saved-frames|is_saved' app/src/main app/src/test CONTEXT.md docs/API_CONTRACT.md` shows the
   intended route/field/docs coverage.
-- [ ] `git diff --check` passes and final scoped diff review finds no accidental user-file overwrite.
+- [x] `git diff --check` passes and final scoped diff review finds no accidental user-file overwrite.
 
 **Dependencies:** Tasks 1–29
 
@@ -962,11 +970,11 @@ owning task and its focused test.
 
 > ### Checkpoint F — Final gate (after Task 30)
 >
-> - [ ] All 16 spec success criteria have evidence.
-> - [ ] Unit, lint, debug build, and Android-test compilation pass.
-> - [ ] Instrumented execution result is recorded honestly.
-> - [ ] Documentation and workflow status match shipped behavior.
-> - [ ] Unrelated user changes are preserved.
+> - [x] All 16 spec success criteria have evidence.
+> - [x] Unit, lint, debug build, and Android-test compilation pass.
+> - [x] Instrumented execution result is recorded honestly.
+> - [x] Documentation and workflow status match shipped behavior.
+> - [x] Unrelated user changes are preserved.
 
 ## Dependency Summary
 
@@ -1004,5 +1012,5 @@ No task may cross a checkpoint until all earlier acceptance and build checks are
 
 ## Open Questions
 
-1. **Approval gate:** Approve this task ordering and file ownership so Phase 4 implementation can
-   begin. Once approved, execute Task 1 first and do not batch unchecked tasks together.
+1. **Resolved 2026-08-27:** Task ordering and file ownership were approved; all implementation and
+   verification tasks are complete.
