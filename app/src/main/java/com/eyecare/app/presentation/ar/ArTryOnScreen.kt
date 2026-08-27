@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -103,6 +105,7 @@ fun ArTryOnScreen(
                 onFaceResult = viewModel::onFaceResult,
                 onAssetStateChanged = viewModel::onAssetStateChanged,
                 onSelectVariant = viewModel::selectVariant,
+                onToggleSaved = viewModel::toggleSaved,
                 onOpenCatalog = onOpenCatalog,
             )
         } else {
@@ -135,6 +138,7 @@ private fun ActiveTryOnContent(
     onFaceResult: (ArFaceState) -> Unit,
     onAssetStateChanged: (ArAssetState) -> Unit,
     onSelectVariant: (FrameVariant) -> Unit,
+    onToggleSaved: () -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
     val frameUrl = state.selectedVariant
@@ -219,6 +223,29 @@ private fun ActiveTryOnContent(
                 .padding(bottom = 24.dp, top = 12.dp),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                val selectedVariant = state.selectedVariant
+                val canSave = selectedVariant != null &&
+                    state.assetState !is ArAssetState.Loading &&
+                    state.assetState !is ArAssetState.Checking
+                if (canSave) {
+                    Button(
+                        onClick = onToggleSaved,
+                        enabled = !state.isSaving,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                        ),
+                    ) {
+                        if (state.isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        } else {
+                            Text(if (selectedVariant!!.isSaved) "Remove from saved" else "Save this frame")
+                        }
+                    }
+                }
                 OutlinedButton(
                     onClick = onOpenCatalog,
                     colors = ButtonDefaults.outlinedButtonColors(

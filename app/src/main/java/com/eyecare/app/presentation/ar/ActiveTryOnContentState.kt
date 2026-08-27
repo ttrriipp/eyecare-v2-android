@@ -19,6 +19,8 @@ internal data class ActiveTryOnContentState(
     val face: FaceFrame?,
     val pose: FacePose?,
     val assetState: ArAssetState,
+    val isSaving: Boolean = false,
+    val saveError: String? = null,
 )
 
 internal enum class ActiveTryOnPhase {
@@ -35,6 +37,8 @@ internal fun ArTryOnUiState.toActiveTryOnContentState(): ActiveTryOnContentState
         face = null,
         pose = null,
         assetState = assetState,
+        isSaving = isSaving,
+        saveError = saveError,
     )
 
     is ArTryOnUiState.Searching -> ActiveTryOnContentState(
@@ -44,6 +48,8 @@ internal fun ArTryOnUiState.toActiveTryOnContentState(): ActiveTryOnContentState
         face = null,
         pose = null,
         assetState = assetState,
+        isSaving = isSaving,
+        saveError = saveError,
     )
 
     is ArTryOnUiState.Tracking -> ActiveTryOnContentState(
@@ -53,6 +59,8 @@ internal fun ArTryOnUiState.toActiveTryOnContentState(): ActiveTryOnContentState
         face = face,
         pose = pose,
         assetState = assetState,
+        isSaving = isSaving,
+        saveError = saveError,
     )
 
     else -> null
