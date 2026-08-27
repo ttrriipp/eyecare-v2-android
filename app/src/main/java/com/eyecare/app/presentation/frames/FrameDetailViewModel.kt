@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.repository.FrameRepository
+import com.eyecare.app.domain.repository.SavedFrameRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -22,6 +23,8 @@ sealed interface FrameDetailUiState {
         val frame: Frame,
         val selectedVariant: FrameVariant,
         val isRefreshing: Boolean = false,
+        val isSavingVariant: Boolean = false,
+        val saveError: String? = null,
         val message: String? = null,
     ) : FrameDetailUiState
     data class Error(val message: String) : FrameDetailUiState
@@ -30,6 +33,7 @@ sealed interface FrameDetailUiState {
 @HiltViewModel(assistedFactory = FrameDetailViewModel.Factory::class)
 class FrameDetailViewModel @AssistedInject constructor(
     private val repository: FrameRepository,
+    private val savedFrameRepository: SavedFrameRepository,
     @Assisted private val frameId: Int,
     @Assisted private val requestedVariantId: Int?,
 ) : ViewModel() {
@@ -63,6 +67,54 @@ class FrameDetailViewModel @AssistedInject constructor(
     fun clearMessage() {
         val current = _uiState.value as? FrameDetailUiState.Success ?: return
         _uiState.value = current.copy(message = null)
+    }
+
+    fun toggleSaved() {
+        val current = _uiState.value as? FrameDetailUiState.Success ?: return
+        if (current.isSavingVariant) return
+
+        val variant = current.selectedVariant
+        _uiState.value = current.copy(isSavingVariant = true, saveError = null)
+
+        viewModelScope.launch {
+            val result = if (variant.isSaved) {
+                savedFrameRepository.remove(variant.id)
+            } else {
+                savedFrameRepository.save(variant.id)
+            }
+            result.fold(
+                onSuccess = {
+                    val latest = _uiState.value as? FrameDetailUiState.Success ?: return@launch
+                    val updatedVariant = variant.copy(isSaved = !variant.isSaved)
+                    val updatedFrame = latest.frame.copy(
+                        variants = latest.frame.variants.map {
+                            if (it.id == variant.id) updatedVariant else it
+                        },
+                    )
+                    _uiState.value = latest.copy(
+                        frame = updatedFrame,
+                        selectedVariant = updatedVariant,
+                        isSavingVariant = false,
+                    )
+                },
+                onFailure = {
+                    val latest = _uiState.value as? FrameDetailUiState.Success ?: return@launch
+                    _uiState.value = latest.copy(
+                        isSavingVariant = false,
+                        saveError = if (!variant.isSaved) {
+                            "This option can no longer be saved. Try refreshing."
+                        } else {
+                            "Couldn't remove this frame. Try again."
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    fun clearSaveError() {
+        val current = _uiState.value as? FrameDetailUiState.Success ?: return
+        _uiState.value = current.copy(saveError = null)
     }
 
     private fun load() {
