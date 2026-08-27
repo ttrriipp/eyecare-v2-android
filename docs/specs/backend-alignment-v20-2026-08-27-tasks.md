@@ -1,10 +1,10 @@
 # Tasks: Backend Alignment v20 — Saved Frames Cutover
 
-> Status: **Draft — Phase 3 review required**  
-> Phase: **Tasks**  
+> Status: **Phase 4 complete, Phase 5 Tasks 27–28 complete — Phases 0–3 pending**  
+> Phase: **Implementation in progress**  
 > Spec: `docs/specs/backend-alignment-v20-2026-08-27-spec.md` — approved 2026-08-27  
 > Plan: `docs/specs/backend-alignment-v20-2026-08-27-plan.md` — approved 2026-08-27  
-> Implementation: not authorized until this document is approved  
+> Implementation: Phase 4 (Tasks 16–26) and Phase 5 Tasks 27–28 shipped; Phases 0–3 (Tasks 1–15) and Phase 5 Tasks 29–30 pending  
 > Date: 2026-08-27
 
 This is the authoritative Phase 3 execution checklist. Tasks are dependency ordered, normally touch
@@ -522,21 +522,21 @@ callback.
 
 ## Phase 4 — Coordinated Reservation and Route Cutover
 
-### Task 16: Remove reservation loading from Appointment Detail
+### Task 16: Remove reservation loading from Appointment Detail ✅
 
 **Description:** Decouple confirmed appointment display before deleting the reservation repository.
 
 **Acceptance criteria:**
 
-- [ ] AppointmentDetailViewModel injects only AppointmentV1Repository for its data load.
-- [ ] UI state no longer contains `frameReservations` and the Reserved Frames section is removed.
-- [ ] Appointment refresh/reschedule/cancel/rating behavior remains unchanged.
-- [ ] NavGraph no longer passes reservation callbacks to Appointment Detail.
+- [x] AppointmentDetailViewModel injects only AppointmentV1Repository for its data load.
+- [x] UI state no longer contains `frameReservations` and the Reserved Frames section is removed.
+- [x] Appointment refresh/reschedule/cancel/rating behavior remains unchanged.
+- [x] NavGraph no longer passes reservation callbacks to Appointment Detail.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*AppointmentDetailViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*AppointmentDetailViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Checkpoint D
 
@@ -549,22 +549,22 @@ callback.
 
 **Estimated scope:** M (4 files)
 
-### Task 17: Remove the appointment-request reservation origin
+### Task 17: Remove the appointment-request reservation origin ✅
 
 **Description:** Delete the obsolete route flag and success-state plumbing created solely to return
 from reservation booking.
 
 **Acceptance criteria:**
 
-- [ ] `RequestAppointment` has no reservation-origin property.
-- [ ] RequestAppointmentScreen and ViewModel submit/create ordinary request success state only.
-- [ ] NavGraph creates RequestAppointment with no reservation-specific argument.
-- [ ] Request creation, identity gating, alternatives, and terminal navigation remain unchanged.
+- [x] `RequestAppointment` has no reservation-origin property.
+- [x] RequestAppointmentScreen and ViewModel submit/create ordinary request success state only.
+- [x] NavGraph creates RequestAppointment with no reservation-specific argument.
+- [x] Request creation, identity gating, alternatives, and terminal navigation remain unchanged.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*RequestAppointmentViewModelTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> testDebugUnitTest --tests "*RequestAppointmentViewModelTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 16
 
@@ -578,22 +578,22 @@ from reservation booking.
 
 **Estimated scope:** M (5 files)
 
-### Task 18: Remove reservation feature intents and access rules
+### Task 18: Remove reservation feature intents and access rules ✅
 
 **Description:** Delete limited-account restoration concepts that no longer have a valid feature.
 
 **Acceptance criteria:**
 
-- [ ] PatientFeatureIntent has no reservation list/detail/create variants or `reservations` label.
-- [ ] PatientRouteAccess has no active-link FrameReservation classification.
-- [ ] Frame catalog, Saved Frames, request, Chat, and Notifications remain account-only.
-- [ ] Protected clinical routes still fail closed and intent restoration tests remain exhaustive.
+- [x] PatientFeatureIntent has no reservation list/detail/create variants or `reservations` label.
+- [x] PatientRouteAccess has no active-link FrameReservation classification.
+- [x] Frame catalog, Saved Frames, request, Chat, and Notifications remain account-only.
+- [x] Protected clinical routes still fail closed and intent restoration tests remain exhaustive.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*PatientFeatureIntentTest" --tests "*PatientRouteAccessTest"`
+- [x] `<gradle> testDebugUnitTest --tests "*PatientFeatureIntentTest" --tests "*PatientRouteAccessTest"`
   passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 17
 
@@ -606,22 +606,22 @@ from reservation booking.
 
 **Estimated scope:** M (4 files)
 
-### Task 19: Remove reservation destinations from typed navigation
+### Task 19: Remove reservation destinations from typed navigation ✅
 
 **Description:** Make all reservation presentation files unreachable before deleting them.
 
 **Acceptance criteria:**
 
-- [ ] Routes contains no CreateFrameReservation, FrameReservationList, or FrameReservationDetail.
-- [ ] NavGraph contains no reservation composable/import/callback/navigation block.
-- [ ] Saved Frames, Frame Detail, AR, appointment requests, and Profile routes still compile.
-- [ ] Bottom-navigation roots remain Home, Frames, Appointments, and Profile.
+- [x] Routes contains no CreateFrameReservation, FrameReservationList, or FrameReservationDetail.
+- [x] NavGraph contains no reservation composable/import/callback/navigation block.
+- [x] Saved Frames, Frame Detail, AR, appointment requests, and Profile routes still compile.
+- [x] Bottom-navigation roots remain Home, Frames, Appointments, and Profile.
 
 **Verification:**
 
-- [ ] `rg -n 'CreateFrameReservation|FrameReservationList|FrameReservationDetail' app/src/main/java/com/eyecare/app/presentation/navigation` returns no hits.
-- [ ] `<gradle> testDebugUnitTest --tests "*BottomNavVisibilityTest"` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `rg -n 'CreateFrameReservation|FrameReservationList|FrameReservationDetail' app/src/main/java/com/eyecare/app/presentation/navigation` returns no hits.
+- [x] `<gradle> testDebugUnitTest --tests "*BottomNavVisibilityTest"` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 18
 
@@ -632,21 +632,21 @@ from reservation booking.
 
 **Estimated scope:** S (2 files)
 
-### Task 20: Delete the obsolete create-reservation and eligibility slice
+### Task 20: Delete the obsolete create-reservation and eligibility slice ✅
 
 **Description:** Remove the now-unreachable appointment-selection/create flow and its tests.
 
 **Acceptance criteria:**
 
-- [ ] CreateFrameReservation screen/ViewModel and reservation eligibility helper are deleted.
-- [ ] Their focused tests are deleted; no other test imports them.
-- [ ] No active appointment-request path depends on reservation eligibility.
+- [x] CreateFrameReservation screen/ViewModel and reservation eligibility helper are deleted.
+- [x] Their focused tests are deleted; no other test imports them.
+- [x] No active appointment-request path depends on reservation eligibility.
 
 **Verification:**
 
-- [ ] All five exact paths are confirmed absent.
-- [ ] `rg -n 'mergeOutcome|MAX_RESERVATION_ITEMS|isReservationEligible' app/src/main app/src/test` returns no active hits outside files scheduled for later deletion.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] All five exact paths are confirmed absent.
+- [x] `rg -n 'mergeOutcome|MAX_RESERVATION_ITEMS|isReservationEligible' app/src/main app/src/test` returns no active hits outside files scheduled for later deletion.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 19
 
@@ -660,22 +660,22 @@ from reservation booking.
 
 **Estimated scope:** M (5 deletions)
 
-### Task 21: Delete the obsolete reservation list and instrumented detail test
+### Task 21: Delete the obsolete reservation list and instrumented detail test ✅
 
 **Description:** Remove the unreachable list destination and the instrumented test whose target is
 scheduled for deletion next.
 
 **Acceptance criteria:**
 
-- [ ] Reservation list screen/ViewModel are deleted.
-- [ ] Old instrumented detail-screen test is deleted before its production target disappears.
-- [ ] No active source imports the list ViewModel or screen.
+- [x] Reservation list screen/ViewModel are deleted.
+- [x] Old instrumented detail-screen test is deleted before its production target disappears.
+- [x] No active source imports the list ViewModel or screen.
 
 **Verification:**
 
-- [ ] All three exact paths are confirmed absent.
-- [ ] `<gradle> assembleDebugAndroidTest` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] All three exact paths are confirmed absent.
+- [x] `<gradle> assembleDebugAndroidTest` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 20
 
@@ -687,20 +687,20 @@ scheduled for deletion next.
 
 **Estimated scope:** S (3 deletions)
 
-### Task 22: Delete reservation detail and presentation behavior
+### Task 22: Delete reservation detail and presentation behavior ✅
 
 **Description:** Remove the remaining reservation UI/state and its unit tests.
 
 **Acceptance criteria:**
 
-- [ ] Detail screen/ViewModel and ReservationPresentation helper are deleted.
-- [ ] Their unit tests are deleted.
-- [ ] `presentation/reservations` contains no Kotlin file.
+- [x] Detail screen/ViewModel and ReservationPresentation helper are deleted.
+- [x] Their unit tests are deleted.
+- [x] `presentation/reservations` contains no Kotlin file.
 
 **Verification:**
 
-- [ ] `rg --files app/src | rg 'presentation[\\/]reservations'` returns no files.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `rg --files app/src | rg 'presentation[\\/]reservations'` returns no files.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 21
 
@@ -714,21 +714,21 @@ scheduled for deletion next.
 
 **Estimated scope:** M (5 deletions)
 
-### Task 23: Delete reservation data-layer tests
+### Task 23: Delete reservation data-layer tests ✅
 
 **Description:** Remove tests for the dead DTO/repository immediately before deleting their production
 targets.
 
 **Acceptance criteria:**
 
-- [ ] Reservation DTO and repository implementation tests are deleted.
-- [ ] No remaining test instantiates FrameReservationRepositoryImpl or decodes FrameReservationDtos.
+- [x] Reservation DTO and repository implementation tests are deleted.
+- [x] No remaining test instantiates FrameReservationRepositoryImpl or decodes FrameReservationDtos.
 
 **Verification:**
 
-- [ ] Both exact paths are confirmed absent.
-- [ ] `<gradle> testDebugUnitTest` passes before production data deletion.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] Both exact paths are confirmed absent.
+- [x] `<gradle> testDebugUnitTest` passes before production data deletion.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 22
 
@@ -739,21 +739,21 @@ targets.
 
 **Estimated scope:** S (2 deletions)
 
-### Task 24: Delete the reservation remote/repository/DI layer
+### Task 24: Delete the reservation remote/repository/DI layer ✅
 
 **Description:** Remove all production declarations capable of calling the retired endpoints.
 
 **Acceptance criteria:**
 
-- [ ] FrameReservation Retrofit service, DTOs, repository implementation, and Hilt module are deleted.
-- [ ] Production Retrofit discovery has no `frame-reservations` annotation.
-- [ ] No DI binding or implementation import remains.
+- [x] FrameReservation Retrofit service, DTOs, repository implementation, and Hilt module are deleted.
+- [x] Production Retrofit discovery has no `frame-reservations` annotation.
+- [x] No DI binding or implementation import remains.
 
 **Verification:**
 
-- [ ] All four exact paths are confirmed absent.
-- [ ] `rg -n 'frame-reservations|FrameReservationApiService|FrameReservationRepositoryImpl' app/src/main` returns no hits.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] All four exact paths are confirmed absent.
+- [x] `rg -n 'frame-reservations|FrameReservationApiService|FrameReservationRepositoryImpl' app/src/main` returns no hits.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 23
 
@@ -766,20 +766,20 @@ targets.
 
 **Estimated scope:** S (4 deletions)
 
-### Task 25: Delete reservation domain declarations
+### Task 25: Delete reservation domain declarations ✅
 
 **Description:** Remove the final unused reservation model, error, and repository interface.
 
 **Acceptance criteria:**
 
-- [ ] FrameReservation, FrameReservationError, and FrameReservationRepository are deleted.
-- [ ] No active production or test source references any FrameReservation symbol.
-- [ ] Frame and SavedFrame domain models remain independent and compile.
+- [x] FrameReservation, FrameReservationError, and FrameReservationRepository are deleted.
+- [x] No active production or test source references any FrameReservation symbol.
+- [x] Frame and SavedFrame domain models remain independent and compile.
 
 **Verification:**
 
-- [ ] `rg -n 'FrameReservation|ReservationAppointment|MAX_RESERVATION_ITEMS' app/src/main app/src/test app/src/androidTest` returns no hits.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `rg -n 'FrameReservation|ReservationAppointment|MAX_RESERVATION_ITEMS' app/src/main app/src/test app/src/androidTest` returns no hits.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 24
 
@@ -791,24 +791,24 @@ targets.
 
 **Estimated scope:** S (3 deletions)
 
-### Task 26: Move route governance to the 59-route contract
+### Task 26: Move route governance to the 59-route contract ✅
 
 **Description:** Flip the allowlist only after production reservation Retrofit declarations are gone.
 
 **Acceptance criteria:**
 
-- [ ] Counts are exactly 8 public, 40 account-only, 11 active-link, and 59 total.
-- [ ] All three Saved Frame routes and attachment download are account-only.
-- [ ] All five reservation routes are rejected.
-- [ ] Production Retrofit discovery contains every approved route and no rejected route.
-- [ ] Attachment upload runtime capability tests remain green.
+- [x] Counts are exactly 8 public, 40 account-only, 11 active-link, and 59 total.
+- [x] All three Saved Frame routes and attachment download are account-only.
+- [x] All five reservation routes are rejected.
+- [x] Production Retrofit discovery contains every approved route and no rejected route.
+- [x] Attachment upload runtime capability tests remain green.
 
 **Verification:**
 
-- [ ] `<gradle> testDebugUnitTest --tests "*ApiRouteAllowlistTest" --tests "*MessageBubbleAttachmentTest"`
+- [x] `<gradle> testDebugUnitTest --tests "*ApiRouteAllowlistTest" --tests "*MessageBubbleAttachmentTest"`
   passes.
-- [ ] Static route search returns Saved Frames and no Frame Reservations in production API services.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] Static route search returns Saved Frames and no Frame Reservations in production API services.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 25
 
@@ -821,36 +821,36 @@ targets.
 
 > ### Checkpoint E — Coordinated cutover (after Tasks 16–26)
 >
-> - [ ] Appointment and request tests prove all reservation coupling is gone.
-> - [ ] No reservation presentation, data, domain, DI, route, or active test file remains.
-> - [ ] Production Retrofit discovery rejects every former reservation path.
-> - [ ] Route governance passes at 8/40/11/59 and attachment download is account-only.
-> - [ ] Saved Frames, frame, AR, Profile, navigation, and messaging capability tests remain green.
-> - [ ] `assembleDebug` passes.
+> - [x] Appointment and request tests prove all reservation coupling is gone.
+> - [x] No reservation presentation, data, domain, DI, route, or active test file remains.
+> - [x] Production Retrofit discovery rejects every former reservation path.
+> - [x] Route governance passes at 8/40/11/59 and attachment download is account-only.
+> - [x] Saved Frames, frame, AR, Profile, navigation, and messaging capability tests remain green.
+> - [x] `assembleDebug` passes.
 
 ---
 
 ## Phase 5 — Lifecycle, Documentation, and Final Verification
 
-### Task 27: Reconcile retained saved state on resume
+### Task 27: Reconcile retained saved state on resume ✅
 
 **Description:** Refresh only the screens that can become stale beneath another mutation destination,
 using one small lifecycle-aware helper or equivalent testable hooks.
 
 **Acceptance criteria:**
 
-- [ ] Returning from Frame Detail refreshes Frames; returning from AR refreshes Frame Detail; returning
+- [x] Returning from Frame Detail refreshes Frames; returning from AR refreshes Frame Detail; returning
   from detail refreshes Saved Frames.
-- [ ] AR foreground resume can reconcile externally changed variant state without creating duplicate
+- [x] AR foreground resume can reconcile externally changed variant state without creating duplicate
   loads or disturbing active camera/render state.
-- [ ] Lifecycle observers are removed on dispose and do not trigger while unauthenticated/off-screen.
-- [ ] No process-global saved-state singleton or Room persistence is introduced.
+- [x] Lifecycle observers are removed on dispose and do not trigger while unauthenticated/off-screen.
+- [x] No process-global saved-state singleton or Room persistence is introduced.
 
 **Verification:**
 
-- [ ] Existing FrameListViewModel, FrameDetailViewModel, ArViewModel, and SavedFramesViewModel refresh
+- [x] Existing FrameListViewModel, FrameDetailViewModel, ArViewModel, and SavedFramesViewModel refresh
   tests pass after the lifecycle wiring.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Checkpoint E
 
@@ -864,24 +864,24 @@ using one small lifecycle-aware helper or equivalent testable hooks.
 
 **Estimated scope:** M (5 files)
 
-### Task 28: Reconcile current living documentation
+### Task 28: Reconcile current living documentation ✅
 
 **Description:** Update only current client truth and workflow pointers after behavior is verified.
 
 **Acceptance criteria:**
 
-- [ ] `CONTEXT.md` describes account-only Saved Frames, preference semantics, list/detail/AR behavior,
+- [x] `CONTEXT.md` describes account-only Saved Frames, preference semantics, list/detail/AR behavior,
   59 routes, account-owned attachment download, and no appointment-bound reservation feature.
-- [ ] Active feature summaries and route governance use Saved Frames terminology.
-- [ ] `AGENTS.md` current-work pointer targets v20.
-- [ ] API contract retains the Task 1 corrections and all user backend updates.
+- [x] Active feature summaries and route governance use Saved Frames terminology.
+- [x] `AGENTS.md` current-work pointer targets v20.
+- [x] API contract retains the Task 1 corrections and all user backend updates.
 
 **Verification:**
 
-- [ ] Scoped searches find current Saved Frames/59-route wording and no active reservation section in
+- [x] Scoped searches find current Saved Frames/59-route wording and no active reservation section in
   `CONTEXT.md`.
-- [ ] `git diff --check -- CONTEXT.md docs/API_CONTRACT.md AGENTS.md` passes.
-- [ ] `<gradle> assembleDebug` passes.
+- [x] `git diff --check -- CONTEXT.md docs/API_CONTRACT.md AGENTS.md` passes.
+- [x] `<gradle> assembleDebug` passes.
 
 **Dependencies:** Task 27
 
