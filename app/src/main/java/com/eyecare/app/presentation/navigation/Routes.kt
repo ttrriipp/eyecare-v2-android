@@ -30,6 +30,7 @@ import kotlinx.serialization.Serializable
 // Frame sub-destinations
 @Serializable data class ArTryOn(val frameId: Int, val variantId: Int)
 @Serializable data class FrameDetail(val frameId: Int, val variantId: Int? = null)
+@Serializable object SavedFrames
 
 // Prescriptions
 @Serializable object PrescriptionList

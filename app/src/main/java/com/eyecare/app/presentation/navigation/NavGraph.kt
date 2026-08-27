@@ -23,6 +23,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavOptionsBuilder
@@ -59,6 +60,8 @@ import com.eyecare.app.presentation.eyewear.MyOrdersScreen
 import com.eyecare.app.presentation.eyewear.OpticalOrderDetailScreen
 import com.eyecare.app.presentation.frames.FrameDetailScreen
 import com.eyecare.app.presentation.frames.FrameListScreen
+import com.eyecare.app.presentation.frames.SavedFramesScreen
+import com.eyecare.app.presentation.frames.SavedFramesViewModel
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.profile.EditProfileScreen
 import com.eyecare.app.presentation.profile.PatientProfileScreen
@@ -453,6 +456,7 @@ fun EyecareNavGraph(
                                 }
                             },
                             onNavigateToPrescriptions = { navigatePatientFeature(PrescriptionList) },
+                            onNavigateToSavedFrames = { navigatePatientFeature(SavedFrames) },
                             onNavigateToEyewear = { navigatePatientFeature(MyOrders) },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
                             onNavigateToPatientProfile = { navigatePatientFeature(PatientProfile) },
@@ -464,6 +468,21 @@ fun EyecareNavGraph(
                     composable<EditProfile> {
                         EditProfileScreen(
                             onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable<SavedFrames> {
+                        val savedFramesViewModel: SavedFramesViewModel = hiltViewModel()
+                        val savedFramesState by savedFramesViewModel.uiState.collectAsStateWithLifecycle()
+                        SavedFramesScreen(
+                            uiState = savedFramesState,
+                            onBack = { navController.popBackStack() },
+                            onRefresh = savedFramesViewModel::refresh,
+                            onLoadMore = savedFramesViewModel::loadMore,
+                            onRemoveFrame = savedFramesViewModel::removeSavedFrame,
+                            onOpenFrame = { frameId, variantId ->
+                                navigatePatientFeature(FrameDetail(frameId, variantId))
+                            },
+                            onClearError = savedFramesViewModel::clearInlineError,
                         )
                     }
                     composable<PatientProfile> {
