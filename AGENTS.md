@@ -15,7 +15,7 @@
 - Navigation: type-safe routes (`@Serializable` objects)
 - State: `sealed interface` via `StateFlow` (no LiveData)
 - Backend docs: `docs/BACKEND_CONTEXT.md`
-- Current work: `docs/specs/backend-alignment-v19-2026-08-15-spec.md`
+- Current work: `docs/specs/backend-alignment-v20-2026-08-27-spec.md`
 
 ## Boundaries
 - Never use Gson — only Kotlinx Serialization
