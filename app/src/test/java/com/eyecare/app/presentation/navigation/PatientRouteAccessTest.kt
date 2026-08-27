@@ -27,19 +27,6 @@ class PatientRouteAccessTest {
         assertEquals(PatientRouteAccess.ActiveLinkRequired, classifyRouteAccess("PatientProfile"))
         assertEquals(PatientRouteAccess.ActiveLinkRequired, classifyRouteAccess("PrescriptionList"))
         assertEquals(PatientRouteAccess.ActiveLinkRequired, classifyRouteAccess("EyewearList"))
-        assertEquals(PatientRouteAccess.ActiveLinkRequired, classifyRouteAccess("FrameReservationList"))
-    }
-
-    @Test
-    fun `reservation detail requires active link and is not mistaken for frame detail`() {
-        assertEquals(
-            PatientRouteAccess.ActiveLinkRequired,
-            classifyRouteAccess("com.eyecare.app.presentation.navigation.FrameReservationDetail/{reservationId}"),
-        )
-        assertEquals(
-            PatientRouteAccess.AccountOnly,
-            classifyRouteAccess("com.eyecare.app.presentation.navigation.FrameDetail/{frameId}"),
-        )
     }
 
     @Test
@@ -96,7 +83,6 @@ class PatientRouteAccessTest {
         assertFalse(canAccessRoute(PatientProfile, linkStatus))
         assertFalse(canAccessRoute(AppointmentDetail(42), linkStatus))
         assertFalse(canAccessRoute(PrescriptionList, linkStatus))
-        assertFalse(canAccessRoute(CreateFrameReservation(frameId = 7, variantId = 3), linkStatus))
         assertTrue(canAccessRoute(Chat, linkStatus))
         assertTrue(canAccessRoute(Notifications, linkStatus))
     }

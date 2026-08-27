@@ -41,7 +41,6 @@ fun classifyRouteAccess(route: String): PatientRouteAccess = when {
     route.contains("PatientProfile") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Prescription") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Eyewear") -> PatientRouteAccess.ActiveLinkRequired
-    route.contains("FrameReservation") -> PatientRouteAccess.ActiveLinkRequired
     // Default: fail closed
     else -> PatientRouteAccess.ActiveLinkRequired
 }

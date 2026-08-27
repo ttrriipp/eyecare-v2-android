@@ -14,10 +14,8 @@ class PatientFeatureIntentTest {
             PatientFeatureIntent.RequestAppointment to RequestAppointment,
             PatientFeatureIntent.AppointmentDetail(42) to AppointmentDetail(42),
             PatientFeatureIntent.FrameDetail(7) to FrameDetail(7),
-            PatientFeatureIntent.CreateFrameReservation(7, 3) to CreateFrameReservation(7, 3),
             PatientFeatureIntent.ArTryOn(7, 3) to ArTryOn(7, 3),
             PatientFeatureIntent.PrescriptionDetail(9) to PrescriptionDetail(9),
-            PatientFeatureIntent.FrameReservationDetail(5) to FrameReservationDetail(5),
         )
 
         intents.forEach { (intent, route) ->
@@ -36,6 +34,5 @@ class PatientFeatureIntentTest {
         assertEquals("appointments", PatientFeatureIntent.AppointmentDetail(42).label)
         assertEquals("frames", PatientFeatureIntent.FramesTab.label)
         assertEquals("appointments", PatientFeatureIntent.RequestAppointment.label)
-        assertEquals("reservations", PatientFeatureIntent.FrameReservationDetail(5).label)
     }
 }
