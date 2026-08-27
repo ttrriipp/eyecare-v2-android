@@ -234,6 +234,11 @@ internal object ApiContractFixtures {
                   },
                   "calibration": {
                     "frame_width_mm": 123.0,
+                    "outer_frame_height_mm": 48.0,
+                    "lens_width_mm": 50.0,
+                    "lens_height_mm": 45.0,
+                    "bridge_width_mm": 20.0,
+                    "temple_length_mm": 140.0,
                     "scale": { "x": 0.123, "y": 0.123, "z": 0.123 },
                     "anchor": { "x": 0.0, "y": 0.0, "z": 0.0 },
                     "rotation_degrees": { "x": 0.0, "y": 0.0, "z": 0.0 }
