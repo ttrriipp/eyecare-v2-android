@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AccountProfilePatch
-import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.StepUpChallenge
