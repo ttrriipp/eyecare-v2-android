@@ -1,6 +1,6 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-26) — Saved Frames
+> **Backend version:** Current repository state (2026-08-28) — Saved Frames
 > replacement complete: Frame Reservations replaced with account-owned Saved
 > Frames. Patients save frame variants as persistent preferences without
 > withholding inventory. Three new account-only routes (`GET /saved-frames`,
@@ -11,6 +11,14 @@
 > direct messaging hardening, optical commerce and dispensing, resilient patient
 > invitation linking, simplified frame reservations, and commerce model
 > simplification.
+
+> **Shipped 2026-08-28: patient account self-service profile boundary.**
+> `PATCH /me` now accepts only account `first_name`, `middle_name`,
+> `last_name`, and `date_of_birth`; DOB-bearing requests require the existing
+> same-account step-up token. Account edits never write the clinic Patient
+> record. Actual identity or relevant verified-contact changes expire pending
+> patient-link requests, while stale staff approvals fail closed and retain a
+> PII-safe expiry audit outcome.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
@@ -466,12 +474,12 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
 | `id` | integer | no | no | User ID |
 | `name` | string | no | no | Response-only compatibility value derived from first + middle + last; not stored as `users.name` |
 | `first_name` | string | yes | yes | Account first name |
-| `middle_name` | string | yes | no | Account middle name |
+| `middle_name` | string | yes | yes | Account middle name; blank input is normalized to `null` |
 | `last_name` | string | yes | yes | Account last name |
 | `email` | string | yes | no | Primary verified email contact, if one is configured; not a login identifier |
 | `phone` | string | yes | no | Primary verified phone contact and patient login identifier |
 | `role` | string | no | no | Always `patient` |
-| `date_of_birth` | string | yes | no | Account DOB, `Y-m-d` format |
+| `date_of_birth` | string | yes | yes | Account DOB, exact `Y-m-d`; any request containing it requires a valid step-up token |
 | `link_status` | string | no | no | `linked`, `pending_review`, or `unlinked` |
 | `privacy_policy_version` | string | yes | no | Accepted privacy policy version |
 | `privacy_accepted_at` | string | yes | no | ISO 8601 timestamp |
@@ -490,11 +498,11 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
 | `phone` | string | yes | Clinic patient phone (may differ from account phone) |
 | `contact_email` | string | yes | Clinic patient email (may differ from account email) |
 
-**Important:** `linked_patient` fields are read-only clinical demographics from the authoritative Patient record. They are never editable via the mobile API. PATCH /me only updates account `first_name` and `last_name`. Contact changes use the dedicated Contact Management endpoints.
+**Important:** `linked_patient` fields are read-only clinical demographics from the authoritative Patient record. They are never editable via the mobile API. PATCH `/me` updates only account `first_name`, `middle_name`, `last_name`, and (with step-up) `date_of_birth`. Contact changes use the dedicated Contact Management endpoints.
 
 ### PATCH `/me`
 
-Updates account fields. At least one field required.
+Updates account-owned identity fields. At least one allowed field is required.
 
 **Auth:** Required (Sanctum token).
 
@@ -502,16 +510,71 @@ Updates account fields. At least one field required.
 ```json
 {
   "first_name": "string (max:255)",
-  "last_name": "string (max:255)"
+  "middle_name": "string|null (max:255)",
+  "last_name": "string (max:255)",
+  "date_of_birth": "YYYY-MM-DD (before today)"
 }
 ```
 
 **Response (200):** Same as GET `/me`.
 
 **Notes:**
-- Only `first_name` and `last_name` are editable via this endpoint.
+- Only `first_name`, `middle_name`, `last_name`, and `date_of_birth` are accepted. Unknown, clinic-owned, contact, password, consent, and server-state fields return `422`; mixed valid/unsupported payloads are rejected atomically.
+- Names are trimmed at the boundaries; first and last names must be non-blank, and a blank middle name becomes `null`. Date of birth must use the exact `Y-m-d` format and be before today.
+- Name-only changes do not require step-up. Any request containing `date_of_birth` requires the same-account `X-Step-Up-Token`; missing, invalid, or expired proof fails before mutation.
 - Contact changes use `/account/contacts/*` endpoints.
-- Clinical Patient demographics are read-only and never editable via the mobile API.
+- Password changes use `POST /auth/password` with its existing current-password and step-up protections.
+- Clinical Patient demographics are read-only and never editable via the mobile API. A successful change never writes the `patients` row.
+- An actual identity change expires the account's pending patient-link request in the same transaction and records only field names and workflow outcomes in audit metadata. A normalized no-op does not expire or audit.
+
+**Validation errors (422):** Field validation uses the standard Laravel
+validation envelope. The proposed `error.code = VALIDATION_ERROR` envelope is
+not currently returned by this endpoint.
+
+```json
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "date_of_birth": [
+      "The date of birth field must be a date before today."
+    ]
+  }
+}
+```
+
+`errors` is an object keyed by the submitted field (or `profile` when no
+editable field was supplied); every value is an array of patient-safe
+messages. For this endpoint, representative messages are:
+
+| Condition | Field | Message |
+|---|---|---|
+| Invalid date format | `date_of_birth` | `The date of birth field must match the format Y-m-d.` |
+| Date is today or in the future | `date_of_birth` | `The date of birth field must be a date before today.` |
+| Unsupported or clinic-owned field | submitted field | `This field is not editable through this endpoint.` |
+| Blank `first_name` or `last_name` | submitted field | `The <field> field must have a value.` |
+| Empty request | `profile` | `At least one editable field is required.` |
+
+The top-level `message` is Laravel's human-readable summary; clients should
+use the field-keyed `errors` map for field display. Missing, invalid, or
+expired step-up proof is handled before validation and instead returns the
+machine-readable envelope documented in §4, for example:
+
+```json
+{
+  "error": {
+    "code": "STEP_UP_REQUIRED",
+    "message": "A step-up verification token is required for this action. Request one via POST /auth/step-up/otp and POST /auth/step-up/verify."
+  }
+}
+```
+
+**Android handoff:** Render the account editor from the four fields above and
+label `linked_patient` as clinic-owned/read-only. Send only changed supported
+fields; when editing DOB, complete the existing step-up OTP flow and send its
+token in `X-Step-Up-Token`. On a `422` stale/unsupported response, preserve
+the server message and do not assume a Patient record was changed. After an
+identity/contact change, refresh `/me` and treat a newly unlinked state as
+requiring a fresh patient-link request.
 
 **Rate limit:** 120 requests per minute per authenticated account.
 
@@ -532,6 +595,7 @@ Certain security-sensitive operations require an authenticated step-up OTP to pr
 **Endpoints requiring step-up:**
 | Endpoint | Method | Header |
 |----------|--------|--------|
+| `/me` when `date_of_birth` is present | PATCH | `X-Step-Up-Token` |
 | `/account/contacts/otp` | POST | `X-Step-Up-Token` |
 | `/account/contacts/{id}/primary` | PATCH | `X-Step-Up-Token` |
 | `/account/contacts/{id}` | DELETE | `X-Step-Up-Token` |
@@ -814,6 +878,15 @@ Submits a link request using the account's registration identity (name, date of 
 - `422 ACCOUNT_ALREADY_LINKED`: The account already has an active patient link.
 - `422 LINK_REQUEST_ALREADY_PENDING`: An active link request already exists for this account.
 
+**Identity snapshot lifecycle:** New requests store normalized first, middle,
+and last names plus date of birth in the encrypted snapshot. Actual account
+name/DOB changes and verified-contact additions, replacements, or removals
+expire the pending request while preserving its snapshot and candidate rows;
+changing only a primary-contact flag does not. Staff approval rechecks the
+locked account against the snapshot and expires stale requests without linking
+a Patient. Historical snapshots without `middle_name` are treated as a null
+middle name.
+
 ---
 
 ### GET `/patient-link-requests/current`
@@ -835,6 +908,11 @@ Returns the current active link request for the authenticated account.
 ```
 
 **Response (204):** No active request exists.
+
+An automatically expired request is terminal and is not returned as the
+current active request. Its encrypted identity snapshot, candidate ranking,
+and expiry audit history remain available to staff; a patient must submit a
+new request after changing account identity or verified contact data.
 
 **Appointment-request link effects:** When staff approve a link request, the
 account's previously submitted unlinked appointment requests are associated
@@ -1521,7 +1599,6 @@ linked to a clinic Patient record.
           "attributes": { "color": "black", "size": "52mm" },
           "ar_eligible": true,
           "ar_asset_reference": "rb-cr-blk-52.usdz",
-          "is_saved": false,
           "ar": {
             "status": "ready",
             "asset": {
@@ -2223,7 +2300,9 @@ paginated with the same cursor shape as the messages endpoint.
 
 **Query parameters:**
 - `q` (required, string, max 500): Search term.
-- `cursor` (optional, string): Opaque cursor from a previous response. Omitted on the first page; returned unchanged on subsequent requests.
+- `cursor` (optional, opaque string): Cursor returned in `meta.next_cursor` by
+  the previous response. Omit it for the first page and URL-encode it when
+  requesting the next page. The fixed page size is 50 messages.
 
 **Validation:**
 - `q`: required, string, maximum 500 characters
@@ -2357,7 +2436,21 @@ Marks all unread notifications as read.
 
 ## 16. Error Responses
 
-All API errors use one consistent JSON shape:
+Two JSON error envelopes are currently exposed. Validation exceptions,
+including Form Request and action-level validation failures, use Laravel's
+validation envelope:
+
+```json
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "field": ["Patient-safe validation message"]
+  }
+}
+```
+
+Endpoints that return an explicit machine-readable error code (for example,
+step-up middleware and rate limiting) use this envelope:
 
 ```json
 {
@@ -2374,6 +2467,8 @@ All API errors use one consistent JSON shape:
 | Code | HTTP Status | When |
 |---|---|---|
 | `INVALID_OTP` | 422 | Wrong, expired, or consumed OTP code |
+| `STEP_UP_REQUIRED` | 422 | A DOB or other sensitive mutation requires a step-up token |
+| `INVALID_STEP_UP_TOKEN` | 422 | The supplied step-up token is invalid or expired |
 | `OTP_ATTEMPT_LIMIT_REACHED` | 422 | Too many verification attempts on a challenge |
 | `OTP_RATE_LIMIT_REACHED` | 429 | Invitation OTP requests or OTP verification attempts exceeded the applicable account, destination, or IP limit |
 | `INVITATION_RATE_LIMIT_REACHED` | 429 | Invitation acceptance requests exceeded the authenticated account limit |
@@ -2492,7 +2587,7 @@ authoritative in §§15 and 15b.
 | Route | Change |
 |---|---|
 | `GET /me` | Returns `PatientAccountResource` schema; `link_status`, structured names |
-| `PATCH /me` | Only `first_name` and `last_name` editable |
+| `PATCH /me` | Account `first_name`, `middle_name`, and `last_name` are editable; `date_of_birth` is editable with a same-account step-up token. Unsupported and mixed fields fail with `422`. |
 | `GET /appointment-availability` | Now includes request holds in capacity |
 | `GET /appointments` | Requires active patient link |
 | `GET /appointments/{id}` | Requires active patient link |
@@ -2553,7 +2648,9 @@ The mobile API exposes `GET /appointment-types` as an authenticated, account-onl
 Appointment requests require a free-text `reason_for_visit` (max 1000 characters). This is copied to the confirmed Appointment and prefills the Encounter chief complaint at check-in. It remains clinician-editable.
 
 ### Identity verification
-The `/me` endpoint returns `link_status` and, when linked, clinical demographics from the authoritative Patient record. Account profile edits (`first_name`, `last_name`) never silently update the clinic Patient record.
+The `/me` endpoint returns `link_status` and, when linked, clinical demographics from the authoritative Patient record. Account profile edits (`first_name`, `middle_name`, `last_name`, and step-up-protected `date_of_birth`) never silently update the clinic Patient record. A pending link request is
+expired when identity or relevant verified-contact inputs change, and staff
+approval rejects a stale snapshot rather than creating a link.
 
 ### OTP challenge lifecycle
 Challenges expire after 10 minutes, allow 5 verification attempts, and are
@@ -2629,7 +2726,7 @@ GET    /api/v1/auth/policies                  Get Terms/Privacy versions and URL
 POST   /api/v1/logout                         Revoke current token
 POST   /api/v1/logout-all                     Revoke all device tokens
 GET    /api/v1/me                             Account profile (PatientAccountResource)
-PATCH  /api/v1/me                             Update first/last name
+PATCH  /api/v1/me                             Update account names; DOB requires step-up
 POST   /api/v1/auth/step-up/otp               Request sensitive-change OTP
 POST   /api/v1/auth/step-up/verify            Get step_up_token (15min)
 POST   /api/v1/auth/password                  Change password (X-Step-Up-Token header)
