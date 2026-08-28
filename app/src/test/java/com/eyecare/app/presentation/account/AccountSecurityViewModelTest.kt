@@ -1,8 +1,11 @@
 package com.eyecare.app.presentation.account
 
+import com.eyecare.app.domain.model.AccountProfilePatch
+import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
+import com.eyecare.app.domain.model.ProfileFieldChange
 import com.eyecare.app.domain.model.StepUpChallenge
 import com.eyecare.app.domain.model.StepUpProof
 import com.eyecare.app.domain.repository.AccountRepository
@@ -80,7 +83,9 @@ class AccountSecurityViewModelTest {
         val state = vm.state.value as AccountSecurityState.Overview
         assertTrue(state.isEditingAccount)
         assertEquals("Alex", state.editFirstName)
+        assertEquals("M.", state.editMiddleName)
         assertEquals("Rivera", state.editLastName)
+        assertEquals("1990-05-15", state.editDateOfBirth)
     }
 
     @Test
@@ -97,9 +102,9 @@ class AccountSecurityViewModelTest {
     }
 
     @Test
-    fun `saveAccountDetails updates account and exits edit mode`() {
+    fun `saveAccountDetails name-only patch uses updateAccountProfile without step-up`() {
         val updatedAccount = fakeAccount.copy(name = "Jamie Rivera", firstName = "Jamie")
-        coEvery { authRepo.updateAccountName("Jamie", "Rivera") } returns Result.success(updatedAccount)
+        coEvery { authRepo.updateAccountProfile(any(), null) } returns Result.success(updatedAccount)
 
         vm.loadAccount()
         vm.startAccountEditing()
@@ -110,6 +115,61 @@ class AccountSecurityViewModelTest {
         assertEquals(updatedAccount, state.account)
         assertFalse(state.isEditingAccount)
         assertFalse(state.isSavingAccount)
+    }
+
+    @Test
+    fun `saveAccountDetails validation errors map to field errors`() {
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountFirstName("")
+        vm.saveAccountDetails()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertEquals("First name is required", state.fieldErrors["first_name"])
+        assertTrue(state.isEditingAccount)
+    }
+
+    @Test
+    fun `saveAccountDetails non-validation failure preserves draft`() {
+        coEvery { authRepo.updateAccountProfile(any(), any()) } returns Result.failure(
+            ApiDomainError(500, "SERVER_ERROR", "Something went wrong")
+        )
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountFirstName("Jamie")
+        vm.saveAccountDetails()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertTrue(state.isEditingAccount)
+        assertFalse(state.isSavingAccount)
+        assertEquals("Something went wrong", state.accountSaveError)
+        assertEquals("Jamie", state.editFirstName)
+    }
+
+    @Test
+    fun `saveAccountDetails normalized no-op exits edit mode`() {
+        vm.loadAccount()
+        vm.startAccountEditing()
+        // Don't change anything — same values as account
+        vm.saveAccountDetails()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertFalse(state.isEditingAccount)
+    }
+
+    @Test
+    fun `saveAccountDetails DOB change triggers step-up`() {
+        coEvery { accountRepo.requestStepUpOtp() } returns
+            Result.success(StepUpChallenge("ch-1", "2026-08-01T10:15:00", ContactType.EMAIL, "a***@example.com"))
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountDateOfBirth("1995-01-01")
+        vm.saveAccountDetails()
+
+        val state = vm.state.value as AccountSecurityState.StepUpOtp
+        assertTrue(state.pendingAction is StepUpAction.UpdateProfile)
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.eyecare.app.presentation.account
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.AccountProfilePatch
 import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.PatientAccount
@@ -70,6 +71,7 @@ sealed interface StepUpAction {
     data class MakePrimary(val contactId: Int) : StepUpAction
     data class RemoveContact(val contactId: Int) : StepUpAction
     data object ChangePassword : StepUpAction
+    data class UpdateProfile(val draft: ProfileDraft) : StepUpAction
 }
 
 @HiltViewModel
@@ -169,31 +171,44 @@ class AccountSecurityViewModel @Inject constructor(
             return
         }
 
+        if (patch.hasDateOfBirthChange()) {
+            startStepUp(StepUpAction.UpdateProfile(draft))
+            return
+        }
+
+        executeProfilePatch(patch, null)
+    }
+
+    private fun executeProfilePatch(patch: AccountProfilePatch, stepUpToken: String?) {
+        val current = _state.value as? AccountSecurityState.Overview ?: return
+        if (current.isSavingAccount) return
+
         _state.value = current.copy(
             isSavingAccount = true,
             accountSaveError = null,
             fieldErrors = emptyMap(),
         )
         viewModelScope.launch {
-            authRepository.updateAccountName(
-                AccountProfileEditor.normalize(draft).firstName,
-                AccountProfileEditor.normalize(draft).lastName,
-            )
+            authRepository.updateAccountProfile(patch, stepUpToken)
                 .onSuccess { updatedAccount ->
                     latestAccount = updatedAccount
-                    _state.value = current.copy(
+                    _state.value = AccountSecurityState.Overview(
                         account = updatedAccount,
-                        isEditingAccount = false,
-                        isSavingAccount = false,
-                        accountSaveError = null,
-                        fieldErrors = emptyMap(),
                     )
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(
-                        isSavingAccount = false,
-                        accountSaveError = error.message ?: "Failed to save account details",
-                    )
+                    val apiError = error as? ApiDomainError
+                    if (apiError != null && apiError.fieldErrors.isNotEmpty()) {
+                        _state.value = current.copy(
+                            isSavingAccount = false,
+                            fieldErrors = apiError.fieldErrors.mapValues { it.value.firstOrNull() ?: "" },
+                        )
+                    } else {
+                        _state.value = current.copy(
+                            isSavingAccount = false,
+                            accountSaveError = apiError?.message ?: "We couldn't save your changes. Please try again.",
+                        )
+                    }
                 }
         }
     }
@@ -428,6 +443,11 @@ class AccountSecurityViewModel @Inject constructor(
             }
             is StepUpAction.ChangePassword -> {
                 _state.value = AccountSecurityState.ChangePassword(stepUpToken = stepUpToken)
+            }
+            is StepUpAction.UpdateProfile -> {
+                val account = latestAccount ?: return
+                val patch = AccountProfileEditor.computePatch(action.draft, account)
+                executeProfilePatch(patch, stepUpToken)
             }
         }
     }
