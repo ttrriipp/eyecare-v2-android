@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.account
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -117,6 +118,62 @@ class AccountSecurityScreenTest {
         composeRule.onNodeWithText("alex@example.com").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
         composeRule.onNodeWithText("Save").assertIsDisplayed()
+    }
+
+    @Test
+    fun accountDetails_saveIsDisabledWhenDraftIsUnchanged() {
+        composeRule.setContent {
+            EyecareTheme {
+                AccountDetailsContent(
+                    account = testAccount(),
+                    isEditing = true,
+                    isSaving = false,
+                    firstName = "Alex",
+                    middleName = "M.",
+                    lastName = "Rivera",
+                    dateOfBirth = "1990-05-15",
+                    fieldErrors = emptyMap(),
+                    saveError = null,
+                    onEdit = {},
+                    onCancel = {},
+                    onFirstNameChange = {},
+                    onMiddleNameChange = {},
+                    onLastNameChange = {},
+                    onDateOfBirthChange = {},
+                    onSave = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Save").assertIsNotEnabled()
+    }
+
+    @Test
+    fun accountDetails_middleNameServerErrorIsVisible() {
+        composeRule.setContent {
+            EyecareTheme {
+                AccountDetailsContent(
+                    account = testAccount(),
+                    isEditing = true,
+                    isSaving = false,
+                    firstName = "Alex",
+                    middleName = "M.",
+                    lastName = "Rivera",
+                    dateOfBirth = "1990-05-15",
+                    fieldErrors = mapOf("middle_name" to "Middle name is invalid"),
+                    saveError = null,
+                    onEdit = {},
+                    onCancel = {},
+                    onFirstNameChange = {},
+                    onMiddleNameChange = {},
+                    onLastNameChange = {},
+                    onDateOfBirthChange = {},
+                    onSave = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Middle name is invalid").assertIsDisplayed()
     }
 
     private fun testAccount() = PatientAccount(

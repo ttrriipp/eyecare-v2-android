@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.PatientAccount
+import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.ContactField
 import com.eyecare.app.presentation.auth.components.ContactMethod
@@ -178,7 +179,10 @@ fun AccountSecurityOverviewContent(
         )
     } == true
 
-    val handleCancelOrBack: () -> Unit = {
+    val handleCancelOrBack: () -> Unit = handleCancelOrBack@{
+        if (state.isSavingAccount || state.isRequestingStepUp) {
+            return@handleCancelOrBack
+        }
         if (isDirty) {
             showDiscardDialog = true
         } else {
@@ -208,6 +212,7 @@ fun AccountSecurityOverviewContent(
                     account = account,
                     isEditing = state.isEditingAccount,
                     isSaving = state.isSavingAccount,
+                    isRequestingStepUp = state.isRequestingStepUp,
                     firstName = state.editFirstName,
                     middleName = state.editMiddleName,
                     lastName = state.editLastName,
@@ -321,6 +326,7 @@ fun AccountDetailsContent(
     account: PatientAccount,
     isEditing: Boolean,
     isSaving: Boolean,
+    isRequestingStepUp: Boolean = false,
     firstName: String,
     middleName: String,
     lastName: String,
@@ -336,6 +342,16 @@ fun AccountDetailsContent(
     onSave: () -> Unit,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    val isBusy = isSaving || isRequestingStepUp
+    val isDirty = isEditing && AccountProfileEditor.isDirty(
+        ProfileDraft(
+            firstName = firstName,
+            middleName = middleName,
+            lastName = lastName,
+            dateOfBirth = dateOfBirth,
+        ),
+        account,
+    )
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -372,6 +388,11 @@ fun AccountDetailsContent(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 if (isEditing) {
+                    Text(
+                        text = "Names and account date of birth can be edited here. Contact and clinical details use separate workflows.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     OutlinedTextField(
                         value = firstName,
                         onValueChange = onFirstNameChange,
@@ -379,6 +400,7 @@ fun AccountDetailsContent(
                         singleLine = true,
                         isError = fieldErrors.containsKey("first_name"),
                         supportingText = fieldErrors["first_name"]?.let { error -> { Text(error) } },
+                        enabled = !isBusy,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Words,
                             imeAction = ImeAction.Next,
@@ -390,6 +412,9 @@ fun AccountDetailsContent(
                         onValueChange = onMiddleNameChange,
                         label = { Text("Middle name") },
                         singleLine = true,
+                        isError = fieldErrors.containsKey("middle_name"),
+                        supportingText = fieldErrors["middle_name"]?.let { error -> { Text(error) } },
+                        enabled = !isBusy,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Words,
                             imeAction = ImeAction.Next,
@@ -403,6 +428,7 @@ fun AccountDetailsContent(
                         singleLine = true,
                         isError = fieldErrors.containsKey("last_name"),
                         supportingText = fieldErrors["last_name"]?.let { error -> { Text(error) } },
+                        enabled = !isBusy,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Words,
                             imeAction = ImeAction.Next,
@@ -412,6 +438,7 @@ fun AccountDetailsContent(
                     DateOfBirthEditField(
                         value = dateOfBirth,
                         error = fieldErrors["date_of_birth"],
+                        enabled = !isBusy,
                         onClick = { showDatePicker = true },
                     )
                 }
@@ -424,6 +451,8 @@ fun AccountDetailsContent(
                 }
                 AccountDetailRow("Email", displayAccountValue(account.email))
                 AccountDetailRow("Phone", displayAccountValue(account.phone))
+                AccountDetailRow("Role", formatAccountRole(account.role))
+                AccountDetailRow("Link status", formatAccountLinkStatus(account.linkStatus))
 
                 if (saveError != null) {
                     Text(
@@ -440,17 +469,17 @@ fun AccountDetailsContent(
                     ) {
                         OutlinedButton(
                             onClick = onCancel,
-                            enabled = !isSaving,
+                            enabled = !isBusy,
                             modifier = Modifier.weight(1f).height(48.dp),
                         ) {
                             Text("Cancel")
                         }
                         Button(
                             onClick = onSave,
-                            enabled = !isSaving,
+                            enabled = !isBusy && isDirty,
                             modifier = Modifier.weight(1f).height(48.dp),
                         ) {
-                            if (isSaving) {
+                            if (isBusy) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp,
@@ -505,13 +534,14 @@ fun AccountDetailsContent(
 private fun DateOfBirthEditField(
     value: String,
     error: String?,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     val display = value.takeIf { it.isNotBlank() }?.let { formatAccountDate(it) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .semantics(mergeDescendants = true) {
                 role = Role.Button
                 contentDescription = buildString {
@@ -528,7 +558,7 @@ private fun DateOfBirthEditField(
             label = { Text("Date of birth") },
             placeholder = { Text("Choose a date") },
             readOnly = true,
-            enabled = false,
+            enabled = enabled,
             isError = error != null,
             supportingText = error?.let { message -> { Text(message) } },
             modifier = Modifier.fillMaxWidth().clearAndSetSemantics { },
@@ -552,6 +582,22 @@ private fun AccountDetailRow(label: String, value: String) {
 }
 
 private fun displayAccountValue(value: String?): String = value?.takeIf { it.isNotBlank() } ?: "Not provided"
+
+private fun formatAccountRole(value: String): String = value
+    .trim()
+    .takeIf { it.isNotBlank() }
+    ?.replace('_', ' ')
+    ?.split(' ')
+    ?.filter { it.isNotBlank() }
+    ?.joinToString(" ") { word -> word.replaceFirstChar { it.titlecase() } }
+    ?: "Not provided"
+
+private fun formatAccountLinkStatus(status: PatientLinkStatus): String = when (status) {
+    PatientLinkStatus.LINKED -> "Linked"
+    PatientLinkStatus.PENDING_REVIEW -> "Pending review"
+    PatientLinkStatus.UNLINKED -> "Unlinked"
+    PatientLinkStatus.UNKNOWN -> "Unknown"
+}
 
 private fun formatAccountDate(value: String?): String {
     val parts = value?.split("-") ?: return "Not provided"
@@ -626,9 +672,18 @@ private fun StepUpOtpContent(
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = { viewModel.verifyStepUp() },
-            enabled = state.code.length == 6,
+            enabled = state.code.length == 6 && !state.isVerifying,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Verify") }
+        ) {
+            if (state.isVerifying) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Text("Verify")
+            }
+        }
     }
 }
 
