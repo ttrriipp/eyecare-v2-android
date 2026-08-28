@@ -25,7 +25,9 @@ class AccountSecurityScreenTest {
                     onEdit = {},
                     onCancelEdit = {},
                     onFirstNameChange = {},
+                    onMiddleNameChange = {},
                     onLastNameChange = {},
+                    onDateOfBirthChange = {},
                     onSave = {},
                     onChangePassword = {},
                     onSignOut = {},
@@ -51,12 +53,17 @@ class AccountSecurityScreenTest {
                     isEditing = false,
                     isSaving = false,
                     firstName = "",
+                    middleName = "",
                     lastName = "",
+                    dateOfBirth = "",
+                    fieldErrors = emptyMap(),
                     saveError = null,
                     onEdit = { editClicked = true },
                     onCancel = {},
                     onFirstNameChange = {},
+                    onMiddleNameChange = {},
                     onLastNameChange = {},
+                    onDateOfBirthChange = {},
                     onSave = {},
                 )
             }
@@ -87,20 +94,26 @@ class AccountSecurityScreenTest {
                     isEditing = true,
                     isSaving = false,
                     firstName = "Alex",
+                    middleName = "M.",
                     lastName = "Rivera",
+                    dateOfBirth = "1990-05-15",
+                    fieldErrors = emptyMap(),
                     saveError = null,
                     onEdit = {},
                     onCancel = {},
                     onFirstNameChange = {},
+                    onMiddleNameChange = {},
                     onLastNameChange = {},
+                    onDateOfBirthChange = {},
                     onSave = {},
                 )
             }
         }
 
-        composeRule.onNodeWithText("Only first and last name can be edited here. Phone and clinical details are read-only for now.").assertIsDisplayed()
         composeRule.onNodeWithText("First name").assertIsDisplayed()
+        composeRule.onNodeWithText("Middle name").assertIsDisplayed()
         composeRule.onNodeWithText("Last name").assertIsDisplayed()
+        composeRule.onNodeWithText("Date of birth").assertIsDisplayed()
         composeRule.onNodeWithText("alex@example.com").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
         composeRule.onNodeWithText("Save").assertIsDisplayed()
