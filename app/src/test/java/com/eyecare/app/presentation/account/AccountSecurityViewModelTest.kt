@@ -184,6 +184,24 @@ class AccountSecurityViewModelTest {
     }
 
     @Test
+    fun `profile save response cannot overwrite a signed out state`() {
+        val response = CompletableDeferred<Result<PatientAccount>>()
+        coEvery { authRepo.updateAccountProfile(any(), null) } coAnswers { response.await() }
+        coEvery { authRepo.logoutCurrent() } returns Result.success(Unit)
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountFirstName("Jamie")
+        vm.saveAccountDetails()
+        vm.logout()
+
+        response.complete(Result.success(fakeAccount.copy(name = "Jamie Rivera", firstName = "Jamie")))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.state.value is AccountSecurityState.SignedOut)
+    }
+
+    @Test
     fun `profile field errors with unknown keys also expose a safe form error`() {
         coEvery { authRepo.updateAccountProfile(any(), null) } returns Result.failure(
             ApiDomainError(
@@ -252,6 +270,23 @@ class AccountSecurityViewModelTest {
         val state = vm.state.value as AccountSecurityState.Overview
         assertFalse(state.isEditingAccount)
         assertFalse(state.isRequestingStepUp)
+    }
+
+    @Test
+    fun `busy profile step-up cannot be interrupted by another step-up action`() {
+        val response = CompletableDeferred<Result<StepUpChallenge>>()
+        coEvery { accountRepo.requestStepUpOtp() } coAnswers { response.await() }
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountDateOfBirth("1995-01-01")
+        vm.saveAccountDetails()
+        vm.startStepUp(StepUpAction.ChangePassword)
+
+        assertTrue((vm.state.value as AccountSecurityState.Overview).isRequestingStepUp)
+        coVerify(exactly = 1) { accountRepo.requestStepUpOtp() }
+        vm.cancelAccountEditing()
+        response.cancel()
     }
 
     @Test

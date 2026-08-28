@@ -86,12 +86,14 @@ class AccountSecurityViewModel @Inject constructor(
     val state: StateFlow<AccountSecurityState> = _state.asStateFlow()
     private var latestAccount: PatientAccount? = null
     private var stepUpRequestJob: Job? = null
+    private var profileSaveGeneration = 0L
 
     private companion object {
         val PROFILE_FIELD_KEYS = setOf("first_name", "middle_name", "last_name", "date_of_birth")
     }
 
     fun loadAccount() {
+        profileSaveGeneration++
         viewModelScope.launch {
             _state.value = AccountSecurityState.Loading
             val accountResult = authRepository.getMe()
@@ -197,6 +199,7 @@ class AccountSecurityViewModel @Inject constructor(
     }
 
     private fun executeProfilePatch(patch: AccountProfilePatch, stepUpToken: String?, draft: ProfileDraft) {
+        val saveGeneration = ++profileSaveGeneration
         val current = _state.value as? AccountSecurityState.Overview
         _state.value = (current ?: AccountSecurityState.Overview(account = latestAccount)).copy(
             account = latestAccount ?: current?.account,
@@ -213,12 +216,14 @@ class AccountSecurityViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.updateAccountProfile(patch, stepUpToken)
                 .onSuccess { updatedAccount ->
+                    if (!isCurrentProfileSave(saveGeneration)) return@onSuccess
                     latestAccount = updatedAccount
                     _state.value = AccountSecurityState.Overview(
                         account = updatedAccount,
                     )
                 }
                 .onFailure { error ->
+                    if (!isCurrentProfileSave(saveGeneration)) return@onFailure
                     val apiError = error as? ApiDomainError
                     val rawFieldErrors = apiError?.fieldErrors.orEmpty()
                     val fieldErrors = rawFieldErrors
@@ -284,8 +289,14 @@ class AccountSecurityViewModel @Inject constructor(
     }
 
     fun startStepUp(action: StepUpAction) {
+        val currentState = _state.value
+        if (currentState is AccountSecurityState.Overview &&
+            (currentState.isSavingAccount || currentState.isRequestingStepUp)
+        ) {
+            return
+        }
         if (action is StepUpAction.UpdateProfile) {
-            val current = _state.value as? AccountSecurityState.Overview ?: return
+            val current = currentState as? AccountSecurityState.Overview ?: return
             if (!canEditAccount(current)) return
             _state.value = current.copy(
                 isRequestingStepUp = true,
@@ -462,6 +473,8 @@ class AccountSecurityViewModel @Inject constructor(
     }
 
     fun logout() {
+        profileSaveGeneration++
+        stepUpRequestJob?.cancel()
         viewModelScope.launch {
             authRepository.logoutCurrent()
             _state.value = AccountSecurityState.SignedOut
@@ -469,6 +482,8 @@ class AccountSecurityViewModel @Inject constructor(
     }
 
     fun logoutAll() {
+        profileSaveGeneration++
+        stepUpRequestJob?.cancel()
         viewModelScope.launch {
             authRepository.logoutAll()
             _state.value = AccountSecurityState.SignedOut
@@ -576,4 +591,9 @@ class AccountSecurityViewModel @Inject constructor(
 
     private fun canEditAccount(state: AccountSecurityState.Overview): Boolean =
         state.isEditingAccount && !state.isSavingAccount && !state.isRequestingStepUp
+
+    private fun isCurrentProfileSave(generation: Long): Boolean {
+        val state = _state.value as? AccountSecurityState.Overview ?: return false
+        return generation == profileSaveGeneration && state.isEditingAccount && state.isSavingAccount
+    }
 }
