@@ -90,6 +90,14 @@ class AccountProfileEditorTest {
     }
 
     @Test
+    fun `validate rejects middle names over 255 characters`() {
+        val longMiddleName = "A".repeat(256)
+        val draft = ProfileDraft(firstName = "Ana", middleName = longMiddleName, lastName = "Reyes")
+        val validation = AccountProfileEditor.validate(draft)
+        assertEquals("Middle name must be at most 255 characters", validation.middleNameError)
+    }
+
+    @Test
     fun `validate accepts blank DOB`() {
         val draft = ProfileDraft(firstName = "Ana", lastName = "Reyes", dateOfBirth = "")
         val validation = AccountProfileEditor.validate(draft)
@@ -99,6 +107,13 @@ class AccountProfileEditorTest {
     @Test
     fun `validate rejects invalid DOB format`() {
         val draft = ProfileDraft(firstName = "Ana", lastName = "Reyes", dateOfBirth = "not-a-date")
+        val validation = AccountProfileEditor.validate(draft)
+        assertEquals("Enter a valid date (YYYY-MM-DD)", validation.dateOfBirthError)
+    }
+
+    @Test
+    fun `validate rejects impossible DOB date`() {
+        val draft = ProfileDraft(firstName = "Ana", lastName = "Reyes", dateOfBirth = "2020-02-30")
         val validation = AccountProfileEditor.validate(draft)
         assertEquals("Enter a valid date (YYYY-MM-DD)", validation.dateOfBirthError)
     }

@@ -26,17 +26,18 @@ data class ProfileDraft(
 
 data class ProfileValidation(
     val firstNameError: String? = null,
+    val middleNameError: String? = null,
     val lastNameError: String? = null,
     val dateOfBirthError: String? = null,
     val formError: String? = null,
 ) {
-    val isValid: Boolean get() = firstNameError == null && lastNameError == null && dateOfBirthError == null && formError == null
+    val isValid: Boolean get() = firstNameError == null && middleNameError == null && lastNameError == null && dateOfBirthError == null && formError == null
 }
 
 object AccountProfileEditor {
 
     private val MANILA_ZONE = ZoneId.of("Asia/Manila")
-    private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    private val DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE
     private const val MAX_NAME_LENGTH = 255
 
     fun normalize(draft: ProfileDraft): ProfileDraft = draft.copy(
@@ -53,6 +54,10 @@ object AccountProfileEditor {
             normalized.firstName.length > MAX_NAME_LENGTH -> "First name must be at most $MAX_NAME_LENGTH characters"
             else -> null
         }
+        val middleNameError = when {
+            normalized.middleName.length > MAX_NAME_LENGTH -> "Middle name must be at most $MAX_NAME_LENGTH characters"
+            else -> null
+        }
         val lastNameError = when {
             normalized.lastName.isBlank() -> "Last name is required"
             normalized.lastName.length > MAX_NAME_LENGTH -> "Last name must be at most $MAX_NAME_LENGTH characters"
@@ -65,6 +70,7 @@ object AccountProfileEditor {
         }
         return ProfileValidation(
             firstNameError = firstNameError,
+            middleNameError = middleNameError,
             lastNameError = lastNameError,
             dateOfBirthError = dateOfBirthError,
         )
