@@ -3,6 +3,7 @@ package com.eyecare.app.presentation.account
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -163,8 +164,37 @@ fun AccountSecurityOverviewContent(
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showLogoutAllDialog by remember { mutableStateOf(false) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
 
-    AuthStepScaffold(title = "Account & Security", onBack = onBack, showGradientBar = false) {
+    val isDirty = state.account?.let { account ->
+        state.isEditingAccount && AccountProfileEditor.isDirty(
+            ProfileDraft(
+                firstName = state.editFirstName,
+                middleName = state.editMiddleName,
+                lastName = state.editLastName,
+                dateOfBirth = state.editDateOfBirth,
+            ),
+            account,
+        )
+    } == true
+
+    val handleCancelOrBack: () -> Unit = {
+        if (isDirty) {
+            showDiscardDialog = true
+        } else {
+            onCancelEdit()
+        }
+    }
+
+    if (state.isEditingAccount) {
+        BackHandler { handleCancelOrBack() }
+    }
+
+    AuthStepScaffold(
+        title = "Account & Security",
+        onBack = { if (state.isEditingAccount) handleCancelOrBack() else onBack() },
+        showGradientBar = false,
+    ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -185,7 +215,7 @@ fun AccountSecurityOverviewContent(
                     fieldErrors = state.fieldErrors,
                     saveError = state.accountSaveError,
                     onEdit = onEdit,
-                    onCancel = onCancelEdit,
+                    onCancel = handleCancelOrBack,
                     onFirstNameChange = onFirstNameChange,
                     onMiddleNameChange = onMiddleNameChange,
                     onLastNameChange = onLastNameChange,
@@ -267,6 +297,21 @@ fun AccountSecurityOverviewContent(
             onDismissRequest = { showLogoutAllDialog = false },
             iconTint = MaterialTheme.colorScheme.error,
             isDestructive = true,
+        )
+    }
+
+    if (showDiscardDialog) {
+        AppConfirmationDialog(
+            icon = Icons.Outlined.Edit,
+            title = "Discard changes?",
+            message = "You have unsaved changes. Are you sure you want to discard them?",
+            confirmLabel = "Discard",
+            dismissLabel = "Keep editing",
+            onConfirm = {
+                showDiscardDialog = false
+                onCancelEdit()
+            },
+            onDismissRequest = { showDiscardDialog = false },
         )
     }
 }
