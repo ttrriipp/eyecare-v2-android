@@ -13,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -23,6 +24,7 @@ sealed interface AccountSecurityState {
         val error: String? = null,
         val isEditingAccount: Boolean = false,
         val isSavingAccount: Boolean = false,
+        val isRequestingStepUp: Boolean = false,
         val editFirstName: String = "",
         val editMiddleName: String = "",
         val editLastName: String = "",
@@ -39,6 +41,7 @@ sealed interface AccountSecurityState {
         val challenge: StepUpChallenge,
         val code: String = "",
         val error: String? = null,
+        val isVerifying: Boolean = false,
         val pendingAction: StepUpAction,
     ) : AccountSecurityState
     data class AddContactOtp(
@@ -82,6 +85,11 @@ class AccountSecurityViewModel @Inject constructor(
     private val _state = MutableStateFlow<AccountSecurityState>(AccountSecurityState.Loading)
     val state: StateFlow<AccountSecurityState> = _state.asStateFlow()
     private var latestAccount: PatientAccount? = null
+    private var stepUpRequestJob: Job? = null
+
+    private companion object {
+        val PROFILE_FIELD_KEYS = setOf("first_name", "middle_name", "last_name", "date_of_birth")
+    }
 
     fun loadAccount() {
         viewModelScope.launch {
@@ -99,9 +107,11 @@ class AccountSecurityViewModel @Inject constructor(
     fun startAccountEditing() {
         val current = _state.value as? AccountSecurityState.Overview ?: return
         val account = current.account ?: return
+        if (current.isSavingAccount || current.isRequestingStepUp) return
         _state.value = current.copy(
             isEditingAccount = true,
             isSavingAccount = false,
+            isRequestingStepUp = false,
             editFirstName = account.firstName.orEmpty(),
             editMiddleName = account.middleName.orEmpty(),
             editLastName = account.lastName.orEmpty(),
@@ -113,9 +123,12 @@ class AccountSecurityViewModel @Inject constructor(
 
     fun cancelAccountEditing() {
         val current = _state.value as? AccountSecurityState.Overview ?: return
+        if (current.isSavingAccount) return
+        if (current.isRequestingStepUp) stepUpRequestJob?.cancel()
         _state.value = current.copy(
             isEditingAccount = false,
             isSavingAccount = false,
+            isRequestingStepUp = false,
             accountSaveError = null,
             fieldErrors = emptyMap(),
         )
@@ -123,27 +136,31 @@ class AccountSecurityViewModel @Inject constructor(
 
     fun updateAccountFirstName(value: String) {
         val current = _state.value as? AccountSecurityState.Overview ?: return
+        if (!canEditAccount(current)) return
         _state.value = current.copy(editFirstName = value, accountSaveError = null, fieldErrors = current.fieldErrors - "first_name")
     }
 
     fun updateAccountMiddleName(value: String) {
         val current = _state.value as? AccountSecurityState.Overview ?: return
+        if (!canEditAccount(current)) return
         _state.value = current.copy(editMiddleName = value, accountSaveError = null, fieldErrors = current.fieldErrors - "middle_name")
     }
 
     fun updateAccountLastName(value: String) {
         val current = _state.value as? AccountSecurityState.Overview ?: return
+        if (!canEditAccount(current)) return
         _state.value = current.copy(editLastName = value, accountSaveError = null, fieldErrors = current.fieldErrors - "last_name")
     }
 
     fun updateAccountDateOfBirth(value: String) {
         val current = _state.value as? AccountSecurityState.Overview ?: return
+        if (!canEditAccount(current)) return
         _state.value = current.copy(editDateOfBirth = value, accountSaveError = null, fieldErrors = current.fieldErrors - "date_of_birth")
     }
 
     fun saveAccountDetails() {
         val current = _state.value as? AccountSecurityState.Overview ?: return
-        if (current.isSavingAccount) return
+        if (!canEditAccount(current)) return
         val account = current.account ?: return
 
         val draft = ProfileDraft(
@@ -157,6 +174,7 @@ class AccountSecurityViewModel @Inject constructor(
             _state.value = current.copy(
                 fieldErrors = buildMap {
                     validation.firstNameError?.let { put("first_name", it) }
+                    validation.middleNameError?.let { put("middle_name", it) }
                     validation.lastNameError?.let { put("last_name", it) }
                     validation.dateOfBirthError?.let { put("date_of_birth", it) }
                 },
@@ -179,9 +197,18 @@ class AccountSecurityViewModel @Inject constructor(
     }
 
     private fun executeProfilePatch(patch: AccountProfilePatch, stepUpToken: String?, draft: ProfileDraft) {
-        _state.value = AccountSecurityState.Overview(
-            account = latestAccount,
+        val current = _state.value as? AccountSecurityState.Overview
+        _state.value = (current ?: AccountSecurityState.Overview(account = latestAccount)).copy(
+            account = latestAccount ?: current?.account,
+            isEditingAccount = true,
             isSavingAccount = true,
+            isRequestingStepUp = false,
+            editFirstName = draft.firstName,
+            editMiddleName = draft.middleName,
+            editLastName = draft.lastName,
+            editDateOfBirth = draft.dateOfBirth,
+            accountSaveError = null,
+            fieldErrors = emptyMap(),
         )
         viewModelScope.launch {
             authRepository.updateAccountProfile(patch, stepUpToken)
@@ -193,7 +220,12 @@ class AccountSecurityViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     val apiError = error as? ApiDomainError
-                    if (apiError != null && apiError.fieldErrors.isNotEmpty()) {
+                    val rawFieldErrors = apiError?.fieldErrors.orEmpty()
+                    val fieldErrors = rawFieldErrors
+                        .filterKeys { it in PROFILE_FIELD_KEYS }
+                        .mapValues { it.value.firstOrNull().orEmpty() }
+                    val hasFormError = rawFieldErrors.keys.any { it !in PROFILE_FIELD_KEYS }
+                    if (fieldErrors.isNotEmpty() || hasFormError) {
                         _state.value = AccountSecurityState.Overview(
                             account = latestAccount,
                             isEditingAccount = true,
@@ -201,7 +233,12 @@ class AccountSecurityViewModel @Inject constructor(
                             editMiddleName = draft.middleName,
                             editLastName = draft.lastName,
                             editDateOfBirth = draft.dateOfBirth,
-                            fieldErrors = apiError.fieldErrors.mapValues { it.value.firstOrNull() ?: "" },
+                            accountSaveError = if (hasFormError) {
+                                apiError?.message ?: "We couldn't save your changes. Please try again."
+                            } else {
+                                null
+                            },
+                            fieldErrors = fieldErrors,
                         )
                     } else {
                         _state.value = AccountSecurityState.Overview(
@@ -247,26 +284,45 @@ class AccountSecurityViewModel @Inject constructor(
     }
 
     fun startStepUp(action: StepUpAction) {
-        viewModelScope.launch {
+        if (action is StepUpAction.UpdateProfile) {
+            val current = _state.value as? AccountSecurityState.Overview ?: return
+            if (!canEditAccount(current)) return
+            _state.value = current.copy(
+                isRequestingStepUp = true,
+                accountSaveError = null,
+                fieldErrors = emptyMap(),
+            )
+        }
+
+        stepUpRequestJob?.cancel()
+        stepUpRequestJob = viewModelScope.launch {
             accountRepository.requestStepUpOtp()
                 .onSuccess { challenge ->
-                    _state.value = AccountSecurityState.StepUpOtp(
-                        challenge = challenge,
-                        pendingAction = action,
-                    )
+                    if (action is StepUpAction.UpdateProfile) {
+                        val current = _state.value as? AccountSecurityState.Overview
+                        if (current?.isRequestingStepUp == true && current.isEditingAccount) {
+                            _state.value = AccountSecurityState.StepUpOtp(
+                                challenge = challenge,
+                                pendingAction = action,
+                            )
+                        }
+                    } else {
+                        _state.value = AccountSecurityState.StepUpOtp(
+                            challenge = challenge,
+                            pendingAction = action,
+                        )
+                    }
                 }
                 .onFailure { error ->
                     when (action) {
                         is StepUpAction.UpdateProfile -> {
-                            _state.value = AccountSecurityState.Overview(
-                                account = latestAccount,
-                                isEditingAccount = true,
-                                editFirstName = action.draft.firstName,
-                                editMiddleName = action.draft.middleName,
-                                editLastName = action.draft.lastName,
-                                editDateOfBirth = action.draft.dateOfBirth,
-                                accountSaveError = error.message ?: "Failed to send verification code",
-                            )
+                            val current = _state.value as? AccountSecurityState.Overview
+                            if (current?.isRequestingStepUp == true) {
+                                _state.value = current.copy(
+                                    isRequestingStepUp = false,
+                                    accountSaveError = error.message ?: "Failed to send verification code",
+                                )
+                            }
                         }
                         else -> {
                             _state.value = AccountSecurityState.Overview(
@@ -281,22 +337,43 @@ class AccountSecurityViewModel @Inject constructor(
 
     fun updateStepUpCode(code: String) {
         val current = _state.value
-        if (current is AccountSecurityState.StepUpOtp) {
+        if (current is AccountSecurityState.StepUpOtp && !current.isVerifying) {
             _state.value = current.copy(code = code, error = null)
         }
     }
 
     fun verifyStepUp() {
         val current = _state.value
-        if (current !is AccountSecurityState.StepUpOtp || current.code.length != 6) return
+        if (current !is AccountSecurityState.StepUpOtp || current.code.length != 6 || current.isVerifying) return
+
+        val challengeId = current.challenge.challengeId
+        val pendingAction = current.pendingAction
+        _state.value = current.copy(isVerifying = true, error = null)
 
         viewModelScope.launch {
-            accountRepository.verifyStepUpOtp(current.challenge.challengeId, current.code)
+            accountRepository.verifyStepUpOtp(challengeId, current.code)
                 .onSuccess { proof ->
-                    executeProtectedAction(proof.token, current.pendingAction)
+                    val latest = _state.value
+                    if (latest is AccountSecurityState.StepUpOtp &&
+                        latest.challenge.challengeId == challengeId &&
+                        latest.pendingAction == pendingAction &&
+                        latest.isVerifying
+                    ) {
+                        executeProtectedAction(proof.token, pendingAction)
+                    }
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(error = error.message ?: "Invalid code")
+                    val latest = _state.value
+                    if (latest is AccountSecurityState.StepUpOtp &&
+                        latest.challenge.challengeId == challengeId &&
+                        latest.pendingAction == pendingAction &&
+                        latest.isVerifying
+                    ) {
+                        _state.value = latest.copy(
+                            isVerifying = false,
+                            error = error.message ?: "Invalid code",
+                        )
+                    }
                 }
         }
     }
@@ -400,6 +477,9 @@ class AccountSecurityViewModel @Inject constructor(
 
     fun back() {
         val current = _state.value
+        if (current is AccountSecurityState.Overview && (current.isSavingAccount || current.isRequestingStepUp)) {
+            return
+        }
         if (current is AccountSecurityState.StepUpOtp && current.pendingAction is StepUpAction.UpdateProfile) {
             cancelStepUp()
         } else {
@@ -493,4 +573,7 @@ class AccountSecurityViewModel @Inject constructor(
             }
         }
     }
+
+    private fun canEditAccount(state: AccountSecurityState.Overview): Boolean =
+        state.isEditingAccount && !state.isSavingAccount && !state.isRequestingStepUp
 }

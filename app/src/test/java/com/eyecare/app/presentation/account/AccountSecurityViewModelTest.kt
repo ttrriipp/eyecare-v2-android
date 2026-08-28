@@ -11,7 +11,9 @@ import com.eyecare.app.domain.model.StepUpProof
 import com.eyecare.app.domain.repository.AccountRepository
 import com.eyecare.app.domain.repository.AuthRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -130,6 +132,18 @@ class AccountSecurityViewModelTest {
     }
 
     @Test
+    fun `saveAccountDetails middle validation error maps to middle field`() {
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountMiddleName("A".repeat(256))
+        vm.saveAccountDetails()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertEquals("Middle name must be at most 255 characters", state.fieldErrors["middle_name"])
+        assertTrue(state.isEditingAccount)
+    }
+
+    @Test
     fun `saveAccountDetails non-validation failure preserves draft`() {
         coEvery { authRepo.updateAccountProfile(any(), any()) } returns Result.failure(
             ApiDomainError(500, "SERVER_ERROR", "Something went wrong")
@@ -145,6 +159,50 @@ class AccountSecurityViewModelTest {
         assertFalse(state.isSavingAccount)
         assertEquals("Something went wrong", state.accountSaveError)
         assertEquals("Jamie", state.editFirstName)
+    }
+
+    @Test
+    fun `saveAccountDetails keeps editor busy until direct patch completes`() {
+        val response = CompletableDeferred<Result<PatientAccount>>()
+        coEvery { authRepo.updateAccountProfile(any(), null) } coAnswers { response.await() }
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountFirstName("Jamie")
+        vm.saveAccountDetails()
+        vm.saveAccountDetails()
+
+        val savingState = vm.state.value as AccountSecurityState.Overview
+        assertTrue(savingState.isEditingAccount)
+        assertTrue(savingState.isSavingAccount)
+        assertEquals("Jamie", savingState.editFirstName)
+        coVerify(exactly = 1) { authRepo.updateAccountProfile(any(), null) }
+
+        response.complete(Result.success(fakeAccount.copy(name = "Jamie Rivera", firstName = "Jamie")))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertFalse((vm.state.value as AccountSecurityState.Overview).isEditingAccount)
+    }
+
+    @Test
+    fun `profile field errors with unknown keys also expose a safe form error`() {
+        coEvery { authRepo.updateAccountProfile(any(), null) } returns Result.failure(
+            ApiDomainError(
+                422,
+                "VALIDATION_ERROR",
+                "The profile could not be updated.",
+                fieldErrors = mapOf("first_name" to listOf("Use your legal name"), "profile" to listOf("Profile is locked")),
+            ),
+        )
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountFirstName("Jamie")
+        vm.saveAccountDetails()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertEquals("Use your legal name", state.fieldErrors["first_name"])
+        assertEquals("The profile could not be updated.", state.accountSaveError)
+        assertTrue(state.isEditingAccount)
     }
 
     @Test
@@ -170,6 +228,30 @@ class AccountSecurityViewModelTest {
 
         val state = vm.state.value as AccountSecurityState.StepUpOtp
         assertTrue(state.pendingAction is StepUpAction.UpdateProfile)
+    }
+
+    @Test
+    fun `DOB step-up request is single-flight and cancellation ignores late response`() {
+        val response = CompletableDeferred<Result<StepUpChallenge>>()
+        coEvery { accountRepo.requestStepUpOtp() } coAnswers { response.await() }
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountDateOfBirth("1995-01-01")
+        vm.saveAccountDetails()
+        vm.saveAccountDetails()
+
+        val requestingState = vm.state.value as AccountSecurityState.Overview
+        assertTrue(requestingState.isRequestingStepUp)
+        coVerify(exactly = 1) { accountRepo.requestStepUpOtp() }
+
+        vm.cancelAccountEditing()
+        response.complete(Result.success(StepUpChallenge("late", "2026-08-01T10:15:00", ContactType.EMAIL, "a***@example.com")))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertFalse(state.isEditingAccount)
+        assertFalse(state.isRequestingStepUp)
     }
 
     @Test
@@ -208,6 +290,31 @@ class AccountSecurityViewModelTest {
         val state = vm.state.value as AccountSecurityState.StepUpOtp
         assertEquals("Invalid code", state.error)
         assertTrue(state.pendingAction is StepUpAction.UpdateProfile)
+    }
+
+    @Test
+    fun `step-up verification is single-flight`() {
+        val verification = CompletableDeferred<Result<StepUpProof>>()
+        coEvery { accountRepo.requestStepUpOtp() } returns
+            Result.success(StepUpChallenge("ch-1", "2026-08-01T10:15:00", ContactType.EMAIL, "a***@example.com"))
+        coEvery { accountRepo.verifyStepUpOtp("ch-1", "123456") } coAnswers { verification.await() }
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountDateOfBirth("1995-01-01")
+        vm.saveAccountDetails()
+        vm.updateStepUpCode("123456")
+        vm.verifyStepUp()
+        vm.verifyStepUp()
+
+        assertTrue((vm.state.value as AccountSecurityState.StepUpOtp).isVerifying)
+        coVerify(exactly = 1) { accountRepo.verifyStepUpOtp("ch-1", "123456") }
+
+        verification.complete(Result.failure(Exception("Invalid code")))
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = vm.state.value as AccountSecurityState.StepUpOtp
+        assertFalse(state.isVerifying)
+        assertEquals("Invalid code", state.error)
     }
 
     @Test
