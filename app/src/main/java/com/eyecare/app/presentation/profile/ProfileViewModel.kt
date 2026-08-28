@@ -18,12 +18,6 @@ sealed interface ProfileUiState {
     data object Loading : ProfileUiState
     data class Success(
         val account: PatientAccount,
-        val isEditing: Boolean = false,
-        val isSaving: Boolean = false,
-        val editFirstName: String = "",
-        val editLastName: String = "",
-        val saveError: String? = null,
-        val saveSuccess: Boolean = false,
     ) : ProfileUiState
     data class Error(val message: String) : ProfileUiState
 }
@@ -59,67 +53,6 @@ class ProfileViewModel @Inject constructor(
 
         loadJob?.cancel()
         _uiState.value = ProfileUiState.Success(account = account)
-    }
-
-    fun startEditing() {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            val a = current.account
-            _uiState.value = current.copy(
-                isEditing = true,
-                editFirstName = a.firstName ?: "",
-                editLastName = a.lastName ?: "",
-                saveError = null,
-                saveSuccess = false,
-            )
-        }
-    }
-
-    fun cancelEditing() {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(isEditing = false, saveError = null)
-        }
-    }
-
-    fun updateFirstName(value: String) {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editFirstName = value, saveError = null)
-        }
-    }
-
-    fun updateLastName(value: String) {
-        val current = _uiState.value
-        if (current is ProfileUiState.Success) {
-            _uiState.value = current.copy(editLastName = value, saveError = null)
-        }
-    }
-
-    fun saveProfile() {
-        val current = _uiState.value
-        if (current !is ProfileUiState.Success) return
-
-        val firstName = current.editFirstName.trim()
-        val lastName = current.editLastName.trim()
-        if (firstName.isBlank() || lastName.isBlank()) {
-            _uiState.value = current.copy(saveError = "First and last name are required")
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.value = current.copy(isSaving = true, saveError = null)
-            authRepository.updateAccountName(firstName, lastName)
-                .onSuccess { account ->
-                    _uiState.value = ProfileUiState.Success(account = account, saveSuccess = true)
-                }
-                .onFailure { error ->
-                    _uiState.value = current.copy(
-                        isSaving = false,
-                        saveError = "We couldn't save your changes. Please try again.",
-                    )
-                }
-        }
     }
 
     fun logout() {

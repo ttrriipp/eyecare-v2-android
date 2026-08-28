@@ -160,16 +160,10 @@ data class LinkedPatientDto(
     @SerialName("contact_email") val contactEmail: String? = null,
 )
 
-// --- Me / Update ---
+// --- Me ---
 
 @Serializable
 data class MeResponse(val data: PatientAccountDto)
-
-@Serializable
-data class UpdateMeRequest(
-    @SerialName("first_name") val firstName: String? = null,
-    @SerialName("last_name") val lastName: String? = null,
-)
 
 // --- Logout ---
 

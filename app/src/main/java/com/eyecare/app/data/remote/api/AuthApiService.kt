@@ -13,7 +13,6 @@ import com.eyecare.app.data.remote.dto.RegistrationOtpRequest
 import com.eyecare.app.data.remote.dto.RegistrationOtpResponse
 import com.eyecare.app.data.remote.dto.RegistrationVerifyRequest
 import com.eyecare.app.data.remote.dto.RegistrationVerifyResponse
-import com.eyecare.app.data.remote.dto.UpdateMeRequest
 import com.eyecare.app.domain.model.AccountProfilePatch
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -55,9 +54,6 @@ interface AuthApiService {
 
     @GET("me")
     suspend fun getMe(): MeResponse
-
-    @PATCH("me")
-    suspend fun updateMe(@Body request: UpdateMeRequest): MeResponse
 
     @PATCH("me")
     suspend fun updateProfile(

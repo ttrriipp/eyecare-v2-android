@@ -18,7 +18,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -129,30 +128,6 @@ class ProfileViewModelTest {
         val vm = ProfileViewModel(authRepo, tokenManager)
         vm.logout()
         verify { tokenManager.clearToken() }
-    }
-
-    @Test
-    fun `startEditing populates edit fields`() = runTest {
-        coEvery { authRepo.getMe() } returns Result.success(testAccount())
-        val vm = ProfileViewModel(authRepo, tokenManager)
-        vm.startEditing()
-        val state = vm.uiState.value as ProfileUiState.Success
-        assertEquals("Alex", state.editFirstName)
-        assertEquals("Rivera", state.editLastName)
-    }
-
-    @Test
-    fun `save failure preserves draft`() = runTest {
-        coEvery { authRepo.getMe() } returns Result.success(testAccount())
-        coEvery { authRepo.updateAccountName(any(), any()) } returns
-            Result.failure(IllegalStateException("Network"))
-        val vm = ProfileViewModel(authRepo, tokenManager)
-        vm.startEditing()
-        vm.updateFirstName("New Name")
-        vm.saveProfile()
-        val state = vm.uiState.value as ProfileUiState.Success
-        assertEquals("New Name", state.editFirstName)
-        assertEquals("We couldn't save your changes. Please try again.", state.saveError)
     }
 
     private fun testAccount() = PatientAccount(

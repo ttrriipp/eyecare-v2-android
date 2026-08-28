@@ -15,7 +15,6 @@ import com.eyecare.app.data.remote.dto.PatientAccountDto
 import com.eyecare.app.data.remote.dto.RegisterRequest
 import com.eyecare.app.data.remote.dto.RegistrationOtpRequest
 import com.eyecare.app.data.remote.dto.RegistrationVerifyRequest
-import com.eyecare.app.data.remote.dto.UpdateMeRequest
 import com.eyecare.app.domain.model.AccountProfilePatch
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AuthenticatedSession
@@ -173,11 +172,6 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun getMe(): Result<PatientAccount> = safeApiCall {
         api.getMe().data.toDomain()
     }
-
-    override suspend fun updateAccountName(firstName: String, lastName: String): Result<PatientAccount> =
-        safeApiCall {
-            api.updateMe(UpdateMeRequest(firstName = firstName, lastName = lastName)).data.toDomain()
-        }
 
     override suspend fun updateAccountProfile(patch: AccountProfilePatch, stepUpToken: String?): Result<PatientAccount> =
         safeApiCall {

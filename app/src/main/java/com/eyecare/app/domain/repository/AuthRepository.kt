@@ -44,7 +44,6 @@ interface AuthRepository {
         installationId: String?,
     ): Result<AuthenticatedSession>
     suspend fun getMe(): Result<PatientAccount>
-    suspend fun updateAccountName(firstName: String, lastName: String): Result<PatientAccount>
     suspend fun updateAccountProfile(patch: AccountProfilePatch, stepUpToken: String? = null): Result<PatientAccount>
     suspend fun logoutCurrent(): Result<Unit>
     suspend fun logoutAll(): Result<Unit>
