@@ -1,6 +1,7 @@
 package com.eyecare.app.domain.model
 
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
@@ -18,6 +19,7 @@ sealed interface ProfileFieldChange<out T> {
     data class Set<T>(val value: T) : ProfileFieldChange<T>
 }
 
+@Serializable(with = AccountProfilePatchSerializer::class)
 data class AccountProfilePatch(
     val firstName: ProfileFieldChange<String> = ProfileFieldChange.Unchanged,
     val middleName: ProfileFieldChange<String?> = ProfileFieldChange.Unchanged,

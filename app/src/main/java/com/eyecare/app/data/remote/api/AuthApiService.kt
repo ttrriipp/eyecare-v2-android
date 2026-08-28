@@ -14,8 +14,10 @@ import com.eyecare.app.data.remote.dto.RegistrationOtpResponse
 import com.eyecare.app.data.remote.dto.RegistrationVerifyRequest
 import com.eyecare.app.data.remote.dto.RegistrationVerifyResponse
 import com.eyecare.app.data.remote.dto.UpdateMeRequest
+import com.eyecare.app.domain.model.AccountProfilePatch
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 
@@ -56,4 +58,10 @@ interface AuthApiService {
 
     @PATCH("me")
     suspend fun updateMe(@Body request: UpdateMeRequest): MeResponse
+
+    @PATCH("me")
+    suspend fun updateProfile(
+        @Body patch: AccountProfilePatch,
+        @Header("X-Step-Up-Token") stepUpToken: String? = null,
+    ): MeResponse
 }

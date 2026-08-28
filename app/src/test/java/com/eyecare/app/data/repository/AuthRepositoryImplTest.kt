@@ -3,7 +3,10 @@ package com.eyecare.app.data.repository
 import com.eyecare.app.data.local.DeviceIdentityProvider
 import com.eyecare.app.data.local.TokenManager
 import com.eyecare.app.data.remote.api.AuthApiService
+import com.eyecare.app.domain.model.AccountProfilePatch
+import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.LoginOutcome
+import com.eyecare.app.domain.model.ProfileFieldChange
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import io.mockk.every
 import io.mockk.mockk
@@ -145,5 +148,85 @@ class AuthRepositoryImplTest {
         server.enqueue(MockResponse().setResponseCode(204))
         val result = repository.logoutCurrent()
         assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun `updateProfile name-only patch sends no DOB key and no step-up header`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"id":1,"name":"Ana Santos","first_name":"Ana","last_name":"Santos","role":"patient","link_status":"linked"}}"""
+            )
+        )
+        val patch = AccountProfilePatch(
+            firstName = ProfileFieldChange.Set("Ana"),
+            lastName = ProfileFieldChange.Set("Santos"),
+        )
+        val result = repository.updateAccountProfile(patch)
+        assertTrue(result.isSuccess)
+        val request = server.takeRequest()
+        val body = request.body.readUtf8()
+        assertTrue(body.contains("\"first_name\""))
+        assertTrue(body.contains("\"last_name\""))
+        assertTrue(!body.contains("date_of_birth"))
+        assertTrue(request.getHeader("X-Step-Up-Token") == null)
+    }
+
+    @Test
+    fun `updateProfile middle-name clear sends explicit null`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"id":1,"name":"Ana Santos","first_name":"Ana","middle_name":null,"last_name":"Santos","role":"patient","link_status":"linked"}}"""
+            )
+        )
+        val patch = AccountProfilePatch(middleName = ProfileFieldChange.Set(null))
+        val result = repository.updateAccountProfile(patch)
+        assertTrue(result.isSuccess)
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body.contains("\"middle_name\":null"))
+    }
+
+    @Test
+    fun `updateProfile DOB patch sends exact date and step-up header`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"id":1,"name":"Ana","first_name":"Ana","date_of_birth":"1990-05-15","role":"patient","link_status":"linked"}}"""
+            )
+        )
+        val patch = AccountProfilePatch(dateOfBirth = ProfileFieldChange.Set("1990-05-15"))
+        val result = repository.updateAccountProfile(patch, stepUpToken = "proof-abc")
+        assertTrue(result.isSuccess)
+        val request = server.takeRequest()
+        val body = request.body.readUtf8()
+        assertTrue(body.contains("\"date_of_birth\":\"1990-05-15\""))
+        assertEquals("proof-abc", request.getHeader("X-Step-Up-Token"))
+    }
+
+    @Test
+    fun `updateProfile Laravel 422 field errors decode`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(422).setBody(
+                """{"message":"The given data was invalid.","errors":{"date_of_birth":["The date of birth field must be a date before today."]}}"""
+            )
+        )
+        val patch = AccountProfilePatch(dateOfBirth = ProfileFieldChange.Set("2099-01-01"))
+        val result = repository.updateAccountProfile(patch, stepUpToken = "proof-abc")
+        assertTrue(result.isFailure)
+        val error = result.exceptionOrNull() as ApiDomainError
+        assertEquals(422, error.httpStatus)
+        assertTrue(error.fieldErrors.containsKey("date_of_birth"))
+    }
+
+    @Test
+    fun `updateProfile machine-readable step-up 422 decodes`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(422).setBody(
+                """{"error":{"code":"STEP_UP_REQUIRED","message":"A step-up verification token is required."}}"""
+            )
+        )
+        val patch = AccountProfilePatch(dateOfBirth = ProfileFieldChange.Set("1990-05-15"))
+        val result = repository.updateAccountProfile(patch)
+        assertTrue(result.isFailure)
+        val error = result.exceptionOrNull() as ApiDomainError
+        assertEquals("STEP_UP_REQUIRED", error.code)
     }
 }

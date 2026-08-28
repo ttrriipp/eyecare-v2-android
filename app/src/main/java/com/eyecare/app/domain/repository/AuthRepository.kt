@@ -1,5 +1,6 @@
 package com.eyecare.app.domain.repository
 
+import com.eyecare.app.domain.model.AccountProfilePatch
 import com.eyecare.app.domain.model.AuthenticatedSession
 import com.eyecare.app.domain.model.LoginOutcome
 import com.eyecare.app.domain.model.OtpChallenge
@@ -44,6 +45,7 @@ interface AuthRepository {
     ): Result<AuthenticatedSession>
     suspend fun getMe(): Result<PatientAccount>
     suspend fun updateAccountName(firstName: String, lastName: String): Result<PatientAccount>
+    suspend fun updateAccountProfile(patch: AccountProfilePatch, stepUpToken: String? = null): Result<PatientAccount>
     suspend fun logoutCurrent(): Result<Unit>
     suspend fun logoutAll(): Result<Unit>
 }
