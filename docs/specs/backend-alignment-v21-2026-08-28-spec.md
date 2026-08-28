@@ -1,7 +1,7 @@
 # Spec: Backend Alignment v21 — Self-Service Account Profile
 
 **Date:** 2026-08-28  
-**Status:** Approved 2026-08-28 — implementation pending  
+**Status:** Approved 2026-08-28 — implementation/verification in progress  
 **Authoritative inputs:** `CONTEXT.md`, `docs/BACKEND_CONTEXT.md` (2026-08-28),
 `docs/API_CONTRACT.md` (2026-08-28), and the implemented Android source tree
 

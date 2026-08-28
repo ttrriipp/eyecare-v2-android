@@ -314,18 +314,26 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - **Route governance:** 8 public + 40 account-only + 11 active-link = 59 canonical routes.
   All five former Frame Reservation routes are rejected. Attachment download is account-only.
 
-## Profile — Patient Account Hub
+## Profile — Patient Account Hub (v21)
 
-`presentation/profile/ProfileScreen.kt`, `EditProfileScreen.kt`, and `ProfileViewModel.kt`:
+`presentation/profile/ProfileScreen.kt`, `presentation/account/AccountSecurityScreen.kt`,
+`presentation/account/AccountSecurityViewModel.kt`, `presentation/account/AccountProfileEditor.kt`,
+and `ProfileViewModel.kt`:
 
-- The main Profile screen is account-first: the previous patient-details card and **Edit profile** button are removed. The Account section appears directly under the page title, with **Account & Security**, a linked-only read-only **Profile** destination for the clinic Patient record, and **Enter Invitation Code** for accounts without an active link.
+- The main Profile screen is account-first: the Account section appears directly under the page title, with **Account & Security**, a linked-only read-only **Profile** destination for the clinic Patient record, and **Enter Invitation Code** for accounts without an active link.
 - **Care & activity** keeps the existing Messages, Order History, Prescriptions, and Feedback History destinations. Navigation rows are label-only with restrained primary-tinted icon treatment; Messages retains the unread badge, caps its visible text at `9+`, and exposes the full count through accessibility semantics.
 - **Log out** is a full-width filled error-colored button. It opens the shared themed `AppConfirmationDialog` with **Log out** / **Stay signed in** actions before invoking the existing logout behavior.
-- Initial profile loading uses an accessible content-shaped placeholder; load errors retain the existing retry action. Profile data still refreshes on lifecycle resume so edits are reflected after returning from Edit Profile.
-- Edit Profile remains limited to the current Android contract: name, email, and nullable phone. Save submits directly without a redundant confirmation dialog. Fields and navigation actions are disabled while saving, validation errors remain attached to their fields, and non-validation failures preserve the draft and show concise inline feedback.
-- App-bar Back, system Back, and **Cancel** share dirty-state handling. Unchanged values exit immediately; changed values open the themed **Discard changes?** confirmation. Blank and whitespace-only phone drafts are normalized to the existing nullable-phone behavior when checking for changes.
-- The refresh is presentation-only: no backend endpoint, DTO, domain `User`, repository signature, navigation route, dependency, or global theme token changed. Backend-supported address editing remains out of scope because the current Android user/update contract does not expose it.
-- Stateless `ProfileContent`, `ProfileLoadingContent`, and `EditProfileContent` composables provide deterministic Compose UI-test seams. `ProfileViewModelTest` covers dirty comparison, initials fallback, and save-failure draft preservation; `ProfileScreenTest` covers the visible hierarchy, callbacks, optional phone, unread semantics, loading semantics, supported edit fields, direct save, and saving/error states.
+- Initial profile loading uses an accessible content-shaped placeholder; load errors retain the existing retry action. Profile data still refreshes on lifecycle resume.
+- **Account & Security** is the canonical account editor. It edits account first name, nullable middle name, last name, and date of birth. Contact changes use dedicated Contact Management endpoints; password changes use the protected step-up flow; linked Patient demographics remain read-only.
+- Name-only changes save directly without step-up. A request containing a changed DOB triggers the existing same-account step-up OTP flow before the PATCH is sent. The step-up proof is single-use and memory-only.
+- `PATCH /me` sends only changed fields using `AccountProfilePatch` with explicit presence semantics: `Unchanged` fields emit no JSON key; `Set(null)` emits explicit JSON `null` for middle-name clearing. The four backend-allowlisted fields (`first_name`, `middle_name`, `last_name`, `date_of_birth`) are the only serializable keys.
+- Local validation enforces required/non-blank first and last names, 255-character name limits, exact `Y-m-d` date parsing, and DOB before today in `Asia/Manila`. Laravel field validation errors attach to matching controls; machine-readable step-up errors receive safe flow-level handling.
+- Draft input survives OTP cancellation, OTP verification failure, validation failure, network failure, and protected PATCH failure. The single-use proof is cleared after every attempt.
+- A successful response becomes the canonical account state. The returned `link_status` is adopted into the shared `SessionState` via `SessionViewModel.adoptAccount()`.
+- App-bar Back, system Back, and **Cancel** share dirty-state handling. Unchanged values exit immediately; changed values open the themed **Discard changes?** confirmation.
+- The legacy `EditProfile` destination, screen, and duplicate editing state were removed after the canonical Account & Security path was proven.
+- `ProfileViewModel` retains load, linked-account adoption, refresh, and logout behavior but no editing state.
+- `ProfileViewModelTest` covers linked-account adoption, stale-session cancellation, limited-session non-cancellation, and logout. `AccountSecurityViewModelTest` covers dirty comparison, direct name save, DOB step-up, draft preservation, field error mapping, and no-op exit. `AccountProfileEditorTest` covers normalization, validation, dirty detection, and patch computation. `AccountProfilePatchTest` covers JSON serialization semantics.
 
 ## Messaging — Account-Owned Conversation (v17, hardened v19)
 

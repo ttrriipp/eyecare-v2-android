@@ -1,7 +1,7 @@
 # Task Breakdown: Backend Alignment v21 — Self-Service Account Profile
 
 **Date:** 2026-08-28  
-**Status:** Approved 2026-08-28 — implementation pending  
+**Status:** Approved 2026-08-28 — implementation/verification in progress  
 **Specification:** `docs/specs/backend-alignment-v21-2026-08-28-spec.md`  
 **Plan:** `docs/specs/backend-alignment-v21-2026-08-28-plan.md`
 
