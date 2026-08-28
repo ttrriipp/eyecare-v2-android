@@ -24,8 +24,11 @@ sealed interface AccountSecurityState {
         val isEditingAccount: Boolean = false,
         val isSavingAccount: Boolean = false,
         val editFirstName: String = "",
+        val editMiddleName: String = "",
         val editLastName: String = "",
+        val editDateOfBirth: String = "",
         val accountSaveError: String? = null,
+        val fieldErrors: Map<String, String> = emptyMap(),
     ) : AccountSecurityState
     data class EnterNewContact(
         val contactType: ContactType = ContactType.EMAIL,
@@ -99,8 +102,11 @@ class AccountSecurityViewModel @Inject constructor(
             isEditingAccount = true,
             isSavingAccount = false,
             editFirstName = account.firstName.orEmpty(),
+            editMiddleName = account.middleName.orEmpty(),
             editLastName = account.lastName.orEmpty(),
+            editDateOfBirth = account.dateOfBirth.orEmpty(),
             accountSaveError = null,
+            fieldErrors = emptyMap(),
         )
     }
 
@@ -110,45 +116,77 @@ class AccountSecurityViewModel @Inject constructor(
             isEditingAccount = false,
             isSavingAccount = false,
             accountSaveError = null,
+            fieldErrors = emptyMap(),
         )
     }
 
     fun updateAccountFirstName(value: String) {
         val current = _state.value as? AccountSecurityState.Overview ?: return
-        _state.value = current.copy(editFirstName = value, accountSaveError = null)
+        _state.value = current.copy(editFirstName = value, accountSaveError = null, fieldErrors = current.fieldErrors - "first_name")
+    }
+
+    fun updateAccountMiddleName(value: String) {
+        val current = _state.value as? AccountSecurityState.Overview ?: return
+        _state.value = current.copy(editMiddleName = value, accountSaveError = null, fieldErrors = current.fieldErrors - "middle_name")
     }
 
     fun updateAccountLastName(value: String) {
         val current = _state.value as? AccountSecurityState.Overview ?: return
-        _state.value = current.copy(editLastName = value, accountSaveError = null)
+        _state.value = current.copy(editLastName = value, accountSaveError = null, fieldErrors = current.fieldErrors - "last_name")
+    }
+
+    fun updateAccountDateOfBirth(value: String) {
+        val current = _state.value as? AccountSecurityState.Overview ?: return
+        _state.value = current.copy(editDateOfBirth = value, accountSaveError = null, fieldErrors = current.fieldErrors - "date_of_birth")
     }
 
     fun saveAccountDetails() {
         val current = _state.value as? AccountSecurityState.Overview ?: return
         if (current.isSavingAccount) return
+        val account = current.account ?: return
 
-        val firstName = current.editFirstName.trim()
-        val lastName = current.editLastName.trim()
-        if (firstName.isBlank() || lastName.isBlank()) {
-            _state.value = current.copy(accountSaveError = "First and last name are required")
+        val draft = ProfileDraft(
+            firstName = current.editFirstName,
+            middleName = current.editMiddleName,
+            lastName = current.editLastName,
+            dateOfBirth = current.editDateOfBirth,
+        )
+        val validation = AccountProfileEditor.validate(draft)
+        if (!validation.isValid) {
+            _state.value = current.copy(
+                fieldErrors = buildMap {
+                    validation.firstNameError?.let { put("first_name", it) }
+                    validation.lastNameError?.let { put("last_name", it) }
+                    validation.dateOfBirthError?.let { put("date_of_birth", it) }
+                },
+            )
+            return
+        }
+
+        val patch = AccountProfileEditor.computePatch(draft, account)
+        if (patch.isEmpty()) {
+            _state.value = current.copy(isEditingAccount = false)
             return
         }
 
         _state.value = current.copy(
             isSavingAccount = true,
             accountSaveError = null,
+            fieldErrors = emptyMap(),
         )
         viewModelScope.launch {
-            authRepository.updateAccountName(firstName, lastName)
-                .onSuccess { account ->
-                    latestAccount = account
+            authRepository.updateAccountName(
+                AccountProfileEditor.normalize(draft).firstName,
+                AccountProfileEditor.normalize(draft).lastName,
+            )
+                .onSuccess { updatedAccount ->
+                    latestAccount = updatedAccount
                     _state.value = current.copy(
-                        account = account,
+                        account = updatedAccount,
                         isEditingAccount = false,
                         isSavingAccount = false,
-                        editFirstName = "",
-                        editLastName = "",
                         accountSaveError = null,
+                        fieldErrors = emptyMap(),
                     )
                 }
                 .onFailure { error ->
