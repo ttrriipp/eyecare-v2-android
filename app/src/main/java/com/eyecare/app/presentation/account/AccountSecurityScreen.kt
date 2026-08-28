@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.account
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,10 +34,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,6 +50,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -59,6 +69,7 @@ import com.eyecare.app.presentation.auth.components.FieldError
 import com.eyecare.app.presentation.auth.components.OtpField
 import com.eyecare.app.presentation.auth.components.PasswordField
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
+import com.eyecare.app.presentation.appointments.requests.toDatePickerMillis
 import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
@@ -100,7 +111,9 @@ fun AccountSecurityScreen(
             onEdit = viewModel::startAccountEditing,
             onCancelEdit = viewModel::cancelAccountEditing,
             onFirstNameChange = viewModel::updateAccountFirstName,
+            onMiddleNameChange = viewModel::updateAccountMiddleName,
             onLastNameChange = viewModel::updateAccountLastName,
+            onDateOfBirthChange = viewModel::updateAccountDateOfBirth,
             onSave = viewModel::saveAccountDetails,
             onChangePassword = { viewModel.startStepUp(StepUpAction.ChangePassword) },
             onSignOut = viewModel::logout,
@@ -118,7 +131,9 @@ fun AccountSecurityScreen(
                 onEdit = viewModel::startAccountEditing,
                 onCancelEdit = viewModel::cancelAccountEditing,
                 onFirstNameChange = viewModel::updateAccountFirstName,
+                onMiddleNameChange = viewModel::updateAccountMiddleName,
                 onLastNameChange = viewModel::updateAccountLastName,
+                onDateOfBirthChange = viewModel::updateAccountDateOfBirth,
                 onSave = viewModel::saveAccountDetails,
                 onChangePassword = { viewModel.startStepUp(StepUpAction.ChangePassword) },
                 onSignOut = viewModel::logout,
@@ -138,7 +153,9 @@ fun AccountSecurityOverviewContent(
     onEdit: () -> Unit,
     onCancelEdit: () -> Unit,
     onFirstNameChange: (String) -> Unit,
+    onMiddleNameChange: (String) -> Unit,
     onLastNameChange: (String) -> Unit,
+    onDateOfBirthChange: (String) -> Unit,
     onSave: () -> Unit,
     onChangePassword: () -> Unit,
     onSignOut: () -> Unit,
@@ -162,12 +179,17 @@ fun AccountSecurityOverviewContent(
                     isEditing = state.isEditingAccount,
                     isSaving = state.isSavingAccount,
                     firstName = state.editFirstName,
+                    middleName = state.editMiddleName,
                     lastName = state.editLastName,
+                    dateOfBirth = state.editDateOfBirth,
+                    fieldErrors = state.fieldErrors,
                     saveError = state.accountSaveError,
                     onEdit = onEdit,
                     onCancel = onCancelEdit,
                     onFirstNameChange = onFirstNameChange,
+                    onMiddleNameChange = onMiddleNameChange,
                     onLastNameChange = onLastNameChange,
+                    onDateOfBirthChange = onDateOfBirthChange,
                     onSave = onSave,
                 )
             }
@@ -255,14 +277,21 @@ fun AccountDetailsContent(
     isEditing: Boolean,
     isSaving: Boolean,
     firstName: String,
+    middleName: String,
     lastName: String,
+    dateOfBirth: String,
+    fieldErrors: Map<String, String>,
     saveError: String?,
     onEdit: () -> Unit,
     onCancel: () -> Unit,
     onFirstNameChange: (String) -> Unit,
+    onMiddleNameChange: (String) -> Unit,
     onLastNameChange: (String) -> Unit,
+    onDateOfBirthChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
+    var showDatePicker by remember { mutableStateOf(false) }
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -303,6 +332,19 @@ fun AccountDetailsContent(
                         onValueChange = onFirstNameChange,
                         label = { Text("First name") },
                         singleLine = true,
+                        isError = fieldErrors.containsKey("first_name"),
+                        supportingText = fieldErrors["first_name"]?.let { error -> { Text(error) } },
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Next,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = middleName,
+                        onValueChange = onMiddleNameChange,
+                        label = { Text("Middle name") },
+                        singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Words,
                             imeAction = ImeAction.Next,
@@ -314,22 +356,29 @@ fun AccountDetailsContent(
                         onValueChange = onLastNameChange,
                         label = { Text("Last name") },
                         singleLine = true,
+                        isError = fieldErrors.containsKey("last_name"),
+                        supportingText = fieldErrors["last_name"]?.let { error -> { Text(error) } },
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Words,
-                            imeAction = ImeAction.Done,
+                            imeAction = ImeAction.Next,
                         ),
                         modifier = Modifier.fillMaxWidth(),
+                    )
+                    DateOfBirthEditField(
+                        value = dateOfBirth,
+                        error = fieldErrors["date_of_birth"],
+                        onClick = { showDatePicker = true },
                     )
                 }
 
                 if (!isEditing) {
                     AccountDetailRow("First name", displayAccountValue(account.firstName))
+                    AccountDetailRow("Middle name", displayAccountValue(account.middleName))
                     AccountDetailRow("Last name", displayAccountValue(account.lastName))
+                    AccountDetailRow("Date of birth", formatAccountDate(account.dateOfBirth))
                 }
-                AccountDetailRow("Middle name", displayAccountValue(account.middleName))
                 AccountDetailRow("Email", displayAccountValue(account.email))
                 AccountDetailRow("Phone", displayAccountValue(account.phone))
-                AccountDetailRow("Date of birth", formatAccountDate(account.dateOfBirth))
 
                 if (saveError != null) {
                     Text(
@@ -369,6 +418,76 @@ fun AccountDetailsContent(
                 }
             }
         }
+    }
+
+    if (showDatePicker) {
+        val today = remember { java.time.LocalDate.now(java.time.ZoneId.of("Asia/Manila")) }
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = dateOfBirth.toDatePickerMillis(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    java.time.Instant.ofEpochMilli(utcTimeMillis)
+                        .atZone(java.time.ZoneId.of("Asia/Manila"))
+                        .toLocalDate()
+                        .isBefore(today)
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        onDateOfBirthChange(
+                            java.time.Instant.ofEpochMilli(millis)
+                                .atZone(java.time.ZoneId.of("Asia/Manila"))
+                                .toLocalDate()
+                                .toString(),
+                        )
+                    }
+                    showDatePicker = false
+                }) { Text("Set date") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            },
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+}
+
+@Composable
+private fun DateOfBirthEditField(
+    value: String,
+    error: String?,
+    onClick: () -> Unit,
+) {
+    val display = value.takeIf { it.isNotBlank() }?.let { formatAccountDate(it) }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = buildString {
+                    append("Date of birth, ")
+                    append(display ?: "not set")
+                    if (error != null) append(", $error")
+                    append(". Double tap to choose a date.")
+                }
+            },
+    ) {
+        OutlinedTextField(
+            value = display.orEmpty(),
+            onValueChange = {},
+            label = { Text("Date of birth") },
+            placeholder = { Text("Choose a date") },
+            readOnly = true,
+            enabled = false,
+            isError = error != null,
+            supportingText = error?.let { message -> { Text(message) } },
+            modifier = Modifier.fillMaxWidth().clearAndSetSemantics { },
+        )
     }
 }
 
