@@ -294,6 +294,7 @@ fun EyecareNavGraph(
                             }
                         },
                         onBack = { navController.popBackStack() },
+                        onAccountUpdated = { account -> sessionViewModel.adoptAccount(account) },
                     )
                 }
 

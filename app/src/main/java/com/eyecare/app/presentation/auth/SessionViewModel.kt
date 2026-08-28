@@ -80,6 +80,18 @@ class SessionViewModel @Inject constructor(
         }
     }
 
+    fun adoptAccount(account: PatientAccount) {
+        sessionGeneration++
+        sessionJob?.cancel()
+        sessionJob = null
+        _state.value = when (account.linkStatus) {
+            PatientLinkStatus.LINKED -> SessionState.Linked(account)
+            PatientLinkStatus.UNLINKED,
+            PatientLinkStatus.PENDING_REVIEW,
+            PatientLinkStatus.UNKNOWN -> SessionState.Limited(account)
+        }
+    }
+
     fun signOut() {
         sessionGeneration++
         sessionJob?.cancel()

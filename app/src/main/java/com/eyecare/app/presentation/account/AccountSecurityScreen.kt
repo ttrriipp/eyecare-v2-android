@@ -65,12 +65,21 @@ import com.eyecare.app.ui.theme.EyecareColors
 fun AccountSecurityScreen(
     onSignedOut: () -> Unit,
     onBack: () -> Unit,
+    onAccountUpdated: (PatientAccount) -> Unit = {},
     viewModel: AccountSecurityViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadAccount()
+    }
+
+    val overview = state as? AccountSecurityState.Overview
+    val account = overview?.account
+    LaunchedEffect(account) {
+        if (account != null && !overview.isEditingAccount) {
+            onAccountUpdated(account)
+        }
     }
 
     when (val s = state) {
