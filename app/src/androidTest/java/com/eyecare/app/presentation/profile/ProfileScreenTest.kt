@@ -66,27 +66,6 @@ class ProfileScreenTest {
         composeRule.onNodeWithText("09171234567").assertDoesNotExist()
     }
 
-    @Test
-    fun editProfileContent_showsFirstAndLastNameFields() {
-        composeRule.setContent {
-            EyecareTheme {
-                EditProfileContent(
-                    state = ProfileUiState.Success(
-                        account = testAccount(),
-                        isEditing = true,
-                        editFirstName = "Alex",
-                        editLastName = "Rivera",
-                    ),
-                )
-            }
-        }
-
-        composeRule.onNodeWithText("Edit Profile").assertIsDisplayed()
-        composeRule.onNodeWithText("First name").assertIsDisplayed()
-        composeRule.onNodeWithText("Last name").assertIsDisplayed()
-        composeRule.onNodeWithText("Save").assertIsDisplayed()
-    }
-
     private fun testAccount(phone: String? = "09171234567") = PatientAccount(
         id = 1,
         name = "Alex Rivera",

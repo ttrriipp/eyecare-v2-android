@@ -41,7 +41,6 @@ import kotlinx.serialization.Serializable
 @Serializable data class OpticalOrderDetail(val orderId: Int)
 
 // Profile sub-destinations
-@Serializable object EditProfile
 @Serializable object PatientProfile
 
 // Chat (FAB destination, not a tab)

@@ -63,7 +63,6 @@ import com.eyecare.app.presentation.frames.FrameListScreen
 import com.eyecare.app.presentation.frames.SavedFramesScreen
 import com.eyecare.app.presentation.frames.SavedFramesViewModel
 import com.eyecare.app.presentation.home.HomeScreen
-import com.eyecare.app.presentation.profile.EditProfileScreen
 import com.eyecare.app.presentation.profile.PatientProfileScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
 import com.eyecare.app.presentation.notifications.NotificationListScreen
@@ -82,7 +81,6 @@ internal fun shouldShowBottomNav(route: String): Boolean =
         !route.contains("BookAppointment") &&
         !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
         !route.contains("Prescription") &&
-        !route.contains("EditProfile") &&
         !route.contains("PatientProfile") &&
         !route.contains("PatientIntake") && !route.contains("Quotation") &&
         !route.contains("OpticalOrderDetail") &&
@@ -464,11 +462,6 @@ fun EyecareNavGraph(
                             onNavigateToAccountSecurity = { navController.navigate(AccountSecurity) },
                             onNavigateToInviteCode = ::openAccountLink,
                             unreadMessageCount = mainUnreadState.messageUnreadCount,
-                        )
-                    }
-                    composable<EditProfile> {
-                        EditProfileScreen(
-                            onBack = { navController.popBackStack() },
                         )
                     }
                     composable<SavedFrames> {

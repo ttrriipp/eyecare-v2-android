@@ -12,7 +12,6 @@ private val accountSafeDestinationNames = setOf(
     "MainGraph",
     "Home",
     "Profile",
-    "EditProfile",
     "AccountSecurity",
     "Notifications",
     "LimitedAccount",
