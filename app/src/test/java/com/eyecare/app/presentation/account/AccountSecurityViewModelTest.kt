@@ -173,6 +173,82 @@ class AccountSecurityViewModelTest {
     }
 
     @Test
+    fun `cancelStepUp from UpdateProfile restores editing state with draft`() {
+        coEvery { accountRepo.requestStepUpOtp() } returns
+            Result.success(StepUpChallenge("ch-1", "2026-08-01T10:15:00", ContactType.EMAIL, "a***@example.com"))
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountFirstName("Jamie")
+        vm.updateAccountDateOfBirth("1995-01-01")
+        vm.saveAccountDetails()
+
+        vm.cancelStepUp()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertTrue(state.isEditingAccount)
+        assertEquals("Jamie", state.editFirstName)
+        assertEquals("1995-01-01", state.editDateOfBirth)
+    }
+
+    @Test
+    fun `step-up OTP failure preserves draft for UpdateProfile`() {
+        coEvery { accountRepo.requestStepUpOtp() } returns
+            Result.success(StepUpChallenge("ch-1", "2026-08-01T10:15:00", ContactType.EMAIL, "a***@example.com"))
+        coEvery { accountRepo.verifyStepUpOtp(any(), any()) } returns Result.failure(Exception("Invalid code"))
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountDateOfBirth("1995-01-01")
+        vm.saveAccountDetails()
+
+        vm.updateStepUpCode("999999")
+        vm.verifyStepUp()
+
+        val state = vm.state.value as AccountSecurityState.StepUpOtp
+        assertEquals("Invalid code", state.error)
+        assertTrue(state.pendingAction is StepUpAction.UpdateProfile)
+    }
+
+    @Test
+    fun `step-up request failure restores editing with draft preserved`() {
+        coEvery { accountRepo.requestStepUpOtp() } returns Result.failure(Exception("Network error"))
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountFirstName("Jamie")
+        vm.updateAccountDateOfBirth("1995-01-01")
+        vm.saveAccountDetails()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertTrue(state.isEditingAccount)
+        assertEquals("Jamie", state.editFirstName)
+        assertEquals("1995-01-01", state.editDateOfBirth)
+        assertEquals("Network error", state.accountSaveError)
+    }
+
+    @Test
+    fun `DOB step-up success sends patch with proof token`() {
+        val updatedAccount = fakeAccount.copy(dateOfBirth = "1995-01-01")
+        coEvery { accountRepo.requestStepUpOtp() } returns
+            Result.success(StepUpChallenge("ch-1", "2026-08-01T10:15:00", ContactType.EMAIL, "a***@example.com"))
+        coEvery { accountRepo.verifyStepUpOtp("ch-1", "123456") } returns Result.success(StepUpProof("proof-token", 900))
+        coEvery { authRepo.updateAccountProfile(any(), "proof-token") } returns Result.success(updatedAccount)
+
+        vm.loadAccount()
+        vm.startAccountEditing()
+        vm.updateAccountDateOfBirth("1995-01-01")
+        vm.saveAccountDetails()
+
+        vm.updateStepUpCode("123456")
+        vm.verifyStepUp()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertEquals(updatedAccount, state.account)
+        assertFalse(state.isEditingAccount)
+    }
+
+    @Test
     fun `logout calls repository`() {
         coEvery { authRepo.logoutCurrent() } returns Result.success(Unit)
         vm.logout()

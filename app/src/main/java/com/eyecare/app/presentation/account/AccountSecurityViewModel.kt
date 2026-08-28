@@ -176,17 +176,13 @@ class AccountSecurityViewModel @Inject constructor(
             return
         }
 
-        executeProfilePatch(patch, null)
+        executeProfilePatch(patch, null, draft)
     }
 
-    private fun executeProfilePatch(patch: AccountProfilePatch, stepUpToken: String?) {
-        val current = _state.value as? AccountSecurityState.Overview ?: return
-        if (current.isSavingAccount) return
-
-        _state.value = current.copy(
+    private fun executeProfilePatch(patch: AccountProfilePatch, stepUpToken: String?, draft: ProfileDraft) {
+        _state.value = AccountSecurityState.Overview(
+            account = latestAccount,
             isSavingAccount = true,
-            accountSaveError = null,
-            fieldErrors = emptyMap(),
         )
         viewModelScope.launch {
             authRepository.updateAccountProfile(patch, stepUpToken)
@@ -199,13 +195,23 @@ class AccountSecurityViewModel @Inject constructor(
                 .onFailure { error ->
                     val apiError = error as? ApiDomainError
                     if (apiError != null && apiError.fieldErrors.isNotEmpty()) {
-                        _state.value = current.copy(
-                            isSavingAccount = false,
+                        _state.value = AccountSecurityState.Overview(
+                            account = latestAccount,
+                            isEditingAccount = true,
+                            editFirstName = draft.firstName,
+                            editMiddleName = draft.middleName,
+                            editLastName = draft.lastName,
+                            editDateOfBirth = draft.dateOfBirth,
                             fieldErrors = apiError.fieldErrors.mapValues { it.value.firstOrNull() ?: "" },
                         )
                     } else {
-                        _state.value = current.copy(
-                            isSavingAccount = false,
+                        _state.value = AccountSecurityState.Overview(
+                            account = latestAccount,
+                            isEditingAccount = true,
+                            editFirstName = draft.firstName,
+                            editMiddleName = draft.middleName,
+                            editLastName = draft.lastName,
+                            editDateOfBirth = draft.dateOfBirth,
                             accountSaveError = apiError?.message ?: "We couldn't save your changes. Please try again.",
                         )
                     }
@@ -251,10 +257,25 @@ class AccountSecurityViewModel @Inject constructor(
                     )
                 }
                 .onFailure { error ->
-                    _state.value = AccountSecurityState.Overview(
-                        account = latestAccount,
-                        error = error.message ?: "Failed to send code",
-                    )
+                    when (action) {
+                        is StepUpAction.UpdateProfile -> {
+                            _state.value = AccountSecurityState.Overview(
+                                account = latestAccount,
+                                isEditingAccount = true,
+                                editFirstName = action.draft.firstName,
+                                editMiddleName = action.draft.middleName,
+                                editLastName = action.draft.lastName,
+                                editDateOfBirth = action.draft.dateOfBirth,
+                                accountSaveError = error.message ?: "Failed to send verification code",
+                            )
+                        }
+                        else -> {
+                            _state.value = AccountSecurityState.Overview(
+                                account = latestAccount,
+                                error = error.message ?: "Failed to send code",
+                            )
+                        }
+                    }
                 }
         }
     }
@@ -379,7 +400,29 @@ class AccountSecurityViewModel @Inject constructor(
     }
 
     fun back() {
-        loadAccount()
+        val current = _state.value
+        if (current is AccountSecurityState.StepUpOtp && current.pendingAction is StepUpAction.UpdateProfile) {
+            cancelStepUp()
+        } else {
+            loadAccount()
+        }
+    }
+
+    fun cancelStepUp() {
+        val current = _state.value as? AccountSecurityState.StepUpOtp ?: return
+        when (val action = current.pendingAction) {
+            is StepUpAction.UpdateProfile -> {
+                _state.value = AccountSecurityState.Overview(
+                    account = latestAccount,
+                    isEditingAccount = true,
+                    editFirstName = action.draft.firstName,
+                    editMiddleName = action.draft.middleName,
+                    editLastName = action.draft.lastName,
+                    editDateOfBirth = action.draft.dateOfBirth,
+                )
+            }
+            else -> loadAccount()
+        }
     }
 
     private fun executeProtectedAction(stepUpToken: String, action: StepUpAction) {
@@ -447,7 +490,7 @@ class AccountSecurityViewModel @Inject constructor(
             is StepUpAction.UpdateProfile -> {
                 val account = latestAccount ?: return
                 val patch = AccountProfileEditor.computePatch(action.draft, account)
-                executeProfilePatch(patch, stepUpToken)
+                executeProfilePatch(patch, stepUpToken, action.draft)
             }
         }
     }
