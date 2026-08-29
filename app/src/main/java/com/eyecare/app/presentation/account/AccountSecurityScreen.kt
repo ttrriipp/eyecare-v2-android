@@ -1,7 +1,8 @@
 package com.eyecare.app.presentation.account
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
@@ -51,8 +53,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -535,10 +538,31 @@ private fun DateOfBirthEditField(
     onClick: () -> Unit,
 ) {
     val display = value.takeIf { it.isNotBlank() }?.let { formatAccountDate(it) }
-    Box(
+    OutlinedTextField(
+        value = display.orEmpty(),
+        onValueChange = {},
+        label = { Text("Date of birth") },
+        placeholder = { Text("Choose a date") },
+        readOnly = true,
+        enabled = enabled,
+        isError = error != null,
+        supportingText = error?.let { message -> { Text(message) } },
+        trailingIcon = {
+            Icon(
+                imageVector = Icons.Outlined.CalendarMonth,
+                contentDescription = null,
+            )
+        },
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
+            .pointerInput(enabled) {
+                if (enabled) {
+                    awaitEachGesture {
+                        awaitFirstDown(pass = PointerEventPass.Initial)
+                        onClick()
+                    }
+                }
+            }
             .semantics(mergeDescendants = true) {
                 role = Role.Button
                 contentDescription = buildString {
@@ -548,21 +572,7 @@ private fun DateOfBirthEditField(
                     append(". Double tap to choose a date.")
                 }
             },
-    ) {
-        OutlinedTextField(
-            value = display.orEmpty(),
-            onValueChange = {},
-            label = { Text("Date of birth") },
-            placeholder = { Text("Choose a date") },
-            readOnly = true,
-            // The surrounding Box owns the click target. Keeping the field disabled prevents
-            // OutlinedTextField's internal focus/pointer handling from consuming that tap.
-            enabled = false,
-            isError = error != null,
-            supportingText = error?.let { message -> { Text(message) } },
-            modifier = Modifier.fillMaxWidth().clearAndSetSemantics { },
-        )
-    }
+    )
 }
 
 @Composable

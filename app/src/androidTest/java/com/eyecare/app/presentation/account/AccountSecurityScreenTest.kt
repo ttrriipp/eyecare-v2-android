@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.account
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -181,6 +182,7 @@ class AccountSecurityScreenTest {
 
         composeRule
             .onNodeWithContentDescription("Date of birth, not set. Double tap to choose a date.")
+            .assertIsEnabled()
             .performTouchInput { click() }
 
         composeRule.onNodeWithText("Set date").assertIsDisplayed()
