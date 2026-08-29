@@ -36,9 +36,15 @@ class ProfileScreenTest {
 
         composeRule.onNodeWithText("Alex Rivera").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Profile initials AR").assertIsDisplayed()
-        // The account-first header shows name + link status only; the email that used to sit
-        // here moved out with the removed patient-details card.
+        // The account-first header shows the account name only; contact and link metadata stay
+        // in their dedicated account workflows.
         composeRule.onNodeWithText("alex@example.com").assertDoesNotExist()
+        composeRule.onNodeWithText("Clinic record linked").assertDoesNotExist()
+        composeRule.onNodeWithText("Clinic review pending").assertDoesNotExist()
+        composeRule.onNodeWithText("Not yet linked to a clinic record").assertDoesNotExist()
+        composeRule.onNodeWithText("Account status unknown").assertDoesNotExist()
+        composeRule.onNodeWithText("Account details").assertIsDisplayed()
+        composeRule.onNodeWithText("Account & Security").assertDoesNotExist()
 
         listOf(
             "Messages" to "messages",

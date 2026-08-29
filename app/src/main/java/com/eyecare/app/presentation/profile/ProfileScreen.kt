@@ -253,7 +253,7 @@ private fun AccountSection(
             Column {
                 ProfileNavRow(
                     icon = Icons.Outlined.Person,
-                    label = "Account & Security",
+                    label = "Account details",
                     onClick = onNavigateToAccountSecurity,
                 )
                 if (account.linkedPatient != null) {
@@ -287,14 +287,6 @@ private fun ProfileHeader(account: PatientAccount? = null) {
         return
     }
 
-    val colors = EyecareColors.current
-    val (statusLabel, statusColor) = when (account.linkStatus) {
-        PatientLinkStatus.LINKED -> "Clinic record linked" to colors.statusConfirmed
-        PatientLinkStatus.PENDING_REVIEW -> "Clinic review pending" to colors.statusPending
-        PatientLinkStatus.UNLINKED -> "Not yet linked to a clinic record" to colors.statusInfo
-        PatientLinkStatus.UNKNOWN -> "Account status unknown" to MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -320,22 +312,6 @@ private fun ProfileHeader(account: PatientAccount? = null) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(statusColor),
-                )
-                Text(
-                    text = statusLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
     }
 }

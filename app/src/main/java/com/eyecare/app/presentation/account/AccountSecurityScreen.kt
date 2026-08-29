@@ -63,7 +63,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.PatientAccount
-import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
 import com.eyecare.app.presentation.auth.components.ContactField
 import com.eyecare.app.presentation.auth.components.ContactMethod
@@ -195,7 +194,7 @@ fun AccountSecurityOverviewContent(
     }
 
     AuthStepScaffold(
-        title = "Account & Security",
+        title = "Account details",
         onBack = { if (state.isEditingAccount) handleCancelOrBack() else onBack() },
         showGradientBar = false,
     ) {
@@ -360,7 +359,7 @@ fun AccountDetailsContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Account details",
+                text = "Profile details",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -451,8 +450,6 @@ fun AccountDetailsContent(
                 }
                 AccountDetailRow("Email", displayAccountValue(account.email))
                 AccountDetailRow("Phone", displayAccountValue(account.phone))
-                AccountDetailRow("Role", formatAccountRole(account.role))
-                AccountDetailRow("Link status", formatAccountLinkStatus(account.linkStatus))
 
                 if (saveError != null) {
                     Text(
@@ -558,7 +555,9 @@ private fun DateOfBirthEditField(
             label = { Text("Date of birth") },
             placeholder = { Text("Choose a date") },
             readOnly = true,
-            enabled = enabled,
+            // The surrounding Box owns the click target. Keeping the field disabled prevents
+            // OutlinedTextField's internal focus/pointer handling from consuming that tap.
+            enabled = false,
             isError = error != null,
             supportingText = error?.let { message -> { Text(message) } },
             modifier = Modifier.fillMaxWidth().clearAndSetSemantics { },
@@ -582,22 +581,6 @@ private fun AccountDetailRow(label: String, value: String) {
 }
 
 private fun displayAccountValue(value: String?): String = value?.takeIf { it.isNotBlank() } ?: "Not provided"
-
-private fun formatAccountRole(value: String): String = value
-    .trim()
-    .takeIf { it.isNotBlank() }
-    ?.replace('_', ' ')
-    ?.split(' ')
-    ?.filter { it.isNotBlank() }
-    ?.joinToString(" ") { word -> word.replaceFirstChar { it.titlecase() } }
-    ?: "Not provided"
-
-private fun formatAccountLinkStatus(status: PatientLinkStatus): String = when (status) {
-    PatientLinkStatus.LINKED -> "Linked"
-    PatientLinkStatus.PENDING_REVIEW -> "Pending review"
-    PatientLinkStatus.UNLINKED -> "Unlinked"
-    PatientLinkStatus.UNKNOWN -> "Unknown"
-}
 
 private fun formatAccountDate(value: String?): String {
     val parts = value?.split("-") ?: return "Not provided"

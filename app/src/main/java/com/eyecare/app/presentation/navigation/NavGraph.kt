@@ -282,7 +282,7 @@ fun EyecareNavGraph(
                     }
                 }
 
-                // Account & Security (shared from limited and linked)
+                // Account details and security (shared from limited and linked)
                 composable<AccountSecurity> {
                     AccountSecurityScreen(
                         onSignedOut = {

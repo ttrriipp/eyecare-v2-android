@@ -2,9 +2,12 @@ package com.eyecare.app.presentation.account
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.ui.theme.EyecareTheme
@@ -38,6 +41,7 @@ class AccountSecurityScreenTest {
         }
 
         composeRule.onNodeWithText("Account details").assertIsDisplayed()
+        composeRule.onNodeWithText("Account & Security").assertDoesNotExist()
         composeRule.onNodeWithText("Security").assertIsDisplayed()
         composeRule.onNodeWithText("Contact methods").assertDoesNotExist()
         composeRule.onNodeWithText("Add contact").assertDoesNotExist()
@@ -71,16 +75,17 @@ class AccountSecurityScreenTest {
         }
 
         listOf(
-            "Account details",
+            "Profile details",
             "Alex",
             "Rivera",
             "M.",
             "alex@example.com",
             "09171234567",
             "May 15, 1990",
-            "Patient",
-            "Linked",
         ).forEach { composeRule.onNodeWithText(it).assertIsDisplayed() }
+
+        composeRule.onNodeWithText("Role").assertDoesNotExist()
+        composeRule.onNodeWithText("Link status").assertDoesNotExist()
 
         composeRule.onNodeWithText("Edit").performClick()
         composeRule.runOnIdle { check(editClicked) }
@@ -115,6 +120,7 @@ class AccountSecurityScreenTest {
         composeRule.onNodeWithText("Middle name").assertIsDisplayed()
         composeRule.onNodeWithText("Last name").assertIsDisplayed()
         composeRule.onNodeWithText("Date of birth").assertIsDisplayed()
+        composeRule.onNodeWithText("Profile details").assertIsDisplayed()
         composeRule.onNodeWithText("alex@example.com").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
         composeRule.onNodeWithText("Save").assertIsDisplayed()
@@ -146,6 +152,38 @@ class AccountSecurityScreenTest {
         }
 
         composeRule.onNodeWithText("Save").assertIsNotEnabled()
+    }
+
+    @Test
+    fun accountDetails_dateOfBirthFieldOpensDatePickerWhenTapped() {
+        composeRule.setContent {
+            EyecareTheme {
+                AccountDetailsContent(
+                    account = testAccount(),
+                    isEditing = true,
+                    isSaving = false,
+                    firstName = "Alex",
+                    middleName = "M.",
+                    lastName = "Rivera",
+                    dateOfBirth = "",
+                    fieldErrors = emptyMap(),
+                    saveError = null,
+                    onEdit = {},
+                    onCancel = {},
+                    onFirstNameChange = {},
+                    onMiddleNameChange = {},
+                    onLastNameChange = {},
+                    onDateOfBirthChange = {},
+                    onSave = {},
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithContentDescription("Date of birth, not set. Double tap to choose a date.")
+            .performTouchInput { click() }
+
+        composeRule.onNodeWithText("Set date").assertIsDisplayed()
     }
 
     @Test
