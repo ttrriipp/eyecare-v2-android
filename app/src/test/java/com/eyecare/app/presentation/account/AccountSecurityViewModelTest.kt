@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.account
 
 import com.eyecare.app.domain.model.AccountProfilePatch
+import com.eyecare.app.domain.model.AccountContact
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.PatientAccount
@@ -50,12 +51,30 @@ class AccountSecurityViewModelTest {
         linkedPatient = null,
     )
 
+    private val fakeContacts = listOf(
+        AccountContact(
+            id = 1,
+            type = ContactType.EMAIL,
+            maskedValue = "a***@example.com",
+            isPrimary = true,
+            verifiedAt = "2026-08-01T10:00:00+08:00",
+        ),
+        AccountContact(
+            id = 2,
+            type = ContactType.PHONE,
+            maskedValue = "0917***4567",
+            isPrimary = false,
+            verifiedAt = null,
+        ),
+    )
+
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         accountRepo = mockk()
         authRepo = mockk(relaxed = true)
         coEvery { authRepo.getMe() } returns Result.success(fakeAccount)
+        coEvery { accountRepo.getContacts() } returns Result.success(fakeContacts)
         vm = AccountSecurityViewModel(accountRepo, authRepo)
     }
 
@@ -67,6 +86,28 @@ class AccountSecurityViewModelTest {
         vm.loadAccount()
         val state = vm.state.value as AccountSecurityState.Overview
         assertEquals(fakeAccount, state.account)
+        assertEquals(fakeContacts, state.contacts)
+        assertEquals(null, state.contactsError)
+    }
+
+    @Test
+    fun `loadAccount contact failure keeps account and exposes contact error`() {
+        coEvery { accountRepo.getContacts() } returns Result.failure(Exception("Contacts unavailable"))
+
+        vm.loadAccount()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertEquals(fakeAccount, state.account)
+        assertTrue(state.contacts.isEmpty())
+        assertEquals("Contacts unavailable", state.contactsError)
+    }
+
+    @Test
+    fun `startAddContact can preselect the requested contact type`() {
+        vm.startAddContact(ContactType.PHONE)
+
+        val state = vm.state.value as AccountSecurityState.EnterNewContact
+        assertEquals(ContactType.PHONE, state.contactType)
     }
 
     @Test

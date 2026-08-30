@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.account
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.AccountContact
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AccountProfilePatch
 import com.eyecare.app.domain.model.ContactType
@@ -21,7 +22,9 @@ sealed interface AccountSecurityState {
     data object Loading : AccountSecurityState
     data class Overview(
         val account: PatientAccount? = null,
+        val contacts: List<AccountContact> = emptyList(),
         val error: String? = null,
+        val contactsError: String? = null,
         val isEditingAccount: Boolean = false,
         val isSavingAccount: Boolean = false,
         val isRequestingStepUp: Boolean = false,
@@ -85,6 +88,7 @@ class AccountSecurityViewModel @Inject constructor(
     private val _state = MutableStateFlow<AccountSecurityState>(AccountSecurityState.Loading)
     val state: StateFlow<AccountSecurityState> = _state.asStateFlow()
     private var latestAccount: PatientAccount? = null
+    private var latestContacts: List<AccountContact> = emptyList()
     private var stepUpRequestJob: Job? = null
     private var profileSaveGeneration = 0L
 
@@ -99,9 +103,17 @@ class AccountSecurityViewModel @Inject constructor(
             val accountResult = authRepository.getMe()
             val loadedAccount = accountResult.getOrNull()
             if (loadedAccount != null) latestAccount = loadedAccount
+            val contactsResult = if (loadedAccount != null || latestAccount != null) {
+                accountRepository.getContacts()
+            } else {
+                null
+            }
+            contactsResult?.getOrNull()?.let { latestContacts = it }
             _state.value = AccountSecurityState.Overview(
                 account = loadedAccount ?: latestAccount,
+                contacts = contactsResult?.getOrNull() ?: latestContacts,
                 error = accountResult.exceptionOrNull()?.message,
+                contactsError = contactsResult?.exceptionOrNull()?.message,
             )
         }
     }
@@ -260,8 +272,8 @@ class AccountSecurityViewModel @Inject constructor(
         }
     }
 
-    fun startAddContact() {
-        _state.value = AccountSecurityState.EnterNewContact()
+    fun startAddContact(contactType: ContactType = ContactType.EMAIL) {
+        _state.value = AccountSecurityState.EnterNewContact(contactType = contactType)
     }
 
     fun updateNewContactType(type: ContactType) {
