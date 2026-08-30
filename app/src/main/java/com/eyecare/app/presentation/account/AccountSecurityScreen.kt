@@ -687,8 +687,8 @@ private fun ContactDetailRow(
     val value = when (type) {
         ContactType.EMAIL -> contact?.maskedValue?.takeIf { it.isNotBlank() }
             ?: displayAccountValue(accountValue)
-        ContactType.PHONE -> formatMaskedPhilippinePhone(
-            contact?.maskedValue?.takeIf { it.isNotBlank() } ?: accountValue,
+        ContactType.PHONE -> formatPhilippinePhone(
+            accountValue?.takeIf { it.isNotBlank() } ?: contact?.maskedValue,
         )
     }
 
@@ -778,7 +778,7 @@ private fun AccountDetailRow(label: String, value: String) {
 
 private fun displayAccountValue(value: String?): String = value?.takeIf { it.isNotBlank() } ?: "Not provided"
 
-internal fun formatMaskedPhilippinePhone(value: String?): String {
+internal fun formatPhilippinePhone(value: String?): String {
     val compact = value
         ?.filter { character -> character.isDigit() || character == '*' }
         ?.takeIf { it.isNotBlank() }
@@ -788,14 +788,9 @@ internal fun formatMaskedPhilippinePhone(value: String?): String {
         compact.startsWith("0") -> compact.drop(1)
         else -> compact
     }
-    if (localNumber.length < 7) return "Not provided"
+    if (localNumber.length != 10) return "Not provided"
 
-    val maskedLocalNumber = if ('*' in localNumber) {
-        localNumber
-    } else {
-        "${localNumber.take(3)}***${localNumber.takeLast(4)}"
-    }
-    return "+63 $maskedLocalNumber"
+    return "+63 ${localNumber.take(3)} ${localNumber.substring(3, 6)} ${localNumber.takeLast(4)}"
 }
 
 private fun formatAccountDate(value: String?): String {

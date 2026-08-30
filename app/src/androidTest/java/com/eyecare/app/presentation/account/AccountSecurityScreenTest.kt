@@ -51,7 +51,7 @@ class AccountSecurityScreenTest {
         composeRule.onNodeWithText("Security").assertIsDisplayed()
         composeRule.onNodeWithText("Contact information").assertIsDisplayed()
         composeRule.onNodeWithText("a***@example.com").assertIsDisplayed()
-        composeRule.onNodeWithText("+63 917***4567").assertIsDisplayed()
+        composeRule.onNodeWithText("+63 917 123 4567").assertIsDisplayed()
         composeRule.onNodeWithText("0917***4567").assertDoesNotExist()
         composeRule.onNodeWithText("Primary").assertIsDisplayed()
         composeRule.onNodeWithText("Pending").assertIsDisplayed()
@@ -271,7 +271,7 @@ class AccountSecurityScreenTest {
             "Rivera",
             "M.",
             "alex@example.com",
-            "+63 917***4567",
+            "+63 917 123 4567",
             "May 15, 1990",
         ).forEach { composeRule.onNodeWithText(it).assertIsDisplayed() }
 
