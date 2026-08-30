@@ -103,11 +103,11 @@ class AccountSecurityViewModelTest {
     }
 
     @Test
-    fun `startAddContact can preselect the requested contact type`() {
-        vm.startAddContact(ContactType.PHONE)
+    fun `startAddEmail opens an email-only contact entry`() {
+        vm.startAddEmail()
 
         val state = vm.state.value as AccountSecurityState.EnterNewContact
-        assertEquals(ContactType.PHONE, state.contactType)
+        assertEquals("", state.contactValue)
     }
 
     @Test
@@ -144,7 +144,7 @@ class AccountSecurityViewModelTest {
         coEvery { accountRepo.verifyContactOtp("contact", "654321") } returns Result.success(verifiedContact)
 
         vm.loadAccount()
-        vm.startAddContact(ContactType.EMAIL)
+        vm.startAddEmail()
         vm.updateNewContactValue("new@example.com")
         vm.submitNewContact()
         vm.updateStepUpCode("123456")
@@ -162,7 +162,7 @@ class AccountSecurityViewModelTest {
         vm.loadAccount()
         vm.startAccountEditing()
 
-        vm.startAddContact(ContactType.PHONE)
+        vm.startAddEmail()
         vm.startStepUp(StepUpAction.MakePrimary(contactId = 2))
 
         val state = vm.state.value as AccountSecurityState.Overview

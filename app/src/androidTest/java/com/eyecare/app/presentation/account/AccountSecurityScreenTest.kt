@@ -51,7 +51,8 @@ class AccountSecurityScreenTest {
         composeRule.onNodeWithText("Security").assertIsDisplayed()
         composeRule.onNodeWithText("Contact information").assertIsDisplayed()
         composeRule.onNodeWithText("a***@example.com").assertIsDisplayed()
-        composeRule.onNodeWithText("0917***4567").assertIsDisplayed()
+        composeRule.onNodeWithText("+63 917***4567").assertIsDisplayed()
+        composeRule.onNodeWithText("0917***4567").assertDoesNotExist()
         composeRule.onNodeWithText("Primary").assertIsDisplayed()
         composeRule.onNodeWithText("Pending").assertIsDisplayed()
     }
@@ -90,7 +91,7 @@ class AccountSecurityScreenTest {
 
     @Test
     fun accountOverview_missingContactOffersAddAction() {
-        var selectedType: ContactType? = null
+        var addEmailClicked = false
 
         composeRule.setContent {
             EyecareTheme {
@@ -110,13 +111,60 @@ class AccountSecurityScreenTest {
                     onChangePassword = {},
                     onSignOut = {},
                     onSignOutAll = {},
-                    onAddContact = { selectedType = it },
+                    onAddEmail = { addEmailClicked = true },
                 )
             }
         }
 
         composeRule.onNodeWithText("Add email").performClick()
-        composeRule.runOnIdle { check(selectedType == ContactType.EMAIL) }
+        composeRule.runOnIdle { check(addEmailClicked) }
+    }
+
+    @Test
+    fun addEmail_isAnEmailOnlyFlow() {
+        composeRule.setContent {
+            EyecareTheme {
+                EnterNewEmailContent(
+                    state = AccountSecurityState.EnterNewContact(),
+                    onBack = {},
+                    onValueChange = {},
+                    onContinue = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Add email").assertIsDisplayed()
+        composeRule.onNodeWithText("Email address").assertIsDisplayed()
+        composeRule.onNodeWithText("Add contact").assertDoesNotExist()
+        composeRule.onNodeWithText("Phone").assertDoesNotExist()
+        composeRule.onNodeWithText("Phone number").assertDoesNotExist()
+    }
+
+    @Test
+    fun accountOverview_neverOffersAddPhone() {
+        composeRule.setContent {
+            EyecareTheme {
+                AccountSecurityOverviewContent(
+                    state = AccountSecurityState.Overview(
+                        account = testAccount().copy(phone = null),
+                        contacts = listOf(testContacts().first()),
+                    ),
+                    onBack = {},
+                    onEdit = {},
+                    onCancelEdit = {},
+                    onFirstNameChange = {},
+                    onMiddleNameChange = {},
+                    onLastNameChange = {},
+                    onDateOfBirthChange = {},
+                    onSave = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onSignOutAll = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Add phone").assertDoesNotExist()
     }
 
     @Test
@@ -223,7 +271,7 @@ class AccountSecurityScreenTest {
             "Rivera",
             "M.",
             "alex@example.com",
-            "09171234567",
+            "+63 917***4567",
             "May 15, 1990",
         ).forEach { composeRule.onNodeWithText(it).assertIsDisplayed() }
 

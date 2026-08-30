@@ -37,10 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -125,12 +122,17 @@ fun AccountSecurityScreen(
             onChangePassword = { viewModel.startStepUp(StepUpAction.ChangePassword) },
             onSignOut = viewModel::logout,
             onSignOutAll = viewModel::logoutAll,
-            onAddContact = viewModel::startAddContact,
+            onAddEmail = viewModel::startAddEmail,
             onMakePrimary = { contactId -> viewModel.startStepUp(StepUpAction.MakePrimary(contactId)) },
             onRemoveContact = { contactId -> viewModel.startStepUp(StepUpAction.RemoveContact(contactId)) },
             onRetryContacts = viewModel::loadAccount,
         )
-        is AccountSecurityState.EnterNewContact -> EnterNewContactContent(s, viewModel)
+        is AccountSecurityState.EnterNewContact -> EnterNewEmailContent(
+            state = s,
+            onBack = viewModel::back,
+            onValueChange = viewModel::updateNewContactValue,
+            onContinue = viewModel::submitNewContact,
+        )
         is AccountSecurityState.StepUpOtp -> StepUpOtpContent(s, viewModel)
         is AccountSecurityState.AddContactOtp -> AddContactOtpContent(s, viewModel)
         is AccountSecurityState.ChangePassword -> ChangePasswordContent(s, viewModel)
@@ -149,7 +151,7 @@ fun AccountSecurityScreen(
                 onChangePassword = { viewModel.startStepUp(StepUpAction.ChangePassword) },
                 onSignOut = viewModel::logout,
                 onSignOutAll = viewModel::logoutAll,
-                onAddContact = viewModel::startAddContact,
+                onAddEmail = viewModel::startAddEmail,
                 onMakePrimary = { contactId -> viewModel.startStepUp(StepUpAction.MakePrimary(contactId)) },
                 onRemoveContact = { contactId -> viewModel.startStepUp(StepUpAction.RemoveContact(contactId)) },
                 onRetryContacts = viewModel::loadAccount,
@@ -175,7 +177,7 @@ fun AccountSecurityOverviewContent(
     onChangePassword: () -> Unit,
     onSignOut: () -> Unit,
     onSignOutAll: () -> Unit,
-    onAddContact: (ContactType) -> Unit = {},
+    onAddEmail: () -> Unit = {},
     onMakePrimary: (Int) -> Unit = {},
     onRemoveContact: (Int) -> Unit = {},
     onRetryContacts: () -> Unit = {},
@@ -245,7 +247,7 @@ fun AccountSecurityOverviewContent(
                     onLastNameChange = onLastNameChange,
                     onDateOfBirthChange = onDateOfBirthChange,
                     onSave = onSave,
-                    onAddContact = onAddContact,
+                    onAddEmail = onAddEmail,
                     onMakePrimary = onMakePrimary,
                     onRemoveContact = onRemoveContact,
                     onRetryContacts = onRetryContacts,
@@ -365,7 +367,7 @@ fun AccountDetailsContent(
     onLastNameChange: (String) -> Unit,
     onDateOfBirthChange: (String) -> Unit,
     onSave: () -> Unit,
-    onAddContact: (ContactType) -> Unit = {},
+    onAddEmail: () -> Unit = {},
     onMakePrimary: (Int) -> Unit = {},
     onRemoveContact: (Int) -> Unit = {},
     onRetryContacts: () -> Unit = {},
@@ -484,7 +486,7 @@ fun AccountDetailsContent(
                     contacts = contacts,
                     contactsError = contactsError,
                     actionsEnabled = !isEditing && !isBusy,
-                    onAddContact = onAddContact,
+                    onAddEmail = onAddEmail,
                     onMakePrimary = onMakePrimary,
                     onRemoveContact = onRemoveContact,
                     onRetryContacts = onRetryContacts,
@@ -617,7 +619,7 @@ private fun ContactInformationSection(
     contacts: List<AccountContact>,
     contactsError: String?,
     actionsEnabled: Boolean,
-    onAddContact: (ContactType) -> Unit,
+    onAddEmail: () -> Unit,
     onMakePrimary: (Int) -> Unit,
     onRemoveContact: (Int) -> Unit,
     onRetryContacts: () -> Unit,
@@ -654,7 +656,7 @@ private fun ContactInformationSection(
             contact = contacts.firstOrNull { it.type == ContactType.EMAIL },
             type = ContactType.EMAIL,
             actionsEnabled = actionsEnabled,
-            onAddContact = onAddContact,
+            onAddEmail = onAddEmail,
             onMakePrimary = onMakePrimary,
             onRemoveContact = onRemoveContact,
         )
@@ -663,7 +665,7 @@ private fun ContactInformationSection(
             contact = contacts.firstOrNull { it.type == ContactType.PHONE },
             type = ContactType.PHONE,
             actionsEnabled = actionsEnabled,
-            onAddContact = onAddContact,
+            onAddEmail = onAddEmail,
             onMakePrimary = onMakePrimary,
             onRemoveContact = onRemoveContact,
         )
@@ -676,14 +678,19 @@ private fun ContactDetailRow(
     contact: AccountContact?,
     type: ContactType,
     actionsEnabled: Boolean,
-    onAddContact: (ContactType) -> Unit,
+    onAddEmail: () -> Unit,
     onMakePrimary: (Int) -> Unit,
     onRemoveContact: (Int) -> Unit,
 ) {
     val label = if (type == ContactType.EMAIL) "Email" else "Phone"
     val accountValue = if (type == ContactType.EMAIL) account.email else account.phone
-    val value = contact?.maskedValue?.takeIf { it.isNotBlank() }
-        ?: displayAccountValue(accountValue)
+    val value = when (type) {
+        ContactType.EMAIL -> contact?.maskedValue?.takeIf { it.isNotBlank() }
+            ?: displayAccountValue(accountValue)
+        ContactType.PHONE -> formatMaskedPhilippinePhone(
+            contact?.maskedValue?.takeIf { it.isNotBlank() } ?: accountValue,
+        )
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -727,11 +734,11 @@ private fun ContactDetailRow(
         }
 
         Column(horizontalAlignment = Alignment.End) {
-            if (contact == null && accountValue.isNullOrBlank()) {
+            if (type == ContactType.EMAIL && contact == null && accountValue.isNullOrBlank()) {
                 TextButton(
-                    onClick = { onAddContact(type) },
+                    onClick = onAddEmail,
                     enabled = actionsEnabled,
-                ) { Text("Add $label") }
+                ) { Text("Add email") }
             }
             if (contact != null && !contact.isPrimary && contact.verifiedAt != null) {
                 TextButton(
@@ -771,6 +778,26 @@ private fun AccountDetailRow(label: String, value: String) {
 
 private fun displayAccountValue(value: String?): String = value?.takeIf { it.isNotBlank() } ?: "Not provided"
 
+internal fun formatMaskedPhilippinePhone(value: String?): String {
+    val compact = value
+        ?.filter { character -> character.isDigit() || character == '*' }
+        ?.takeIf { it.isNotBlank() }
+        ?: return "Not provided"
+    val localNumber = when {
+        compact.startsWith("63") -> compact.drop(2)
+        compact.startsWith("0") -> compact.drop(1)
+        else -> compact
+    }
+    if (localNumber.length < 7) return "Not provided"
+
+    val maskedLocalNumber = if ('*' in localNumber) {
+        localNumber
+    } else {
+        "${localNumber.take(3)}***${localNumber.takeLast(4)}"
+    }
+    return "+63 $maskedLocalNumber"
+}
+
 private fun formatAccountDate(value: String?): String {
     val parts = value?.split("-") ?: return "Not provided"
     if (parts.size != 3) return displayAccountValue(value)
@@ -795,33 +822,24 @@ private val accountMonthNames = listOf(
 )
 
 @Composable
-private fun EnterNewContactContent(
+fun EnterNewEmailContent(
     state: AccountSecurityState.EnterNewContact,
-    viewModel: AccountSecurityViewModel,
+    onBack: () -> Unit,
+    onValueChange: (String) -> Unit,
+    onContinue: () -> Unit,
 ) {
-    AuthStepScaffold(title = "Add contact", onBack = { viewModel.back() }, showGradientBar = false) {
-        Text("Choose a contact method and enter the value you'd like to add.")
-        Spacer(modifier = Modifier.height(16.dp))
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            ContactType.entries.forEachIndexed { index, type ->
-                SegmentedButton(
-                    selected = state.contactType == type,
-                    onClick = { viewModel.updateNewContactType(type) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = ContactType.entries.size),
-                    label = { Text(if (type == ContactType.EMAIL) "Email" else "Phone") },
-                )
-            }
-        }
+    AuthStepScaffold(title = "Add email", onBack = onBack, showGradientBar = false) {
+        Text("Enter the email address you'd like to add.")
         Spacer(modifier = Modifier.height(16.dp))
         ContactField(
             value = state.contactValue,
-            onValueChange = { viewModel.updateNewContactValue(it) },
-            method = if (state.contactType == ContactType.EMAIL) ContactMethod.EMAIL else ContactMethod.PHONE,
+            onValueChange = onValueChange,
+            method = ContactMethod.EMAIL,
             error = state.error,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
-            onClick = { viewModel.submitNewContact() },
+            onClick = onContinue,
             enabled = state.contactValue.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Continue") }

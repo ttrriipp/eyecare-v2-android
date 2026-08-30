@@ -36,7 +36,6 @@ sealed interface AccountSecurityState {
         val fieldErrors: Map<String, String> = emptyMap(),
     ) : AccountSecurityState
     data class EnterNewContact(
-        val contactType: ContactType = ContactType.EMAIL,
         val contactValue: String = "",
         val error: String? = null,
     ) : AccountSecurityState
@@ -275,19 +274,12 @@ class AccountSecurityViewModel @Inject constructor(
         }
     }
 
-    fun startAddContact(contactType: ContactType = ContactType.EMAIL) {
+    fun startAddEmail() {
         val current = _state.value as? AccountSecurityState.Overview
         if (current?.isEditingAccount == true || current?.isSavingAccount == true || current?.isRequestingStepUp == true) {
             return
         }
-        _state.value = AccountSecurityState.EnterNewContact(contactType = contactType)
-    }
-
-    fun updateNewContactType(type: ContactType) {
-        val current = _state.value
-        if (current is AccountSecurityState.EnterNewContact) {
-            _state.value = current.copy(contactType = type, contactValue = "", error = null)
-        }
+        _state.value = AccountSecurityState.EnterNewContact()
     }
 
     fun updateNewContactValue(value: String) {
@@ -304,7 +296,7 @@ class AccountSecurityViewModel @Inject constructor(
             _state.value = current.copy(error = "Enter a value")
             return
         }
-        startStepUp(StepUpAction.AddContact(current.contactType, current.contactValue.trim()))
+        startStepUp(StepUpAction.AddContact(ContactType.EMAIL, current.contactValue.trim()))
     }
 
     fun startStepUp(action: StepUpAction) {
