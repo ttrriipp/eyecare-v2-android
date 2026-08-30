@@ -20,8 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -64,6 +66,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.eyecare.app.domain.model.AccountContact
 import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.presentation.auth.components.AuthStepScaffold
@@ -122,6 +125,10 @@ fun AccountSecurityScreen(
             onChangePassword = { viewModel.startStepUp(StepUpAction.ChangePassword) },
             onSignOut = viewModel::logout,
             onSignOutAll = viewModel::logoutAll,
+            onAddContact = viewModel::startAddContact,
+            onMakePrimary = { contactId -> viewModel.startStepUp(StepUpAction.MakePrimary(contactId)) },
+            onRemoveContact = { contactId -> viewModel.startStepUp(StepUpAction.RemoveContact(contactId)) },
+            onRetryContacts = viewModel::loadAccount,
         )
         is AccountSecurityState.EnterNewContact -> EnterNewContactContent(s, viewModel)
         is AccountSecurityState.StepUpOtp -> StepUpOtpContent(s, viewModel)
@@ -142,6 +149,10 @@ fun AccountSecurityScreen(
                 onChangePassword = { viewModel.startStepUp(StepUpAction.ChangePassword) },
                 onSignOut = viewModel::logout,
                 onSignOutAll = viewModel::logoutAll,
+                onAddContact = viewModel::startAddContact,
+                onMakePrimary = { contactId -> viewModel.startStepUp(StepUpAction.MakePrimary(contactId)) },
+                onRemoveContact = { contactId -> viewModel.startStepUp(StepUpAction.RemoveContact(contactId)) },
+                onRetryContacts = viewModel::loadAccount,
             )
         }
         is AccountSecurityState.SignedOut -> {
@@ -164,6 +175,10 @@ fun AccountSecurityOverviewContent(
     onChangePassword: () -> Unit,
     onSignOut: () -> Unit,
     onSignOutAll: () -> Unit,
+    onAddContact: (ContactType) -> Unit = {},
+    onMakePrimary: (Int) -> Unit = {},
+    onRemoveContact: (Int) -> Unit = {},
+    onRetryContacts: () -> Unit = {},
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showLogoutAllDialog by remember { mutableStateOf(false) }
@@ -219,6 +234,8 @@ fun AccountSecurityOverviewContent(
                     middleName = state.editMiddleName,
                     lastName = state.editLastName,
                     dateOfBirth = state.editDateOfBirth,
+                    contacts = state.contacts,
+                    contactsError = state.contactsError,
                     fieldErrors = state.fieldErrors,
                     saveError = state.accountSaveError,
                     onEdit = onEdit,
@@ -228,6 +245,10 @@ fun AccountSecurityOverviewContent(
                     onLastNameChange = onLastNameChange,
                     onDateOfBirthChange = onDateOfBirthChange,
                     onSave = onSave,
+                    onAddContact = onAddContact,
+                    onMakePrimary = onMakePrimary,
+                    onRemoveContact = onRemoveContact,
+                    onRetryContacts = onRetryContacts,
                 )
             }
 
@@ -333,6 +354,8 @@ fun AccountDetailsContent(
     middleName: String,
     lastName: String,
     dateOfBirth: String,
+    contacts: List<AccountContact> = emptyList(),
+    contactsError: String? = null,
     fieldErrors: Map<String, String>,
     saveError: String?,
     onEdit: () -> Unit,
@@ -342,6 +365,10 @@ fun AccountDetailsContent(
     onLastNameChange: (String) -> Unit,
     onDateOfBirthChange: (String) -> Unit,
     onSave: () -> Unit,
+    onAddContact: (ContactType) -> Unit = {},
+    onMakePrimary: (Int) -> Unit = {},
+    onRemoveContact: (Int) -> Unit = {},
+    onRetryContacts: () -> Unit = {},
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
     val isBusy = isSaving || isRequestingStepUp
@@ -451,8 +478,17 @@ fun AccountDetailsContent(
                     AccountDetailRow("Last name", displayAccountValue(account.lastName))
                     AccountDetailRow("Date of birth", formatAccountDate(account.dateOfBirth))
                 }
-                AccountDetailRow("Email", displayAccountValue(account.email))
-                AccountDetailRow("Phone", displayAccountValue(account.phone))
+
+                ContactInformationSection(
+                    account = account,
+                    contacts = contacts,
+                    contactsError = contactsError,
+                    actionsEnabled = !isEditing && !isBusy,
+                    onAddContact = onAddContact,
+                    onMakePrimary = onMakePrimary,
+                    onRemoveContact = onRemoveContact,
+                    onRetryContacts = onRetryContacts,
+                )
 
                 if (saveError != null) {
                     Text(
@@ -573,6 +609,149 @@ private fun DateOfBirthEditField(
                 }
             },
     )
+}
+
+@Composable
+private fun ContactInformationSection(
+    account: PatientAccount,
+    contacts: List<AccountContact>,
+    contactsError: String?,
+    actionsEnabled: Boolean,
+    onAddContact: (ContactType) -> Unit,
+    onMakePrimary: (Int) -> Unit,
+    onRemoveContact: (Int) -> Unit,
+    onRetryContacts: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        HorizontalDivider()
+        Text(
+            text = "Contact information",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+
+        if (contactsError != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Contact information is unavailable.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = onRetryContacts,
+                    enabled = actionsEnabled,
+                ) { Text("Retry") }
+            }
+        }
+
+        ContactDetailRow(
+            account = account,
+            contact = contacts.firstOrNull { it.type == ContactType.EMAIL },
+            type = ContactType.EMAIL,
+            actionsEnabled = actionsEnabled,
+            onAddContact = onAddContact,
+            onMakePrimary = onMakePrimary,
+            onRemoveContact = onRemoveContact,
+        )
+        ContactDetailRow(
+            account = account,
+            contact = contacts.firstOrNull { it.type == ContactType.PHONE },
+            type = ContactType.PHONE,
+            actionsEnabled = actionsEnabled,
+            onAddContact = onAddContact,
+            onMakePrimary = onMakePrimary,
+            onRemoveContact = onRemoveContact,
+        )
+    }
+}
+
+@Composable
+private fun ContactDetailRow(
+    account: PatientAccount,
+    contact: AccountContact?,
+    type: ContactType,
+    actionsEnabled: Boolean,
+    onAddContact: (ContactType) -> Unit,
+    onMakePrimary: (Int) -> Unit,
+    onRemoveContact: (Int) -> Unit,
+) {
+    val label = if (type == ContactType.EMAIL) "Email" else "Phone"
+    val accountValue = if (type == ContactType.EMAIL) account.email else account.phone
+    val value = contact?.maskedValue?.takeIf { it.isNotBlank() }
+        ?: displayAccountValue(accountValue)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = if (type == ContactType.EMAIL) Icons.Outlined.Email else Icons.Outlined.Phone,
+                    contentDescription = null,
+                    tint = EyecareColors.current.accentText,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            if (contact?.isPrimary == true) {
+                Text(
+                    text = "Primary",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = EyecareColors.current.accentText,
+                )
+            } else if (contact?.verifiedAt == null && contact != null) {
+                Text(
+                    text = "Pending",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.End) {
+            if (contact == null && accountValue.isNullOrBlank()) {
+                TextButton(
+                    onClick = { onAddContact(type) },
+                    enabled = actionsEnabled,
+                ) { Text("Add $label") }
+            }
+            if (contact != null && !contact.isPrimary && contact.verifiedAt != null) {
+                TextButton(
+                    onClick = { onMakePrimary(contact.id) },
+                    enabled = actionsEnabled,
+                ) { Text("Make primary") }
+            }
+            if (contact != null && !contact.isPrimary) {
+                TextButton(
+                    onClick = { onRemoveContact(contact.id) },
+                    enabled = actionsEnabled,
+                ) {
+                    Text(
+                        text = "Remove",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

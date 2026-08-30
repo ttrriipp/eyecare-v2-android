@@ -232,6 +232,7 @@ class AccountSecurityViewModel @Inject constructor(
                     latestAccount = updatedAccount
                     _state.value = AccountSecurityState.Overview(
                         account = updatedAccount,
+                        contacts = latestContacts,
                     )
                 }
                 .onFailure { error ->
@@ -245,6 +246,7 @@ class AccountSecurityViewModel @Inject constructor(
                     if (fieldErrors.isNotEmpty() || hasFormError) {
                         _state.value = AccountSecurityState.Overview(
                             account = latestAccount,
+                            contacts = latestContacts,
                             isEditingAccount = true,
                             editFirstName = draft.firstName,
                             editMiddleName = draft.middleName,
@@ -260,6 +262,7 @@ class AccountSecurityViewModel @Inject constructor(
                     } else {
                         _state.value = AccountSecurityState.Overview(
                             account = latestAccount,
+                            contacts = latestContacts,
                             isEditingAccount = true,
                             editFirstName = draft.firstName,
                             editMiddleName = draft.middleName,
@@ -273,6 +276,10 @@ class AccountSecurityViewModel @Inject constructor(
     }
 
     fun startAddContact(contactType: ContactType = ContactType.EMAIL) {
+        val current = _state.value as? AccountSecurityState.Overview
+        if (current?.isEditingAccount == true || current?.isSavingAccount == true || current?.isRequestingStepUp == true) {
+            return
+        }
         _state.value = AccountSecurityState.EnterNewContact(contactType = contactType)
     }
 
@@ -303,7 +310,9 @@ class AccountSecurityViewModel @Inject constructor(
     fun startStepUp(action: StepUpAction) {
         val currentState = _state.value
         if (currentState is AccountSecurityState.Overview &&
-            (currentState.isSavingAccount || currentState.isRequestingStepUp)
+            (currentState.isSavingAccount ||
+                currentState.isRequestingStepUp ||
+                (currentState.isEditingAccount && action !is StepUpAction.UpdateProfile))
         ) {
             return
         }
@@ -350,6 +359,7 @@ class AccountSecurityViewModel @Inject constructor(
                         else -> {
                             _state.value = AccountSecurityState.Overview(
                                 account = latestAccount,
+                                contacts = latestContacts,
                                 error = error.message ?: "Failed to send code",
                             )
                         }
@@ -421,7 +431,10 @@ class AccountSecurityViewModel @Inject constructor(
 
         viewModelScope.launch {
             accountRepository.verifyContactOtp(current.challengeId, current.code)
-                .onSuccess {
+                .onSuccess { verifiedContact ->
+                    latestContacts = latestContacts
+                        .filterNot { it.id == verifiedContact.id || it.type == verifiedContact.type }
+                        .plus(verifiedContact)
                     _state.value = AccountSecurityState.Result(
                         message = "Contact added successfully",
                         account = latestAccount,
@@ -520,6 +533,7 @@ class AccountSecurityViewModel @Inject constructor(
             is StepUpAction.UpdateProfile -> {
                 _state.value = AccountSecurityState.Overview(
                     account = latestAccount,
+                    contacts = latestContacts,
                     isEditingAccount = true,
                     editFirstName = action.draft.firstName,
                     editMiddleName = action.draft.middleName,
@@ -549,6 +563,7 @@ class AccountSecurityViewModel @Inject constructor(
                         .onFailure { error ->
                             _state.value = AccountSecurityState.Overview(
                                 account = latestAccount,
+                                contacts = latestContacts,
                                 error = error.message ?: "Failed to send code",
                             )
                         }
@@ -557,7 +572,8 @@ class AccountSecurityViewModel @Inject constructor(
             is StepUpAction.MakePrimary -> {
                 viewModelScope.launch {
                     accountRepository.makeContactPrimary(stepUpToken, action.contactId)
-                        .onSuccess {
+                        .onSuccess { contacts ->
+                            latestContacts = contacts
                             _state.value = AccountSecurityState.Result(
                                 message = "Primary contact updated",
                                 account = latestAccount,
@@ -567,6 +583,7 @@ class AccountSecurityViewModel @Inject constructor(
                         .onFailure { error ->
                             _state.value = AccountSecurityState.Overview(
                                 account = latestAccount,
+                                contacts = latestContacts,
                                 error = error.message ?: "Failed to update",
                             )
                         }
@@ -576,6 +593,7 @@ class AccountSecurityViewModel @Inject constructor(
                 viewModelScope.launch {
                     accountRepository.removeContact(stepUpToken, action.contactId)
                         .onSuccess {
+                            latestContacts = latestContacts.filterNot { it.id == action.contactId }
                             _state.value = AccountSecurityState.Result(
                                 message = "Contact removed",
                                 account = latestAccount,
@@ -585,6 +603,7 @@ class AccountSecurityViewModel @Inject constructor(
                         .onFailure { error ->
                             _state.value = AccountSecurityState.Overview(
                                 account = latestAccount,
+                                contacts = latestContacts,
                                 error = error.message ?: "Failed to remove",
                             )
                         }

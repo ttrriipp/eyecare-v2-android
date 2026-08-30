@@ -111,6 +111,67 @@ class AccountSecurityViewModelTest {
     }
 
     @Test
+    fun `contact step-up failure keeps loaded contacts visible`() {
+        coEvery { accountRepo.requestStepUpOtp() } returns Result.failure(Exception("Verification unavailable"))
+
+        vm.loadAccount()
+        vm.startStepUp(StepUpAction.MakePrimary(contactId = 2))
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertEquals(fakeContacts, state.contacts)
+        assertEquals("Verification unavailable", state.error)
+    }
+
+    @Test
+    fun `verified contact remains visible when the follow-up refresh fails`() {
+        val verifiedContact = AccountContact(
+            id = 3,
+            type = ContactType.EMAIL,
+            maskedValue = "n***@example.com",
+            isPrimary = false,
+            verifiedAt = "2026-08-02T10:00:00+08:00",
+        )
+        coEvery { accountRepo.getContacts() } returnsMany listOf(
+            Result.success(fakeContacts),
+            Result.failure(Exception("Refresh unavailable")),
+        )
+        coEvery { accountRepo.requestStepUpOtp() } returns
+            Result.success(StepUpChallenge("step-up", "2026-08-01T10:15:00", ContactType.EMAIL, "a***@example.com"))
+        coEvery { accountRepo.verifyStepUpOtp("step-up", "123456") } returns
+            Result.success(StepUpProof("proof", 900))
+        coEvery { accountRepo.requestContactOtp("proof", "email", "new@example.com") } returns
+            Result.success(com.eyecare.app.domain.model.OtpChallenge("contact", "2026-08-01T10:30:00"))
+        coEvery { accountRepo.verifyContactOtp("contact", "654321") } returns Result.success(verifiedContact)
+
+        vm.loadAccount()
+        vm.startAddContact(ContactType.EMAIL)
+        vm.updateNewContactValue("new@example.com")
+        vm.submitNewContact()
+        vm.updateStepUpCode("123456")
+        vm.verifyStepUp()
+        vm.updateAddContactOtpCode("654321")
+        vm.verifyAddContactOtp()
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertEquals("Refresh unavailable", state.contactsError)
+        assertEquals(verifiedContact, state.contacts.first { it.type == ContactType.EMAIL })
+    }
+
+    @Test
+    fun `contact mutations are ignored while the account editor is active`() {
+        vm.loadAccount()
+        vm.startAccountEditing()
+
+        vm.startAddContact(ContactType.PHONE)
+        vm.startStepUp(StepUpAction.MakePrimary(contactId = 2))
+
+        val state = vm.state.value as AccountSecurityState.Overview
+        assertTrue(state.isEditingAccount)
+        assertEquals("Alex", state.editFirstName)
+        coVerify(exactly = 0) { accountRepo.requestStepUpOtp() }
+    }
+
+    @Test
     fun `loadAccount failure shows error`() {
         coEvery { authRepo.getMe() } returns Result.failure(Exception("Network error"))
         vm.loadAccount()
@@ -156,6 +217,7 @@ class AccountSecurityViewModelTest {
 
         val state = vm.state.value as AccountSecurityState.Overview
         assertEquals(updatedAccount, state.account)
+        assertEquals(fakeContacts, state.contacts)
         assertFalse(state.isEditingAccount)
         assertFalse(state.isSavingAccount)
     }

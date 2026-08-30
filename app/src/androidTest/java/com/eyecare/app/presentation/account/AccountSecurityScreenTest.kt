@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import com.eyecare.app.domain.model.AccountContact
+import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.ui.theme.EyecareTheme
@@ -21,11 +23,14 @@ class AccountSecurityScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun accountOverview_omitsContactManagementWhenPhoneIsOnlyContactMethod() {
+    fun accountOverview_showsMaskedContactMethodsAndPrimaryState() {
         composeRule.setContent {
             EyecareTheme {
                 AccountSecurityOverviewContent(
-                    state = AccountSecurityState.Overview(account = testAccount()),
+                    state = AccountSecurityState.Overview(
+                        account = testAccount(),
+                        contacts = testContacts(),
+                    ),
                     onBack = {},
                     onEdit = {},
                     onCancelEdit = {},
@@ -44,8 +49,145 @@ class AccountSecurityScreenTest {
         composeRule.onNodeWithText("Account details").assertIsDisplayed()
         composeRule.onNodeWithText("Account & Security").assertDoesNotExist()
         composeRule.onNodeWithText("Security").assertIsDisplayed()
-        composeRule.onNodeWithText("Contact methods").assertDoesNotExist()
-        composeRule.onNodeWithText("Add contact").assertDoesNotExist()
+        composeRule.onNodeWithText("Contact information").assertIsDisplayed()
+        composeRule.onNodeWithText("a***@example.com").assertIsDisplayed()
+        composeRule.onNodeWithText("0917***4567").assertIsDisplayed()
+        composeRule.onNodeWithText("Primary").assertIsDisplayed()
+        composeRule.onNodeWithText("Pending").assertIsDisplayed()
+    }
+
+    @Test
+    fun accountOverview_contactErrorOffersRetry() {
+        var retryClicked = false
+
+        composeRule.setContent {
+            EyecareTheme {
+                AccountSecurityOverviewContent(
+                    state = AccountSecurityState.Overview(
+                        account = testAccount(),
+                        contactsError = "Contacts unavailable",
+                    ),
+                    onBack = {},
+                    onEdit = {},
+                    onCancelEdit = {},
+                    onFirstNameChange = {},
+                    onMiddleNameChange = {},
+                    onLastNameChange = {},
+                    onDateOfBirthChange = {},
+                    onSave = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onSignOutAll = {},
+                    onRetryContacts = { retryClicked = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Contact information is unavailable.").assertIsDisplayed()
+        composeRule.onNodeWithText("Retry").performClick()
+        composeRule.runOnIdle { check(retryClicked) }
+    }
+
+    @Test
+    fun accountOverview_missingContactOffersAddAction() {
+        var selectedType: ContactType? = null
+
+        composeRule.setContent {
+            EyecareTheme {
+                AccountSecurityOverviewContent(
+                    state = AccountSecurityState.Overview(
+                        account = testAccount().copy(email = null),
+                        contacts = listOf(testContacts().last()),
+                    ),
+                    onBack = {},
+                    onEdit = {},
+                    onCancelEdit = {},
+                    onFirstNameChange = {},
+                    onMiddleNameChange = {},
+                    onLastNameChange = {},
+                    onDateOfBirthChange = {},
+                    onSave = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onSignOutAll = {},
+                    onAddContact = { selectedType = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Add email").performClick()
+        composeRule.runOnIdle { check(selectedType == ContactType.EMAIL) }
+    }
+
+    @Test
+    fun accountOverview_verifiedSecondaryContactOffersPrimaryAndRemoveActions() {
+        var madePrimaryId: Int? = null
+        var removedId: Int? = null
+
+        composeRule.setContent {
+            EyecareTheme {
+                AccountSecurityOverviewContent(
+                    state = AccountSecurityState.Overview(
+                        account = testAccount(),
+                        contacts = listOf(
+                            testContacts().first(),
+                            testContacts().last().copy(verifiedAt = "2026-08-01T10:00:00+08:00"),
+                        ),
+                    ),
+                    onBack = {},
+                    onEdit = {},
+                    onCancelEdit = {},
+                    onFirstNameChange = {},
+                    onMiddleNameChange = {},
+                    onLastNameChange = {},
+                    onDateOfBirthChange = {},
+                    onSave = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onSignOutAll = {},
+                    onMakePrimary = { madePrimaryId = it },
+                    onRemoveContact = { removedId = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Make primary").performClick()
+        composeRule.onNodeWithText("Remove").performClick()
+        composeRule.runOnIdle {
+            check(madePrimaryId == 2)
+            check(removedId == 2)
+        }
+    }
+
+    @Test
+    fun accountOverview_editingDisablesContactActions() {
+        composeRule.setContent {
+            EyecareTheme {
+                AccountSecurityOverviewContent(
+                    state = AccountSecurityState.Overview(
+                        account = testAccount().copy(email = null),
+                        contacts = listOf(testContacts().last()),
+                        isEditingAccount = true,
+                        editFirstName = "Alex",
+                        editLastName = "Rivera",
+                        editDateOfBirth = "1990-05-15",
+                    ),
+                    onBack = {},
+                    onEdit = {},
+                    onCancelEdit = {},
+                    onFirstNameChange = {},
+                    onMiddleNameChange = {},
+                    onLastNameChange = {},
+                    onDateOfBirthChange = {},
+                    onSave = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onSignOutAll = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Add email").assertIsNotEnabled()
     }
 
     @Test
@@ -230,5 +372,22 @@ class AccountSecurityScreenTest {
         privacyPolicyVersion = null,
         privacyAcceptedAt = null,
         linkedPatient = null,
+    )
+
+    private fun testContacts() = listOf(
+        AccountContact(
+            id = 1,
+            type = ContactType.EMAIL,
+            maskedValue = "a***@example.com",
+            isPrimary = true,
+            verifiedAt = "2026-08-01T10:00:00+08:00",
+        ),
+        AccountContact(
+            id = 2,
+            type = ContactType.PHONE,
+            maskedValue = "0917***4567",
+            isPrimary = false,
+            verifiedAt = null,
+        ),
     )
 }
