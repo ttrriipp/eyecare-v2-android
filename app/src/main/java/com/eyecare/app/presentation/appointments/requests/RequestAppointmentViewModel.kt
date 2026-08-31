@@ -31,7 +31,7 @@ private val appointmentRequestZone = ZoneId.of("Asia/Manila")
 private val appointmentRequestEmailPattern = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
 private const val maxIdentityFieldLength = 255
 private const val maxReferralLength = 255
-private const val maxReasonLength = 1000
+private const val maxReasonLength = maxReasonForVisitLength
 internal const val maxAlternatives = 2
 
 /**
@@ -97,6 +97,7 @@ sealed interface RequestStep {
         val primarySlot: AvailabilitySlot? = null,
         val alternativeSlots: List<AvailabilitySlot> = emptyList(),
         val reasonDraft: String = "",
+        val reasonChoice: VisitReasonChoice = VisitReasonChoice.None,
         val referringSourceDraft: String? = null,
         val identityDraft: AppointmentRequestIdentity? = null,
     ) : RequestStep {
@@ -110,13 +111,16 @@ sealed interface RequestStep {
         val primarySlot: AvailabilitySlot,
         val alternativeSlots: List<AvailabilitySlot>,
         val reason: String = "",
+        val reasonChoice: VisitReasonChoice = VisitReasonChoice.None,
         val reasonError: String? = null,
+        val reasonErrorCode: VisitReasonCompositionError? = null,
         val referringSource: String = "",
         val referringSourceError: String? = null,
         val identityDraft: AppointmentRequestIdentity? = null,
     ) : RequestStep {
         override val hasUnsavedInput: Boolean
-            get() = reason.isNotBlank() || referringSource.isNotBlank()
+            get() = reasonChoice != VisitReasonChoice.None ||
+                reason.isNotBlank() || referringSource.isNotBlank()
     }
 
     data class Identity(
@@ -254,6 +258,23 @@ class RequestAppointmentViewModel @Inject constructor(
 
     fun selectType(type: AppointmentType) {
         val current = _step.value as? RequestStep.Type ?: return
+        val saved = draft
+        val previousType = current.selectedType
+        val changingType = previousType != null && previousType.id != type.id
+        val restoringDifferentType = previousType == null &&
+            saved.appointmentTypeId != null && saved.appointmentTypeId != type.id
+        if (changingType || restoringDifferentType) {
+            val preservedReason = previousType?.let { preserveReasonForType(it, saved) }
+                ?: saved.composedReason.orEmpty().ifBlank { saved.reason.trim() }
+            draft = saved.copy(
+                appointmentTypeId = type.id,
+                reason = preservedReason,
+                composedReason = preservedReason.ifBlank { null },
+                visitReasonPresetId = null,
+                visitReasonOtherSelected = type.visitReasonPresets.isNotEmpty() &&
+                    preservedReason.isNotBlank(),
+            )
+        }
         _step.value = current.copy(selectedType = type)
     }
 
@@ -261,7 +282,14 @@ class RequestAppointmentViewModel @Inject constructor(
         val current = _step.value as? RequestStep.Type ?: return
         val type = current.selectedType ?: return
         val saved = draft
-        draft = saved.copy(appointmentTypeId = type.id)
+        val reasonDraft = reconcileReasonDraft(type, saved)
+        draft = saved.copy(
+            appointmentTypeId = type.id,
+            reason = reasonDraft.input,
+            composedReason = reasonDraft.composed,
+            visitReasonPresetId = (reasonDraft.choice as? VisitReasonChoice.Preset)?.presetId,
+            visitReasonOtherSelected = reasonDraft.choice is VisitReasonChoice.Other,
+        )
         val today = LocalDate.now(appointmentRequestZone)
         val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toString()
         _step.value = RequestStep.Schedule(
@@ -269,7 +297,8 @@ class RequestAppointmentViewModel @Inject constructor(
             identityRequired = identityRequired,
             weekStart = weekStart,
             date = today.toString(),
-            reasonDraft = saved.reason,
+            reasonDraft = reasonDraft.input,
+            reasonChoice = reasonDraft.choice,
             referringSourceDraft = saved.referringSource,
             identityDraft = saved.toIdentityOrNull() ?: initialIdentity,
         )
@@ -447,6 +476,7 @@ class RequestAppointmentViewModel @Inject constructor(
             primarySlot = primarySlot,
             alternativeSlots = current.alternativeSlots,
             reason = current.reasonDraft,
+            reasonChoice = current.reasonChoice,
             referringSource = if (current.selectedType.requiresReferral) {
                 current.referringSourceDraft.orEmpty()
             } else {
@@ -458,6 +488,11 @@ class RequestAppointmentViewModel @Inject constructor(
 
     fun backToType() {
         val current = _step.value as? RequestStep.Schedule ?: return
+        saveReasonDraft(
+            selectedType = current.selectedType,
+            choice = current.reasonChoice,
+            details = current.reasonDraft,
+        )
         availabilityJob?.cancel()
         weekJob?.cancel()
         availabilityGeneration++
@@ -468,10 +503,41 @@ class RequestAppointmentViewModel @Inject constructor(
 
     // -------------------------------------------------------------- reason step
 
+    fun selectReasonChoice(choice: VisitReasonChoice) {
+        val current = _step.value as? RequestStep.Reason ?: return
+        val composition = composeReasonForVisit(
+            choice = choice,
+            presets = current.selectedType.visitReasonPresets,
+            details = current.reason,
+        )
+        draft = draft.copy(
+            visitReasonPresetId = (choice as? VisitReasonChoice.Preset)?.presetId,
+            visitReasonOtherSelected = choice is VisitReasonChoice.Other,
+            composedReason = (composition as? VisitReasonComposition.Valid)?.value,
+        )
+        _step.value = current.copy(
+            reasonChoice = choice,
+            reasonError = null,
+            reasonErrorCode = null,
+        )
+    }
+
     fun updateReason(reason: String) {
         val current = _step.value as? RequestStep.Reason ?: return
-        draft = draft.copy(reason = reason)
-        _step.value = current.copy(reason = reason, reasonError = null)
+        val composition = composeReasonForVisit(
+            choice = current.reasonChoice,
+            presets = current.selectedType.visitReasonPresets,
+            details = reason,
+        )
+        draft = draft.copy(
+            reason = reason,
+            composedReason = (composition as? VisitReasonComposition.Valid)?.value,
+        )
+        _step.value = current.copy(
+            reason = reason,
+            reasonError = null,
+            reasonErrorCode = null,
+        )
     }
 
     fun updateReferringSource(source: String) {
@@ -483,13 +549,14 @@ class RequestAppointmentViewModel @Inject constructor(
     fun confirmReason(initialIdentity: AppointmentRequestIdentity? = null) {
         val current = _step.value as? RequestStep.Reason ?: return
 
-        val reason = current.reason.trim()
-        val reasonError = when {
-            reason.isBlank() -> "Tell the clinic what you'd like to be seen for."
-            reason.length > maxReasonLength ->
-                "Please shorten this to $maxReasonLength characters or fewer."
-            else -> null
-        }
+        val composition = composeReasonForVisit(
+            choice = current.reasonChoice,
+            presets = current.selectedType.visitReasonPresets,
+            details = current.reason,
+        )
+        val reason = (composition as? VisitReasonComposition.Valid)?.value
+        val reasonErrorCode = (composition as? VisitReasonComposition.Invalid)?.error
+        val reasonError = reasonErrorCode?.toPatientMessage()
 
         val trimmedReferring = current.referringSource.trim()
         val referringSourceError = if (current.selectedType.requiresReferral) {
@@ -506,13 +573,21 @@ class RequestAppointmentViewModel @Inject constructor(
 
         if (reasonError != null || referringSourceError != null) {
             _step.value = current.copy(
-                reason = reason,
+                reason = current.reason.trim(),
                 reasonError = reasonError,
+                reasonErrorCode = reasonErrorCode,
                 referringSourceError = referringSourceError,
             )
             return
         }
 
+        checkNotNull(reason)
+        saveReasonDraft(
+            selectedType = current.selectedType,
+            choice = current.reasonChoice,
+            details = current.reason,
+            composedReason = reason,
+        )
         val referringSource = if (current.selectedType.requiresReferral) trimmedReferring else ""
         if (current.identityRequired) {
             val seed = current.identityDraft ?: initialIdentity
@@ -548,6 +623,11 @@ class RequestAppointmentViewModel @Inject constructor(
 
     fun backToSchedule() {
         val current = _step.value as? RequestStep.Reason ?: return
+        saveReasonDraft(
+            selectedType = current.selectedType,
+            choice = current.reasonChoice,
+            details = current.reason,
+        )
         restoreSchedule(
             selectedType = current.selectedType,
             identityRequired = current.identityRequired,
@@ -555,6 +635,7 @@ class RequestAppointmentViewModel @Inject constructor(
             primarySlot = current.primarySlot,
             alternativeSlots = current.alternativeSlots,
             reasonDraft = current.reason,
+            reasonChoice = current.reasonChoice,
             referringSourceDraft = current.referringSource.ifBlank { null },
             identityDraft = current.identityDraft,
         )
@@ -643,13 +724,15 @@ class RequestAppointmentViewModel @Inject constructor(
 
     fun backToReason() {
         val current = _step.value as? RequestStep.Identity ?: return
+        val reasonDraft = reconcileReasonDraft(current.selectedType, draft)
         _step.value = RequestStep.Reason(
             selectedType = current.selectedType,
             identityRequired = true,
             date = current.date,
             primarySlot = current.primarySlot,
             alternativeSlots = current.alternativeSlots,
-            reason = current.reason,
+            reason = reasonDraft.input,
+            reasonChoice = reasonDraft.choice,
             referringSource = current.referringSource,
             identityDraft = current.toIdentityDraft(),
         )
@@ -736,13 +819,15 @@ class RequestAppointmentViewModel @Inject constructor(
                 address = identity.address.orEmpty(),
             )
         } else {
+            val reasonDraft = reconcileReasonDraft(current.selectedType, draft)
             _step.value = RequestStep.Reason(
                 selectedType = current.selectedType,
                 identityRequired = current.identityRequired,
                 date = current.date,
                 primarySlot = current.primarySlot,
                 alternativeSlots = current.alternativeSlots,
-                reason = current.reason,
+                reason = reasonDraft.input,
+                reasonChoice = reasonDraft.choice,
                 referringSource = current.referringSource.orEmpty(),
                 identityDraft = identity,
             )
@@ -753,6 +838,7 @@ class RequestAppointmentViewModel @Inject constructor(
     fun editFromReview(target: RequestStepId) {
         val current = _step.value as? RequestStep.Review ?: return
         if (current.isSubmitting) return
+        val reasonDraft = reconcileReasonDraft(current.selectedType, draft)
         when (target) {
             RequestStepId.TYPE -> {
                 availabilityJob?.cancel()
@@ -765,9 +851,10 @@ class RequestAppointmentViewModel @Inject constructor(
                 date = current.date,
                 primarySlot = current.primarySlot,
                 alternativeSlots = current.alternativeSlots,
-                reasonDraft = current.reason,
+                reasonDraft = reasonDraft.input,
                 referringSourceDraft = current.referringSource,
                 identityDraft = current.identity,
+                reasonChoice = reasonDraft.choice,
             )
             RequestStepId.REASON -> _step.value = RequestStep.Reason(
                 selectedType = current.selectedType,
@@ -775,7 +862,8 @@ class RequestAppointmentViewModel @Inject constructor(
                 date = current.date,
                 primarySlot = current.primarySlot,
                 alternativeSlots = current.alternativeSlots,
-                reason = current.reason,
+                reason = reasonDraft.input,
+                reasonChoice = reasonDraft.choice,
                 referringSource = current.referringSource.orEmpty(),
                 identityDraft = current.identity,
             )
@@ -843,13 +931,15 @@ class RequestAppointmentViewModel @Inject constructor(
             return
         }
         if (current.referralValidationFailure) {
+            val reasonDraft = reconcileReasonDraft(current.selectedType, draft)
             _step.value = RequestStep.Reason(
                 selectedType = current.selectedType,
                 identityRequired = current.identityRequired,
                 date = current.date,
                 primarySlot = current.primarySlot,
                 alternativeSlots = current.alternativeSlots,
-                reason = current.reason,
+                reason = reasonDraft.input,
+                reasonChoice = reasonDraft.choice,
                 referringSource = current.referringSource.orEmpty(),
                 referringSourceError = "The clinic couldn't verify this referral. Please check it.",
                 identityDraft = current.identity,
@@ -873,9 +963,10 @@ class RequestAppointmentViewModel @Inject constructor(
                 date = current.date,
                 primarySlot = null,
                 alternativeSlots = emptyList(),
-                reasonDraft = current.reason,
+                reasonDraft = reconcileReasonDraft(current.selectedType, draft).input,
                 referringSourceDraft = current.referringSource,
                 identityDraft = current.identity,
+                reasonChoice = reconcileReasonDraft(current.selectedType, draft).choice,
             )
             else -> _step.value = RequestStep.Review(
                 selectedType = current.selectedType,
@@ -907,6 +998,115 @@ class RequestAppointmentViewModel @Inject constructor(
 
     // ------------------------------------------------------------------ helpers
 
+    private data class ReconciledReasonDraft(
+        val choice: VisitReasonChoice,
+        val input: String,
+        val composed: String?,
+    )
+
+    private fun VisitReasonCompositionError.toPatientMessage(): String = when (this) {
+        VisitReasonCompositionError.CHOICE_REQUIRED ->
+            "Choose a common reason or Other."
+        VisitReasonCompositionError.PRESET_UNAVAILABLE ->
+            "That common reason is no longer available. Choose Other and describe your reason."
+        VisitReasonCompositionError.REASON_REQUIRED ->
+            "Tell the clinic what you'd like to be seen for."
+        VisitReasonCompositionError.TOO_LONG ->
+            "Please shorten this to $maxReasonLength characters or fewer."
+    }
+
+    private fun reconcileReasonDraft(
+        type: AppointmentType,
+        saved: RequestDraft,
+    ): ReconciledReasonDraft {
+        val savedChoice = when {
+            saved.visitReasonPresetId != null ->
+                VisitReasonChoice.Preset(saved.visitReasonPresetId)
+            saved.visitReasonOtherSelected -> VisitReasonChoice.Other
+            type.visitReasonPresets.isNotEmpty() && saved.reason.isNotBlank() ->
+                VisitReasonChoice.Other
+            else -> VisitReasonChoice.None
+        }
+
+        if (savedChoice is VisitReasonChoice.Preset) {
+            val composition = composeReasonForVisit(
+                choice = savedChoice,
+                presets = type.visitReasonPresets,
+                details = saved.reason,
+            )
+            if (composition is VisitReasonComposition.Valid) {
+                return ReconciledReasonDraft(
+                    choice = savedChoice,
+                    input = saved.reason,
+                    composed = composition.value,
+                )
+            }
+            val fallback = saved.composedReason.orEmpty().ifBlank { saved.reason.trim() }
+            return ReconciledReasonDraft(
+                choice = if (type.visitReasonPresets.isEmpty()) {
+                    VisitReasonChoice.None
+                } else {
+                    VisitReasonChoice.Other
+                },
+                input = fallback,
+                composed = fallback.ifBlank { null },
+            )
+        }
+
+        val choice = if (savedChoice is VisitReasonChoice.Other &&
+            type.visitReasonPresets.isNotEmpty()
+        ) {
+            VisitReasonChoice.Other
+        } else {
+            VisitReasonChoice.None
+        }
+        val composition = composeReasonForVisit(
+            choice = choice,
+            presets = type.visitReasonPresets,
+            details = saved.reason,
+        )
+        return ReconciledReasonDraft(
+            choice = choice,
+            input = saved.reason,
+            composed = (composition as? VisitReasonComposition.Valid)?.value
+                ?: saved.composedReason?.ifBlank { null },
+        )
+    }
+
+    private fun preserveReasonForType(type: AppointmentType, saved: RequestDraft): String {
+        val choice = when {
+            saved.visitReasonPresetId != null ->
+                VisitReasonChoice.Preset(saved.visitReasonPresetId)
+            saved.visitReasonOtherSelected -> VisitReasonChoice.Other
+            else -> VisitReasonChoice.None
+        }
+        return (composeReasonForVisit(choice, type.visitReasonPresets, saved.reason)
+            as? VisitReasonComposition.Valid)
+            ?.value
+            ?: saved.composedReason.orEmpty().ifBlank { saved.reason.trim() }
+    }
+
+    private fun saveReasonDraft(
+        selectedType: AppointmentType,
+        choice: VisitReasonChoice,
+        details: String,
+        composedReason: String? = null,
+    ) {
+        val composition = composeReasonForVisit(
+            choice = choice,
+            presets = selectedType.visitReasonPresets,
+            details = details,
+        )
+        draft = draft.copy(
+            appointmentTypeId = selectedType.id,
+            reason = details,
+            composedReason = composedReason
+                ?: (composition as? VisitReasonComposition.Valid)?.value,
+            visitReasonPresetId = (choice as? VisitReasonChoice.Preset)?.presetId,
+            visitReasonOtherSelected = choice is VisitReasonChoice.Other,
+        )
+    }
+
     private fun restoreSchedule(
         selectedType: AppointmentType,
         identityRequired: Boolean,
@@ -916,6 +1116,7 @@ class RequestAppointmentViewModel @Inject constructor(
         reasonDraft: String,
         referringSourceDraft: String?,
         identityDraft: AppointmentRequestIdentity?,
+        reasonChoice: VisitReasonChoice = reconcileReasonDraft(selectedType, draft).choice,
     ) {
         val weekStart = (date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
             ?: LocalDate.now(appointmentRequestZone))
@@ -929,6 +1130,7 @@ class RequestAppointmentViewModel @Inject constructor(
             primarySlot = primarySlot,
             alternativeSlots = alternativeSlots,
             reasonDraft = reasonDraft,
+            reasonChoice = reasonChoice,
             referringSourceDraft = referringSourceDraft,
             identityDraft = identityDraft,
         )

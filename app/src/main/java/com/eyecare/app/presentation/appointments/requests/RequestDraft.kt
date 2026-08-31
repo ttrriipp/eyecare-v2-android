@@ -13,6 +13,9 @@ import java.io.Serializable
 data class RequestDraft(
     val appointmentTypeId: Int? = null,
     val reason: String = "",
+    val composedReason: String? = null,
+    val visitReasonPresetId: Int? = null,
+    val visitReasonOtherSelected: Boolean = false,
     val referringSource: String? = null,
     val phone: String? = null,
     val email: String? = null,

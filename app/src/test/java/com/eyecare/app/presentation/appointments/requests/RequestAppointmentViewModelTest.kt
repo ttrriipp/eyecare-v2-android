@@ -49,6 +49,19 @@ class RequestAppointmentViewModelTest {
         durationMinutes = 45, requiresReferral = true,
     )
 
+    private val presetType = normalType.copy(
+        visitReasonPresets = listOf(
+            com.eyecare.app.domain.model.VisitReasonPreset(
+                id = 21,
+                label = "Blurred or reduced vision",
+            ),
+            com.eyecare.app.domain.model.VisitReasonPreset(
+                id = 22,
+                label = "Eye pain or discomfort",
+            ),
+        ),
+    )
+
     private val fakeSlot1 = AvailabilitySlot(
         startsAt = "2026-08-10T09:00:00+08:00",
         endsAt = "2026-08-10T09:45:00+08:00",
@@ -99,7 +112,8 @@ class RequestAppointmentViewModelTest {
         createdAt = "2026-08-09T10:00:00+08:00", appointmentId = null,
     )
 
-    private fun newViewModel() = RequestAppointmentViewModel(repo, SavedStateHandle())
+    private fun newViewModel(savedStateHandle: SavedStateHandle = SavedStateHandle()) =
+        RequestAppointmentViewModel(repo, savedStateHandle)
 
     @BeforeEach
     fun setup() {
@@ -515,6 +529,146 @@ class RequestAppointmentViewModelTest {
             "Tell the clinic what you'd like to be seen for.",
             (vm.step.value as RequestStep.Reason).reasonError,
         )
+    }
+
+    @Test
+    fun `preset selection with optional details composes the final reason`() {
+        enterReason(type = presetType)
+        vm.selectReasonChoice(VisitReasonChoice.Preset(presetId = 21))
+        vm.updateReason("mostly in my left eye")
+
+        vm.confirmReason()
+
+        assertEquals(
+            "Blurred or reduced vision: mostly in my left eye",
+            (vm.step.value as RequestStep.Review).reason,
+        )
+    }
+
+    @Test
+    fun `preset selection without details is a valid reason`() {
+        enterReason(type = presetType)
+        vm.selectReasonChoice(VisitReasonChoice.Preset(presetId = 22))
+
+        vm.confirmReason()
+
+        assertEquals("Eye pain or discomfort", (vm.step.value as RequestStep.Review).reason)
+    }
+
+    @Test
+    fun `preset-only selection reports unsaved input`() {
+        enterReason(type = presetType)
+        vm.selectReasonChoice(VisitReasonChoice.Preset(presetId = 22))
+
+        assertTrue((vm.step.value as RequestStep.Reason).hasUnsavedInput)
+    }
+
+    @Test
+    fun `preset type requires an explicit choice`() {
+        enterReason(type = presetType)
+        vm.updateReason("typed without choosing a category")
+
+        vm.confirmReason()
+
+        val reason = vm.step.value as RequestStep.Reason
+        assertEquals(VisitReasonCompositionError.CHOICE_REQUIRED, reason.reasonErrorCode)
+        assertEquals("typed without choosing a category", reason.reason)
+    }
+
+    @Test
+    fun `other requires a custom description`() {
+        enterReason(type = presetType)
+        vm.selectReasonChoice(VisitReasonChoice.Other)
+
+        vm.confirmReason()
+
+        val reason = vm.step.value as RequestStep.Reason
+        assertEquals(VisitReasonCompositionError.REASON_REQUIRED, reason.reasonErrorCode)
+    }
+
+    @Test
+    fun `reason selection and details survive returning to schedule`() {
+        enterReason(type = presetType)
+        vm.selectReasonChoice(VisitReasonChoice.Preset(presetId = 21))
+        vm.updateReason("for two weeks")
+
+        vm.backToSchedule()
+
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertEquals(VisitReasonChoice.Preset(presetId = 21), schedule.reasonChoice)
+        assertEquals("for two weeks", schedule.reasonDraft)
+    }
+
+    @Test
+    fun `reason selection and details survive returning from linked review`() {
+        enterReason(type = presetType)
+        vm.selectReasonChoice(VisitReasonChoice.Preset(presetId = 21))
+        vm.updateReason("for two weeks")
+        vm.confirmReason()
+
+        vm.backFromReview()
+
+        val reason = vm.step.value as RequestStep.Reason
+        assertEquals(VisitReasonChoice.Preset(presetId = 21), reason.reasonChoice)
+        assertEquals("for two weeks", reason.reason)
+    }
+
+    @Test
+    fun `changing appointment type clears stale preset identity but preserves final reason`() {
+        enterReason(type = presetType)
+        vm.selectReasonChoice(VisitReasonChoice.Preset(presetId = 21))
+        vm.updateReason("for two weeks")
+        vm.backToSchedule()
+        vm.backToType()
+
+        vm.selectType(referralType)
+        vm.confirmType(identityRequired = false)
+
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertEquals(VisitReasonChoice.None, schedule.reasonChoice)
+        assertEquals("Blurred or reduced vision: for two weeks", schedule.reasonDraft)
+    }
+
+    @Test
+    fun `legacy saved reason becomes Other when restored for a preset type`() {
+        val saved = SavedStateHandle(
+            mapOf(
+                "appointment_request_draft" to RequestDraft(
+                    appointmentTypeId = presetType.id,
+                    reason = "Legacy custom description",
+                ),
+            ),
+        )
+        vm = newViewModel(saved)
+
+        vm.selectType(presetType)
+        vm.confirmType(identityRequired = false)
+
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertEquals(VisitReasonChoice.Other, schedule.reasonChoice)
+        assertEquals("Legacy custom description", schedule.reasonDraft)
+    }
+
+    @Test
+    fun `deactivated preset restores its last composed reason as custom text`() {
+        val saved = SavedStateHandle(
+            mapOf(
+                "appointment_request_draft" to RequestDraft(
+                    appointmentTypeId = normalType.id,
+                    reason = "for two weeks",
+                    composedReason = "Blurred or reduced vision: for two weeks",
+                    visitReasonPresetId = 21,
+                ),
+            ),
+        )
+        vm = newViewModel(saved)
+
+        vm.selectType(normalType)
+        vm.confirmType(identityRequired = false)
+
+        val schedule = vm.step.value as RequestStep.Schedule
+        assertEquals(VisitReasonChoice.None, schedule.reasonChoice)
+        assertEquals("Blurred or reduced vision: for two weeks", schedule.reasonDraft)
     }
 
     @Test
