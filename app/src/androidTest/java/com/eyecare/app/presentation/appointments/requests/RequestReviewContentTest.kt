@@ -37,6 +37,17 @@ class RequestReviewContentTest {
     }
 
     @Test
+    fun reviewShowsTheExactComposedPresetReason() {
+        setReview(state = reviewState().copy(
+            reason = "Blurred or reduced vision: mostly in my left eye for two weeks",
+        ))
+
+        composeRule
+            .onNodeWithText("Blurred or reduced vision: mostly in my left eye for two weeks")
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun noBackups_saysSoRatherThanShowingAnEmptySection() {
         setReview(state = reviewState().copy(alternativeSlots = emptyList()))
 
