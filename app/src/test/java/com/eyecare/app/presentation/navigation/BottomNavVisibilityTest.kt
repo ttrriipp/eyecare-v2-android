@@ -21,6 +21,15 @@ class BottomNavVisibilityTest {
     }
 
     @Test
+    fun `appointment request wizard hides bottom navigation`() {
+        assertFalse(
+            shouldShowBottomNav(
+                "com.eyecare.app.presentation.navigation.RequestAppointment",
+            ),
+        )
+    }
+
+    @Test
     fun `main tabs keep bottom navigation visible`() {
         assertTrue(shouldShowBottomNav("com.eyecare.app.presentation.navigation.Home"))
     }

@@ -77,6 +77,7 @@ internal fun shouldShowBottomNav(route: String): Boolean =
         !route.contains("CreateAccount") && !route.contains("RecoverPassword") &&
         !route.contains("LimitedAccount") && !route.contains("AccountSecurity") &&
         !route.contains("Chat") && !route.contains("Notifications") && !route.contains("AppointmentDetail") &&
+        !route.contains("RequestAppointment") &&
         !route.contains("AppointmentRequest") &&
         !route.contains("BookAppointment") &&
         !route.contains("ArTryOn") && !route.contains("FrameDetail") &&
