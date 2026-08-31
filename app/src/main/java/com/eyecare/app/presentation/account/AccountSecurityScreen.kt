@@ -123,7 +123,6 @@ fun AccountSecurityScreen(
             onSignOut = viewModel::logout,
             onSignOutAll = viewModel::logoutAll,
             onAddEmail = viewModel::startAddEmail,
-            onMakePrimary = { contactId -> viewModel.startStepUp(StepUpAction.MakePrimary(contactId)) },
             onRemoveContact = { contactId -> viewModel.startStepUp(StepUpAction.RemoveContact(contactId)) },
             onRetryContacts = viewModel::loadAccount,
         )
@@ -152,7 +151,6 @@ fun AccountSecurityScreen(
                 onSignOut = viewModel::logout,
                 onSignOutAll = viewModel::logoutAll,
                 onAddEmail = viewModel::startAddEmail,
-                onMakePrimary = { contactId -> viewModel.startStepUp(StepUpAction.MakePrimary(contactId)) },
                 onRemoveContact = { contactId -> viewModel.startStepUp(StepUpAction.RemoveContact(contactId)) },
                 onRetryContacts = viewModel::loadAccount,
             )
@@ -178,7 +176,6 @@ fun AccountSecurityOverviewContent(
     onSignOut: () -> Unit,
     onSignOutAll: () -> Unit,
     onAddEmail: () -> Unit = {},
-    onMakePrimary: (Int) -> Unit = {},
     onRemoveContact: (Int) -> Unit = {},
     onRetryContacts: () -> Unit = {},
 ) {
@@ -248,7 +245,6 @@ fun AccountSecurityOverviewContent(
                     onDateOfBirthChange = onDateOfBirthChange,
                     onSave = onSave,
                     onAddEmail = onAddEmail,
-                    onMakePrimary = onMakePrimary,
                     onRemoveContact = onRemoveContact,
                     onRetryContacts = onRetryContacts,
                 )
@@ -368,7 +364,6 @@ fun AccountDetailsContent(
     onDateOfBirthChange: (String) -> Unit,
     onSave: () -> Unit,
     onAddEmail: () -> Unit = {},
-    onMakePrimary: (Int) -> Unit = {},
     onRemoveContact: (Int) -> Unit = {},
     onRetryContacts: () -> Unit = {},
 ) {
@@ -487,7 +482,6 @@ fun AccountDetailsContent(
                     contactsError = contactsError,
                     actionsEnabled = !isEditing && !isBusy,
                     onAddEmail = onAddEmail,
-                    onMakePrimary = onMakePrimary,
                     onRemoveContact = onRemoveContact,
                     onRetryContacts = onRetryContacts,
                 )
@@ -620,7 +614,6 @@ private fun ContactInformationSection(
     contactsError: String?,
     actionsEnabled: Boolean,
     onAddEmail: () -> Unit,
-    onMakePrimary: (Int) -> Unit,
     onRemoveContact: (Int) -> Unit,
     onRetryContacts: () -> Unit,
 ) {
@@ -657,7 +650,6 @@ private fun ContactInformationSection(
             type = ContactType.EMAIL,
             actionsEnabled = actionsEnabled,
             onAddEmail = onAddEmail,
-            onMakePrimary = onMakePrimary,
             onRemoveContact = onRemoveContact,
         )
         ContactDetailRow(
@@ -666,7 +658,6 @@ private fun ContactInformationSection(
             type = ContactType.PHONE,
             actionsEnabled = actionsEnabled,
             onAddEmail = onAddEmail,
-            onMakePrimary = onMakePrimary,
             onRemoveContact = onRemoveContact,
         )
     }
@@ -679,14 +670,14 @@ private fun ContactDetailRow(
     type: ContactType,
     actionsEnabled: Boolean,
     onAddEmail: () -> Unit,
-    onMakePrimary: (Int) -> Unit,
     onRemoveContact: (Int) -> Unit,
 ) {
     val label = if (type == ContactType.EMAIL) "Email" else "Phone"
     val accountValue = if (type == ContactType.EMAIL) account.email else account.phone
     val value = when (type) {
-        ContactType.EMAIL -> contact?.maskedValue?.takeIf { it.isNotBlank() }
-            ?: displayAccountValue(accountValue)
+        ContactType.EMAIL -> accountValue?.takeIf { it.isNotBlank() }
+            ?: contact?.maskedValue?.takeIf { it.isNotBlank() }
+            ?: "Not provided"
         ContactType.PHONE -> formatPhilippinePhone(
             accountValue?.takeIf { it.isNotBlank() } ?: contact?.maskedValue,
         )
@@ -718,13 +709,7 @@ private fun ContactDetailRow(
                 text = value,
                 style = MaterialTheme.typography.bodyLarge,
             )
-            if (contact?.isPrimary == true) {
-                Text(
-                    text = "Primary",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = EyecareColors.current.accentText,
-                )
-            } else if (contact?.verifiedAt == null && contact != null) {
+            if (contact?.verifiedAt == null && contact != null) {
                 Text(
                     text = "Pending",
                     style = MaterialTheme.typography.labelSmall,
@@ -740,13 +725,7 @@ private fun ContactDetailRow(
                     enabled = actionsEnabled,
                 ) { Text("Add email") }
             }
-            if (contact != null && !contact.isPrimary && contact.verifiedAt != null) {
-                TextButton(
-                    onClick = { onMakePrimary(contact.id) },
-                    enabled = actionsEnabled,
-                ) { Text("Make primary") }
-            }
-            if (contact != null && !contact.isPrimary) {
+            if (type == ContactType.EMAIL && contact != null) {
                 TextButton(
                     onClick = { onRemoveContact(contact.id) },
                     enabled = actionsEnabled,

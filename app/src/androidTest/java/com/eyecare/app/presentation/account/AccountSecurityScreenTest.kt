@@ -23,7 +23,7 @@ class AccountSecurityScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun accountOverview_showsMaskedContactMethodsAndPrimaryState() {
+    fun accountOverview_showsFullEmailAndFixedPhoneWithoutPrimaryControls() {
         composeRule.setContent {
             EyecareTheme {
                 AccountSecurityOverviewContent(
@@ -50,11 +50,12 @@ class AccountSecurityScreenTest {
         composeRule.onNodeWithText("Account & Security").assertDoesNotExist()
         composeRule.onNodeWithText("Security").assertIsDisplayed()
         composeRule.onNodeWithText("Contact information").assertIsDisplayed()
-        composeRule.onNodeWithText("a***@example.com").assertIsDisplayed()
+        composeRule.onNodeWithText("alex@example.com").assertIsDisplayed()
+        composeRule.onNodeWithText("a***@example.com").assertDoesNotExist()
         composeRule.onNodeWithText("+63 917 123 4567").assertIsDisplayed()
         composeRule.onNodeWithText("0917***4567").assertDoesNotExist()
-        composeRule.onNodeWithText("Primary").assertIsDisplayed()
-        composeRule.onNodeWithText("Pending").assertIsDisplayed()
+        composeRule.onNodeWithText("Primary").assertDoesNotExist()
+        composeRule.onNodeWithText("Make primary").assertDoesNotExist()
     }
 
     @Test
@@ -168,8 +169,7 @@ class AccountSecurityScreenTest {
     }
 
     @Test
-    fun accountOverview_verifiedSecondaryContactOffersPrimaryAndRemoveActions() {
-        var madePrimaryId: Int? = null
+    fun accountOverview_emailCanBeRemovedButPrimaryControlsAreHidden() {
         var removedId: Int? = null
 
         composeRule.setContent {
@@ -177,9 +177,44 @@ class AccountSecurityScreenTest {
                 AccountSecurityOverviewContent(
                     state = AccountSecurityState.Overview(
                         account = testAccount(),
+                        contacts = listOf(testContacts().first().copy(isPrimary = false)),
+                    ),
+                    onBack = {},
+                    onEdit = {},
+                    onCancelEdit = {},
+                    onFirstNameChange = {},
+                    onMiddleNameChange = {},
+                    onLastNameChange = {},
+                    onDateOfBirthChange = {},
+                    onSave = {},
+                    onChangePassword = {},
+                    onSignOut = {},
+                    onSignOutAll = {},
+                    onRemoveContact = { removedId = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Make primary").assertDoesNotExist()
+        composeRule.onNodeWithText("Primary").assertDoesNotExist()
+        composeRule.onNodeWithText("Remove").performClick()
+        composeRule.runOnIdle {
+            check(removedId == 1)
+        }
+    }
+
+    @Test
+    fun accountOverview_phoneNeverOffersPrimaryOrRemoveActions() {
+        composeRule.setContent {
+            EyecareTheme {
+                AccountSecurityOverviewContent(
+                    state = AccountSecurityState.Overview(
+                        account = testAccount().copy(email = null),
                         contacts = listOf(
-                            testContacts().first(),
-                            testContacts().last().copy(verifiedAt = "2026-08-01T10:00:00+08:00"),
+                            testContacts().last().copy(
+                                isPrimary = false,
+                                verifiedAt = "2026-08-01T10:00:00+08:00",
+                            ),
                         ),
                     ),
                     onBack = {},
@@ -193,18 +228,15 @@ class AccountSecurityScreenTest {
                     onChangePassword = {},
                     onSignOut = {},
                     onSignOutAll = {},
-                    onMakePrimary = { madePrimaryId = it },
-                    onRemoveContact = { removedId = it },
                 )
             }
         }
 
-        composeRule.onNodeWithText("Make primary").performClick()
-        composeRule.onNodeWithText("Remove").performClick()
-        composeRule.runOnIdle {
-            check(madePrimaryId == 2)
-            check(removedId == 2)
-        }
+        composeRule.onNodeWithText("Primary").assertDoesNotExist()
+        composeRule.onNodeWithText("Make primary").assertDoesNotExist()
+        composeRule.onNodeWithText("Remove").assertDoesNotExist()
+        composeRule.onNodeWithText("+63 917 123 4567").assertIsDisplayed()
+        composeRule.onNodeWithText("Add email").assertIsDisplayed()
     }
 
     @Test
@@ -427,15 +459,15 @@ class AccountSecurityScreenTest {
             id = 1,
             type = ContactType.EMAIL,
             maskedValue = "a***@example.com",
-            isPrimary = true,
+            isPrimary = false,
             verifiedAt = "2026-08-01T10:00:00+08:00",
         ),
         AccountContact(
             id = 2,
             type = ContactType.PHONE,
             maskedValue = "0917***4567",
-            isPrimary = false,
-            verifiedAt = null,
+            isPrimary = true,
+            verifiedAt = "2026-08-01T10:00:00+08:00",
         ),
     )
 }
