@@ -95,6 +95,25 @@ class AppointmentTypeCatalogTest {
         assertEquals(dto.requiresReferral, domain.requiresReferral)
     }
 
+    @Test
+    fun `domain model exposes visit reason presets`() {
+        val domain = AppointmentType(
+            id = 1,
+            name = "First eye examination",
+            description = null,
+            durationMinutes = 45,
+            requiresReferral = false,
+            visitReasonPresets = listOf(
+                VisitReasonPreset(id = 21, label = "Blurred or reduced vision"),
+            ),
+        )
+
+        assertEquals(
+            listOf(VisitReasonPreset(id = 21, label = "Blurred or reduced vision")),
+            domain.visitReasonPresets,
+        )
+    }
+
     // ── Capability 3: Patient does not see inactive or internal-only types ──
 
     @Test

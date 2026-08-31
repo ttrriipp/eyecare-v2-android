@@ -10,6 +10,13 @@ data class AppointmentTypeDto(
     val description: String? = null,
     @SerialName("duration_minutes") val durationMinutes: Int,
     @SerialName("requires_referral") val requiresReferral: Boolean = false,
+    @SerialName("visit_reason_presets") val visitReasonPresets: List<VisitReasonPresetDto> = emptyList(),
+)
+
+@Serializable
+data class VisitReasonPresetDto(
+    val id: Int,
+    val label: String,
 )
 
 @Serializable

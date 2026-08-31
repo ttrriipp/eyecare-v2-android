@@ -28,6 +28,32 @@ class AppointmentRequestDtosTest {
     }
 
     @Test
+    fun `decodes appointment type visit reason presets in server order`() {
+        val body = """{"data":[{"id":1,"name":"First eye examination","description":null,"duration_minutes":45,"requires_referral":false,"visit_reason_presets":[{"id":21,"label":"Blurred or reduced vision"},{"id":22,"label":"Eye pain or discomfort"}]}]}"""
+
+        val response = json.decodeFromString<AppointmentTypeListResponse>(body)
+
+        assertEquals(
+            listOf(21, 22),
+            response.data.single().visitReasonPresets.map { it.id },
+        )
+        assertEquals(
+            listOf("Blurred or reduced vision", "Eye pain or discomfort"),
+            response.data.single().visitReasonPresets.map { it.label },
+        )
+    }
+
+    @Test
+    fun `missing or empty visit reason presets default to an empty list`() {
+        val body = """{"data":[{"id":1,"name":"Exam","description":null,"duration_minutes":45,"requires_referral":false},{"id":2,"name":"Follow-up","description":null,"duration_minutes":15,"requires_referral":false,"visit_reason_presets":[] }]}"""
+
+        val response = json.decodeFromString<AppointmentTypeListResponse>(body)
+
+        assertTrue(response.data[0].visitReasonPresets.isEmpty())
+        assertTrue(response.data[1].visitReasonPresets.isEmpty())
+    }
+
+    @Test
     fun `decodes type-specific availability with visit_duration and type_id`() {
         val body = """{"data":{"date":"2026-08-10","timezone":"Asia/Manila","interval_minutes":15,"slot_duration_minutes":45,"visit_duration_minutes":45,"appointment_type_id":1,"day_status":"open","generated_at":"2026-08-09T10:00:00+08:00","slots":[{"starts_at":"2026-08-10T09:00:00+08:00","ends_at":"2026-08-10T09:45:00+08:00","available":true}]}}"""
         val response = json.decodeFromString<AppointmentRequestAvailabilityResponse>(body)

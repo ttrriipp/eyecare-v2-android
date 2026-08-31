@@ -6,4 +6,10 @@ data class AppointmentType(
     val description: String?,
     val durationMinutes: Int,
     val requiresReferral: Boolean,
+    val visitReasonPresets: List<VisitReasonPreset> = emptyList(),
+)
+
+data class VisitReasonPreset(
+    val id: Int,
+    val label: String,
 )
