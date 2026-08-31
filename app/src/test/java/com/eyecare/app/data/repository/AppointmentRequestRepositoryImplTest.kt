@@ -44,7 +44,7 @@ class AppointmentRequestRepositoryImplTest {
     @Test
     fun `getAppointmentTypes maps to domain`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(
-            """{"data":[{"id":1,"name":"First eye examination","description":"For your first examination.","duration_minutes":45,"requires_referral":false},{"id":4,"name":"Referral","description":null,"duration_minutes":45,"requires_referral":true}]}"""
+            """{"data":[{"id":1,"name":"First eye examination","description":"For your first examination.","duration_minutes":45,"requires_referral":false,"visit_reason_presets":[{"id":21,"label":"Blurred or reduced vision"},{"id":22,"label":"Eye pain or discomfort"}]},{"id":4,"name":"Referral","description":null,"duration_minutes":45,"requires_referral":true,"visit_reason_presets":[]}]}"""
         ))
         val result = repository.getAppointmentTypes()
         assertTrue(result.isSuccess)
@@ -56,6 +56,15 @@ class AppointmentRequestRepositoryImplTest {
         assertEquals("For your first examination.", types[0].description)
         assertTrue(types[1].requiresReferral)
         assertNull(types[1].description)
+        assertEquals(
+            listOf(21, 22),
+            types[0].visitReasonPresets.map { it.id },
+        )
+        assertEquals(
+            listOf("Blurred or reduced vision", "Eye pain or discomfort"),
+            types[0].visitReasonPresets.map { it.label },
+        )
+        assertTrue(types[1].visitReasonPresets.isEmpty())
     }
 
     @Test
@@ -112,6 +121,8 @@ class AppointmentRequestRepositoryImplTest {
         assertTrue(body.contains("\"appointment_type_id\":1"))
         assertTrue(body.contains("alternative_scheduled_times"))
         assertTrue(body.contains("2026-08-10T10:30:00+08:00"))
+        assertTrue(body.contains("\"reason_for_visit\":\"Blurry\""))
+        assertTrue(body.contains("preset").not())
     }
 
     @Test

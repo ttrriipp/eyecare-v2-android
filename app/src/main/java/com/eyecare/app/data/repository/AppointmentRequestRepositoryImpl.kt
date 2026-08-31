@@ -8,6 +8,7 @@ import com.eyecare.app.data.remote.dto.AvailabilitySlotDto
 import com.eyecare.app.data.remote.dto.CreateAppointmentRequest
 import com.eyecare.app.data.remote.dto.AppointmentRequestAvailabilityData
 import com.eyecare.app.data.remote.dto.AppointmentTypeDto
+import com.eyecare.app.data.remote.dto.VisitReasonPresetDto
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
@@ -15,6 +16,7 @@ import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestTypeSummary
 import com.eyecare.app.domain.model.AppointmentType
 import com.eyecare.app.domain.model.AvailabilitySlot
+import com.eyecare.app.domain.model.VisitReasonPreset
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import javax.inject.Inject
@@ -75,6 +77,12 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         description = description,
         durationMinutes = durationMinutes,
         requiresReferral = requiresReferral,
+        visitReasonPresets = visitReasonPresets.map { it.toDomain() },
+    )
+
+    private fun VisitReasonPresetDto.toDomain() = VisitReasonPreset(
+        id = id,
+        label = label,
     )
 
     private fun AppointmentRequestDto.toDomain() = AppointmentRequest(
