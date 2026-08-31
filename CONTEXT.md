@@ -390,6 +390,7 @@ Source of truth: `docs/API_CONTRACT.md`.
 
 - **4-step wizard:** Type → Schedule → Details → Review. The patient selects an appointment type first, then date/time, then enters reason/referral/identity, then reviews and submits.
 - **Appointment types:** loaded from `GET /appointment-types` on flow entry. Shows patient label, optional description, duration, and referral indicator. No hardcoded types or IDs. The catalog is vertically scrollable so all returned types and Continue remain reachable on small screens. Failure blocks the flow with retry and no fallback. If a submitted type becomes inactive or hidden, the flow returns to Type, refreshes the catalog, clears the invalid selection, and explains what happened.
+- **Visit-reason presets:** each appointment type may include the backend-ordered `visit_reason_presets` catalog. The Reason step renders those items as single-select Common reasons chips and adds a local **Other** choice; a selected preset may be submitted immediately or receive optional patient details. Preset plus details is composed as `Preset label: details`, while **Other** and empty catalogs use the patient's trimmed free-text reason. Only the composed `reason_for_visit` string is sent to `POST /appointment-requests`; preset IDs never cross the presentation boundary. Missing or empty catalogs keep the direct required text-field experience, and saved choices degrade to custom text if a preset is no longer available.
 - **Availability:** `GET /appointment-request-availability` sends both `date` and `appointment_type_id`. Response includes `visit_duration_minutes`, `appointment_type_id`, and 15-minute cadence slots. Only server-returned `available = true` slots are selectable. No fabricated or placeholder slots. No hardcoded Sunday restriction (server-authoritative). Each request renders loading, retryable error, closed/non-open day, and no-times states. Type-catalog and availability responses use latest-response-wins generations, so an older response cannot overwrite a newer selection, including when the same date is selected again.
 - **Time preferences:** one required primary slot plus up to two optional ordered alternatives. Alternatives are distinct from primary and each other, capped at two. Changing type clears all selections and availability.
 - **Referral:** if type `requires_referral` is true, `referring_source` is required (1–255 chars). Non-referral types clear and send `null`.
@@ -538,6 +539,9 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
   reservation retirement
 - `docs/specs/backend-alignment-v20-2026-08-27-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v20-2026-08-27-tasks.md` — Complete: implementation tasks + checkpoints
+- `docs/specs/appointment-visit-reason-presets-2026-08-31-spec.md` — Complete: appointment-type visit-reason presets
+- `docs/specs/appointment-visit-reason-presets-2026-08-31-plan.md` — Complete: implementation plan
+- `docs/specs/appointment-visit-reason-presets-2026-08-31-tasks.md` — Complete: implementation tasks + checkpoints
 - `docs/specs/backend-alignment-v19-2026-08-15-spec.md` — Complete: Messaging Hardening, Search, and Notifications
 - `docs/specs/backend-alignment-v19-2026-08-15-plan.md` — Complete: implementation plan (7 phases)
 - `docs/specs/backend-alignment-v19-2026-08-15-tasks.md` — Complete: 22 tasks + 6 checkpoints
