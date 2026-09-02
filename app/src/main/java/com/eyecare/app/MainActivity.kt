@@ -27,7 +27,6 @@ import com.eyecare.app.presentation.navigation.EyecareNavGraph
 import com.eyecare.app.presentation.navigation.Welcome
 import com.eyecare.app.ui.theme.EyecareTheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -55,20 +54,20 @@ class MainActivity : ComponentActivity() {
                 val sessionViewModel: SessionViewModel = hiltViewModel()
                 var logoutTrigger by remember { mutableStateOf(0) }
 
-                // Listen for 401 → show snackbar → clear session → navigate to Welcome
+                // Invalidate navigation immediately; snackbar display suspends until it exits.
                 LaunchedEffect(Unit) {
                     authEventBus.events.collect { event ->
                         if (event is AuthEvent.Logout) {
-                            snackbarHostState.showSnackbar("Session expired. Please sign in again.")
-                            delay(500)
                             // Must clear SessionViewModel's cached state, not just the token —
                             // otherwise SessionGate reads the stale Linked/Limited state and
                             // bounces straight back into MainGraph instead of redirecting.
                             sessionViewModel.signOut()
                             navController.navigate(Welcome) {
                                 popUpTo(0) { inclusive = true }
+                                launchSingleTop = true
                             }
                             logoutTrigger++
+                            snackbarHostState.showSnackbar("Session expired. Please sign in again.")
                         }
                     }
                 }

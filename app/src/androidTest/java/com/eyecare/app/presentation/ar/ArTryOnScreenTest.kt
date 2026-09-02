@@ -106,13 +106,13 @@ class ArTryOnScreenTest {
     }
 
     @Test
-    fun assetFailure_announcesImageFallback() {
+    fun assetFailure_directsToFrameImagesWithoutClaimingInlinePreview() {
         composeRule.setContent {
             EyecareTheme {
                 ArAssetStatusBanner(state = ArAssetState.Failed("bad model"))
             }
         }
 
-        composeRule.onNodeWithText("3D preview unavailable. Showing image preview.").assertIsDisplayed()
+        composeRule.onNodeWithText("3D preview unavailable. View frame images instead.").assertIsDisplayed()
     }
 }

@@ -126,6 +126,7 @@ fun RequestAppointmentScreen(
             onReasonChange = viewModel::updateReason,
             onReasonChoiceChange = viewModel::selectReasonChoice,
             onReferringSourceChange = viewModel::updateReferringSource,
+            onFocusHandled = viewModel::consumeReasonFocus,
             onConfirm = { viewModel.confirmReason(initialIdentity = requestIdentity) },
             onBack = goBack,
         )

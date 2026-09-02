@@ -5,7 +5,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -50,6 +52,25 @@ class TokenManagerTest {
         tokenManager.clearToken()
         verify { editor.remove(TokenManager.KEY_TOKEN) }
         verify { editor.apply() }
+    }
+
+    @Test
+    fun `clearTokenIfMatches clears the current token`() {
+        every { prefs.getString(TokenManager.KEY_TOKEN, null) } returns "expired-token"
+
+        assertTrue(tokenManager.clearTokenIfMatches("expired-token"))
+
+        verify { editor.remove(TokenManager.KEY_TOKEN) }
+        verify { editor.apply() }
+    }
+
+    @Test
+    fun `clearTokenIfMatches preserves a newer token`() {
+        every { prefs.getString(TokenManager.KEY_TOKEN, null) } returns "new-token"
+
+        assertFalse(tokenManager.clearTokenIfMatches("expired-token"))
+
+        verify(exactly = 0) { editor.remove(TokenManager.KEY_TOKEN) }
     }
 
     @Test

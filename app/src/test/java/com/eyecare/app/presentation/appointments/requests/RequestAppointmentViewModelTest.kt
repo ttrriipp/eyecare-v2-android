@@ -556,9 +556,20 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `preset-only selection reports unsaved input`() {
+    fun `preset-only selection does not report unsaved input`() {
+        // A chip tap alone is a one-tap, trivially redoable choice, so it shouldn't trigger a
+        // "Discard this request?" dialog on Back the way typed text does.
         enterReason(type = presetType)
         vm.selectReasonChoice(VisitReasonChoice.Preset(presetId = 22))
+
+        assertFalse((vm.step.value as RequestStep.Reason).hasUnsavedInput)
+    }
+
+    @Test
+    fun `typed reason details report unsaved input`() {
+        enterReason(type = presetType)
+        vm.selectReasonChoice(VisitReasonChoice.Preset(presetId = 22))
+        vm.updateReason("some detail")
 
         assertTrue((vm.step.value as RequestStep.Reason).hasUnsavedInput)
     }

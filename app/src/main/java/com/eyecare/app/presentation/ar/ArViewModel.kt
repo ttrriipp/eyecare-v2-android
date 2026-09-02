@@ -76,6 +76,7 @@ class ArViewModel @AssistedInject constructor(
     private var latestFace: FaceFrame? = null
     private var latestPose: FacePose? = null
     private var assetState: ArAssetState = ArAssetState.Checking
+    private var hasTrackedThisSession = false
 
     init {
         checkCapability()
@@ -332,6 +333,7 @@ class ArViewModel @AssistedInject constructor(
         if (!sessionActive || _uiState.value !is ArTryOnUiState.Error) return
 
         clearTracking()
+        hasTrackedThisSession = false
         assetState = ArAssetState.Checking
         _assetSource.value = ArAssetSource.NotLoaded
         if (!capabilityPassed) {
@@ -504,6 +506,7 @@ class ArViewModel @AssistedInject constructor(
             else -> Triple(false, null, null)
         }
         _uiState.value = latestFace?.let { face ->
+            hasTrackedThisSession = true
             ArTryOnUiState.Tracking(
                 variants = loadedVariants,
                 selectedVariant = selectedVariant,
@@ -518,6 +521,7 @@ class ArViewModel @AssistedInject constructor(
             variants = loadedVariants,
             selectedVariant = selectedVariant,
             assetState = assetState,
+            hasTrackedBefore = hasTrackedThisSession,
             isSaving = isSaving,
             saveError = saveError,
             saveMessage = saveMessage,

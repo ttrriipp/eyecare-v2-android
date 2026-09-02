@@ -8,11 +8,28 @@ import javax.inject.Singleton
 class TokenManager @Inject constructor(
     private val prefs: SharedPreferences,
 ) {
-    fun getToken(): String? = prefs.getString(KEY_TOKEN, null)
+    private val tokenLock = Any()
 
-    fun saveToken(token: String) = prefs.edit().putString(KEY_TOKEN, token).apply()
+    fun getToken(): String? = synchronized(tokenLock) {
+        prefs.getString(KEY_TOKEN, null)
+    }
 
-    fun clearToken() = prefs.edit().remove(KEY_TOKEN).apply()
+    fun saveToken(token: String) = synchronized(tokenLock) {
+        prefs.edit().putString(KEY_TOKEN, token).apply()
+    }
+
+    fun clearToken() = synchronized(tokenLock) {
+        prefs.edit().remove(KEY_TOKEN).apply()
+    }
+
+    fun clearTokenIfMatches(expectedToken: String): Boolean = synchronized(tokenLock) {
+        if (prefs.getString(KEY_TOKEN, null) != expectedToken) {
+            return@synchronized false
+        }
+
+        prefs.edit().remove(KEY_TOKEN).apply()
+        true
+    }
 
     fun getInstallationId(): String? = prefs.getString(KEY_INSTALLATION_ID, null)
 

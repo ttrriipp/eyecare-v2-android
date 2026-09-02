@@ -63,11 +63,30 @@ class AuthInterceptorTest {
     @Test
     fun `emits logout event on 401 response`() = runTest {
         every { tokenManager.getToken() } returns "expired-token"
+        every { tokenManager.clearTokenIfMatches("expired-token") } returns true
         server.enqueue(MockResponse().setResponseCode(401))
 
         authEventBus.events.test {
             client.newCall(Request.Builder().url(server.url("/")).build()).execute()
             assertEquals(AuthEvent.Logout, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `emits only one logout event when multiple requests reject the same token`() = runTest {
+        every { tokenManager.getToken() } returns "expired-token"
+        every { tokenManager.clearTokenIfMatches("expired-token") } returnsMany listOf(true, false)
+        server.enqueue(MockResponse().setResponseCode(401))
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        authEventBus.events.test {
+            repeat(2) {
+                client.newCall(Request.Builder().url(server.url("/")).build()).execute()
+            }
+
+            assertEquals(AuthEvent.Logout, awaitItem())
+            expectNoEvents()
             cancelAndIgnoreRemainingEvents()
         }
     }

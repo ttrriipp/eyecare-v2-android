@@ -117,10 +117,13 @@ sealed interface RequestStep {
         val referringSource: String = "",
         val referringSourceError: String? = null,
         val identityDraft: AppointmentRequestIdentity? = null,
+        /** True right after a failed Continue, so the screen can scroll to the error once. */
+        val focusOnError: Boolean = false,
     ) : RequestStep {
+        // A chip tap alone is a one-tap, trivially redoable choice; only typed text is work a
+        // stray Back should protect with a discard dialog.
         override val hasUnsavedInput: Boolean
-            get() = reasonChoice != VisitReasonChoice.None ||
-                reason.isNotBlank() || referringSource.isNotBlank()
+            get() = reason.isNotBlank() || referringSource.isNotBlank()
     }
 
     data class Identity(
@@ -577,6 +580,7 @@ class RequestAppointmentViewModel @Inject constructor(
                 reasonError = reasonError,
                 reasonErrorCode = reasonErrorCode,
                 referringSourceError = referringSourceError,
+                focusOnError = true,
             )
             return
         }
@@ -686,6 +690,12 @@ class RequestAppointmentViewModel @Inject constructor(
         val current = _step.value as? RequestStep.Identity ?: return
         if (current.focusField == null) return
         _step.value = current.copy(focusField = null)
+    }
+
+    fun consumeReasonFocus() {
+        val current = _step.value as? RequestStep.Reason ?: return
+        if (!current.focusOnError) return
+        _step.value = current.copy(focusOnError = false)
     }
 
     fun confirmIdentity() {

@@ -36,6 +36,7 @@ class RequestReasonContentTest {
                         state = state.copy(reasonChoice = it)
                     },
                     onReferringSourceChange = { state = state.copy(referringSource = it) },
+                    onFocusHandled = {},
                     onConfirm = {},
                     onBack = {},
                 )
@@ -69,6 +70,7 @@ class RequestReasonContentTest {
                     onReasonChange = { state = state.copy(reason = it) },
                     onReasonChoiceChange = { state = state.copy(reasonChoice = it) },
                     onReferringSourceChange = {},
+                    onFocusHandled = {},
                     onConfirm = {},
                     onBack = {},
                 )
@@ -142,6 +144,7 @@ class RequestReasonContentTest {
                     onReasonChange = {},
                     onReasonChoiceChange = {},
                     onReferringSourceChange = {},
+                    onFocusHandled = {},
                     onConfirm = {},
                     onBack = {},
                 )

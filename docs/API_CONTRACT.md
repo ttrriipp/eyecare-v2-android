@@ -423,7 +423,7 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
     "first_name": "Ana",
     "middle_name": null,
     "last_name": "Reyes",
-    "email": "ana@example.com",
+    "email": "ana.account@example.com",
     "phone": "09171234567",
     "role": "patient",
     "date_of_birth": "1990-05-15",
@@ -438,7 +438,7 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
       "occupation": "Teacher",
       "address": "123 Main St, Manila",
       "phone": "09171234567",
-      "contact_email": "ana@example.com"
+      "contact_email": "ana.clinic@example.com"
     }
   }
 }
@@ -476,7 +476,7 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
 | `first_name` | string | yes | yes | Account first name |
 | `middle_name` | string | yes | yes | Account middle name; blank input is normalized to `null` |
 | `last_name` | string | yes | yes | Account last name |
-| `email` | string | yes | no | Primary verified email contact, if one is configured; not a login identifier |
+| `email` | string | yes | no | Full verified account email contact, if one exists; not a login identifier |
 | `phone` | string | yes | no | Primary verified phone contact and patient login identifier |
 | `role` | string | no | no | Always `patient` |
 | `date_of_birth` | string | yes | yes | Account DOB, exact `Y-m-d`; any request containing it requires a valid step-up token |
@@ -499,6 +499,13 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
 | `contact_email` | string | yes | Clinic patient email (may differ from account email) |
 
 **Important:** `linked_patient` fields are read-only clinical demographics from the authoritative Patient record. They are never editable via the mobile API. PATCH `/me` updates only account `first_name`, `middle_name`, `last_name`, and (with step-up) `date_of_birth`. Contact changes use the dedicated Contact Management endpoints.
+
+**Contact exposure:** `PatientAccountResource.email` returns the full value of
+the account's verified email contact even when the verified phone remains the
+primary login contact. It is `null` when no verified account email exists.
+`PatientAccountResource.phone` continues to return the full primary verified
+phone. `linked_patient.contact_email` is the clinic Patient record's separate
+contact email and may differ from the account email.
 
 ### PATCH `/me`
 
@@ -592,6 +599,10 @@ Certain security-sensitive operations require an authenticated step-up OTP to pr
 - **Short-lived:** 15-minute expiry
 - **Single-use:** Consumed on first successful validation
 
+Unexpected API server failures return a `500` response with the generic
+`INTERNAL_SERVER_ERROR` code. SQL, database names, column names, stack traces,
+and other internal exception details are never included in the response.
+
 **Endpoints requiring step-up:**
 | Endpoint | Method | Header |
 |----------|--------|--------|
@@ -609,12 +620,16 @@ Requests a step-up OTP sent to the user's primary verified contact.
 
 **Auth:** Required (Sanctum token).
 
-**Request:**
+**Request (optional):**
 ```json
 {
   "purpose": "sensitive_change"
 }
 ```
+
+The `purpose` field may be omitted because this endpoint always issues a
+`sensitive_change` challenge. If supplied, it must be `sensitive_change`; the
+client does not select an action-specific purpose.
 
 **Response (200):**
 ```json
@@ -718,6 +733,9 @@ Lists verified and pending contacts for the authenticated account.
 
 **Notes:**
 - `masked_value` is always returned; raw contact values are never exposed.
+- This endpoint returns only masked contact values, including for verified
+  email contacts. The full verified account email is available only through
+  `PatientAccountResource.email` in authenticated account/profile responses.
 - Unverified contacts (`verified_at: null`) cannot be used for login.
 - A registration email remains pending until it is verified through the contact endpoints; even after verification, email is not a login identifier.
 
@@ -1014,7 +1032,17 @@ Returns active, patient-visible appointment types.
       "name": "First eye examination",
       "description": "For your first examination at the clinic.",
       "duration_minutes": 45,
-      "requires_referral": false
+      "requires_referral": false,
+      "visit_reason_presets": [
+        {
+          "id": 21,
+          "label": "Blurred or reduced vision"
+        },
+        {
+          "id": 22,
+          "label": "Eye pain or discomfort"
+        }
+      ]
     }
   ]
 }
@@ -1024,6 +1052,10 @@ Returns active, patient-visible appointment types.
 - Only active, patient-visible types are returned.
 - `name` is the patient label (falls back to internal name if patient label is null).
 - Inactive types and internal-only types are excluded.
+- Every appointment type includes a `visit_reason_presets` array. The array may be empty. It contains only active presets for the appointment type, ordered by `sort_order`.
+- Presets expose only `id` and `label`; they are convenience suggestions, not diagnoses or restrictions on the patient's free-text reason.
+- Each preset `label` is a trimmed, nonblank string with a maximum length of 255 characters.
+- The mobile app supplies an `Other` option separately. `Other` is not stored as a preset.
 - Results are ordered by the internal appointment type name in ascending order; internal names are not exposed when a patient label is configured.
 
 ---
@@ -2469,6 +2501,7 @@ step-up middleware and rate limiting) use this envelope:
 | `INVALID_OTP` | 422 | Wrong, expired, or consumed OTP code |
 | `STEP_UP_REQUIRED` | 422 | A DOB or other sensitive mutation requires a step-up token |
 | `INVALID_STEP_UP_TOKEN` | 422 | The supplied step-up token is invalid or expired |
+| `INTERNAL_SERVER_ERROR` | 500 | Unexpected API server failure; internal exception details are not exposed |
 | `OTP_ATTEMPT_LIMIT_REACHED` | 422 | Too many verification attempts on a challenge |
 | `OTP_RATE_LIMIT_REACHED` | 429 | Invitation OTP requests or OTP verification attempts exceeded the applicable account, destination, or IP limit |
 | `INVITATION_RATE_LIMIT_REACHED` | 429 | Invitation acceptance requests exceeded the authenticated account limit |
@@ -2642,10 +2675,10 @@ field on `/me` reflects the current state.
 Every mobile booking creates an `AppointmentRequest`, not an `Appointment`. Staff accept requests to create confirmed `Appointment` records. Only confirmed appointments appear in the confirmed appointments list and calendar.
 
 ### Appointment type selection by patients
-The mobile API exposes `GET /appointment-types` as an authenticated, account-only catalog. Patients use the returned active, patient-visible type ID when requesting availability and creating an appointment request. Both `GET /appointment-request-availability` and `POST /appointment-requests` require `appointment_type_id`, and the server validates that it references an active, patient-visible type. Confirmed appointment type and duration snapshots remain server-controlled; rescheduling derives them from the existing appointment.
+The mobile API exposes `GET /appointment-types` as an authenticated, account-only catalog. Patients use the returned active, patient-visible type ID when requesting availability and creating an appointment request. Every appointment type includes a `visit_reason_presets` array. The array may be empty. Active presets help the patient choose a common reason after selecting a type, but preset selection is optional. Both `GET /appointment-request-availability` and `POST /appointment-requests` require `appointment_type_id`, and the server validates that it references an active, patient-visible type. Confirmed appointment type and duration snapshots remain server-controlled; rescheduling derives them from the existing appointment.
 
 ### Reason for visit
-Appointment requests require a free-text `reason_for_visit` (max 1000 characters). This is copied to the confirmed Appointment and prefills the Encounter chief complaint at check-in. It remains clinician-editable.
+Appointment requests require a free-text `reason_for_visit` (max 1000 characters), whether or not the patient chooses a preset. The patient may use the mobile app's `Other` option to enter an exact custom description; no preset ID is submitted or stored. This is copied to the confirmed Appointment and prefills the Encounter chief complaint at check-in. It remains clinician-editable.
 
 ### Identity verification
 The `/me` endpoint returns `link_status` and, when linked, clinical demographics from the authoritative Patient record. Account profile edits (`first_name`, `middle_name`, `last_name`, and step-up-protected `date_of_birth`) never silently update the clinic Patient record. A pending link request is

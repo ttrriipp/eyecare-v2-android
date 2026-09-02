@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
+import com.eyecare.app.presentation.common.components.SAVED_FRAME_DISCLAIMER
 
 private const val AR_DISCLOSURE_TEXT =
     "Visual preview only. Final fit is confirmed at the clinic."
@@ -123,12 +124,7 @@ fun ArAssetStatusBanner(
     state: ArAssetState,
     modifier: Modifier = Modifier,
 ) {
-    val message = when (state) {
-        ArAssetState.Checking -> "Preparing 3D frame…"
-        ArAssetState.Loading -> "Loading 3D frame…"
-        ArAssetState.Ready -> return
-        is ArAssetState.Failed -> "3D preview unavailable. Showing image preview."
-    }
+    val message = state.statusBannerMessage() ?: return
 
     Surface(
         modifier = modifier,
@@ -145,6 +141,35 @@ fun ArAssetStatusBanner(
     }
 }
 
+internal fun ArAssetState.statusBannerMessage(): String? = when (this) {
+    ArAssetState.Checking -> "Preparing 3D frame…"
+    ArAssetState.Loading -> "Loading 3D frame…"
+    ArAssetState.Ready -> null
+    is ArAssetState.Failed -> "3D preview unavailable. View frame images instead."
+}
+
+/**
+ * The shared, white-card [SavedFrameDisclaimer][com.eyecare.app.presentation.common.components.SavedFrameDisclaimer]
+ * is tuned for a light surface; over the live camera scrim it composites unpredictably. This
+ * reuses the same disclaimer copy on the black-scrim treatment the AR overlays already use.
+ */
+@Composable
+fun ArSavedFrameDisclaimer(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Black.copy(alpha = 0.62f),
+    ) {
+        Text(
+            text = SAVED_FRAME_DISCLAIMER,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
 private fun ArTryOnUiState.toStatusCopy(): ArStatusCopy? = when (this) {
     ArTryOnUiState.CheckingCapability -> ArStatusCopy(
         title = "Preparing 3D try-on",
@@ -153,7 +178,11 @@ private fun ArTryOnUiState.toStatusCopy(): ArStatusCopy? = when (this) {
 
     ArTryOnUiState.PermissionRequired -> ArStatusCopy(
         title = "Camera access needed",
-        message = "Allow camera access to try this frame on your face. You can still view frame images.",
+        message = "This frame is shown on a live view of your face. Nothing is recorded, stored, or " +
+            "sent to the clinic — it stays on your device and disappears when you leave this screen. " +
+            "You can still view frame images without your camera.",
+        primaryAction = ArPrimaryAction.RequestPermission,
+        primaryLabel = "Allow camera access",
     )
 
     is ArTryOnUiState.PermissionDenied -> ArStatusCopy(

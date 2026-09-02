@@ -36,6 +36,8 @@ sealed interface ArTryOnUiState {
         val variants: List<FrameVariant>,
         val selectedVariant: FrameVariant?,
         val assetState: ArAssetState,
+        /** True once a face has been tracked this session, so the copy can say "lost" rather than "never found". */
+        val hasTrackedBefore: Boolean = false,
         val isSaving: Boolean = false,
         val saveError: String? = null,
         val saveMessage: String? = null,

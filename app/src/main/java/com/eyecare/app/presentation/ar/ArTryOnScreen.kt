@@ -2,19 +2,24 @@ package com.eyecare.app.presentation.ar
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -41,11 +46,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.ImageLoader
-import coil3.SingletonImageLoader
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.presentation.ar.components.ArAssetStatusBanner
 import com.eyecare.app.presentation.ar.components.ArDisclosureBanner
+import com.eyecare.app.presentation.ar.components.ArSavedFrameDisclaimer
 import com.eyecare.app.presentation.ar.components.ArStatusOverlay
 import com.eyecare.app.presentation.ar.components.VariantChipRow
 import com.eyecare.app.presentation.ar.model.ArAssetSource
@@ -56,8 +60,6 @@ import com.eyecare.app.presentation.ar.rendering.FrameModelRenderState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderer
 import com.eyecare.app.presentation.ar.rendering.FrameModelSource
 import com.eyecare.app.presentation.common.RefreshOnResumeEffect
-import com.eyecare.app.presentation.common.buildImageUrl
-import com.eyecare.app.presentation.common.components.SavedFrameDisclaimer
 
 @Composable
 fun ArTryOnScreen(
@@ -72,7 +74,6 @@ fun ArTryOnScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val assetSource by viewModel.assetSource.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val imageLoader = SingletonImageLoader.get(context)
     val snackbarHostState = remember { SnackbarHostState() }
 
     val launcher = rememberLauncherForActivityResult(
@@ -88,8 +89,18 @@ fun ArTryOnScreen(
         viewModel.onPermissionResult(granted = granted, shouldShowRationale = rationale)
     }
 
+    // Camera access is the highest-trust ask on this screen: a returning user who already
+    // granted it skips straight through (the OS shows no dialog either way), but a first-time
+    // or previously-denied user sees ArStatusOverlay's rationale card and its own "Allow camera
+    // access" button before the system dialog ever appears — never an unexplained OS prompt.
+    val cameraAlreadyGranted = remember {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
     LaunchedEffect(uiState) {
-        if (uiState is ArTryOnUiState.PermissionRequired) {
+        if (uiState is ArTryOnUiState.PermissionRequired && cameraAlreadyGranted) {
             launcher.launch(Manifest.permission.CAMERA)
         }
     }
@@ -123,7 +134,6 @@ fun ArTryOnScreen(
             ActiveTryOnContent(
                 state = activeContentState,
                 assetSource = assetSource,
-                imageLoader = imageLoader,
                 onFaceResult = viewModel::onFaceResult,
                 onAssetStateChanged = viewModel::onAssetStateChanged,
                 onSelectVariant = viewModel::selectVariant,
@@ -144,6 +154,7 @@ fun ArTryOnScreen(
             onClick = onBack,
             modifier = Modifier
                 .align(Alignment.TopStart)
+                .statusBarsPadding()
                 .padding(8.dp)
                 .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(50)),
         ) {
@@ -163,20 +174,13 @@ fun ArTryOnScreen(
 private fun ActiveTryOnContent(
     state: ActiveTryOnContentState,
     assetSource: ArAssetSource,
-    imageLoader: ImageLoader,
     onFaceResult: (ArFaceState) -> Unit,
     onAssetStateChanged: (ArAssetState) -> Unit,
     onSelectVariant: (FrameVariant) -> Unit,
     onToggleSaved: () -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
-    val frameUrl = state.selectedVariant
-        ?.tryOnPreviewImageReference()
-        ?.let(::buildImageUrl)
     val rendererSource = assetSource.toFrameModelSource()
-    val assetReady = rendererSource != null && state.assetState is ArAssetState.Ready
-    val hasPose = state.face != null && state.pose != null
-    val showThreeD = assetReady && hasPose
 
     Box(Modifier.fillMaxSize()) {
         CameraPreviewView(
@@ -198,14 +202,9 @@ private fun ActiveTryOnContent(
             )
         }
 
-        if (state.face != null && !showThreeD) {
-            FrameOverlayRenderer(
-                face = state.face,
-                frameAssetUrl = frameUrl,
-                imageLoader = imageLoader,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else if (state.face == null) {
+        // Catalog images are ordinary product photos and may have opaque backgrounds. Keep them
+        // off the tracked face; the dedicated "View frame images" action remains available below.
+        if (state.face == null) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -215,10 +214,13 @@ private fun ActiveTryOnContent(
                     color = Color.Black.copy(alpha = 0.5f),
                 ) {
                     Text(
-                        if (state.phase == ActiveTryOnPhase.Loading) {
-                            "Loading this frame's preview…"
-                        } else {
-                            "Position your face in the center"
+                        when {
+                            state.phase == ActiveTryOnPhase.Loading ->
+                                "Loading this frame's preview…"
+                            state.hasTrackedBefore ->
+                                "Lost you for a moment — hold still and center your face again"
+                            else ->
+                                "Position your face in the center"
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White,
@@ -229,26 +231,28 @@ private fun ActiveTryOnContent(
             }
         }
 
-        if (state.phase == ActiveTryOnPhase.Tracking && state.face != null) {
-            ArDisclosureBanner(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 64.dp),
-            )
-        }
-
-        ArAssetStatusBanner(
-            state = state.assetState,
+        // Stacked in one Column, anchored once, so a wrapped line at larger font scales pushes
+        // the banner below it down instead of the two independently-offset banners colliding.
+        Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = if (state.face != null) 112.dp else 64.dp),
-        )
+                .statusBarsPadding()
+                .padding(top = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (state.phase == ActiveTryOnPhase.Tracking && state.face != null) {
+                ArDisclosureBanner()
+            }
+            ArAssetStatusBanner(state = state.assetState)
+        }
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .background(Color.Black.copy(alpha = 0.4f))
+                .navigationBarsPadding()
                 .padding(bottom = 24.dp, top = 12.dp),
         ) {
             Column(
@@ -275,7 +279,7 @@ private fun ActiveTryOnContent(
                         }
                         Text(if (selectedVariant.isSaved) "Remove from saved" else "Save this frame")
                     }
-                    SavedFrameDisclaimer(
+                    ArSavedFrameDisclaimer(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }

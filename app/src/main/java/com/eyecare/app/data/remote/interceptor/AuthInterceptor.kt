@@ -20,7 +20,11 @@ class AuthInterceptor @Inject constructor(
 
         val response = chain.proceed(request)
 
-        if (response.code == 401 && token != null) {
+        if (
+            response.code == 401 &&
+            token != null &&
+            tokenManager.clearTokenIfMatches(token)
+        ) {
             authEventBus.send(AuthEvent.Logout)
         }
 
