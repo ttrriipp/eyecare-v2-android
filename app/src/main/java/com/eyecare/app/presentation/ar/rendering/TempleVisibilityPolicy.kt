@@ -6,6 +6,7 @@ import kotlin.math.abs
  * Which independently modelled temples should remain visible.
  */
 internal enum class TempleVisibility {
+    None,
     Both,
     LeftOnly,
     RightOnly,
@@ -44,10 +45,17 @@ internal class TempleVisibilityPolicy(
         }
 
         val absoluteYaw = abs(yawDegrees)
+        if (absoluteYaw <= showYawDegrees) {
+            // In a frontal fallback view the temples sit behind the wearer's face. Hide both
+            // rather than drawing the rear arms through transparent lenses; depth occlusion, when
+            // active, deliberately overrides this fallback and restores both renderables.
+            hiddenTemple = null
+            return TempleVisibility.None
+        }
+
         hiddenTemple = when {
             absoluteYaw >= hideYawDegrees && yawDegrees > 0f -> TempleSide.Left
             absoluteYaw >= hideYawDegrees && yawDegrees < 0f -> TempleSide.Right
-            absoluteYaw <= showYawDegrees -> null
             else -> hiddenTemple
         }
 

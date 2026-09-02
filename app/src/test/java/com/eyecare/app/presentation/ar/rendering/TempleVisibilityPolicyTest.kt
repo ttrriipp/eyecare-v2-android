@@ -6,10 +6,11 @@ import org.junit.jupiter.api.Test
 class TempleVisibilityPolicyTest {
 
     @Test
-    fun `frontal yaw keeps both temples visible`() {
+    fun `frontal fallback hides both temples`() {
         val policy = TempleVisibilityPolicy()
 
-        assertEquals(TempleVisibility.Both, policy.update(0f))
+        assertEquals(TempleVisibility.None, policy.update(0f))
+        assertEquals(TempleVisibility.None, policy.update(20f))
         assertEquals(TempleVisibility.Both, policy.update(27f))
     }
 
@@ -35,7 +36,7 @@ class TempleVisibilityPolicyTest {
 
         assertEquals(TempleVisibility.LeftOnly, policy.update(40f))
         assertEquals(TempleVisibility.LeftOnly, policy.update(25f))
-        assertEquals(TempleVisibility.Both, policy.update(20f))
+        assertEquals(TempleVisibility.None, policy.update(20f))
     }
 
     @Test

@@ -425,8 +425,10 @@ private fun ModelNode.installTempleVisibilityUpdater(
     onFrame = {
         val visibility = currentVisibility()
         if (visibility != appliedVisibility) {
-            leftTemple.isVisible = visibility != TempleVisibility.RightOnly
-            rightTemple.isVisible = visibility != TempleVisibility.LeftOnly
+            leftTemple.isVisible = visibility == TempleVisibility.Both ||
+                visibility == TempleVisibility.LeftOnly
+            rightTemple.isVisible = visibility == TempleVisibility.Both ||
+                visibility == TempleVisibility.RightOnly
             appliedVisibility = visibility
         }
     }
