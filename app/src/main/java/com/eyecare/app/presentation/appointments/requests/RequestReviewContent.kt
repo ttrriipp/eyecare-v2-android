@@ -54,8 +54,8 @@ import com.eyecare.app.ui.theme.EyecareColors
 
 /**
  * The last screen before the request leaves the phone. Every section can be corrected in place
- * rather than by guessing how many times to press Back, and the non-binding nature of the
- * request is restated directly above the action instead of only after it is sent.
+ * rather than by guessing how many times to press Back. The non-binding nature of the request is
+ * explained once in the notice so the pinned action area can stay focused on submission.
  */
 @Composable
 fun RequestReviewContent(
@@ -70,15 +70,8 @@ fun RequestReviewContent(
         currentStep = requestStepIndex(RequestStepId.REVIEW, state.identityRequired),
         onBack = if (state.isSubmitting) null else onBack,
         bottomBar = {
-            Text(
-                text = REQUEST_NON_BINDING_NOTE,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
             AppointmentPrimaryButton(
-                text = "Submit request to clinic",
+                text = "Send request",
                 onClick = onSubmit,
                 loading = state.isSubmitting,
             )
@@ -165,18 +158,18 @@ fun RequestReviewContent(
 
                 if (state.alternativeSlots.isEmpty()) {
                     Text(
-                        text = "No backup times selected. The clinic will confirm your preferred time or contact you.",
+                        text = "No alternative times selected. The clinic will confirm your preferred time or contact you.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
                     Text(
-                        text = "If that time is taken",
+                        text = "Alternative times",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     state.alternativeSlots.forEachIndexed { index, slot ->
-                        val rank = "Backup ${index + 1}"
+                        val rank = "Alternative ${index + 1}"
                         val value = formatSlotWithDay(slot)
                         Row(
                             modifier = Modifier.fillMaxWidth()
@@ -492,7 +485,7 @@ private fun ReviewRow(label: String, value: String) {
 
 /** Shared so the same promise appears on the review screen and the success screen. */
 internal const val REQUEST_NON_BINDING_NOTE =
-    "The clinic reviews every request. No time is held until they confirm it."
+    "Request only — your appointment is not booked until the clinic confirms."
 
 @Composable
 internal fun NonBindingNotice(modifier: Modifier = Modifier) {

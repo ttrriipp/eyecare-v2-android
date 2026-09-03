@@ -1,7 +1,9 @@
 package com.eyecare.app.presentation.appointments.requests
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -20,16 +22,16 @@ class RequestReviewContentTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun reviewShowsPreferredTimeRankedBackupsReasonAndReferral() {
+    fun reviewShowsPreferredTimeRankedAlternativesReasonAndReferral() {
         setReview(state = reviewState())
 
         composeRule.onNodeWithText("Preferred time").assertIsDisplayed()
         composeRule.onNodeWithText("Monday, August 10, 2026").assertIsDisplayed()
         composeRule.onNodeWithText("9:00 AM – 9:45 AM").assertIsDisplayed()
-        composeRule.onNodeWithText("If that time is taken").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Backup 1: Aug 11, 2026 · 10:00 AM – 10:45 AM")
+        composeRule.onNodeWithText("Alternative times").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Alternative 1: Aug 11, 2026 · 10:00 AM – 10:45 AM")
             .assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Backup 2: Aug 12, 2026 · 11:00 AM – 11:45 AM")
+        composeRule.onNodeWithContentDescription("Alternative 2: Aug 12, 2026 · 11:00 AM – 11:45 AM")
             .assertIsDisplayed()
         composeRule.onNodeWithText("Reason for visit").assertIsDisplayed()
         composeRule.onNodeWithText("Blurred vision").assertIsDisplayed()
@@ -48,11 +50,11 @@ class RequestReviewContentTest {
     }
 
     @Test
-    fun noBackups_saysSoRatherThanShowingAnEmptySection() {
+    fun noAlternatives_saysSoRatherThanShowingAnEmptySection() {
         setReview(state = reviewState().copy(alternativeSlots = emptyList()))
 
         composeRule
-            .onNodeWithText("No backup times selected. The clinic will confirm your preferred time or contact you.")
+            .onNodeWithText("No alternative times selected. The clinic will confirm your preferred time or contact you.")
             .assertIsDisplayed()
     }
 
@@ -108,11 +110,12 @@ class RequestReviewContentTest {
     }
 
     @Test
-    fun theNonBindingPromiseSitsDirectlyAboveTheAction() {
+    fun theReviewShowsOneNonBindingNoticeAndAConciseSubmitAction() {
         setReview(state = reviewState())
 
-        composeRule.onNodeWithText(REQUEST_NON_BINDING_NOTE).assertIsDisplayed()
-        composeRule.onNodeWithText("Submit request to clinic").assertIsDisplayed()
+        composeRule.onAllNodesWithText(REQUEST_NON_BINDING_NOTE).assertCountEquals(1)
+        composeRule.onNodeWithText("Send request").assertIsDisplayed()
+        composeRule.onNodeWithText("Submit request to clinic").assertDoesNotExist()
     }
 
     private fun setReview(state: RequestStep.Review) {

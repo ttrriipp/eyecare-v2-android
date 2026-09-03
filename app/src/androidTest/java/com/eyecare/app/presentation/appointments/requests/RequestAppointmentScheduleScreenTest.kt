@@ -22,7 +22,7 @@ class RequestAppointmentScheduleScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun chosenTimesCard_showsPreferredAndRankedBackupsWithTheirDays() {
+    fun chosenTimesCard_showsPreferredAndRankedAlternativesWithTheirDays() {
         setSchedule(
             state = scheduleState(alternatives = listOf(slotOne, slotTwo)),
         )
@@ -30,18 +30,19 @@ class RequestAppointmentScheduleScreenTest {
         composeRule.onNodeWithText("Your times").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Preferred: Aug 10, 2026 · 9:00 AM – 9:45 AM")
             .assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Backup 1: Aug 11, 2026 · 10:00 AM – 10:45 AM")
+        composeRule.onNodeWithContentDescription("Alternative 1: Aug 11, 2026 · 10:00 AM – 10:45 AM")
             .assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Backup 2: Aug 12, 2026 · 11:00 AM – 11:45 AM")
+        composeRule.onNodeWithContentDescription("Alternative 2: Aug 12, 2026 · 11:00 AM – 11:45 AM")
             .assertIsDisplayed()
     }
 
     /**
-     * A backup on another day is unreachable from the slot list, so removal has to live on the
-     * card. Previously the card disappeared once both backups were chosen, stranding the patient.
+     * An alternative on another day is unreachable from the slot list, so removal has to live on
+     * the card. Previously the card disappeared once both alternatives were chosen, stranding the
+     * patient.
      */
     @Test
-    fun bothBackupsChosen_canStillBeRemovedFromTheCard() {
+    fun bothAlternativesChosen_canStillBeRemovedFromTheCard() {
         var alternatives by mutableStateOf(listOf(slotOne, slotTwo))
 
         composeRule.setContent {
@@ -64,20 +65,21 @@ class RequestAppointmentScheduleScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Remove one to swap in a different time.").assertIsDisplayed()
+        composeRule.onNodeWithText("Remove one to choose a different alternative.")
+            .assertIsDisplayed()
         composeRule
-            .onNodeWithContentDescription("Remove Backup 1, Aug 11, 2026 · 10:00 AM – 10:45 AM")
+            .onNodeWithContentDescription("Remove Alternative 1, Aug 11, 2026 · 10:00 AM – 10:45 AM")
             .performClick()
 
         composeRule.runOnIdle { check(alternatives == listOf(slotTwo)) }
-        // The remaining backup is re-ranked, and adding another becomes possible again.
-        composeRule.onNodeWithContentDescription("Backup 1: Aug 12, 2026 · 11:00 AM – 11:45 AM")
+        // The remaining alternative is re-ranked, and adding another becomes possible again.
+        composeRule.onNodeWithContentDescription("Alternative 1: Aug 12, 2026 · 11:00 AM – 11:45 AM")
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Add another").assertIsDisplayed()
+        composeRule.onNodeWithText("Add another alternative").assertIsDisplayed()
     }
 
     @Test
-    fun noBackupsYet_explainsWhyTheyHelpAndOffersTheAction() {
+    fun noAlternativesYet_explainsWhyTheyHelpAndOffersTheAction() {
         var startedAdding = false
 
         composeRule.setContent {
@@ -100,28 +102,38 @@ class RequestAppointmentScheduleScreenTest {
 
         composeRule
             .onNodeWithText(
-                "Backup times are optional — offering more than one gives the clinic more " +
-                    "ways to say yes.",
+                "Alternative times are optional — they give the clinic more ways to find a time " +
+                    "that works.",
             )
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Add backup times").performClick()
+        composeRule.onNodeWithText("Add alternative times").performClick()
         composeRule.runOnIdle { check(startedAdding) }
     }
 
     @Test
-    fun alternativesPhase_countsProgressAndKeepsThePreferredTimeVisible() {
+    fun alternativesPhase_startsCollapsedAndExpandsToReviewSelectedTimes() {
         setSchedule(
             state = scheduleState(alternatives = listOf(slotOne))
                 .copy(phase = SchedulePhase.ALTERNATIVES),
         )
 
-        composeRule.onNodeWithText("Add backup times").assertIsDisplayed()
-        composeRule.onNodeWithText("1 of 2 backups").assertIsDisplayed()
-        composeRule.onNodeWithText("Tick any other times that would also work for you.")
+        composeRule.onNodeWithText("Add alternative times").assertIsDisplayed()
+        composeRule.onNodeWithText("1 of 2 alternatives").assertIsDisplayed()
+        composeRule.onNodeWithText("Preferred 9:00 AM – 9:45 AM · 1 alternative selected")
             .assertIsDisplayed()
+        composeRule
+            .onNodeWithContentDescription("Preferred: Aug 10, 2026 · 9:00 AM – 9:45 AM")
+            .assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Expand selected times").performClick()
+
         composeRule.onNodeWithContentDescription("Preferred: Aug 10, 2026 · 9:00 AM – 9:45 AM")
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Done · 1 backup").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Alternative 1: Aug 11, 2026 · 10:00 AM – 10:45 AM")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Select up to two other times that could work for you.")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Done · 1 alternative").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Collapse selected times").assertIsDisplayed()
     }
 
     @Test
@@ -248,7 +260,7 @@ class RequestAppointmentScheduleScreenTest {
             reason = null,
         )
 
-        // Deliberately on later days: a backup routinely lives on a day the slot list is not
+        // Deliberately on later days: an alternative routinely lives on a day the slot list is not
         // showing, which is the case the chosen-times card exists to cover.
         private val slotOne = AvailabilitySlot(
             startsAt = "2026-08-11T10:00:00+08:00",

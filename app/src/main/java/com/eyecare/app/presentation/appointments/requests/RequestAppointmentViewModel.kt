@@ -37,7 +37,7 @@ internal const val maxAlternatives = 2
 /**
  * Which selection the schedule list is currently collecting. Splitting this into two explicit
  * phases is what lets every row carry exactly one meaning: in [PREFERRED] a tap chooses the one
- * preferred time, in [ALTERNATIVES] a tap toggles a numbered backup.
+ * preferred time, in [ALTERNATIVES] a tap toggles a numbered alternative.
  */
 enum class SchedulePhase { PREFERRED, ALTERNATIVES }
 
@@ -67,7 +67,7 @@ fun requestStepIndex(step: RequestStepId, identityRequired: Boolean): Int =
         .coerceAtLeast(0)
 
 /**
- * A 4- or 5-step wizard: [Type] → [Schedule] (preferred time, then optional backups) →
+ * A 4- or 5-step wizard: [Type] → [Schedule] (preferred time, then optional alternatives) →
  * [Reason] → [Identity] (unlinked accounts only) → [Review]. [Submitting], [Success], and
  * [SubmissionError] are transient outcomes.
  */
@@ -431,7 +431,7 @@ class RequestAppointmentViewModel @Inject constructor(
         _step.value = current.copy(
             primarySlot = slot,
             primaryDate = current.date,
-            // A time cannot be both the preferred choice and a backup for itself.
+            // A time cannot be both the preferred choice and an alternative for itself.
             alternativeSlots = current.alternativeSlots.filter { it.startsAt != slot.startsAt },
         )
     }
@@ -447,7 +447,7 @@ class RequestAppointmentViewModel @Inject constructor(
         _step.value = current.copy(phase = SchedulePhase.PREFERRED)
     }
 
-    /** Phase 2: a tap toggles a numbered backup, in the order the patient adds them. */
+    /** Phase 2: a tap toggles a numbered alternative, in the order the patient adds them. */
     fun toggleAlternative(slot: AvailabilitySlot) {
         val current = _step.value as? RequestStep.Schedule ?: return
         if (!slot.available) return

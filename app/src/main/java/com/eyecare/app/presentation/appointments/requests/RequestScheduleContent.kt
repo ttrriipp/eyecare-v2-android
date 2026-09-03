@@ -35,6 +35,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -45,7 +47,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -83,7 +89,7 @@ private val weekdayInitialFormat = DateTimeFormatter.ofPattern("EEEEE", Locale.U
  *
  * Phase one collects the single preferred time, so every row in the list means exactly one
  * thing. Only if the patient opts in does the list switch to phase two, where the same rows
- * become checkboxes for up to two numbered backups. Splitting the two is what removes the
+ * become checkboxes for up to two numbered alternatives. Splitting the two is what removes the
  * "which half of this row did I hit" ambiguity that a per-row secondary action creates.
  */
 @Composable
@@ -104,7 +110,7 @@ internal fun ScheduleContent(
     val alternativesFull = state.alternativeSlots.size >= maxAlternatives
 
     RequestStepScaffold(
-        title = if (addingAlternatives) "Add backup times" else "Choose a time",
+        title = if (addingAlternatives) "Add alternative times" else "Choose a time",
         stepLabels = requestStepLabels(state.identityRequired),
         currentStep = requestStepIndex(RequestStepId.SCHEDULE, state.identityRequired),
         onBack = if (addingAlternatives) onFinishAddingAlternatives else onBack,
@@ -113,8 +119,8 @@ internal fun ScheduleContent(
                 AppointmentPrimaryButton(
                     text = when (state.alternativeSlots.size) {
                         0 -> "Done"
-                        1 -> "Done · 1 backup"
-                        else -> "Done · ${state.alternativeSlots.size} backups"
+                        1 -> "Done · 1 alternative"
+                        else -> "Done · ${state.alternativeSlots.size} alternatives"
                     },
                     onClick = onFinishAddingAlternatives,
                 )
@@ -127,6 +133,9 @@ internal fun ScheduleContent(
             }
         },
     ) {
+        var selectedTimesExpanded by rememberSaveable(addingAlternatives) {
+            mutableStateOf(!addingAlternatives)
+        }
         val chosenDates = remember(state.primarySlot, state.alternativeSlots) {
             (listOfNotNull(state.primarySlot) + state.alternativeSlots)
                 .mapNotNull { slotClinicDate(it.startsAt) }
@@ -135,7 +144,7 @@ internal fun ScheduleContent(
 
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             WeekStrip(
                 weekStart = state.weekStart,
@@ -152,8 +161,10 @@ internal fun ScheduleContent(
                         primarySlot = primarySlot,
                         alternativeSlots = state.alternativeSlots,
                         addingAlternatives = addingAlternatives,
+                        expanded = !addingAlternatives || selectedTimesExpanded,
                         onAddAlternatives = onStartAddingAlternatives,
                         onRemoveAlternative = onRemoveAlternative,
+                        onToggleExpanded = { selectedTimesExpanded = !selectedTimesExpanded },
                         modifier = Modifier.padding(horizontal = RequestStepMargin),
                     )
                 }
@@ -364,7 +375,7 @@ private fun DayCell(
 
 /**
  * One dot carrying two facts: whether the clinic is open that day, and whether one of the
- * patient's own chosen times sits on it. The second matters because a backup on another week
+ * patient's own chosen times sits on it. The second matters because an alternative on another week
  * is otherwise invisible from here.
  */
 @Composable
@@ -395,18 +406,21 @@ private fun DayMarker(
 /**
  * The running answer to "what have I chosen?", present in both phases.
  *
- * Backups can sit on days the strip is not currently showing, so the slot list alone cannot
- * represent them — and once both backups were taken, the only entry into the backup phase used
- * to disappear, stranding a patient who picked the wrong one. This card keeps every chosen time
- * and its day visible, and keeps removal reachable, whatever day the list below is showing.
+ * Alternatives can sit on days the strip is not currently showing, so the slot list alone cannot
+ * represent them — and once both alternatives were taken, the only entry into the alternatives
+ * phase used to disappear, stranding a patient who picked the wrong one. This card keeps every
+ * chosen time and its day visible, and keeps removal reachable, whatever day the list below is
+ * showing.
  */
 @Composable
 private fun ChosenTimesCard(
     primarySlot: AvailabilitySlot,
     alternativeSlots: List<AvailabilitySlot>,
     addingAlternatives: Boolean,
+    expanded: Boolean,
     onAddAlternatives: () -> Unit,
     onRemoveAlternative: (AvailabilitySlot) -> Unit,
+    onToggleExpanded: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val full = alternativeSlots.size >= maxAlternatives
@@ -435,18 +449,52 @@ private fun ChosenTimesCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 when {
-                    // Adding: the count is the thing that changes, so it is what gets announced.
-                    addingAlternatives || full -> Text(
-                        text = "${alternativeSlots.size} of $maxAlternatives backups",
+                    // Adding: the count and expand action are the only controls in this header.
+                    addingAlternatives -> Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "${alternativeSlots.size} of $maxAlternatives alternatives",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .weight(1f)
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                            textAlign = TextAlign.End,
+                        )
+                        IconButton(
+                            onClick = onToggleExpanded,
+                            modifier = Modifier.semantics {
+                                contentDescription = if (expanded) {
+                                    "Collapse selected times"
+                                } else {
+                                    "Expand selected times"
+                                }
+                            },
+                        ) {
+                            Icon(
+                                imageVector = if (expanded) {
+                                    Icons.Outlined.KeyboardArrowUp
+                                } else {
+                                    Icons.Outlined.KeyboardArrowDown
+                                },
+                                contentDescription = null,
+                            )
+                        }
+                    }
+                    // A full set in the preferred phase still needs a visible count.
+                    full -> Text(
+                        text = "${alternativeSlots.size} of $maxAlternatives alternatives",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
-                    // One backup already chosen: a compact action keeps the card short enough
+                    // One alternative already chosen: a compact action keeps the card short enough
                     // that the slot list below still shows several rows.
                     alternativeSlots.isNotEmpty() -> TextButton(onClick = onAddAlternatives) {
                         Text(
-                            text = "Add another",
+                            text = "Add another alternative",
                             style = MaterialTheme.typography.labelLarge,
                             color = EyecareColors.current.accentText,
                         )
@@ -454,45 +502,54 @@ private fun ChosenTimesCard(
                 }
             }
 
-            ChosenTimeRow(
-                rank = "Preferred",
-                isPreferred = true,
-                slot = primarySlot,
-                onRemove = null,
-            )
-
-            alternativeSlots.forEachIndexed { index, slot ->
-                ChosenTimeRow(
-                    rank = "Backup ${index + 1}",
-                    isPreferred = false,
-                    slot = slot,
-                    onRemove = { onRemoveAlternative(slot) },
-                )
-            }
-
-            val hint = when {
-                addingAlternatives && full ->
-                    "That's both backups. Remove one to pick a different time."
-                addingAlternatives ->
-                    "Tick any other times that would also work for you."
-                full -> "Remove one to swap in a different time."
-                alternativeSlots.isEmpty() ->
-                    "Backup times are optional — offering more than one gives the clinic more " +
-                        "ways to say yes."
-                else -> null
-            }
-            hint?.let {
+            if (addingAlternatives && !expanded) {
                 Text(
-                    text = it,
+                    text = compactChosenTimesLabel(primarySlot, alternativeSlots),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
+            } else {
+                ChosenTimeRow(
+                    rank = "Preferred",
+                    isPreferred = true,
+                    slot = primarySlot,
+                    onRemove = null,
+                )
+
+                alternativeSlots.forEachIndexed { index, slot ->
+                    ChosenTimeRow(
+                        rank = "Alternative ${index + 1}",
+                        isPreferred = false,
+                        slot = slot,
+                        onRemove = { onRemoveAlternative(slot) },
+                    )
+                }
+
+                val hint = when {
+                    addingAlternatives && full ->
+                        "You've selected both alternatives. Remove one to choose a different alternative."
+                    addingAlternatives ->
+                        "Select up to two other times that could work for you."
+                    full -> "Remove one to choose a different alternative."
+                    alternativeSlots.isEmpty() ->
+                        "Alternative times are optional — they give the clinic more ways to find a time that works."
+                    else -> null
+                }
+                hint?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
 
             if (!addingAlternatives && alternativeSlots.isEmpty()) {
                 AppointmentOutlinedButton(
-                    text = "Add backup times",
+                    text = "Add alternative times",
                     onClick = onAddAlternatives,
                     modifier = Modifier.padding(top = 4.dp),
                 )
@@ -501,9 +558,22 @@ private fun ChosenTimesCard(
     }
 }
 
+private fun compactChosenTimesLabel(
+    primarySlot: AvailabilitySlot,
+    alternativeSlots: List<AvailabilitySlot>,
+): String {
+    val alternativeLabel = when (alternativeSlots.size) {
+        0 -> "No alternatives selected"
+        1 -> "1 alternative selected"
+        else -> "${alternativeSlots.size} alternatives selected"
+    }
+    return "Preferred ${formatTimeRange(primarySlot.startsAt, primarySlot.endsAt)} · $alternativeLabel"
+}
+
 /**
  * One chosen time. Rank is carried by a labelled pill rather than by colour alone, and the day
- * is always spelled out because a backup often belongs to a different day than the one on screen.
+ * is always spelled out because an alternative often belongs to a different day than the one on
+ * screen.
  */
 @Composable
 private fun ChosenTimeRow(
@@ -613,7 +683,8 @@ private fun SlotList(
                         contentPadding = PaddingValues(
                             start = RequestStepMargin,
                             end = RequestStepMargin,
-                            bottom = 16.dp,
+                            // Keep the last slot visibly clear of the pinned action surface.
+                            bottom = 24.dp,
                         ),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -669,7 +740,7 @@ private fun LazyListScope.slotSection(
                 slot = slot,
                 alternativeNumber = alternativeIndex?.plus(1),
                 isPreferred = isPreferred,
-                // A full backup list still lets you untick what you already chose.
+                // A full alternative list still lets you untick what you already chose.
                 enabled = !isPreferred && (alternativeIndex != null || !alternativesFull),
                 onToggle = { onToggleAlternative(slot) },
             )
@@ -701,7 +772,7 @@ private fun PreferredSlotRow(
         RadioButton(selected = isSelected, onClick = null)
         SlotRowText(slot = slot, isActive = isSelected)
         if (alternativeNumber != null) {
-            SlotBadge(text = "Backup $alternativeNumber")
+            SlotBadge(text = "Alternative $alternativeNumber")
         }
     }
 }
@@ -727,7 +798,7 @@ private fun AlternativeSlotRow(
         SlotRowText(slot = slot, isActive = checked, dimmed = !enabled && !isPreferred)
         when {
             isPreferred -> SlotBadge(text = "Preferred")
-            alternativeNumber != null -> SlotBadge(text = "Backup $alternativeNumber")
+            alternativeNumber != null -> SlotBadge(text = "Alternative $alternativeNumber")
         }
     }
 }
