@@ -43,6 +43,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -50,7 +51,6 @@ import com.eyecare.app.domain.model.SavedFrame
 import com.eyecare.app.domain.model.SavedFrameAvailability
 import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.buildImageUrl
-import com.eyecare.app.presentation.common.components.SavedFrameDisclaimer
 import com.eyecare.app.ui.theme.EyecareColors
 import com.eyecare.app.presentation.eyewear.formatTimestamp
 import java.math.BigDecimal
@@ -146,10 +146,6 @@ private fun SavedFramesContent(
                 start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp,
             ),
         ) {
-            item {
-                SavedFrameDisclaimer()
-            }
-
             items(
                 items = state.items,
                 key = { it.productVariantId },
@@ -332,7 +328,6 @@ private fun EmptySavedFrames() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        SavedFrameDisclaimer(modifier = Modifier.padding(bottom = 24.dp))
         Icon(
             Icons.Outlined.BookmarkBorder,
             contentDescription = null,
@@ -350,6 +345,8 @@ private fun EmptySavedFrames() {
             text = "Browse frames and save your favorites to find them here.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

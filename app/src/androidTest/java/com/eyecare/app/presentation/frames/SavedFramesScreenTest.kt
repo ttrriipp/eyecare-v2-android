@@ -19,7 +19,7 @@ class SavedFramesScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun populatedRowShowsDisclaimerAndSavedTime() {
+    fun populatedRowShowsSavedTimeWithoutPersistentDisclaimer() {
         composeRule.setContent {
             EyecareTheme {
                 SavedFramesScreen(
@@ -38,9 +38,33 @@ class SavedFramesScreenTest {
             }
         }
 
-        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertIsDisplayed()
+        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertDoesNotExist()
         composeRule.onNodeWithText("Saved Aug 27, 2026", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Unavailable").assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyStateDoesNotShowPersistentDisclaimer() {
+        composeRule.setContent {
+            EyecareTheme {
+                SavedFramesScreen(
+                    uiState = SavedFramesUiState.Success(
+                        items = emptyList(),
+                        currentPage = 1,
+                        canLoadMore = false,
+                    ),
+                    onBack = {},
+                    onRefresh = {},
+                    onLoadMore = {},
+                    onRemoveFrame = {},
+                    onOpenFrame = { _, _ -> },
+                    onClearError = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("No saved frames yet").assertIsDisplayed()
+        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertDoesNotExist()
     }
 
     private fun savedFrame() = SavedFrame(
