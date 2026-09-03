@@ -74,7 +74,7 @@ fun PrescriptionListScreen(
             },
         )
         PullToRefreshBox(
-            isRefreshing = uiState is PrescriptionListUiState.Loading,
+            isRefreshing = (uiState as? PrescriptionListUiState.Success)?.isRefreshing == true,
             onRefresh = viewModel::refresh,
             modifier = Modifier.fillMaxSize(),
         ) {

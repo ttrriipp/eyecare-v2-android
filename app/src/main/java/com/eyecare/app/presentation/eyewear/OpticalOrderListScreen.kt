@@ -48,8 +48,7 @@ fun OpticalOrderListContent(
 ) {
     // Loading covers the first, data-less load; a Success screen's own isRefreshing covers a
     // pull-to-refresh or resume-triggered refresh that keeps existing items visible underneath.
-    val isRefreshing = uiState is OrderListUiState.Loading ||
-        (uiState as? OrderListUiState.Success)?.isRefreshing == true
+    val isRefreshing = (uiState as? OrderListUiState.Success)?.isRefreshing == true
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,

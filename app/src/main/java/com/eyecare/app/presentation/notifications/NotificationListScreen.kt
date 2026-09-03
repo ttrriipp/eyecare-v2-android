@@ -127,7 +127,7 @@ fun NotificationListScreen(
                 },
             )
 
-            val isRefreshing = uiState is NotificationListUiState.Loading || successState?.isRefreshing == true
+            val isRefreshing = successState?.isRefreshing == true
 
             Box(Modifier.weight(1f)) {
                 PullToRefreshBox(

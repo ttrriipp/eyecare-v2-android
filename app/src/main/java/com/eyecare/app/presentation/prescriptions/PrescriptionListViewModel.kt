@@ -18,6 +18,7 @@ sealed interface PrescriptionListUiState {
         val isLoadingMore: Boolean = false,
         val hasMorePages: Boolean = false,
         val loadMoreError: String? = null,
+        val isRefreshing: Boolean = false,
     ) : PrescriptionListUiState
     data object Empty : PrescriptionListUiState
     data class Error(val message: String) : PrescriptionListUiState
@@ -36,8 +37,13 @@ class PrescriptionListViewModel @Inject constructor(
     init { load() }
 
     fun refresh() {
-        currentPage = 1
-        load()
+        val current = _uiState.value as? PrescriptionListUiState.Success
+        if (current != null) {
+            refreshInternal(current)
+        } else {
+            currentPage = 1
+            load()
+        }
     }
 
     fun loadMore() {
@@ -61,6 +67,29 @@ class PrescriptionListViewModel @Inject constructor(
                     )
                 },
                 onFailure = { _uiState.value = PrescriptionListUiState.Error(it.message ?: "Failed to load") },
+            )
+        }
+    }
+
+    private fun refreshInternal(current: PrescriptionListUiState.Success) {
+        currentPage = 1
+        _uiState.value = current.copy(isRefreshing = true, loadMoreError = null)
+        viewModelScope.launch {
+            repository.getPrescriptions(page = 1).fold(
+                onSuccess = { result ->
+                    currentPage = result.currentPage
+                    if (result.data.isEmpty()) {
+                        _uiState.value = PrescriptionListUiState.Empty
+                    } else {
+                        _uiState.value = PrescriptionListUiState.Success(
+                            prescriptions = result.data,
+                            hasMorePages = result.hasMorePages,
+                        )
+                    }
+                },
+                onFailure = {
+                    _uiState.value = current.copy(isRefreshing = false)
+                },
             )
         }
     }

@@ -73,8 +73,34 @@ class PrescriptionListViewModelTest {
             val success = awaitItem() as PrescriptionListUiState.Success
             assertEquals(1, success.prescriptions.size)
             assertFalse(success.hasMorePages)
+            assertFalse(success.isRefreshing)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `refresh keeps current prescriptions visible while loading`() = runTest {
+        val initialPrescriptions = listOf(createPrescription(1))
+        val refreshedPrescriptions = listOf(createPrescription(2))
+        coEvery { repository.getPrescriptions(1) } returnsMany listOf(
+            Result.success(PaginatedResult(initialPrescriptions, 1, 1, 1)),
+            Result.success(PaginatedResult(refreshedPrescriptions, 1, 1, 1)),
+        )
+
+        viewModel = PrescriptionListViewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.refresh()
+
+        val refreshing = viewModel.uiState.value as PrescriptionListUiState.Success
+        assertEquals(initialPrescriptions, refreshing.prescriptions)
+        assertTrue(refreshing.isRefreshing)
+
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val refreshed = viewModel.uiState.value as PrescriptionListUiState.Success
+        assertEquals(refreshedPrescriptions, refreshed.prescriptions)
+        assertFalse(refreshed.isRefreshing)
     }
 
     @Test
