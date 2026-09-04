@@ -1,7 +1,7 @@
 package com.eyecare.app.presentation.appointments.requests
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -156,7 +156,6 @@ private fun RequestDetailDataContent(
     val confirmedAppointmentId = state.request.appointmentId
         .takeIf { presentation.showViewConfirmed && state.isLinked }
     val showBottomBar = showMessageAction || showCancel || confirmedAppointmentId != null
-    val bottomContentPadding = if (showBottomBar) 120.dp else 24.dp
 
     Scaffold(
         topBar = {
@@ -165,20 +164,30 @@ private fun RequestDetailDataContent(
                 navigationIcon = { RequestBackIcon(onBack) },
             )
         },
+        bottomBar = {
+            if (showBottomBar) {
+                RequestDetailBottomBar(
+                    confirmedAppointmentId = confirmedAppointmentId,
+                    showMessageAction = showMessageAction,
+                    showCancel = showCancel,
+                    isCancelling = state.isCancelling,
+                    onViewConfirmed = onViewConfirmed,
+                    onMessageClick = onMessageClick,
+                    onCancelClick = onCancelClick,
+                )
+            }
+        },
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = state.isRefreshing,
             onRefresh = onRefresh,
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-        // Mirrors AppointmentDetailScreen's own Box: scrollable content plus a fixed action
-        // bar pinned to the bottom, instead of stacking action buttons into the scroll flow.
-        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = bottomContentPadding),
+                    .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 state.cancelError?.let { RequestActionError(it) }
@@ -190,37 +199,26 @@ private fun RequestDetailDataContent(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        // The hero lives inside the card, mirroring AppointmentDetailScreen's own
-                        // Card header (appointment number + title + status badge) rather than
-                        // sitting outside it as a separate page-level heading.
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text(
-                                    text = "Request ${state.request.requestNumber}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    text = heroTitle,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                            AppointmentRequestStatusPill(state.request.status, presentation.label)
+                        // Keep the request number and title together as the card's visual anchor.
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Request ${state.request.requestNumber}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = heroTitle,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
                         }
 
                         Surface(
@@ -258,24 +256,17 @@ private fun RequestDetailDataContent(
                         }
 
                         if (state.request.alternativeScheduledTimes.isNotEmpty()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text(
                                     text = "Alternative times",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.titleSmall,
                                 )
                                 state.request.alternativeScheduledTimes.forEachIndexed { index, time ->
-                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Text(
-                                            text = "Alternative ${index + 1}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        Text(
-                                            text = formatDetailDateTime(time),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                        )
-                                    }
+                                    DetailMetadataRow(
+                                        icon = Icons.Outlined.AccessTime,
+                                        label = "Option ${index + 1}",
+                                        value = formatDetailDateTime(time),
+                                    )
                                 }
                             }
                         }
@@ -292,20 +283,33 @@ private fun RequestDetailDataContent(
                             state.request.rejectionReason?.takeIf { it.isNotBlank() }?.let { reason ->
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(12.dp),
                                     color = MaterialTheme.colorScheme.errorContainer,
                                 ) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Text(
-                                            text = "Reason",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Info,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.size(20.dp),
                                         )
-                                        Text(
-                                            text = reason,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onErrorContainer,
-                                        )
+                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(
+                                                text = "Clinic response",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                            )
+                                            Text(
+                                                text = reason,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -313,51 +317,55 @@ private fun RequestDetailDataContent(
                     }
                 }
             }
-
-            if (showBottomBar) {
-                // Rounded top corners plus a hairline border read as an intentional sheet
-                // lifted off the canvas (matching the app's border-before-shadow depth model)
-                // instead of a flat rectangular slab with a hard shadow line cutting across it.
-                Surface(
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                    shadowElevation = 8.dp,
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .navigationBarsPadding()
-                            .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        if (confirmedAppointmentId != null) {
-                            AppointmentPrimaryButton(
-                                text = "View confirmed appointment",
-                                onClick = { onViewConfirmed(confirmedAppointmentId) },
-                                icon = Icons.Outlined.EventAvailable,
-                            )
-                        }
-                        if (showMessageAction) {
-                            AppointmentOutlinedButton(
-                                text = "Message the clinic",
-                                onClick = onMessageClick,
-                                icon = Icons.AutoMirrored.Outlined.Chat,
-                            )
-                        }
-                        if (showCancel) {
-                            AppointmentOutlinedButton(
-                                text = "Cancel request",
-                                onClick = onCancelClick,
-                                enabled = !state.isCancelling,
-                                loading = state.isCancelling,
-                                icon = Icons.Outlined.EventBusy,
-                                isDestructive = true,
-                            )
-                        }
-                    }
-                }
-            }
         }
+    }
+}
+
+@Composable
+private fun RequestDetailBottomBar(
+    confirmedAppointmentId: Int?,
+    showMessageAction: Boolean,
+    showCancel: Boolean,
+    isCancelling: Boolean,
+    onViewConfirmed: (Int) -> Unit,
+    onMessageClick: () -> Unit,
+    onCancelClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 3.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (confirmedAppointmentId != null) {
+                AppointmentPrimaryButton(
+                    text = "View confirmed appointment",
+                    onClick = { onViewConfirmed(confirmedAppointmentId) },
+                    icon = Icons.Outlined.EventAvailable,
+                )
+            }
+            if (showMessageAction) {
+                AppointmentOutlinedButton(
+                    text = "Message the clinic",
+                    onClick = onMessageClick,
+                    icon = Icons.AutoMirrored.Outlined.Chat,
+                )
+            }
+            if (showCancel) {
+                AppointmentOutlinedButton(
+                    text = "Cancel request",
+                    onClick = onCancelClick,
+                    enabled = !isCancelling,
+                    loading = isCancelling,
+                    icon = Icons.Outlined.EventBusy,
+                    isDestructive = true,
+                )
+            }
         }
     }
 }
@@ -390,16 +398,35 @@ private fun RequestStatusNotice(status: AppointmentRequestStatus, presentation: 
         AppointmentRequestStatus.EXPIRED,
         AppointmentRequestStatus.UNKNOWN -> Icons.Outlined.EventBusy
     }
-    val isActive = status == AppointmentRequestStatus.PENDING || status == AppointmentRequestStatus.ACCEPTED
+    val containerColor = when (status) {
+        AppointmentRequestStatus.PENDING -> MaterialTheme.colorScheme.primaryContainer
+        AppointmentRequestStatus.ACCEPTED -> MaterialTheme.colorScheme.tertiaryContainer
+        AppointmentRequestStatus.REJECTED,
+        AppointmentRequestStatus.CANCELLED,
+        AppointmentRequestStatus.EXPIRED -> MaterialTheme.colorScheme.errorContainer
+        AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = when (status) {
+        AppointmentRequestStatus.PENDING -> MaterialTheme.colorScheme.onPrimaryContainer
+        AppointmentRequestStatus.ACCEPTED -> MaterialTheme.colorScheme.onTertiaryContainer
+        AppointmentRequestStatus.REJECTED,
+        AppointmentRequestStatus.CANCELLED,
+        AppointmentRequestStatus.EXPIRED -> MaterialTheme.colorScheme.onErrorContainer
+        AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val iconTint = when (status) {
+        AppointmentRequestStatus.PENDING -> EyecareColors.current.accentText
+        AppointmentRequestStatus.ACCEPTED -> EyecareColors.current.statusConfirmed
+        AppointmentRequestStatus.REJECTED,
+        AppointmentRequestStatus.CANCELLED,
+        AppointmentRequestStatus.EXPIRED -> MaterialTheme.colorScheme.error
+        AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = if (isActive) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        },
+        color = containerColor,
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -410,7 +437,7 @@ private fun RequestStatusNotice(status: AppointmentRequestStatus, presentation: 
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = EyecareColors.current.accentText,
+                tint = iconTint,
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -420,12 +447,12 @@ private fun RequestStatusNotice(status: AppointmentRequestStatus, presentation: 
                     text = presentation.label,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = contentColor,
                 )
                 Text(
                     text = presentation.description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = contentColor,
                 )
             }
         }

@@ -94,29 +94,9 @@ fun RequestReasonContent(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() },
             )
-            Text(
-                text = "A short description helps the clinic prepare for your visit " +
-                    "and decide how much time you need.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
 
             if (hasPresets) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Common reasons",
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    Text(
-                        text = if (state.reasonChoice == VisitReasonChoice.None) {
-                            "Choose a common reason, or Other if none fit."
-                        } else {
-                            "Choose the closest match, then add details if helpful."
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                     FlowRow(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -213,14 +193,6 @@ fun RequestReasonContent(
                         )
                     }
                 }
-            }
-
-            if (!showReasonField && !choiceError) {
-                Text(
-                    text = "Select a common reason or Other to continue.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
 
             if (state.selectedType.requiresReferral) {

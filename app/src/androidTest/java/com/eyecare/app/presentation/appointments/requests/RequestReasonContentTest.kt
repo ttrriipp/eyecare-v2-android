@@ -22,7 +22,7 @@ class RequestReasonContentTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun presetCatalog_rendersInOrderWithOtherAndOptionalDetails() {
+    fun presetCatalog_rendersWithoutRedundantGuidanceAndShowsOptionalDetails() {
         var state by mutableStateOf(reasonState(type = presetType))
         val choices = mutableListOf<VisitReasonChoice>()
 
@@ -43,7 +43,13 @@ class RequestReasonContentTest {
             }
         }
 
-        composeRule.onNodeWithText("Common reasons").assertIsDisplayed()
+        composeRule.onNodeWithText("What would you like to be seen for?").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "A short description helps the clinic prepare for your visit and decide how much time you need.",
+        ).assertDoesNotExist()
+        composeRule.onNodeWithText("Common reasons").assertDoesNotExist()
+        composeRule.onNodeWithText("Select a common reason or Other to continue.")
+            .assertDoesNotExist()
         composeRule.onNodeWithText("Blurred or reduced vision").assertIsDisplayed()
         composeRule.onNodeWithText("Eye pain or discomfort").assertIsDisplayed()
         composeRule.onNodeWithText("Other").assertIsDisplayed()
