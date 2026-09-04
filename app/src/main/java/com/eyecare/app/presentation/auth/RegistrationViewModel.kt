@@ -31,6 +31,7 @@ sealed interface RegistrationState {
         val code: String = "",
         val error: String? = null,
         val isResending: Boolean = false,
+        val isVerifying: Boolean = false,
     ) : RegistrationState
 
     data class EnterDetails(
@@ -95,50 +96,94 @@ class RegistrationViewModel @Inject constructor(
 
     fun updateOtpCode(code: String) {
         val current = _state.value
-        if (current is RegistrationState.VerifyPhoneOtp) {
+        if (
+            current is RegistrationState.VerifyPhoneOtp &&
+            !current.isResending &&
+            !current.isVerifying
+        ) {
             _state.value = current.copy(code = code, error = null)
         }
     }
 
     fun verifyPhoneOtp() {
         val current = _state.value
-        if (current !is RegistrationState.VerifyPhoneOtp || current.code.length != 6) return
+        if (
+            current !is RegistrationState.VerifyPhoneOtp ||
+            current.isResending ||
+            current.isVerifying ||
+            current.code.length != 6
+        ) return
+
+        _state.value = current.copy(error = null, isVerifying = true)
 
         viewModelScope.launch {
-            _state.value = current.copy(error = null)
             authRepository.verifyRegistrationOtp(current.challengeId, current.code)
                 .onSuccess { proof ->
-                    loadPoliciesAndShowDetails(proof.token)
+                    val latest = _state.value
+                    if (
+                        latest is RegistrationState.VerifyPhoneOtp &&
+                        latest.isVerifying &&
+                        latest.challengeId == current.challengeId
+                    ) {
+                        loadPoliciesAndShowDetails(proof.token)
+                    }
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(
-                        error = authErrorMessage(error, "Could not verify the code."),
-                    )
+                    val latest = _state.value
+                    if (
+                        latest is RegistrationState.VerifyPhoneOtp &&
+                        latest.isVerifying &&
+                        latest.challengeId == current.challengeId
+                    ) {
+                        _state.value = latest.copy(
+                            isVerifying = false,
+                            error = authErrorMessage(error, "Could not verify the code."),
+                        )
+                    }
                 }
         }
     }
 
     fun resendOtp() {
         val current = _state.value
-        if (current !is RegistrationState.VerifyPhoneOtp) return
+        if (
+            current !is RegistrationState.VerifyPhoneOtp ||
+            current.isResending ||
+            current.isVerifying
+        ) return
+
+        _state.value = current.copy(isResending = true, error = null)
 
         viewModelScope.launch {
-            _state.value = current.copy(isResending = true)
             authRepository.requestRegistrationOtp(current.phoneNumber)
                 .onSuccess { challenge ->
-                    _state.value = current.copy(
-                        challengeId = challenge.challengeId,
-                        expiresAt = challenge.expiresAt,
-                        code = "",
-                        error = null,
-                        isResending = false,
-                    )
+                    val latest = _state.value
+                    if (
+                        latest is RegistrationState.VerifyPhoneOtp &&
+                        latest.isResending &&
+                        latest.challengeId == current.challengeId
+                    ) {
+                        _state.value = latest.copy(
+                            challengeId = challenge.challengeId,
+                            expiresAt = challenge.expiresAt,
+                            code = "",
+                            error = null,
+                            isResending = false,
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(
-                        isResending = false,
-                        error = authErrorMessage(error, "Could not resend the code."),
-                    )
+                    val latest = _state.value
+                    if (
+                        latest is RegistrationState.VerifyPhoneOtp &&
+                        latest.isResending &&
+                        latest.challengeId == current.challengeId
+                    ) {
+                        _state.value = latest.copy(
+                            isResending = false,
+                            error = authErrorMessage(error, "Could not resend the code."),
+                        )
+                    }
                 }
         }
     }
@@ -238,7 +283,13 @@ class RegistrationViewModel @Inject constructor(
 
     fun back() {
         _state.value = when (val current = _state.value) {
-            is RegistrationState.VerifyPhoneOtp -> RegistrationState.EnterPhone(current.phoneNumber)
+            is RegistrationState.VerifyPhoneOtp -> {
+                if (current.isResending || current.isVerifying) {
+                    current
+                } else {
+                    RegistrationState.EnterPhone(current.phoneNumber)
+                }
+            }
             is RegistrationState.EnterDetails -> RegistrationState.EnterPhone()
             else -> current
         }

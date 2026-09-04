@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Palette
@@ -90,8 +91,8 @@ import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.presentation.common.FeatureFlags
 import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
-import com.eyecare.app.presentation.common.components.SavedFrameDisclaimer
 import com.eyecare.app.presentation.frames.components.RatingSummary
 import com.eyecare.app.ui.theme.EyecareColors
 import java.util.Locale
@@ -478,11 +479,29 @@ internal fun FrameDetailSaveControls(
     onToggleSaved: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showRemoveSavedDialog by rememberSaveable { mutableStateOf(false) }
+
+    if (showRemoveSavedDialog) {
+        AppConfirmationDialog(
+            icon = Icons.Outlined.BookmarkBorder,
+            title = "Remove saved frame?",
+            message = "Remove ${selected.name} from your saved frames?",
+            confirmLabel = "Remove",
+            dismissLabel = "Keep saved",
+            iconTint = MaterialTheme.colorScheme.error,
+            isDestructive = true,
+            onConfirm = {
+                showRemoveSavedDialog = false
+                onToggleSaved()
+            },
+            onDismissRequest = { showRemoveSavedDialog = false },
+        )
+    }
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SavedFrameDisclaimer()
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -504,7 +523,7 @@ internal fun FrameDetailSaveControls(
             }
             if (selected.isSaved) {
                 OutlinedButton(
-                    onClick = onToggleSaved,
+                    onClick = { showRemoveSavedDialog = true },
                     enabled = !isSaving,
                     modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(24.dp),

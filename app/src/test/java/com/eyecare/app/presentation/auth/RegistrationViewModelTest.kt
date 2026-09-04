@@ -10,8 +10,10 @@ import com.eyecare.app.domain.model.PolicyMetadata
 import com.eyecare.app.domain.model.RegistrationProof
 import com.eyecare.app.domain.repository.AuthRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -110,6 +112,25 @@ class RegistrationViewModelTest {
         val state = vm.state.value as RegistrationState.EnterDetails
         assertEquals("registration-token", state.registrationToken)
         assertEquals("", state.email)
+    }
+
+    @Test
+    fun `verifyPhoneOtp ignores repeated submissions while verification is pending`() = runTest {
+        coEvery { authRepo.requestRegistrationOtp("+639171234567") } returns
+            Result.success(OtpChallenge("ch-1", "2026-08-01T10:10:00"))
+        val verification = CompletableDeferred<Result<RegistrationProof>>()
+        coEvery { authRepo.verifyRegistrationOtp("ch-1", "123456") } coAnswers {
+            verification.await()
+        }
+
+        vm.updatePhone("+639171234567")
+        vm.requestPhoneOtp()
+        vm.updateOtpCode("123456")
+        vm.verifyPhoneOtp()
+        vm.verifyPhoneOtp()
+
+        coVerify(exactly = 1) { authRepo.verifyRegistrationOtp("ch-1", "123456") }
+        verification.complete(Result.failure(IllegalStateException("verification failed")))
     }
 
     @Test

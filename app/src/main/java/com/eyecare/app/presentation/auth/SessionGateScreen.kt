@@ -65,7 +65,7 @@ private fun SessionGateCheckingContent() {
         ) {
             CircularProgressIndicator()
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Checking your account…", style = MaterialTheme.typography.bodyMedium)
+            Text("Getting things ready…", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

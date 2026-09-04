@@ -8,12 +8,15 @@ import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.repository.AuthRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -73,6 +76,28 @@ class SignInViewModelTest {
 
         val state = vm.state.value as SignInState.VerifyOtp
         assertEquals("ch-1", state.challengeId)
+    }
+
+    @Test
+    fun `verifyOtp ignores repeated submissions while verification is pending`() = runTest {
+        coEvery { authRepo.beginLogin(any(), any(), any(), any()) } returns
+            Result.success(LoginOutcome.OtpRequired("ch-1", "2026-08-01T10:10:00"))
+        val verification = CompletableDeferred<Result<AuthenticatedSession>>()
+        coEvery { authRepo.verifyLogin("ch-1", "123456", "Test Device", "test-id") } coAnswers {
+            verification.await()
+        }
+
+        vm.updatePhone("+639171234567")
+        vm.updatePassword("password123")
+        vm.signIn()
+        vm.updateOtpCode("123456")
+        vm.verifyOtp()
+        vm.verifyOtp()
+
+        coVerify(exactly = 1) {
+            authRepo.verifyLogin("ch-1", "123456", "Test Device", "test-id")
+        }
+        verification.complete(Result.failure(IllegalStateException("verification failed")))
     }
 
     @Test

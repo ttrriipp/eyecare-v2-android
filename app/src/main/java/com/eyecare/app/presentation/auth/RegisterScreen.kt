@@ -177,19 +177,19 @@ private fun RegisterOtpStep(
             value = state.code,
             onValueChange = viewModel::updateOtpCode,
             error = state.error,
-            enabled = !state.isResending,
+            enabled = !state.isResending && !state.isVerifying,
         )
         OtpExpiryRow(
             expiresAt = state.expiresAt,
-            canResend = !state.isResending,
+            canResend = !state.isResending && !state.isVerifying,
             onResend = viewModel::resendOtp,
         )
         Spacer(modifier = Modifier.height(24.dp))
         AuthPrimaryButton(
             text = "Verify phone",
             onClick = viewModel::verifyPhoneOtp,
-            enabled = state.code.length == 6 && !state.isResending,
-            loading = state.isResending,
+            enabled = state.code.length == 6 && !state.isResending && !state.isVerifying,
+            loading = state.isResending || state.isVerifying,
         )
     }
 }

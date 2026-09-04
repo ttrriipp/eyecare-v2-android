@@ -479,6 +479,8 @@ fun EyecareNavGraph(
                                 navigatePatientFeature(FrameDetail(frameId, variantId))
                             },
                             onClearError = savedFramesViewModel::clearInlineError,
+                            onNavigateToFrames = { navigateMainTab(Frames) },
+                            onClearSuccessMessage = savedFramesViewModel::clearSuccessMessage,
                         )
                     }
                     composable<PatientProfile> {

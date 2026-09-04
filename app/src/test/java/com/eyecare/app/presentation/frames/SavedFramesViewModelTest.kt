@@ -144,6 +144,7 @@ class SavedFramesViewModelTest {
         val state = viewModel.uiState.value as SavedFramesUiState.Success
         assertEquals(1, state.items.size)
         assertTrue(state.inlineError != null)
+        assertEquals(SavedFramesInlineErrorAction.RetryRefresh, state.inlineErrorAction)
     }
 
     @Test
@@ -178,7 +179,7 @@ class SavedFramesViewModelTest {
 
         val state = viewModel.uiState.value as SavedFramesUiState.Success
         assertEquals(listOf(1), state.items.map { it.productVariantId })
-        assertTrue(state.canRetryLoadMore)
+        assertEquals(SavedFramesInlineErrorAction.RetryLoadMore, state.inlineErrorAction)
         assertEquals("Couldn't load more. Try again.", state.inlineError)
     }
 
@@ -198,6 +199,7 @@ class SavedFramesViewModelTest {
         assertEquals(1, state.items.size)
         assertEquals(2, state.items[0].productVariantId)
         assertTrue(state.removingVariantIds.isEmpty())
+        assertEquals("Removed Frame from saved frames.", state.successMessage)
     }
 
     @Test
@@ -215,6 +217,7 @@ class SavedFramesViewModelTest {
         val state = viewModel.uiState.value as SavedFramesUiState.Success
         assertEquals(2, state.items.size)
         assertTrue(state.inlineError != null)
+        assertEquals(SavedFramesInlineErrorAction.RetryRemove(1), state.inlineErrorAction)
     }
 
     @Test

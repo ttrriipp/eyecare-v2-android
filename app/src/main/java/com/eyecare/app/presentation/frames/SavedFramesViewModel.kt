@@ -11,6 +11,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+sealed interface SavedFramesInlineErrorAction {
+    data object RetryRefresh : SavedFramesInlineErrorAction
+    data object RetryLoadMore : SavedFramesInlineErrorAction
+    data class RetryRemove(val productVariantId: Int) : SavedFramesInlineErrorAction
+}
+
 sealed interface SavedFramesUiState {
     data object Loading : SavedFramesUiState
 
@@ -22,7 +28,8 @@ sealed interface SavedFramesUiState {
         val isRefreshing: Boolean = false,
         val isLoadingMore: Boolean = false,
         val inlineError: String? = null,
-        val canRetryLoadMore: Boolean = false,
+        val inlineErrorAction: SavedFramesInlineErrorAction? = null,
+        val successMessage: String? = null,
     ) : SavedFramesUiState
 
     data class Error(val patientSafeMessage: String) : SavedFramesUiState
@@ -44,7 +51,8 @@ class SavedFramesViewModel @Inject constructor(
             _uiState.value = current.copy(
                 isRefreshing = true,
                 inlineError = null,
-                canRetryLoadMore = false,
+                inlineErrorAction = null,
+                successMessage = null,
             )
         } else {
             _uiState.value = SavedFramesUiState.Loading
@@ -56,7 +64,12 @@ class SavedFramesViewModel @Inject constructor(
         val current = _uiState.value as? SavedFramesUiState.Success ?: return
         if (!current.canLoadMore || current.isLoadingMore) return
 
-        _uiState.value = current.copy(isLoadingMore = true, inlineError = null, canRetryLoadMore = false)
+        _uiState.value = current.copy(
+            isLoadingMore = true,
+            inlineError = null,
+            inlineErrorAction = null,
+            successMessage = null,
+        )
         viewModelScope.launch {
             repository.getSavedFrames(page = current.currentPage + 1).fold(
                 onSuccess = { page ->
@@ -68,7 +81,8 @@ class SavedFramesViewModel @Inject constructor(
                         currentPage = page.currentPage,
                         canLoadMore = page.currentPage < page.lastPage,
                         isLoadingMore = false,
-                        canRetryLoadMore = false,
+                        inlineErrorAction = null,
+                        successMessage = null,
                     )
                 },
                 onFailure = {
@@ -76,7 +90,8 @@ class SavedFramesViewModel @Inject constructor(
                     _uiState.value = latest.copy(
                         isLoadingMore = false,
                         inlineError = "Couldn't load more. Try again.",
-                        canRetryLoadMore = true,
+                        inlineErrorAction = SavedFramesInlineErrorAction.RetryLoadMore,
+                        successMessage = null,
                     )
                 },
             )
@@ -90,16 +105,22 @@ class SavedFramesViewModel @Inject constructor(
         _uiState.value = current.copy(
             removingVariantIds = current.removingVariantIds + productVariantId,
             inlineError = null,
-            canRetryLoadMore = false,
+            inlineErrorAction = null,
+            successMessage = null,
         )
         viewModelScope.launch {
             repository.remove(productVariantId).fold(
                 onSuccess = {
                     val latest = _uiState.value as? SavedFramesUiState.Success ?: return@launch
+                    val removedFrame = latest.items.firstOrNull { it.productVariantId == productVariantId }
                     _uiState.value = latest.copy(
                         items = latest.items.filter { it.productVariantId != productVariantId },
                         removingVariantIds = latest.removingVariantIds - productVariantId,
-                        canRetryLoadMore = false,
+                        inlineError = null,
+                        inlineErrorAction = null,
+                        successMessage = "Removed " +
+                            (removedFrame?.variant?.product?.name ?: "Frame") +
+                            " from saved frames.",
                     )
                 },
                 onFailure = {
@@ -107,7 +128,8 @@ class SavedFramesViewModel @Inject constructor(
                     _uiState.value = latest.copy(
                         removingVariantIds = latest.removingVariantIds - productVariantId,
                         inlineError = "Couldn't remove this frame. Try again.",
-                        canRetryLoadMore = false,
+                        inlineErrorAction = SavedFramesInlineErrorAction.RetryRemove(productVariantId),
+                        successMessage = null,
                     )
                 },
             )
@@ -116,7 +138,12 @@ class SavedFramesViewModel @Inject constructor(
 
     fun clearInlineError() {
         val current = _uiState.value as? SavedFramesUiState.Success ?: return
-        _uiState.value = current.copy(inlineError = null, canRetryLoadMore = false)
+        _uiState.value = current.copy(inlineError = null, inlineErrorAction = null)
+    }
+
+    fun clearSuccessMessage() {
+        val current = _uiState.value as? SavedFramesUiState.Success ?: return
+        _uiState.value = current.copy(successMessage = null)
     }
 
     private fun load() {
@@ -138,6 +165,8 @@ class SavedFramesViewModel @Inject constructor(
                             currentPage = page.currentPage,
                             canLoadMore = page.currentPage < page.lastPage,
                             removingVariantIds = previousRemoving,
+                            inlineErrorAction = null,
+                            successMessage = null,
                         )
                     }
                 },
@@ -147,7 +176,8 @@ class SavedFramesViewModel @Inject constructor(
                         _uiState.value = previous.copy(
                             isRefreshing = false,
                             inlineError = "Couldn't refresh. Try again.",
-                            canRetryLoadMore = false,
+                            inlineErrorAction = SavedFramesInlineErrorAction.RetryRefresh,
+                            successMessage = null,
                         )
                     } else {
                         _uiState.value = SavedFramesUiState.Error(

@@ -2,7 +2,9 @@ package com.eyecare.app.presentation.frames
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.eyecare.app.domain.model.SavedFrame
 import com.eyecare.app.domain.model.SavedFrameAvailability
 import com.eyecare.app.domain.model.SavedFrameProduct
@@ -10,6 +12,8 @@ import com.eyecare.app.domain.model.SavedFrameVariant
 import com.eyecare.app.presentation.common.components.SAVED_FRAME_DISCLAIMER
 import com.eyecare.app.ui.theme.EyecareTheme
 import java.math.BigDecimal
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -19,7 +23,7 @@ class SavedFramesScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun populatedRowShowsSavedTimeWithoutPersistentDisclaimer() {
+    fun populatedRowShowsHierarchyDisclaimerAndAvailabilitySemantics() {
         composeRule.setContent {
             EyecareTheme {
                 SavedFramesScreen(
@@ -38,13 +42,17 @@ class SavedFramesScreenTest {
             }
         }
 
-        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertDoesNotExist()
+        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertIsDisplayed()
+        composeRule.onNodeWithText("EYECARE").assertIsDisplayed()
+        composeRule.onNodeWithText("Classic Rectangle").assertIsDisplayed()
+        composeRule.onNodeWithText("Black").assertIsDisplayed()
         composeRule.onNodeWithText("Saved Aug 27, 2026", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Unavailable").assertIsDisplayed()
+        composeRule.onNodeWithText("Availability unknown").assertIsDisplayed()
     }
 
     @Test
-    fun emptyStateDoesNotShowPersistentDisclaimer() {
+    fun emptyStateShowsDisclaimerAndBrowseAction() {
+        var browseClicked = false
         composeRule.setContent {
             EyecareTheme {
                 SavedFramesScreen(
@@ -59,12 +67,94 @@ class SavedFramesScreenTest {
                     onRemoveFrame = {},
                     onOpenFrame = { _, _ -> },
                     onClearError = {},
+                    onNavigateToFrames = { browseClicked = true },
                 )
             }
         }
 
         composeRule.onNodeWithText("No saved frames yet").assertIsDisplayed()
-        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertDoesNotExist()
+        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertIsDisplayed()
+        composeRule.onNodeWithText("Browse frames").performClick()
+        assertTrue(browseClicked)
+    }
+
+    @Test
+    fun removingRowRequiresExplicitConfirmation() {
+        var removed = false
+        composeRule.setContent {
+            EyecareTheme {
+                SavedFramesScreen(
+                    uiState = SavedFramesUiState.Success(
+                        items = listOf(savedFrame()),
+                        currentPage = 1,
+                        canLoadMore = false,
+                    ),
+                    onBack = {},
+                    onRefresh = {},
+                    onLoadMore = {},
+                    onRemoveFrame = { removed = true },
+                    onOpenFrame = { _, _ -> },
+                    onClearError = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Remove Black from saved").performClick()
+        composeRule.onNodeWithText("Remove saved frame?").assertIsDisplayed()
+        assertFalse(removed)
+
+        composeRule.onNodeWithText("Keep saved").performClick()
+        assertFalse(removed)
+
+        composeRule.onNodeWithContentDescription("Remove Black from saved").performClick()
+        composeRule.onNodeWithText("Remove", substring = false).performClick()
+        assertTrue(removed)
+    }
+
+    @Test
+    fun loadingStateHasAccessibleLabel() {
+        composeRule.setContent {
+            EyecareTheme {
+                SavedFramesScreen(
+                    uiState = SavedFramesUiState.Loading,
+                    onBack = {},
+                    onRefresh = {},
+                    onLoadMore = {},
+                    onRemoveFrame = {},
+                    onOpenFrame = { _, _ -> },
+                    onClearError = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Loading saved frames").assertIsDisplayed()
+    }
+
+    @Test
+    fun refreshErrorOffersRetryAction() {
+        var refreshCount = 0
+        composeRule.setContent {
+            EyecareTheme {
+                SavedFramesScreen(
+                    uiState = SavedFramesUiState.Success(
+                        items = listOf(savedFrame()),
+                        currentPage = 1,
+                        canLoadMore = false,
+                        inlineError = "Couldn't refresh. Try again.",
+                        inlineErrorAction = SavedFramesInlineErrorAction.RetryRefresh,
+                    ),
+                    onBack = {},
+                    onRefresh = { refreshCount++ },
+                    onLoadMore = {},
+                    onRemoveFrame = {},
+                    onOpenFrame = { _, _ -> },
+                    onClearError = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Try again").performClick()
+        assertTrue(refreshCount == 1)
     }
 
     private fun savedFrame() = SavedFrame(

@@ -6,6 +6,7 @@ import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.model.SavedFrame
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.SavedFrameRepository
+import com.eyecare.app.presentation.common.components.SAVED_FRAME_DISCLAIMER
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -114,6 +115,26 @@ class FrameDetailViewModelTest {
         assertEquals(72, state.selectedVariant.id)
         assertTrue(state.frame.variants.first { it.id == 71 }.isSaved)
         assertFalse(state.selectedVariant.isSaved)
+    }
+
+    @Test
+    fun save_success_surfaces_the_saved_frame_notice_once() = runTest(dispatcher) {
+        val initial = frame()
+        coEvery { repository.getFrame(7) } returns Result.success(initial)
+        coEvery { savedFrameRepository.save(71) } returns Result.success(mockk())
+
+        val viewModel = FrameDetailViewModel(repository, savedFrameRepository, frameId = 7, requestedVariantId = null)
+        advanceUntilIdle()
+        assertEquals(null, (viewModel.uiState.value as FrameDetailUiState.Success).message)
+
+        viewModel.toggleSaved()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as FrameDetailUiState.Success
+        assertEquals(SAVED_FRAME_DISCLAIMER, state.message)
+
+        viewModel.clearMessage()
+        assertEquals(null, (viewModel.uiState.value as FrameDetailUiState.Success).message)
     }
 
     @Test

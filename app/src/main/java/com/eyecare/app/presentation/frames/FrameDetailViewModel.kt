@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.SavedFrameRepository
+import com.eyecare.app.presentation.common.components.SAVED_FRAME_DISCLAIMER
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -76,7 +77,7 @@ class FrameDetailViewModel @AssistedInject constructor(
         if (current.isSavingVariant || saveJob?.isActive == true) return
 
         val variant = current.selectedVariant
-        _uiState.value = current.copy(isSavingVariant = true, saveError = null)
+        _uiState.value = current.copy(isSavingVariant = true, saveError = null, message = null)
 
         saveJob = viewModelScope.launch {
             val result = if (variant.isSaved) {
@@ -100,6 +101,11 @@ class FrameDetailViewModel @AssistedInject constructor(
                         frame = updatedFrame,
                         selectedVariant = selectedVariant,
                         isSavingVariant = false,
+                        message = if (variant.isSaved) {
+                            "Removed from saved frames."
+                        } else {
+                            SAVED_FRAME_DISCLAIMER
+                        },
                     )
                 },
                 onFailure = { error ->
