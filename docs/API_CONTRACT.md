@@ -1992,7 +1992,8 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
           "amount": "4500.00",
           "product_variant_id": 42,
           "is_rateable": false,
-          "rating": null
+          "rating": null,
+          "image_url": "frames/classic-rectangle.jpg"
         },
         {
           "id": 2,
@@ -2002,7 +2003,8 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
           "amount": "3500.00",
           "product_variant_id": null,
           "is_rateable": false,
-          "rating": null
+          "rating": null,
+          "image_url": null
         }
       ],
       "payment_summary": {
@@ -2056,6 +2058,7 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `items[].product_variant_id` | integer | yes | Catalog variant ID; null for non-catalog or lens-category items |
 | `items[].is_rateable` | boolean | no | Whether the patient may submit or revise a rating for this item now |
 | `items[].rating` | object | yes | Current rating summary; null when not yet rated |
+| `items[].image_url` | string | yes | Primary catalog image path or absolute URL for the ordered product variant; null when no image is available |
 | `payment_summary` | object | yes | Active billing summary; omitted entirely if no billing record |
 | `payment_summary.status` | string | no | Machine-readable: `unpaid`, `partially_paid`, `paid`, `voided` |
 | `payment_summary.total_amount` | string | no | Billing total |

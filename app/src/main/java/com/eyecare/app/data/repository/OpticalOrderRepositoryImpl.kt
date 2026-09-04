@@ -77,5 +77,6 @@ class OpticalOrderRepositoryImpl @Inject constructor(
         rating = rating?.let {
             RatingSummary(rating = it.rating, comment = it.comment, createdAt = it.createdAt)
         },
+        imagePath = imageUrl,
     )
 }

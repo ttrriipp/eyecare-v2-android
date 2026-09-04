@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.FaceRetouchingNatural
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,17 +43,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderStatus
-import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.common.FeatureFlags
+import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
@@ -62,7 +69,6 @@ import java.math.BigDecimal
 @Composable
 fun OpticalOrderDetailScreen(
     onBack: () -> Unit,
-    onNavigateToMessages: () -> Unit = {},
     ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
     viewModel: OpticalOrderDetailViewModel = hiltViewModel(),
 ) {
@@ -119,7 +125,6 @@ fun OpticalOrderDetailScreen(
             is OpticalOrderDetailUiState.Success -> OrderDetailContent(
                 order = state.order,
                 onRateItem = { itemId -> ratingItemId = itemId },
-                onNavigateToMessages = onNavigateToMessages,
                 ratingsEnabled = ratingsEnabled,
                 modifier = Modifier.padding(padding),
             )
@@ -128,22 +133,20 @@ fun OpticalOrderDetailScreen(
 }
 
 @Composable
-private fun OrderDetailContent(
+internal fun OrderDetailContent(
     order: OpticalOrder,
     onRateItem: (Int) -> Unit,
-    onNavigateToMessages: () -> Unit,
     ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
     modifier: Modifier = Modifier,
 ) {
     val balanceDue = order.paymentSummary?.balanceDue?.takeIf { it > BigDecimal.ZERO }
-    val showBottomBar = balanceDue != null
 
     Box(modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = if (showBottomBar) 104.dp else 32.dp),
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             OrderStatusGuidance(order.status)
@@ -224,7 +227,15 @@ private fun OrderDetailContent(
                         )
                     }
                     order.items.forEach { item ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            OrderItemImage(
+                                imagePath = item.imagePath,
+                                description = item.description,
+                            )
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     item.description,
@@ -310,31 +321,66 @@ private fun OrderDetailContent(
                 }
             }
 
-            Spacer(Modifier.height(if (showBottomBar) 0.dp else 16.dp))
+            Spacer(Modifier.height(16.dp))
         }
+    }
+}
 
-        if (showBottomBar) {
-            // Rounded top corners plus a hairline border read as an intentional sheet lifted off
-            // the canvas, matching the pattern used on the appointment and request detail screens,
-            // instead of a flat rectangular slab with a hard shadow line cutting across it.
-            Surface(
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                shadowElevation = 8.dp,
+@Composable
+private fun OrderItemImage(
+    imagePath: String?,
+    description: String,
+) {
+    val imageUrl = imagePath
+        ?.takeIf(String::isNotBlank)
+        ?.let(::buildImageUrl)
+    var imageState by remember(imageUrl) {
+        mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty)
+    }
+    val imageLoaded = imageState is AsyncImagePainter.State.Success
+    val placeholderDescription = when {
+        imageUrl == null -> "$description image unavailable"
+        imageState is AsyncImagePainter.State.Error -> "$description image unavailable"
+        else -> "Loading $description image"
+    }
+
+    Surface(
+        modifier = Modifier.size(64.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+    ) {
+        if (!imageLoaded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .semantics { contentDescription = placeholderDescription },
+                contentAlignment = Alignment.Center,
             ) {
-                Column(
-                    modifier = Modifier
-                        .navigationBarsPadding()
-                        .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 12.dp),
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
                 ) {
-                    AppointmentPrimaryButton(
-                        text = "Message the clinic about your balance",
-                        onClick = onNavigateToMessages,
+                    Icon(
+                        imageVector = Icons.Outlined.FaceRetouchingNatural,
+                        contentDescription = null,
+                        modifier = Modifier.padding(8.dp).size(20.dp),
+                        tint = EyecareColors.current.accentText,
                     )
                 }
             }
+        }
+        if (imageUrl != null) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = "$description image",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(6.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .alpha(if (imageLoaded) 1f else 0f),
+                contentScale = ContentScale.Fit,
+                onState = { imageState = it },
+            )
         }
     }
 }

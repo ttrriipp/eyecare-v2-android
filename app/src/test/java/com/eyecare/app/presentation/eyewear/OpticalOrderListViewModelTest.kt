@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.repository.OpticalOrderRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -50,8 +51,8 @@ class OpticalOrderListViewModelTest {
     fun tearDown() { Dispatchers.resetMain() }
 
     @Test
-    fun `initial load fetches all orders`() = runTest {
-        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
+    fun `initial load fetches current orders by default`() = runTest {
+        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
             PaginatedResult(listOf(createOrder()), 1, 1, 1)
         )
         val vm = OpticalOrderListViewModel(repository)
@@ -59,28 +60,50 @@ class OpticalOrderListViewModelTest {
 
         val state = vm.uiState.value as OrderListUiState.Success
         assertEquals(1, state.items.size)
+        assertEquals(OrderListFilter.CURRENT, state.selectedFilter)
     }
 
     @Test
     fun `empty list shows empty state`() = runTest {
-        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
+        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
             PaginatedResult(emptyList(), 1, 1, 0)
         )
         val vm = OpticalOrderListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertTrue(vm.uiState.value is OrderListUiState.Empty)
+        val state = vm.uiState.value as OrderListUiState.Empty
+        assertEquals(OrderListFilter.CURRENT, state.selectedFilter)
+    }
+
+    @Test
+    fun `selecting history reloads only history orders`() = runTest {
+        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
+            PaginatedResult(listOf(createOrder(1)), 1, 1, 1)
+        )
+        coEvery { repository.getOpticalOrders("history", 1) } returns Result.success(
+            PaginatedResult(listOf(createOrder(2, OpticalOrderStatus.DISPENSED)), 1, 1, 1)
+        )
+
+        val vm = OpticalOrderListViewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.selectFilter(OrderListFilter.HISTORY)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as OrderListUiState.Success
+        assertEquals(OrderListFilter.HISTORY, state.selectedFilter)
+        assertEquals(listOf(2), state.items.map { it.id })
     }
 
     @Test
     fun `refresh replaces items without resetting to Loading first`() = runTest {
-        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
+        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
             PaginatedResult(listOf(createOrder(1)), 1, 1, 1)
         )
         val vm = OpticalOrderListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
-        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
+        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
             PaginatedResult(listOf(createOrder(2)), 1, 1, 1)
         )
         vm.refresh()
@@ -95,13 +118,13 @@ class OpticalOrderListViewModelTest {
 
     @Test
     fun `failed refresh keeps existing items visible instead of discarding them`() = runTest {
-        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
+        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
             PaginatedResult(listOf(createOrder(1)), 1, 1, 1)
         )
         val vm = OpticalOrderListViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
-        coEvery { repository.getOpticalOrders(null, 1) } returns Result.failure(RuntimeException("offline"))
+        coEvery { repository.getOpticalOrders("current", 1) } returns Result.failure(RuntimeException("offline"))
         vm.refresh()
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -113,10 +136,10 @@ class OpticalOrderListViewModelTest {
 
     @Test
     fun `loadMore appends`() = runTest {
-        coEvery { repository.getOpticalOrders(null, 1) } returns Result.success(
+        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
             PaginatedResult(listOf(createOrder(1)), 1, 2, 2)
         )
-        coEvery { repository.getOpticalOrders(null, 2) } returns Result.success(
+        coEvery { repository.getOpticalOrders("current", 2) } returns Result.success(
             PaginatedResult(listOf(createOrder(2)), 2, 2, 2)
         )
         val vm = OpticalOrderListViewModel(repository)
@@ -128,5 +151,30 @@ class OpticalOrderListViewModelTest {
         val state = vm.uiState.value as OrderListUiState.Success
         assertEquals(2, state.items.size)
         assertFalse(state.hasMorePages)
+    }
+
+    @Test
+    fun `failed loadMore retries the same page without skipping orders`() = runTest {
+        coEvery { repository.getOpticalOrders("current", 1) } returns Result.success(
+            PaginatedResult(listOf(createOrder(1)), 1, 2, 2)
+        )
+        coEvery { repository.getOpticalOrders("current", 2) } returnsMany listOf(
+            Result.failure(RuntimeException("offline")),
+            Result.success(PaginatedResult(listOf(createOrder(2)), 2, 2, 2)),
+        )
+
+        val vm = OpticalOrderListViewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.loadMore()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue((vm.uiState.value as OrderListUiState.Success).loadMoreError != null)
+
+        vm.loadMore()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as OrderListUiState.Success
+        assertEquals(listOf(1, 2), state.items.map { it.id })
+        coVerify(exactly = 2) { repository.getOpticalOrders("current", 2) }
     }
 }

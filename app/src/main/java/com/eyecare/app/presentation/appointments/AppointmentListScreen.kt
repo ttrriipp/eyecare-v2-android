@@ -95,6 +95,7 @@ fun AppointmentListScreen(
     onNavigateToDetail: (Int) -> Unit,
     onNavigateToRequest: () -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit = {},
+    accountId: Int? = null,
     hasActivePatientLink: Boolean = true,
     viewModel: AppointmentListViewModel = hiltViewModel(),
     requestViewModel: AppointmentRequestListViewModel = hiltViewModel(),
@@ -102,8 +103,11 @@ fun AppointmentListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val requestState by requestViewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(hasActivePatientLink) {
-        viewModel.refresh(hasActivePatientLink)
+    LaunchedEffect(hasActivePatientLink, accountId) {
+        viewModel.refresh(
+            hasActivePatientLink = hasActivePatientLink,
+            accountId = accountId,
+        )
     }
 
     RefreshOnResumeEffect(
@@ -116,7 +120,10 @@ fun AppointmentListScreen(
             isRefreshing = (uiState as? AppointmentListUiState.Success)?.isRefreshing == true ||
                 (requestState as? RequestListState.Data)?.isRefreshing == true,
             onRefresh = {
-                viewModel.refresh(hasActivePatientLink)
+                viewModel.refresh(
+                    hasActivePatientLink = hasActivePatientLink,
+                    accountId = accountId,
+                )
                 requestViewModel.refresh()
             },
             modifier = Modifier.fillMaxSize(),
@@ -139,7 +146,12 @@ fun AppointmentListScreen(
                         AppointmentListContent(
                             appointments = emptyList(),
                             hasConfirmedError = true,
-                            onRetryConfirmed = { viewModel.refresh(hasActivePatientLink) },
+                            onRetryConfirmed = {
+                                viewModel.refresh(
+                                    hasActivePatientLink = hasActivePatientLink,
+                                    accountId = accountId,
+                                )
+                            },
                             requestState = requestState,
                             onNavigateToDetail = onNavigateToDetail,
                             onNavigateToRequestDetail = onNavigateToRequestDetail,
@@ -147,7 +159,15 @@ fun AppointmentListScreen(
                             onRefreshRequests = requestViewModel::refresh,
                         )
                     } else {
-                        ErrorContent(message = state.message, onRetry = { viewModel.refresh(hasActivePatientLink) })
+                        ErrorContent(
+                            message = state.message,
+                            onRetry = {
+                                viewModel.refresh(
+                                    hasActivePatientLink = hasActivePatientLink,
+                                    accountId = accountId,
+                                )
+                            },
+                        )
                     }
                 }
                 is AppointmentListUiState.Success -> AppointmentListContent(

@@ -97,6 +97,43 @@ class SessionViewModelTest {
     }
 
     @Test
+    fun `refreshSession adopts an external patient link without showing the checking state`() = runTest {
+        every { tokenManager.getToken() } returns "session-token"
+        val limitedAccount = PatientAccount(
+            id = 1,
+            name = "Test User",
+            firstName = "Test",
+            middleName = null,
+            lastName = "User",
+            email = "test@example.com",
+            phone = "09171234567",
+            role = "patient",
+            dateOfBirth = null,
+            linkStatus = PatientLinkStatus.UNLINKED,
+            privacyPolicyVersion = null,
+            privacyAcceptedAt = null,
+            linkedPatient = null,
+        )
+        val linkedAccount = limitedAccount.copy(linkStatus = PatientLinkStatus.LINKED)
+        val refreshedResponse = CompletableDeferred<Result<PatientAccount>>()
+        var requestCount = 0
+        coEvery { authRepository.getMe() } coAnswers {
+            if (requestCount++ == 0) Result.success(limitedAccount) else refreshedResponse.await()
+        }
+
+        val viewModel = SessionViewModel(authRepository, tokenManager)
+        assertEquals(SessionState.Limited(limitedAccount), viewModel.state.value)
+
+        viewModel.refreshSession()
+
+        assertEquals(SessionState.Limited(limitedAccount), viewModel.state.value)
+        refreshedResponse.complete(Result.success(linkedAccount))
+        advanceUntilIdle()
+
+        assertEquals(SessionState.Linked(linkedAccount), viewModel.state.value)
+    }
+
+    @Test
     fun `session rate limit uses retry-later copy`() {
         every { tokenManager.getToken() } returns "session-token"
         coEvery { authRepository.getMe() } returns Result.failure(

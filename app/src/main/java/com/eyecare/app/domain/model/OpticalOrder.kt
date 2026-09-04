@@ -26,6 +26,7 @@ data class OpticalOrderItem(
     val productVariantId: Int?,
     val isRateable: Boolean,
     val rating: RatingSummary?,
+    val imagePath: String? = null,
 )
 
 data class RatingSummary(

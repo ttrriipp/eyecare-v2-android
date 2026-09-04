@@ -38,7 +38,8 @@ class OpticalOrderDtosTest {
                     "amount": "4500.00",
                     "product_variant_id": 5,
                     "is_rateable": false,
-                    "rating": null
+                    "rating": null,
+                    "image_url": "frames/progressive-lens.jpg"
                 }],
                 "payment_summary": {
                     "status": "partially_paid",
@@ -69,6 +70,7 @@ class OpticalOrderDtosTest {
         assertEquals(1, o.items.size)
         assertEquals(5, o.items[0].productVariantId)
         assertFalse(o.items[0].isRateable)
+        assertEquals("frames/progressive-lens.jpg", o.items[0].imageUrl)
         val ps = o.paymentSummary!!
         assertEquals("partially_paid", ps.status)
         assertEquals(BigDecimal("3000.00"), ps.balanceDue)

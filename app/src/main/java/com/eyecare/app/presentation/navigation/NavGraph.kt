@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,9 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -43,7 +39,9 @@ import com.eyecare.app.domain.model.canAccessPatientFeatures
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
+import com.eyecare.app.presentation.appointments.AppointmentListViewModel
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestDetailScreen
+import com.eyecare.app.presentation.appointments.requests.AppointmentRequestListViewModel
 import com.eyecare.app.presentation.appointments.requests.RequestAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.PasswordRecoveryScreen
@@ -54,6 +52,7 @@ import com.eyecare.app.presentation.auth.WelcomeScreen
 import com.eyecare.app.presentation.account.LimitedAccountScreen
 import com.eyecare.app.presentation.account.AccountSecurityScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
+import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
 import com.eyecare.app.presentation.eyewear.MyOrdersScreen
@@ -87,6 +86,12 @@ internal fun shouldShowBottomNav(route: String): Boolean =
         !route.contains("PatientIntake") && !route.contains("Quotation") &&
         !route.contains("OpticalOrderDetail") &&
         !route.contains("JobOrder") && !route.contains("MyOrders")
+
+private fun SessionState.accountIdOrNull(): Int? = when (this) {
+    is SessionState.Linked -> account.id
+    is SessionState.Limited -> account.id
+    else -> null
+}
 
 @Composable
 fun EyecareNavGraph(
@@ -123,19 +128,12 @@ fun EyecareNavGraph(
         }
     }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, sessionState) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (
-                event == Lifecycle.Event.ON_RESUME &&
-                (sessionState is SessionState.Linked || sessionState is SessionState.Limited)
-            ) {
-                mainUnreadViewModel.refresh()
-            }
+    RefreshOnResumeEffect(onRefresh = {
+        if (sessionState is SessionState.Linked || sessionState is SessionState.Limited) {
+            sessionViewModel.refreshSession()
+            mainUnreadViewModel.refresh()
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
+    })
 
     var pendingPatientFeature by remember { mutableStateOf<PatientFeatureIntent?>(null) }
 
@@ -409,17 +407,27 @@ fun EyecareNavGraph(
                     composable<OpticalOrderDetail> {
                         OpticalOrderDetailScreen(
                             onBack = { navController.popBackStack() },
-                            onNavigateToMessages = { navigatePatientFeature(Chat) },
                         )
                     }
                     composable<Appointments> {
+                        val accountId = sessionState.accountIdOrNull()
+                        val accountScopeKey = accountId?.toString() ?: "anonymous"
+                        val appointmentViewModel: AppointmentListViewModel = hiltViewModel(
+                            key = "appointments-$accountScopeKey",
+                        )
+                        val requestViewModel: AppointmentRequestListViewModel = hiltViewModel(
+                            key = "appointment-requests-$accountScopeKey",
+                        )
                         AppointmentListScreen(
                             onNavigateToDetail = { id -> navigatePatientFeature(AppointmentDetail(id)) },
                             onNavigateToRequest = { navigatePatientFeature(RequestAppointment) },
                             onNavigateToRequestDetail = { id ->
                                 navigatePatientFeature(AppointmentRequestDetail(id))
                             },
+                            accountId = accountId,
                             hasActivePatientLink = canAccessPatientFeatures(sessionState),
+                            viewModel = appointmentViewModel,
+                            requestViewModel = requestViewModel,
                         )
                     }
                     composable<AppointmentDetail> {

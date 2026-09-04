@@ -27,6 +27,7 @@ object OpticalOrderDtos {
         @SerialName("product_variant_id") val productVariantId: Int? = null,
         @SerialName("is_rateable") val isRateable: Boolean = false,
         val rating: RatingSummaryDto? = null,
+        @SerialName("image_url") val imageUrl: String? = null,
     )
 
     @Serializable

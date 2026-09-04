@@ -46,12 +46,7 @@ class SessionViewModel @Inject constructor(
             authRepository.getMe()
                 .onSuccess { account ->
                     if (generation != sessionGeneration) return@onSuccess
-                    _state.value = when (account.linkStatus) {
-                        PatientLinkStatus.LINKED -> SessionState.Linked(account)
-                        PatientLinkStatus.UNLINKED,
-                        PatientLinkStatus.PENDING_REVIEW,
-                        PatientLinkStatus.UNKNOWN -> SessionState.Limited(account)
-                    }
+                    _state.value = stateFor(account)
                 }
                 .onFailure { error ->
                     if (generation != sessionGeneration) return@onFailure
@@ -67,6 +62,42 @@ class SessionViewModel @Inject constructor(
                     } else {
                         _state.value = SessionState.TransientFailure(message)
                     }
+                }
+        }
+    }
+
+    /**
+     * Re-checks the account while the app returns to the foreground.
+     *
+     * Linking can happen from the admin portal while this app stays open, so the existing
+     * session state cannot be treated as permanent. This refresh deliberately leaves the
+     * current state visible while the request is in flight and ignores transient failures.
+     */
+    fun refreshSession() {
+        if (_state.value !is SessionState.Linked && _state.value !is SessionState.Limited) return
+
+        val generation = ++sessionGeneration
+        sessionJob?.cancel()
+        val token = tokenManager.getToken()
+        if (token == null) {
+            _state.value = SessionState.Unauthenticated
+            return
+        }
+
+        sessionJob = viewModelScope.launch {
+            authRepository.getMe()
+                .onSuccess { account ->
+                    if (generation != sessionGeneration) return@onSuccess
+                    _state.value = stateFor(account)
+                }
+                .onFailure { error ->
+                    if (generation != sessionGeneration) return@onFailure
+                    val apiError = error as? ApiDomainError
+                    if (error.message?.contains("401") == true || apiError?.httpStatus == 401) {
+                        tokenManager.clearToken()
+                        _state.value = SessionState.Unauthenticated
+                    }
+                    // Keep the current authenticated state for transient refresh failures.
                 }
         }
     }
@@ -98,5 +129,12 @@ class SessionViewModel @Inject constructor(
         sessionJob = null
         tokenManager.clearToken()
         _state.value = SessionState.Unauthenticated
+    }
+
+    private fun stateFor(account: PatientAccount): SessionState = when (account.linkStatus) {
+        PatientLinkStatus.LINKED -> SessionState.Linked(account)
+        PatientLinkStatus.UNLINKED,
+        PatientLinkStatus.PENDING_REVIEW,
+        PatientLinkStatus.UNKNOWN -> SessionState.Limited(account)
     }
 }

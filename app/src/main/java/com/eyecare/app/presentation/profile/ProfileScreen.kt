@@ -260,7 +260,7 @@ private fun AccountSection(
                     ProfileDivider()
                     ProfileNavRow(
                         icon = Icons.Outlined.LocalHospital,
-                        label = "Profile",
+                        label = "Patient profile",
                         onClick = onNavigateToPatientProfile,
                     )
                 }

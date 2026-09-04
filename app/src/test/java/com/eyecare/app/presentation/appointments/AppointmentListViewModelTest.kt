@@ -99,6 +99,35 @@ class AppointmentListViewModelTest {
     }
 
     @Test
+    fun `switching accounts clears retained appointments before replacement loads`() = runTest {
+        val replacementAppointment = fakeList.first().copy(
+            id = 99,
+            appointmentNumber = "APT-099",
+        )
+        coEvery { repo.getAppointments(1) } returnsMany listOf(
+            Result.success(PaginatedResult(fakeList, 1, 1, 2)),
+            Result.success(PaginatedResult(listOf(replacementAppointment), 1, 1, 1)),
+        )
+        val vm = AppointmentListViewModel(repo)
+
+        vm.load(accountId = 101)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(
+            fakeList.map { it.id }.sortedDescending(),
+            (vm.uiState.value as AppointmentListUiState.Success).appointments.map { it.id },
+        )
+
+        vm.refresh(hasActivePatientLink = true, accountId = 202)
+
+        assertInstanceOf(AppointmentListUiState.Loading::class.java, vm.uiState.value)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(
+            listOf(99),
+            (vm.uiState.value as AppointmentListUiState.Success).appointments.map { it.id },
+        )
+    }
+
+    @Test
     fun `failed refresh keeps existing appointments visible instead of discarding them`() = runTest {
         coEvery { repo.getAppointments(1) } returns Result.success(
             PaginatedResult(fakeList, 1, 1, 2),

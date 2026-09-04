@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,41 +41,59 @@ class AppointmentListViewModel @Inject constructor(
     private var currentPage = 1
     private var lastPage = 1
     private var hasActivePatientLink = true
+    private var currentAccountId: Int? = null
+    private var requestJob: Job? = null
+    private var requestGeneration = 0L
 
-    fun refresh(hasActivePatientLink: Boolean = this.hasActivePatientLink) {
+    fun refresh(
+        hasActivePatientLink: Boolean = this.hasActivePatientLink,
+        accountId: Int? = currentAccountId,
+    ) {
         // A refresh while appointments are already showing (pull-to-refresh, or returning to
         // the screen) shouldn't wipe the list back to a bare spinner — only a genuine first
-        // load or a linked-status change resets to Loading.
+        // load, an account change, or a linked-status change resets to Loading.
         val current = _uiState.value
-        if (current is AppointmentListUiState.Success && hasActivePatientLink == this.hasActivePatientLink) {
+        val accountChanged = accountId != currentAccountId
+        if (!accountChanged &&
+            current is AppointmentListUiState.Success &&
+            hasActivePatientLink == this.hasActivePatientLink
+        ) {
             currentPage = 1
             refreshInternal(current)
         } else {
             currentPage = 1
-            load(hasActivePatientLink)
+            load(hasActivePatientLink = hasActivePatientLink, accountId = accountId)
         }
     }
 
     private fun refreshInternal(current: AppointmentListUiState.Success) {
-        _uiState.value = current.copy(isRefreshing = true)
-        viewModelScope.launch {
+        val generation = beginRequest()
+        _uiState.value = current.copy(
+            isLoadingMore = false,
+            isRefreshing = true,
+        )
+        requestJob = viewModelScope.launch {
             repository.getAppointments(page = 1).fold(
                 onSuccess = { result ->
-                    currentPage = result.currentPage
-                    lastPage = result.lastPage
-                    _uiState.value = if (result.data.isEmpty()) {
-                        AppointmentListUiState.Empty
-                    } else {
-                        AppointmentListUiState.Success(
-                            appointments = result.data.sortedByScheduledDesc(),
-                            hasMorePages = result.hasMorePages,
-                        )
+                    if (generation == requestGeneration) {
+                        currentPage = result.currentPage
+                        lastPage = result.lastPage
+                        _uiState.value = if (result.data.isEmpty()) {
+                            AppointmentListUiState.Empty
+                        } else {
+                            AppointmentListUiState.Success(
+                                appointments = result.data.sortedByScheduledDesc(),
+                                hasMorePages = result.hasMorePages,
+                            )
+                        }
                     }
                 },
                 onFailure = {
-                    // Keep the existing appointments visible; a failed background refresh
-                    // shouldn't discard data the patient can already see.
-                    _uiState.value = current.copy(isRefreshing = false)
+                    if (generation == requestGeneration) {
+                        // Keep the existing appointments visible; a failed background refresh
+                        // shouldn't discard data the patient can already see.
+                        _uiState.value = current.copy(isRefreshing = false)
+                    }
                 },
             )
         }
@@ -145,56 +164,78 @@ class AppointmentListViewModel @Inject constructor(
         }
     }
 
-    fun load(hasActivePatientLink: Boolean = this.hasActivePatientLink) {
+    fun load(
+        hasActivePatientLink: Boolean = this.hasActivePatientLink,
+        accountId: Int? = currentAccountId,
+    ) {
+        val generation = beginRequest()
         this.hasActivePatientLink = hasActivePatientLink
+        currentAccountId = accountId
         _uiState.value = AppointmentListUiState.Loading
         if (!hasActivePatientLink) {
             _uiState.value = AppointmentListUiState.Success(appointments = emptyList())
             return
         }
 
-        viewModelScope.launch {
+        requestJob = viewModelScope.launch {
             repository.getAppointments(page = 1).fold(
                 onSuccess = { result ->
-                    currentPage = result.currentPage
-                    lastPage = result.lastPage
-                    if (result.data.isEmpty()) {
-                        _uiState.value = AppointmentListUiState.Empty
-                    } else {
-                        _uiState.value = AppointmentListUiState.Success(
-                            appointments = result.data.sortedByScheduledDesc(),
-                            hasMorePages = result.hasMorePages,
-                        )
+                    if (generation == requestGeneration) {
+                        currentPage = result.currentPage
+                        lastPage = result.lastPage
+                        if (result.data.isEmpty()) {
+                            _uiState.value = AppointmentListUiState.Empty
+                        } else {
+                            _uiState.value = AppointmentListUiState.Success(
+                                appointments = result.data.sortedByScheduledDesc(),
+                                hasMorePages = result.hasMorePages,
+                            )
+                        }
                     }
                 },
-                onFailure = { _uiState.value = AppointmentListUiState.Error(it.message ?: "Failed to load") },
+                onFailure = {
+                    if (generation == requestGeneration) {
+                        _uiState.value = AppointmentListUiState.Error(it.message ?: "Failed to load")
+                    }
+                },
             )
         }
     }
 
     private fun loadMoreInternal() {
         val current = _uiState.value as? AppointmentListUiState.Success ?: return
+        val generation = beginRequest()
         _uiState.value = current.copy(isLoadingMore = true, loadMoreError = null)
-        viewModelScope.launch {
+        requestJob = viewModelScope.launch {
             repository.getAppointments(page = currentPage).fold(
                 onSuccess = { result ->
-                    currentPage = result.currentPage
-                    lastPage = result.lastPage
-                    val all = current.appointments + result.data
-                    _uiState.value = current.copy(
-                        appointments = all.sortedByScheduledDesc(),
-                        isLoadingMore = false,
-                        hasMorePages = result.hasMorePages,
-                    )
+                    if (generation == requestGeneration) {
+                        currentPage = result.currentPage
+                        lastPage = result.lastPage
+                        val all = current.appointments + result.data
+                        _uiState.value = current.copy(
+                            appointments = all.sortedByScheduledDesc(),
+                            isLoadingMore = false,
+                            hasMorePages = result.hasMorePages,
+                        )
+                    }
                 },
                 onFailure = {
-                    _uiState.value = current.copy(
-                        isLoadingMore = false,
-                        loadMoreError = it.message ?: "Failed to load more",
-                    )
+                    if (generation == requestGeneration) {
+                        _uiState.value = current.copy(
+                            isLoadingMore = false,
+                            loadMoreError = it.message ?: "Failed to load more",
+                        )
+                    }
                 },
             )
         }
+    }
+
+    private fun beginRequest(): Long {
+        requestJob?.cancel()
+        requestJob = null
+        return ++requestGeneration
     }
 }
 

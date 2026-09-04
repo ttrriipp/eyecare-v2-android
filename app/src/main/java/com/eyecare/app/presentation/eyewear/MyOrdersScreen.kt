@@ -67,6 +67,7 @@ fun MyOrdersScreen(
                 onRefresh = orderViewModel::refresh,
                 onRetry = orderViewModel::retry,
                 onLoadMore = orderViewModel::loadMore,
+                onSelectFilter = orderViewModel::selectFilter,
                 onNavigateToOrder = onNavigateToOrder,
             )
         }
