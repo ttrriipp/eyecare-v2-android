@@ -51,7 +51,7 @@ class SavedFramesScreenTest {
     }
 
     @Test
-    fun emptyStateShowsDisclaimerAndBrowseAction() {
+    fun emptyStateShowsGuidanceAndBrowseAction() {
         var browseClicked = false
         composeRule.setContent {
             EyecareTheme {
@@ -73,7 +73,7 @@ class SavedFramesScreenTest {
         }
 
         composeRule.onNodeWithText("No saved frames yet").assertIsDisplayed()
-        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertIsDisplayed()
+        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertDoesNotExist()
         composeRule.onNodeWithText("Browse frames").performClick()
         assertTrue(browseClicked)
     }

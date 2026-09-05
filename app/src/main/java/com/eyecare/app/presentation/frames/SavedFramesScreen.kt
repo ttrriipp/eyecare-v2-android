@@ -541,8 +541,6 @@ private fun EmptySavedFrames(onNavigateToFrames: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.height(20.dp))
-        SavedFrameDisclaimer()
         Spacer(Modifier.height(16.dp))
         Button(
             onClick = onNavigateToFrames,
