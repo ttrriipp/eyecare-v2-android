@@ -73,6 +73,13 @@ class AppointmentFormattingTest {
     }
 
     @Test
+    fun `appointment formatting uses patient safe fallbacks for incomplete data`() {
+        assertEquals("Appointment", formatAppointmentTitle("   "))
+        assertEquals("Date TBD", formatAppointmentDate(""))
+        assertEquals("Time TBD", formatAppointmentTime(""))
+    }
+
+    @Test
     fun `displayable reschedule reason trims content and hides blanks`() {
         assertEquals(
             "Doctor availability changed",
@@ -89,6 +96,14 @@ class AppointmentFormattingTest {
         assertEquals(LocalDate.of(2026, 10, 19), days.first())
         assertEquals(LocalDate.of(2026, 10, 24), days.last())
         assertEquals(6, days.size)
+    }
+
+    @Test
+    fun `appointment week range gives the date strip a visible context`() {
+        assertEquals(
+            "Oct 19 - Oct 24",
+            appointmentWeekRangeLabel(appointmentWeekDays(LocalDate.of(2026, 10, 24))),
+        )
     }
 
     @Test

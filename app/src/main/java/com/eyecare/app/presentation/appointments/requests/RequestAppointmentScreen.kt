@@ -73,6 +73,8 @@ fun RequestAppointmentScreen(
      */
     val goBack: () -> Unit = {
         when (val current = step) {
+            is RequestStep.CheckingRequestLimit -> onBack()
+            is RequestStep.LimitReached -> onBack()
             is RequestStep.Type -> onBack()
             is RequestStep.Schedule ->
                 if (current.phase == SchedulePhase.ALTERNATIVES) {
@@ -95,6 +97,16 @@ fun RequestAppointmentScreen(
     BackHandler(enabled = !submitting) { goBack() }
 
     when (val s = step) {
+        is RequestStep.CheckingRequestLimit -> RequestLimitCheckingContent(
+            onBack = onBack,
+        )
+
+        is RequestStep.LimitReached -> RequestLimitReachedContent(
+            activeRequestCount = s.activeRequestCount,
+            onViewRequests = onViewRequests,
+            onBack = onBack,
+        )
+
         is RequestStep.Type -> TypeContent(
             state = s,
             identityRequired = identityDetailsRequired,

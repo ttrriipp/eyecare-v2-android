@@ -2,7 +2,10 @@ package com.eyecare.app.presentation.appointments
 
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.presentation.appointments.requests.hasReachedActiveAppointmentRequestLimit
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
 
@@ -56,6 +59,27 @@ class AppointmentRequestListPresentationTest {
                 now = now,
             ),
         )
+    }
+
+    @Test
+    fun `active request limit is reached after two pending requests`() {
+        val requests = listOf(
+            request(1, AppointmentRequestStatus.PENDING, "2026-08-04T10:00:00+08:00"),
+            request(2, AppointmentRequestStatus.PENDING, "2026-08-05T10:00:00+08:00"),
+        )
+
+        assertTrue(hasReachedActiveAppointmentRequestLimit(requests))
+    }
+
+    @Test
+    fun `terminal requests do not count toward active request limit`() {
+        val requests = listOf(
+            request(1, AppointmentRequestStatus.PENDING, "2026-08-04T10:00:00+08:00"),
+            request(2, AppointmentRequestStatus.CANCELLED, "2026-08-05T10:00:00+08:00"),
+            request(3, AppointmentRequestStatus.REJECTED, "2026-08-06T10:00:00+08:00"),
+        )
+
+        assertFalse(hasReachedActiveAppointmentRequestLimit(requests))
     }
 
     private fun request(

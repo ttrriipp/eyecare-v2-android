@@ -116,7 +116,7 @@ class AppointmentRequestListViewModel @Inject constructor(
     }
 
     private fun refreshInternal(current: RequestListState.Data) {
-        _state.value = current.copy(isRefreshing = true)
+        _state.value = current.copy(isRefreshing = true, error = null)
         viewModelScope.launch {
             repository.getRequests(page = 1)
                 .onSuccess { paginated ->
@@ -131,7 +131,10 @@ class AppointmentRequestListViewModel @Inject constructor(
                 .onFailure {
                     // Keep the existing requests visible; a failed background refresh
                     // shouldn't discard data the patient can already see.
-                    _state.value = current.copy(isRefreshing = false)
+                    _state.value = current.copy(
+                        isRefreshing = false,
+                        error = "We couldn't refresh your requests. Showing the latest list.",
+                    )
                 }
         }
     }

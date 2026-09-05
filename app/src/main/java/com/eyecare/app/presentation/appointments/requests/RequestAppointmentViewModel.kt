@@ -75,6 +75,12 @@ sealed interface RequestStep {
     /** True when this step holds patient-entered work that a stray Back would destroy. */
     val hasUnsavedInput: Boolean get() = false
 
+    data object CheckingRequestLimit : RequestStep
+
+    data class LimitReached(
+        val activeRequestCount: Int,
+    ) : RequestStep
+
     data class Type(
         val types: List<AppointmentType> = emptyList(),
         val isLoading: Boolean = true,
@@ -196,7 +202,7 @@ class RequestAppointmentViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val _step = MutableStateFlow<RequestStep>(RequestStep.Type())
+    private val _step = MutableStateFlow<RequestStep>(RequestStep.CheckingRequestLimit)
     val step: StateFlow<RequestStep> = _step.asStateFlow()
 
     private var availabilityJob: Job? = null
@@ -215,7 +221,25 @@ class RequestAppointmentViewModel @Inject constructor(
         set(value) { savedStateHandle[draftKey] = value }
 
     init {
-        loadTypes()
+        checkRequestLimit()
+    }
+
+    /**
+     * Check the server's active-request view before loading the request form. The list screen
+     * also hides its action when it has this information, but this gate covers the Home shortcut
+     * and stale list data. A failed preflight is treated as unknown so the backend remains the
+     * final authority when the patient submits.
+     */
+    private fun checkRequestLimit() {
+        viewModelScope.launch {
+            val requests = repository.getRequests(page = 1).getOrNull()?.data.orEmpty()
+            val activeCount = activeAppointmentRequestCount(requests)
+            if (activeCount >= maxActiveAppointmentRequests) {
+                _step.value = RequestStep.LimitReached(activeRequestCount = activeCount)
+            } else {
+                loadTypes()
+            }
+        }
     }
 
     // ---------------------------------------------------------------- type step

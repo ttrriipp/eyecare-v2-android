@@ -142,6 +142,47 @@ class AppointmentListViewModelTest {
         val state = vm.uiState.value as AppointmentListUiState.Success
         assertEquals(2, state.appointments.size)
         assertFalse(state.isRefreshing)
+        assertEquals(
+            "We couldn't refresh your confirmed visits. Showing the latest list.",
+            state.refreshError,
+        )
+    }
+
+    @Test
+    fun `failed load more retries the same page instead of skipping it`() = runTest {
+        val page1 = listOf(fakeList[0])
+        val page2 = listOf(fakeList[1])
+        coEvery { repo.getAppointments(1) } returns Result.success(
+            PaginatedResult(page1, 1, 2, 2),
+        )
+        coEvery { repo.getAppointments(2) } returnsMany listOf(
+            Result.failure(RuntimeException("offline")),
+            Result.success(PaginatedResult(page2, 2, 2, 2)),
+        )
+
+        val vm = AppointmentListViewModel(repo).also { it.load() }
+
+        vm.uiState.test {
+            awaitItem() // Loading
+            dispatcher.scheduler.advanceUntilIdle()
+            awaitItem() // page 1
+
+            vm.loadMore()
+            awaitItem() // loading page 2
+            dispatcher.scheduler.advanceUntilIdle()
+            val failed = awaitItem() as AppointmentListUiState.Success
+            assertEquals(1, failed.appointments.size)
+            assertEquals("We couldn't load more confirmed visits. Please try again.", failed.loadMoreError)
+
+            vm.loadMore()
+            awaitItem() // loading page 2 again
+            dispatcher.scheduler.advanceUntilIdle()
+            val retried = awaitItem() as AppointmentListUiState.Success
+            assertEquals(listOf(2, 1), retried.appointments.map { it.id })
+            assertFalse(retried.hasMorePages)
+            coVerify(exactly = 2) { repo.getAppointments(2) }
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

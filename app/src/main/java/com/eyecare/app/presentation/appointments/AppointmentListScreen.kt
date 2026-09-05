@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,9 +18,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -29,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -61,11 +67,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentV1
@@ -73,10 +82,11 @@ import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.presentation.common.RefreshOnResumeEffect
-import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestListViewModel
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestStatusPill
 import com.eyecare.app.presentation.appointments.requests.RequestListState
+import com.eyecare.app.presentation.appointments.requests.activeAppointmentRequestCount
+import com.eyecare.app.presentation.appointments.requests.hasReachedActiveAppointmentRequestLimit
 import com.eyecare.app.presentation.appointments.requests.requestStatusPresentation
 import com.eyecare.app.ui.theme.EyecareTheme
 import com.eyecare.app.ui.theme.EyecareColors
@@ -102,6 +112,9 @@ fun AppointmentListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val requestState by requestViewModel.state.collectAsStateWithLifecycle()
+    val requestLimitReached = (requestState as? RequestListState.Data)
+        ?.requests
+        ?.let(::hasReachedActiveAppointmentRequestLimit) == true
 
     LaunchedEffect(hasActivePatientLink, accountId) {
         viewModel.refresh(
@@ -111,8 +124,13 @@ fun AppointmentListScreen(
     }
 
     RefreshOnResumeEffect(
-        onRefresh = requestViewModel::onScreenResumed,
-        skipInitialResume = false,
+        onRefresh = {
+            viewModel.refresh(
+                hasActivePatientLink = hasActivePatientLink,
+                accountId = accountId,
+            )
+            requestViewModel.onScreenResumed()
+        },
     )
 
     Box(Modifier.fillMaxSize()) {
@@ -128,62 +146,22 @@ fun AppointmentListScreen(
             },
             modifier = Modifier.fillMaxSize(),
         ) {
-            when (val state = uiState) {
-                is AppointmentListUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-                is AppointmentListUiState.Empty -> AppointmentListContent(
-                    appointments = emptyList(),
-                    requestState = requestState,
-                    onNavigateToDetail = onNavigateToDetail,
-                    onNavigateToRequestDetail = onNavigateToRequestDetail,
-                    onLoadMoreRequests = requestViewModel::loadMore,
-                    onRefreshRequests = requestViewModel::refresh,
-                )
-                is AppointmentListUiState.Error -> {
-                    val requestData = requestState as? RequestListState.Data
-                    if (requestData?.requests?.isNotEmpty() == true) {
-                        AppointmentListContent(
-                            appointments = emptyList(),
-                            hasConfirmedError = true,
-                            onRetryConfirmed = {
-                                viewModel.refresh(
-                                    hasActivePatientLink = hasActivePatientLink,
-                                    accountId = accountId,
-                                )
-                            },
-                            requestState = requestState,
-                            onNavigateToDetail = onNavigateToDetail,
-                            onNavigateToRequestDetail = onNavigateToRequestDetail,
-                            onLoadMoreRequests = requestViewModel::loadMore,
-                            onRefreshRequests = requestViewModel::refresh,
-                        )
-                    } else {
-                        ErrorContent(
-                            message = state.message,
-                            onRetry = {
-                                viewModel.refresh(
-                                    hasActivePatientLink = hasActivePatientLink,
-                                    accountId = accountId,
-                                )
-                            },
-                        )
-                    }
-                }
-                is AppointmentListUiState.Success -> AppointmentListContent(
-                    appointments = state.appointments,
-                    requestState = requestState,
-                    hasMoreAppointments = state.hasMorePages,
-                    isLoadingMoreAppointments = state.isLoadingMore,
-                    appointmentsLoadMoreError = state.loadMoreError,
-                    onLoadMoreAppointments = viewModel::loadMore,
-                    onNavigateToDetail = onNavigateToDetail,
-                    onNavigateToRequestDetail = onNavigateToRequestDetail,
-                    onLoadMoreRequests = requestViewModel::loadMore,
-                    onRefreshRequests = requestViewModel::refresh,
-                    onRateClick = { viewModel.showRatingDialog(it) },
-                )
-            }
+            AppointmentListContent(
+                confirmedState = uiState,
+                requestState = requestState,
+                onRetryConfirmed = {
+                    viewModel.refresh(
+                        hasActivePatientLink = hasActivePatientLink,
+                        accountId = accountId,
+                    )
+                },
+                onLoadMoreAppointments = viewModel::loadMore,
+                onNavigateToDetail = onNavigateToDetail,
+                onNavigateToRequestDetail = onNavigateToRequestDetail,
+                onLoadMoreRequests = requestViewModel::loadMore,
+                onRefreshRequests = requestViewModel::refresh,
+                onRateClick = { viewModel.showRatingDialog(it) },
+            )
         }
 
         // Visit feedback dialog
@@ -202,34 +180,37 @@ fun AppointmentListScreen(
             )
         }
 
-        ExtendedFloatingActionButton(
-            onClick = onNavigateToRequest,
+        if (!requestLimitReached) {
+            ExtendedFloatingActionButton(
+                onClick = onNavigateToRequest,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 116.dp),
-            icon = {
-                Icon(
-                    Icons.Filled.Add,
-                    contentDescription = null,
-                )
-            },
-            text = {
-                // "Book" promised a confirmed slot the clinic has not agreed to yet.
-                Text(
-                    "Request appointment",
-                    fontWeight = FontWeight.SemiBold,
-                )
-            },
-            shape = RoundedCornerShape(50),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 2.dp,
-                pressedElevation = 3.dp,
-                focusedElevation = 2.dp,
-                hoveredElevation = 2.dp,
-            ),
-        )
+                .navigationBarsPadding()
+                .padding(end = 16.dp, bottom = 88.dp),
+                icon = {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = null,
+                    )
+                },
+                text = {
+                    // "Book" promised a confirmed slot the clinic has not agreed to yet.
+                    Text(
+                        "Request appointment",
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
+                shape = RoundedCornerShape(50),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 2.dp,
+                    pressedElevation = 3.dp,
+                    focusedElevation = 2.dp,
+                    hoveredElevation = 2.dp,
+                ),
+            )
+        }
     }
 }
 
@@ -297,23 +278,60 @@ private fun WeeklyAppointmentCalendar(
     onPreviousWeek: () -> Unit,
     onNextWeek: () -> Unit,
     onDateSelected: (LocalDate) -> Unit,
+    onTodayClick: () -> Unit,
+    onClearFilter: () -> Unit,
 ) {
     val visibleWeekStart = weekDays.firstOrNull() ?: selectedDate
 
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        WeekNavigationButton(
-            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = "Previous week",
-            onClick = onPreviousWeek,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            WeekNavigationButton(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = "Previous week",
+                onClick = onPreviousWeek,
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = "Week of ${appointmentWeekRangeLabel(appointmentWeekDays(visibleWeekStart))}",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = onTodayClick,
+                        enabled = selectedDate != LocalDate.now(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    ) {
+                        Text("Today")
+                    }
+                    TextButton(
+                        onClick = onClearFilter,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    ) {
+                        Text("Clear filter")
+                    }
+                }
+            }
+            WeekNavigationButton(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Next week",
+                onClick = onNextWeek,
+            )
+        }
 
         AnimatedContent(
             targetState = visibleWeekStart,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             transitionSpec = {
                 val direction = if (targetState > initialState) 1 else -1
                 val enter = slideInHorizontally { width -> direction * width } + fadeIn()
@@ -322,60 +340,108 @@ private fun WeeklyAppointmentCalendar(
             },
             label = "appointment-week-calendar",
         ) { weekStart ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                contentAlignment = Alignment.Center,
             ) {
-                appointmentWeekDays(weekStart).forEach { date ->
-                    val isSelected = date == selectedDate
-                    val hasAppointment = appointmentCounts.containsKey(date)
-                    Surface(
-                        onClick = { onDateSelected(date) },
-                        modifier = Modifier.size(38.dp),
-                        shape = CircleShape,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                        tonalElevation = if (isSelected) 0.dp else 1.dp,
-                        shadowElevation = if (isSelected) 0.dp else 1.dp,
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 2.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Text(
-                                text = date.format(DateTimeFormatter.ofPattern("E", Locale.US)).take(1).uppercase(Locale.US),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 10.sp),
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                            )
-                            Text(
-                                text = date.dayOfMonth.toString(),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 14.sp),
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                            )
-                            Surface(
-                                modifier = Modifier.size(4.dp),
-                                shape = CircleShape,
-                                color = when {
-                                    isSelected && hasAppointment -> MaterialTheme.colorScheme.onPrimary
-                                    hasAppointment -> EyecareColors.current.accentText
-                                    else -> Color.Transparent
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    appointmentWeekDays(weekStart).forEach { date ->
+                        val isSelected = date == selectedDate
+                        val appointmentCount = appointmentCounts[date] ?: 0
+                        val dayDescription = buildString {
+                            append(date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.US)))
+                            append(if (isSelected) ", selected" else ", not selected")
+                            append(". ")
+                            append(
+                                when (appointmentCount) {
+                                    0 -> "No appointments or requests"
+                                    1 -> "1 appointment or request"
+                                    else -> "$appointmentCount appointments or requests"
                                 },
-                            ) {}
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .selectable(
+                                    selected = isSelected,
+                                    role = Role.Button,
+                                    onClick = { onDateSelected(date) },
+                                )
+                                .semantics {
+                                    contentDescription = dayDescription
+                                    stateDescription = if (isSelected) "Selected" else "Not selected"
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(38.dp),
+                                shape = CircleShape,
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                },
+                                border = if (isSelected) {
+                                    null
+                                } else {
+                                    BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                },
+                                tonalElevation = if (isSelected) 0.dp else 1.dp,
+                                shadowElevation = if (isSelected) 0.dp else 1.dp,
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 2.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                ) {
+                                    Text(
+                                        text = date.format(DateTimeFormatter.ofPattern("EE", Locale.US)),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isSelected) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        maxLines = 1,
+                                    )
+                                    Text(
+                                        text = date.dayOfMonth.toString(),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
+                                        maxLines = 1,
+                                    )
+                                    Surface(
+                                        modifier = Modifier.size(4.dp),
+                                        shape = CircleShape,
+                                        color = when {
+                                            isSelected && appointmentCount > 0 -> MaterialTheme.colorScheme.onPrimary
+                                            appointmentCount > 0 -> EyecareColors.current.accentText
+                                            else -> Color.Transparent
+                                        },
+                                    ) {}
+                                }
+                            }
                         }
                     }
                 }
             }
+            Text(
+                text = "Dots mark appointments or requests.",
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
-
-        WeekNavigationButton(
-            icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = "Next week",
-            onClick = onNextWeek,
-        )
     }
 }
 @Composable
@@ -409,12 +475,12 @@ private fun EmptyDayCard(selectedDate: LocalDate) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                "No appointments",
+                "Nothing for this day",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                "Nothing scheduled for ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d", Locale.US))}.",
+                "No confirmed visits or requests on ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d", Locale.US))}.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -434,12 +500,15 @@ private fun EmptyAppointmentTab(tab: AppointmentListTab) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                if (tab == AppointmentListTab.UPCOMING) "No upcoming appointments" else "No appointment history",
+                if (tab == AppointmentListTab.UPCOMING) "No upcoming visits or requests" else "No appointment history",
                 style = MaterialTheme.typography.headlineSmall,
             )
             Text(
-                if (tab == AppointmentListTab.UPCOMING) "Book an appointment when you're ready."
-                else "Completed and cancelled appointments will appear here.",
+                if (tab == AppointmentListTab.UPCOMING) {
+                    "Request an appointment when you're ready. The clinic will confirm the visit."
+                } else {
+                    "Completed and cancelled visits will appear here."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -472,14 +541,37 @@ private fun AppointmentCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(9.dp),
             ) {
-                Text(
-                    formatAppointmentTitle(appointment.appointmentType),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            "Confirmed appointment",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = EyecareColors.current.accentText,
+                        )
+                        Text(
+                            formatAppointmentTitle(appointment.appointmentType),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
 
                 AppointmentInfoRow(
                     icon = Icons.Outlined.CalendarMonth,
@@ -508,6 +600,25 @@ private fun AppointmentCard(
                             iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         ),
                     )
+                } else if (appointment.visitRating != null) {
+                    SuggestionChip(
+                        onClick = {},
+                        enabled = false,
+                        label = { Text("Rated") },
+                        icon = {
+                            Icon(
+                                Icons.Filled.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
+                        shape = RoundedCornerShape(50),
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    )
                 }
             }
         }
@@ -520,6 +631,7 @@ private fun AppointmentInfoRow(
     text: String,
 ) {
     Row(
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -531,6 +643,7 @@ private fun AppointmentInfoRow(
         )
         Text(
             text,
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -547,17 +660,22 @@ internal fun formatAppointmentTitle(visitReason: String): String = visitReason
     .joinToString(" ") { word ->
         word.lowercase(Locale.US).replaceFirstChar { char -> char.titlecase(Locale.US) }
     }
+    .ifBlank { "Appointment" }
 
 internal fun formatAppointmentDate(scheduledAt: String): String {
     val parsed = parseAppointmentDateTime(scheduledAt)
     return parsed?.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US))
-        ?: scheduledAt.take(10)
+        ?: runCatching {
+            LocalDate.parse(scheduledAt.take(10))
+                .format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US))
+        }.getOrDefault("Date TBD")
 }
 
 internal fun formatAppointmentTime(scheduledAt: String): String {
     val parsed = parseAppointmentDateTime(scheduledAt)
+    val fallback = scheduledAt.drop(11).take(5)
     return parsed?.format(DateTimeFormatter.ofPattern("h:mm a", Locale.US))
-        ?: scheduledAt.drop(11).take(5).ifBlank { "Time TBD" }
+        ?: fallback.takeIf { it.matches(Regex("\\d{2}:\\d{2}")) } ?: "Time TBD"
 }
 
 internal fun appointmentOccursOnDate(scheduledAt: String, date: LocalDate): Boolean =
@@ -567,6 +685,13 @@ internal fun appointmentWeekDays(selectedDate: LocalDate): List<LocalDate> {
     val weekStart = selectedDate.minusDays((selectedDate.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
     // Mon–Sat only — clinic is closed on Sundays
     return List(6) { index -> weekStart.plusDays(index.toLong()) }
+}
+
+internal fun appointmentWeekRangeLabel(weekDays: List<LocalDate>): String {
+    val start = weekDays.firstOrNull() ?: LocalDate.now()
+    val end = weekDays.lastOrNull() ?: start
+    val formatter = DateTimeFormatter.ofPattern("MMM d", Locale.US)
+    return "${start.format(formatter)} - ${end.format(formatter)}"
 }
 
 internal fun appointmentsForTab(
@@ -592,13 +717,9 @@ internal fun appointmentsForTab(
 
 @Composable
 private fun AppointmentListContent(
-    appointments: List<AppointmentV1>,
+    confirmedState: AppointmentListUiState,
     requestState: RequestListState,
-    hasConfirmedError: Boolean = false,
     onRetryConfirmed: () -> Unit = {},
-    hasMoreAppointments: Boolean = false,
-    isLoadingMoreAppointments: Boolean = false,
-    appointmentsLoadMoreError: String? = null,
     onLoadMoreAppointments: () -> Unit = {},
     onNavigateToDetail: (Int) -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit,
@@ -613,19 +734,22 @@ private fun AppointmentListContent(
     var dateFilterEnabled by rememberSaveable { mutableStateOf(false) }
     var selectedDate by rememberSaveable { mutableStateOf(LocalDate.now()) }
     val weekDays = remember(selectedDate) { appointmentWeekDays(selectedDate) }
+    val confirmedSuccess = confirmedState as? AppointmentListUiState.Success
+    val appointments = confirmedSuccess?.appointments.orEmpty()
     val requests = (requestState as? RequestListState.Data)?.requests.orEmpty()
+    val activeRequestCount = activeAppointmentRequestCount(requests)
     val confirmedAppointmentIds = remember(appointments) { appointments.map { it.id }.toSet() }
-    val appointmentCounts = remember(appointments, requests) {
-        (appointments.mapNotNull { parseAppointmentDate(it.scheduledAt) } +
-            requests.mapNotNull { parseAppointmentDate(it.scheduledAt) })
-            .groupingBy { it }
-            .eachCount()
-    }
     val appointmentsForSelectedTab = remember(appointments, selectedTab) {
         appointmentsForTab(appointments, selectedTab)
     }
     val requestsForSelectedTab = remember(requests, selectedTab, confirmedAppointmentIds) {
         appointmentRequestsForTab(requests, selectedTab, confirmedAppointmentIds)
+    }
+    val appointmentCounts = remember(appointmentsForSelectedTab, requestsForSelectedTab) {
+        (appointmentsForSelectedTab.mapNotNull { parseAppointmentDate(it.scheduledAt) } +
+            requestsForSelectedTab.mapNotNull { parseAppointmentDate(it.scheduledAt) })
+            .groupingBy { it }
+            .eachCount()
     }
     val visibleAppointments = remember(
         appointmentsForSelectedTab,
@@ -655,6 +779,14 @@ private fun AppointmentListContent(
             requestsForSelectedTab
         }
     }
+    val requestData = requestState as? RequestListState.Data
+    val requestRefreshError = requestData?.error
+    val confirmedRefreshError = confirmedSuccess?.refreshError
+    val hasBlockingState = requestState is RequestListState.Loading ||
+        requestState is RequestListState.Error ||
+        confirmedState is AppointmentListUiState.Loading ||
+        confirmedState is AppointmentListUiState.Error
+    val hasStaleDataWarning = requestRefreshError != null || confirmedRefreshError != null
 
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 112.dp),
@@ -684,11 +816,16 @@ private fun AppointmentListContent(
                     onPreviousWeek = { selectedDate = selectedDate.minusWeeks(1) },
                     onNextWeek = { selectedDate = selectedDate.plusWeeks(1) },
                     onDateSelected = { selectedDate = it },
+                    onTodayClick = { selectedDate = LocalDate.now() },
+                    onClearFilter = {
+                        dateFilterEnabled = false
+                        selectedDate = LocalDate.now()
+                    },
                 )
             }
         }
         if (requestState is RequestListState.Loading) {
-            item { RequestListLoadingRow() }
+            item { RequestListLoadingRow("Loading appointment requests") }
         }
         if (requestState is RequestListState.Error) {
             item {
@@ -698,12 +835,38 @@ private fun AppointmentListContent(
                 )
             }
         }
-        if (hasConfirmedError) {
+        if (requestRefreshError != null) {
             item {
                 RequestListErrorRow(
-                    message = "Confirmed appointments couldn't be loaded",
+                    message = requestRefreshError,
+                    onRetry = onRefreshRequests,
+                )
+            }
+        }
+        if (confirmedState is AppointmentListUiState.Loading) {
+            item { RequestListLoadingRow("Loading confirmed appointments") }
+        }
+        if (confirmedState is AppointmentListUiState.Error) {
+            item {
+                RequestListErrorRow(
+                    message = confirmedState.message,
                     onRetry = onRetryConfirmed,
                 )
+            }
+        }
+        if (confirmedRefreshError != null) {
+            item {
+                RequestListErrorRow(
+                    message = confirmedRefreshError,
+                    onRetry = onRetryConfirmed,
+                )
+            }
+        }
+        if (selectedTab == AppointmentListTab.UPCOMING &&
+            hasReachedActiveAppointmentRequestLimit(requests)
+        ) {
+            item {
+                AppointmentRequestLimitNotice(activeRequestCount = activeRequestCount)
             }
         }
         if (visibleRequests.isNotEmpty()) {
@@ -718,6 +881,7 @@ private fun AppointmentListContent(
                 AppointmentRequestCard(
                     request = request,
                     onClick = { onNavigateToRequestDetail(request.id) },
+                    onViewConfirmed = onNavigateToDetail,
                 )
             }
         }
@@ -739,7 +903,11 @@ private fun AppointmentListContent(
                 )
             }
         }
-        if (visibleAppointments.isEmpty() && visibleRequests.isEmpty() && requestState !is RequestListState.Loading) {
+        if (visibleAppointments.isEmpty() &&
+            visibleRequests.isEmpty() &&
+            !hasBlockingState &&
+            !hasStaleDataWarning
+        ) {
             item {
                 if (selectedTab == AppointmentListTab.UPCOMING && dateFilterEnabled) {
                     EmptyDayCard(selectedDate)
@@ -748,7 +916,6 @@ private fun AppointmentListContent(
                 }
             }
         }
-        val requestData = requestState as? RequestListState.Data
         if (requestData?.hasMore == true) {
             item {
                 Column(
@@ -768,21 +935,24 @@ private fun AppointmentListContent(
                 }
             }
         }
-        if (hasMoreAppointments) {
+        if (confirmedSuccess?.hasMorePages == true) {
             item {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    appointmentsLoadMoreError?.let {
+                    confirmedSuccess.loadMoreError?.let {
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                     OutlinedButton(
                         onClick = onLoadMoreAppointments,
-                        enabled = !isLoadingMoreAppointments,
+                        enabled = !confirmedSuccess.isLoadingMore,
                     ) {
-                        if (isLoadingMoreAppointments) CircularProgressIndicator(modifier = Modifier.size(18.dp))
-                        else Text("Load more appointments")
+                        if (confirmedSuccess.isLoadingMore) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                        } else {
+                            Text("Load more confirmed appointments")
+                        }
                     }
                 }
             }
@@ -791,7 +961,7 @@ private fun AppointmentListContent(
 }
 
 @Composable
-private fun RequestListLoadingRow() {
+private fun RequestListLoadingRow(message: String) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
@@ -799,7 +969,7 @@ private fun RequestListLoadingRow() {
     ) {
         CircularProgressIndicator(modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text("Loading appointment requests", style = MaterialTheme.typography.bodySmall)
+        Text(message, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -824,52 +994,138 @@ private fun RequestListErrorRow(
 }
 
 @Composable
+private fun AppointmentRequestLimitNotice(activeRequestCount: Int) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(22.dp),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "Request limit reached",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = "You have $activeRequestCount pending appointment requests. " +
+                        "Wait for the clinic to respond or cancel one before starting another.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun AppointmentRequestCard(
     request: AppointmentRequest,
     onClick: () -> Unit,
+    onViewConfirmed: (Int) -> Unit,
 ) {
     val presentation = requestStatusPresentation(request.status)
+    val confirmedAppointmentId = request.appointmentId
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        "Appointment request",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = EyecareColors.current.accentText,
+                    )
+                    Text(
+                        text = "Request ${request.requestNumber}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+
             AppointmentRequestStatusPill(request.status, presentation.label)
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(9.dp),
             ) {
-                Text(
-                    text = "Request ${request.requestNumber}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
                 val durationMinutes = request.provisionalDurationMinutes
                     ?: request.appointmentType?.durationMinutes
                 val requestSummary = listOfNotNull(
                     request.appointmentType?.name,
                     durationMinutes?.let { "$it min" },
-                ).joinToString(" · ")
+                ).joinToString(" · ").ifBlank { "Appointment details unavailable" }
                 Text(
                     text = requestSummary,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "Preferred time",
+                    text = presentation.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Your preferred time",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 AppointmentInfoRow(Icons.Outlined.CalendarMonth, formatAppointmentDate(request.scheduledAt))
                 AppointmentInfoRow(Icons.Outlined.AccessTime, formatAppointmentTime(request.scheduledAt))
+
+                if (presentation.showViewConfirmed && confirmedAppointmentId != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { onViewConfirmed(confirmedAppointmentId) }) {
+                            Text("View confirmed appointment")
+                        }
+                    }
+                }
             }
         }
     }

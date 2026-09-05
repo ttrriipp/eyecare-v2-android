@@ -369,7 +369,7 @@ fun EyecareNavGraph(
                                     popUpTo<RequestAppointment> { inclusive = true }
                                 }
                             },
-                            onViewRequests = { navController.popBackStack() },
+                            onViewRequests = { navigateMainTab(Appointments) },
                             requestIdentity = requestIdentity,
                             identityDetailsRequired = identityDetailsRequired,
                         )

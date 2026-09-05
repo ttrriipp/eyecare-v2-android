@@ -11,6 +11,7 @@ import com.eyecare.app.domain.model.AppointmentRequestTypeSummary
 import com.eyecare.app.domain.model.AppointmentType
 import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
+import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.presentation.appointments.DayAvailability
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -120,6 +121,9 @@ class RequestAppointmentViewModelTest {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
         coEvery { repo.getAppointmentTypes() } returns Result.success(listOf(normalType, referralType))
+        coEvery { repo.getRequests(any(), any()) } returns Result.success(
+            PaginatedResult(emptyList(), currentPage = 1, lastPage = 1, total = 0),
+        )
         // The schedule step prefetches a whole week around today, so every date must answer.
         // Individual tests override the specific dates they assert on.
         coEvery { repo.getAvailability(any(), any()) } returns Result.success(fakeAvailability())
@@ -136,6 +140,26 @@ class RequestAppointmentViewModelTest {
         val step = vm.step.value as RequestStep.Type
         assertEquals(2, step.types.size)
         assertFalse(step.isLoading)
+    }
+
+    @Test
+    fun `two pending requests block the flow before appointment types load`() {
+        val secondPendingRequest = fakeRequest.copy(
+            id = 2,
+            requestNumber = "APR-2026-000002",
+        )
+        coEvery { repo.getRequests(any(), any()) } returns Result.success(
+            PaginatedResult(
+                data = listOf(fakeRequest, secondPendingRequest),
+                currentPage = 1,
+                lastPage = 1,
+                total = 2,
+            ),
+        )
+
+        vm = newViewModel()
+
+        assertEquals(RequestStep.LimitReached(activeRequestCount = 2), vm.step.value)
     }
 
     @Test

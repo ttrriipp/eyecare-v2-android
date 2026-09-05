@@ -25,6 +25,7 @@ sealed interface AppointmentListUiState {
         val isSubmittingRating: Boolean = false,
         val ratingError: String? = null,
         val isRefreshing: Boolean = false,
+        val refreshError: String? = null,
     ) : AppointmentListUiState
     data object Empty : AppointmentListUiState
     data class Error(val message: String) : AppointmentListUiState
@@ -71,6 +72,7 @@ class AppointmentListViewModel @Inject constructor(
         _uiState.value = current.copy(
             isLoadingMore = false,
             isRefreshing = true,
+            refreshError = null,
         )
         requestJob = viewModelScope.launch {
             repository.getAppointments(page = 1).fold(
@@ -84,6 +86,7 @@ class AppointmentListViewModel @Inject constructor(
                             AppointmentListUiState.Success(
                                 appointments = result.data.sortedByScheduledDesc(),
                                 hasMorePages = result.hasMorePages,
+                                refreshError = null,
                             )
                         }
                     }
@@ -92,7 +95,10 @@ class AppointmentListViewModel @Inject constructor(
                     if (generation == requestGeneration) {
                         // Keep the existing appointments visible; a failed background refresh
                         // shouldn't discard data the patient can already see.
-                        _uiState.value = current.copy(isRefreshing = false)
+                        _uiState.value = current.copy(
+                            isRefreshing = false,
+                            refreshError = "We couldn't refresh your confirmed visits. Showing the latest list.",
+                        )
                     }
                 },
             )
@@ -102,9 +108,8 @@ class AppointmentListViewModel @Inject constructor(
     fun loadMore() {
         val state = _uiState.value
         if (state !is AppointmentListUiState.Success) return
-        if (state.isLoadingMore || !state.hasMorePages) return
-        currentPage++
-        loadMoreInternal()
+        if (state.isLoadingMore || state.isRefreshing || !state.hasMorePages) return
+        loadMoreInternal(page = currentPage + 1)
     }
 
     fun showRatingDialog(appointmentId: Int) {
@@ -195,19 +200,21 @@ class AppointmentListViewModel @Inject constructor(
                 },
                 onFailure = {
                     if (generation == requestGeneration) {
-                        _uiState.value = AppointmentListUiState.Error(it.message ?: "Failed to load")
+                        _uiState.value = AppointmentListUiState.Error(
+                            "We couldn't load your confirmed visits. Check your connection and try again.",
+                        )
                     }
                 },
             )
         }
     }
 
-    private fun loadMoreInternal() {
+    private fun loadMoreInternal(page: Int) {
         val current = _uiState.value as? AppointmentListUiState.Success ?: return
         val generation = beginRequest()
         _uiState.value = current.copy(isLoadingMore = true, loadMoreError = null)
         requestJob = viewModelScope.launch {
-            repository.getAppointments(page = currentPage).fold(
+            repository.getAppointments(page = page).fold(
                 onSuccess = { result ->
                     if (generation == requestGeneration) {
                         currentPage = result.currentPage
@@ -217,6 +224,7 @@ class AppointmentListViewModel @Inject constructor(
                             appointments = all.sortedByScheduledDesc(),
                             isLoadingMore = false,
                             hasMorePages = result.hasMorePages,
+                            loadMoreError = null,
                         )
                     }
                 },
@@ -224,7 +232,7 @@ class AppointmentListViewModel @Inject constructor(
                     if (generation == requestGeneration) {
                         _uiState.value = current.copy(
                             isLoadingMore = false,
-                            loadMoreError = it.message ?: "Failed to load more",
+                            loadMoreError = "We couldn't load more confirmed visits. Please try again.",
                         )
                     }
                 },

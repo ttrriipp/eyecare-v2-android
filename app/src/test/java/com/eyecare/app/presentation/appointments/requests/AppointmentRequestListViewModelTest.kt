@@ -116,6 +116,10 @@ class AppointmentRequestListViewModelTest {
         assertEquals(1, state.requests.size)
         assertEquals(1, state.requests[0].id)
         assertFalse(state.isRefreshing)
+        assertEquals(
+            "We couldn't refresh your requests. Showing the latest list.",
+            state.error,
+        )
     }
 
     @Test
