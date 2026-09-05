@@ -42,6 +42,7 @@ import kotlinx.serialization.Serializable
 
 // Profile sub-destinations
 @Serializable object PatientProfile
+@Serializable object AppearanceSettings
 
 // Chat (FAB destination, not a tab)
 @Serializable object Chat

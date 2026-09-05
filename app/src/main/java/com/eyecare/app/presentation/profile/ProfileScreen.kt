@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.LocalHospital
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material3.Card
@@ -69,6 +70,7 @@ fun ProfileScreen(
     onNavigateToMessages: () -> Unit = {},
     onNavigateToPatientProfile: () -> Unit = {},
     onNavigateToAccountSecurity: () -> Unit = {},
+    onNavigateToAppearance: () -> Unit = {},
     onNavigateToInviteCode: () -> Unit = {},
     unreadMessageCount: Int = 0,
     account: PatientAccount? = null,
@@ -111,6 +113,7 @@ fun ProfileScreen(
             onNavigateToEyewear = onNavigateToEyewear,
             onNavigateToPatientProfile = onNavigateToPatientProfile,
             onNavigateToAccountSecurity = onNavigateToAccountSecurity,
+            onNavigateToAppearance = onNavigateToAppearance,
             onNavigateToInviteCode = onNavigateToInviteCode,
             onLogoutClick = { showLogoutDialog = true },
         )
@@ -145,6 +148,7 @@ fun ProfileContent(
     onNavigateToEyewear: () -> Unit = {},
     onNavigateToPatientProfile: () -> Unit = {},
     onNavigateToAccountSecurity: () -> Unit = {},
+    onNavigateToAppearance: () -> Unit = {},
     onNavigateToInviteCode: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
 ) {
@@ -165,6 +169,27 @@ fun ProfileContent(
             onNavigateToAccountSecurity = onNavigateToAccountSecurity,
             onNavigateToInviteCode = onNavigateToInviteCode,
         )
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = "App settings",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            Card(
+                shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                ProfileNavRow(
+                    icon = Icons.Outlined.Palette,
+                    label = "Appearance",
+                    onClick = onNavigateToAppearance,
+                )
+            }
+        }
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(

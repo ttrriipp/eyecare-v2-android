@@ -63,6 +63,7 @@ import com.eyecare.app.presentation.frames.SavedFramesScreen
 import com.eyecare.app.presentation.frames.SavedFramesViewModel
 import com.eyecare.app.presentation.home.HomeScreen
 import com.eyecare.app.presentation.profile.PatientProfileScreen
+import com.eyecare.app.presentation.settings.AppearanceSettingsScreen
 import com.eyecare.app.presentation.messaging.ChatScreen
 import com.eyecare.app.presentation.notifications.NotificationListScreen
 import com.eyecare.app.presentation.notifications.NotificationListViewModel
@@ -83,6 +84,7 @@ internal fun shouldShowBottomNav(route: String): Boolean =
         !route.contains("SavedFrames") &&
         !route.contains("Prescription") &&
         !route.contains("PatientProfile") &&
+        !route.contains("AppearanceSettings") &&
         !route.contains("PatientIntake") && !route.contains("Quotation") &&
         !route.contains("OpticalOrderDetail") &&
         !route.contains("JobOrder") && !route.contains("MyOrders")
@@ -470,8 +472,14 @@ fun EyecareNavGraph(
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
                             onNavigateToPatientProfile = { navigatePatientFeature(PatientProfile) },
                             onNavigateToAccountSecurity = { navController.navigate(AccountSecurity) },
+                            onNavigateToAppearance = { navController.navigate(AppearanceSettings) },
                             onNavigateToInviteCode = ::openAccountLink,
                             unreadMessageCount = mainUnreadState.messageUnreadCount,
+                        )
+                    }
+                    composable<AppearanceSettings> {
+                        AppearanceSettingsScreen(
+                            onBack = { navController.popBackStack() },
                         )
                     }
                     composable<SavedFrames> {

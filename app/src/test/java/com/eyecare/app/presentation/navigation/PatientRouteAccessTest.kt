@@ -95,6 +95,15 @@ class PatientRouteAccessTest {
     }
 
     @Test
+    fun `appearance settings is account-only and does not redirect unlinked accounts`() {
+        val sessionState = SessionState.Limited(testAccount())
+
+        assertEquals(PatientRouteAccess.AccountOnly, classifyRouteAccess("AppearanceSettings"))
+        assertTrue(canAccessRoute(AppearanceSettings, PatientLinkStatus.UNLINKED))
+        assertFalse(shouldRedirectToLimitedAccount("AppearanceSettings", sessionState))
+    }
+
+    @Test
     fun `limited session redirects active-link destinations to the link hub`() {
         val sessionState = SessionState.Limited(testAccount())
 

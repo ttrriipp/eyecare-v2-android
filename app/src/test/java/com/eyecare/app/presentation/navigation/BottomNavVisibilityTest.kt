@@ -39,6 +39,15 @@ class BottomNavVisibilityTest {
     }
 
     @Test
+    fun `appearance settings hides bottom navigation`() {
+        assertFalse(
+            shouldShowBottomNav(
+                "com.eyecare.app.presentation.navigation.AppearanceSettings",
+            ),
+        )
+    }
+
+    @Test
     fun `main tabs keep bottom navigation visible`() {
         assertTrue(shouldShowBottomNav("com.eyecare.app.presentation.navigation.Home"))
     }

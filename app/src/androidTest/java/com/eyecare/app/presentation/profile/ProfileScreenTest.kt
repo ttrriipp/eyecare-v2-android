@@ -29,6 +29,7 @@ class ProfileScreenTest {
                     onNavigateToPrescriptions = { destination = "prescriptions" },
                     onNavigateToSavedFrames = { destination = "saved" },
                     onNavigateToEyewear = { destination = "eyewear" },
+                    onNavigateToAppearance = { destination = "appearance" },
                     onLogoutClick = { destination = "logout" },
                 )
             }
@@ -51,6 +52,7 @@ class ProfileScreenTest {
             "Prescriptions" to "prescriptions",
             "Saved Frames" to "saved",
             "My Orders" to "eyewear",
+            "Appearance" to "appearance",
             "Log out" to "logout",
         ).forEach { (label, expectedDestination) ->
             composeRule.onNodeWithText(label).performClick()
