@@ -50,6 +50,16 @@ class AppointmentListViewModel @Inject constructor(
         hasActivePatientLink: Boolean = this.hasActivePatientLink,
         accountId: Int? = currentAccountId,
     ) {
+        if (!hasActivePatientLink) {
+            beginRequest()
+            currentPage = 1
+            lastPage = 1
+            this.hasActivePatientLink = false
+            currentAccountId = accountId
+            _uiState.value = AppointmentListUiState.Success(appointments = emptyList())
+            return
+        }
+
         // A refresh while appointments are already showing (pull-to-refresh, or returning to
         // the screen) shouldn't wipe the list back to a bare spinner — only a genuine first
         // load, an account change, or a linked-status change resets to Loading.

@@ -274,4 +274,20 @@ class AppointmentListViewModelTest {
         assertFalse(state.hasMorePages)
         coVerify(exactly = 0) { repo.getAppointments(any()) }
     }
+
+    @Test
+    fun `limited refresh keeps appointment shell available without fetching confirmed appointments`() = runTest {
+        coEvery { repo.getAppointments(any()) } returns Result.failure(RuntimeException("active link required"))
+        val vm = AppointmentListViewModel(repo)
+
+        vm.load(hasActivePatientLink = false, accountId = 101)
+        vm.refresh(hasActivePatientLink = false, accountId = 101)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as AppointmentListUiState.Success
+        assertTrue(state.appointments.isEmpty())
+        assertFalse(state.isRefreshing)
+        assertEquals(null, state.refreshError)
+        coVerify(exactly = 0) { repo.getAppointments(any()) }
+    }
 }
