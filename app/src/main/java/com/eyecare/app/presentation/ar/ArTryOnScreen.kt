@@ -7,18 +7,19 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,7 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,14 +42,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.eyecare.app.BuildConfig
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.presentation.ar.components.ArAssetStatusBanner
 import com.eyecare.app.presentation.ar.components.ArDisclosureBanner
-import com.eyecare.app.presentation.ar.components.ArSavedFrameDisclaimer
+import com.eyecare.app.presentation.ar.components.ArFaceGuideOverlay
+import com.eyecare.app.presentation.ar.components.HeadOcclusionDebugOverlay
+import com.eyecare.app.presentation.ar.components.ArPrivacyStatusBanner
 import com.eyecare.app.presentation.ar.components.ArStatusOverlay
 import com.eyecare.app.presentation.ar.components.VariantChipRow
 import com.eyecare.app.presentation.ar.model.ArAssetSource
@@ -66,7 +69,7 @@ fun ArTryOnScreen(
     frameId: Int,
     initialVariantId: Int,
     onBack: () -> Unit,
-    onOpenCatalog: () -> Unit = onBack,
+    onOpenCatalog: () -> Unit,
 ) {
     val viewModel = hiltViewModel<ArViewModel, ArViewModel.Factory> {
         it.create(frameId, initialVariantId)
@@ -105,7 +108,18 @@ fun ArTryOnScreen(
         }
     }
 
-    RefreshOnResumeEffect(onRefresh = viewModel::refreshSavedState)
+    RefreshOnResumeEffect(
+        onRefresh = {
+            val permissionGranted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (permissionGranted) {
+                viewModel.onPermissionResult(granted = true)
+            }
+            viewModel.refreshSavedState()
+        },
+    )
 
     val activeContentState = uiState.toActiveTryOnContentState()
     LaunchedEffect(activeContentState?.saveError) {
@@ -139,6 +153,7 @@ fun ArTryOnScreen(
                 onSelectVariant = viewModel::selectVariant,
                 onToggleSaved = viewModel::toggleSaved,
                 onOpenCatalog = onOpenCatalog,
+                snackbarHostState = snackbarHostState,
             )
         } else {
             ArStatusOverlay(
@@ -161,12 +176,6 @@ fun ArTryOnScreen(
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close", tint = Color.White)
         }
 
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(start = 16.dp, end = 16.dp, bottom = 112.dp),
-        )
     }
 }
 
@@ -179,6 +188,7 @@ private fun ActiveTryOnContent(
     onSelectVariant: (FrameVariant) -> Unit,
     onToggleSaved: () -> Unit,
     onOpenCatalog: () -> Unit,
+    snackbarHostState: SnackbarHostState,
 ) {
     val rendererSource = assetSource.toFrameModelSource()
 
@@ -202,32 +212,28 @@ private fun ActiveTryOnContent(
             )
         }
 
+        // Keep the segmentation proof layer debug-only. It is deliberately
+        // above the model so side-head alignment and central-face exclusion
+        // can be inspected before introducing a GPU compositor.
+        if (BuildConfig.DEBUG) {
+            HeadOcclusionDebugOverlay(
+                modifier = Modifier.fillMaxSize(),
+                face = state.face,
+            )
+        }
+
         // Catalog images are ordinary product photos and may have opaque backgrounds. Keep them
         // off the tracked face; the dedicated "View frame images" action remains available below.
-        if (state.face == null) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.Black.copy(alpha = 0.5f),
-                ) {
-                    Text(
-                        when {
-                            state.phase == ActiveTryOnPhase.Loading ->
-                                "Loading this frame's preview…"
-                            state.hasTrackedBefore ->
-                                "Lost you for a moment — hold still and center your face again"
-                            else ->
-                                "Position your face in the center"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                        textAlign = TextAlign.Center,
-                    )
-                }
+        arFaceGuidanceMessage(
+            phase = state.phase,
+            hasTrackedBefore = state.hasTrackedBefore,
+            assetState = state.assetState,
+        )?.let { guidanceMessage ->
+            if (state.face == null) {
+                ArFaceGuideOverlay(
+                    message = guidanceMessage,
+                    showGuide = state.phase != ActiveTryOnPhase.Loading,
+                )
             }
         }
 
@@ -241,6 +247,10 @@ private fun ActiveTryOnContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            ArPrivacyStatusBanner(
+                frameName = state.frameName,
+                variantName = state.selectedVariant?.name,
+            )
             if (state.phase == ActiveTryOnPhase.Tracking && state.face != null) {
                 ArDisclosureBanner()
             }
@@ -255,54 +265,107 @@ private fun ActiveTryOnContent(
                 .navigationBarsPadding()
                 .padding(bottom = 24.dp, top = 12.dp),
         ) {
-            Column(
+            ArTryOnBottomControls(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                val selectedVariant = state.selectedVariant
-                val canSave = selectedVariant != null
-                if (canSave) {
-                    Button(
-                        onClick = onToggleSaved,
-                        enabled = !state.isSaving,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                        ),
-                    ) {
-                        if (state.isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
-                            Spacer(Modifier.size(6.dp))
-                        }
-                        Text(if (selectedVariant.isSaved) "Remove from saved" else "Save this frame")
-                    }
-                    ArSavedFrameDisclaimer(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
-                OutlinedButton(
-                    onClick = onOpenCatalog,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.White,
-                    ),
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = Color.White.copy(alpha = 0.7f),
+                variants = state.variants,
+                selectedVariant = state.selectedVariant,
+                isSaving = state.isSaving,
+                onSelectVariant = onSelectVariant,
+                onToggleSaved = onToggleSaved,
+                onOpenCatalog = onOpenCatalog,
+                snackbarHostState = snackbarHostState,
+            )
+        }
+    }
+}
+
+@Composable
+internal fun ArTryOnBottomControls(
+    variants: List<FrameVariant>,
+    selectedVariant: FrameVariant?,
+    isSaving: Boolean,
+    onSelectVariant: (FrameVariant) -> Unit,
+    onToggleSaved: () -> Unit,
+    onOpenCatalog: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+        )
+        val canSave = selectedVariant != null
+        if (variants.size > 1) {
+            Text(
+                text = "Frame options",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.86f),
+                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+            )
+            VariantChipRow(
+                variants = variants,
+                selectedVariant = selectedVariant,
+                onSelectVariant = onSelectVariant,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            selectedVariant?.let { variant ->
+                Button(
+                    onClick = onToggleSaved,
+                    enabled = !isSaving,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
                     ),
                 ) {
-                    Text("View frame images")
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        Spacer(Modifier.size(6.dp))
+                    }
+                    Text(if (variant.isSaved) "Remove from saved" else "Save frame")
                 }
-                if (state.variants.isNotEmpty()) {
-                    VariantChipRow(
-                        variants = state.variants,
-                        selectedVariant = state.selectedVariant,
-                        onSelectVariant = onSelectVariant,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+            }
+            OutlinedButton(
+                onClick = onOpenCatalog,
+                modifier = if (canSave) {
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                },
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color.White,
+                ),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.7f),
+                ),
+            ) {
+                Text("View images")
             }
         }
     }

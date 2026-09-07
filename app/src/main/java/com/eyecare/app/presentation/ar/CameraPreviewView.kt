@@ -29,8 +29,8 @@ fun CameraPreviewView(
     val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
 
     DisposableEffect(lifecycleOwner) {
-        val helper = onFaceResult?.let { cb ->
-            FaceLandmarkerHelper(context, cb)
+        val analyzer = onFaceResult?.let { cb ->
+            ArFrameAnalyzer(context, cb)
         }
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -42,11 +42,11 @@ fun CameraPreviewView(
                 it.surfaceProvider = previewView.surfaceProvider
             }
 
-            val useCases = if (helper != null) {
+            val useCases = if (analyzer != null) {
                 val analysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
-                    .also { it.setAnalyzer(analysisExecutor) { proxy -> helper.detectAsync(proxy) } }
+                    .also { it.setAnalyzer(analysisExecutor) { proxy -> analyzer.analyze(proxy) } }
                 arrayOf(preview, analysis)
             } else {
                 arrayOf(preview)
@@ -62,7 +62,7 @@ fun CameraPreviewView(
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
-            helper?.close()
+            analyzer?.close()
             analysisExecutor.shutdown()
             cameraProviderFuture.get()?.unbindAll()
         }

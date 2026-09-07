@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.appointments
 
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestTypeSummary
 import com.eyecare.app.presentation.appointments.requests.hasReachedActiveAppointmentRequestLimit
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -82,17 +83,35 @@ class AppointmentRequestListPresentationTest {
         assertFalse(hasReachedActiveAppointmentRequestLimit(requests))
     }
 
+    @Test
+    fun `request card prioritizes visit type and keeps request metadata concise`() {
+        val request = request(
+            id = 4,
+            status = AppointmentRequestStatus.PENDING,
+            scheduledAt = "2026-08-07T10:00:00+08:00",
+            appointmentType = AppointmentRequestTypeSummary(
+                id = 1,
+                name = "First eye examination",
+                durationMinutes = 45,
+            ),
+        )
+
+        assertEquals("First eye examination", appointmentRequestTitle(request))
+        assertEquals("45 min visit", appointmentRequestDurationLabel(request))
+    }
+
     private fun request(
         id: Int,
         status: AppointmentRequestStatus,
         scheduledAt: String,
         appointmentId: Int? = null,
+        appointmentType: AppointmentRequestTypeSummary? = null,
     ) = AppointmentRequest(
         id = id,
         requestNumber = "APR-2026-${id.toString().padStart(6, '0')}",
         status = status,
         patientId = null,
-        appointmentType = null,
+        appointmentType = appointmentType,
         scheduledAt = scheduledAt,
         alternativeScheduledTimes = emptyList(),
         provisionalDurationMinutes = null,

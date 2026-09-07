@@ -1991,9 +1991,9 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
           "unit_price": "4500.00",
           "amount": "4500.00",
           "product_variant_id": 42,
+          "image_url": "variants/classic-rectangle-frame/01-front.jpg",
           "is_rateable": false,
-          "rating": null,
-          "image_url": "frames/classic-rectangle.jpg"
+          "rating": null
         },
         {
           "id": 2,
@@ -2002,9 +2002,9 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
           "unit_price": "3500.00",
           "amount": "3500.00",
           "product_variant_id": null,
+          "image_url": null,
           "is_rateable": false,
-          "rating": null,
-          "image_url": null
+          "rating": null
         }
       ],
       "payment_summary": {
@@ -2056,9 +2056,9 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `items[].unit_price` | string | no | Unit price, two decimal places |
 | `items[].amount` | string | no | Line amount, two decimal places |
 | `items[].product_variant_id` | integer | yes | Catalog variant ID; null for non-catalog or lens-category items |
+| `items[].image_url` | string | yes | Primary public catalog image for frame items; uses the same relative image path format as `GET /frames`, or `null` when the item is not a frame or has no image |
 | `items[].is_rateable` | boolean | no | Whether the patient may submit or revise a rating for this item now |
 | `items[].rating` | object | yes | Current rating summary; null when not yet rated |
-| `items[].image_url` | string | yes | Primary catalog image path or absolute URL for the ordered product variant; null when no image is available |
 | `payment_summary` | object | yes | Active billing summary; omitted entirely if no billing record |
 | `payment_summary.status` | string | no | Machine-readable: `unpaid`, `partially_paid`, `paid`, `voided` |
 | `payment_summary.total_amount` | string | no | Billing total |
@@ -2092,6 +2092,14 @@ from non-dispensed orders have `is_rateable: false`.
 ### GET `/optical-orders/{id}`
 
 Returns a single optical order with items and payment summary.
+
+The `items` fields are the same as the list response, including the additive
+nullable `image_url` field. For frame items, it uses the first image in the
+ordered variant's catalog image collection, falling back to the parent
+product's first image when the variant has none. The value follows the same
+public relative image path convention as `GET /frames`; lens, service, custom,
+and image-less items return `null`. AR model references, absolute filesystem
+paths, and admin-only URLs are never used as `image_url` values.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 

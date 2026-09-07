@@ -11,23 +11,30 @@ class TempleVisibilityPolicyTest {
 
         assertEquals(TempleVisibility.None, policy.update(0f))
         assertEquals(TempleVisibility.None, policy.update(20f))
-        assertEquals(TempleVisibility.Both, policy.update(27f))
+        assertEquals(TempleVisibility.Both, policy.update(23f))
     }
 
     @Test
     fun `positive yaw hides the left temple after the hide threshold`() {
         val policy = TempleVisibilityPolicy()
 
-        assertEquals(TempleVisibility.Both, policy.update(31.9f))
-        assertEquals(TempleVisibility.LeftOnly, policy.update(32f))
+        assertEquals(TempleVisibility.Both, policy.update(23.9f))
+        assertEquals(TempleVisibility.LeftOnly, policy.update(24f))
+    }
+
+    @Test
+    fun `positive yaw hides the far temple before the oblique view exposes it`() {
+        val policy = TempleVisibilityPolicy()
+
+        assertEquals(TempleVisibility.LeftOnly, policy.update(24f))
     }
 
     @Test
     fun `negative yaw hides the right temple after the hide threshold`() {
         val policy = TempleVisibilityPolicy()
 
-        assertEquals(TempleVisibility.Both, policy.update(-31.9f))
-        assertEquals(TempleVisibility.RightOnly, policy.update(-32f))
+        assertEquals(TempleVisibility.Both, policy.update(-23.9f))
+        assertEquals(TempleVisibility.RightOnly, policy.update(-24f))
     }
 
     @Test

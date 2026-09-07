@@ -147,14 +147,36 @@ class RegistrationViewModelTest {
             lastName = "User",
             dateOfBirth = "1990-01-01",
             email = "test@example.com",
-            password = "123456789012",
-            passwordConfirmation = "123456789012",
+            password = "Password123!",
+            passwordConfirmation = "Password123!",
             privacyAccepted = true,
             termsAccepted = true,
         )
         vm.submitRegistration()
 
         assertTrue(vm.state.value is RegistrationState.Success)
+    }
+
+    @Test
+    fun `submitRegistration rejects a password missing a composition rule`() = runTest {
+        enterDetails()
+
+        vm.updateDetails(
+            firstName = "Test",
+            lastName = "User",
+            dateOfBirth = "1990-01-01",
+            password = "password123!",
+            passwordConfirmation = "password123!",
+            privacyAccepted = true,
+            termsAccepted = true,
+        )
+        vm.submitRegistration()
+
+        val state = vm.state.value as RegistrationState.EnterDetails
+        assertEquals(
+            "Use at least 8 characters, including uppercase, lowercase, a number, and a special character.",
+            state.errors["password"],
+        )
     }
 
     @Test
@@ -180,8 +202,8 @@ class RegistrationViewModelTest {
             lastName = "User",
             dateOfBirth = "1990-01-01",
             email = "test@example.com",
-            password = "123456789012",
-            passwordConfirmation = "123456789012",
+            password = "Password123!",
+            passwordConfirmation = "Password123!",
             privacyAccepted = true,
             termsAccepted = true,
         )
@@ -206,8 +228,8 @@ class RegistrationViewModelTest {
             firstName = "Test",
             lastName = "User",
             dateOfBirth = futureDate,
-            password = "123456789012",
-            passwordConfirmation = "123456789012",
+            password = "Password123!",
+            passwordConfirmation = "Password123!",
             privacyAccepted = true,
             termsAccepted = true,
         )

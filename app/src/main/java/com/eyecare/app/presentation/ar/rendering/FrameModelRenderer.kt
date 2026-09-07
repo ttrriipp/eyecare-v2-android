@@ -27,8 +27,12 @@ import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.ar.model.BundledFrameAsset
 import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FacePose
+import com.eyecare.app.presentation.ar.tracking.HeadOcclusionMode
+import com.eyecare.app.presentation.ar.tracking.HeadOcclusionPolicy
+import com.eyecare.app.presentation.ar.tracking.HeadOcclusionViewport
 import com.eyecare.app.presentation.ar.tracking.FaceOccluderViewport
 import com.eyecare.app.presentation.ar.tracking.mapFaceOccluder
+import com.eyecare.app.presentation.ar.tracking.mapHeadOcclusionMask
 import com.eyecare.app.presentation.ar.tracking.loadMediaPipeFaceMeshTopology
 import io.github.sceneview.SceneScope
 import io.github.sceneview.SceneView
@@ -184,9 +188,18 @@ private fun ModelScene(
     }
     val mainLightNode = rememberMainLightNode(engine)
     val templeVisibilityPolicy = remember(source.assetPath) { TempleVisibilityPolicy() }
-    val templeVisibility = templeVisibilityPolicy.update(pose?.yawDeg)
+    val headOcclusionActive = remember(source.assetPath) { mutableStateOf(false) }
+    val fallbackTempleVisibility = templeVisibilityPolicy.update(pose?.yawDeg)
+    val templeVisibility = if (headOcclusionActive.value) {
+        // Once the side-head depth mesh is current, let it hide only the pixels
+        // behind the head instead of hiding an entire temple by yaw.
+        TempleVisibility.Both
+    } else {
+        fallbackTempleVisibility
+    }
     val currentTempleVisibility = rememberUpdatedState(templeVisibility)
     val faceOcclusionPolicy = remember { FaceOcclusionPolicy() }
+    val headOcclusionPolicy = remember { HeadOcclusionPolicy() }
     val faceOcclusionTopology = remember { loadMediaPipeFaceMeshTopology() }
     val faceOccluderNode = remember(engine, source.assetPath, faceOcclusionTopology) {
         faceOcclusionTopology?.let { topology ->
@@ -198,6 +211,12 @@ private fun ModelScene(
         }
     }
     val faceOcclusionActive = remember(source.assetPath) { mutableStateOf(false) }
+    val headOcclusionNode = remember(engine, source.assetPath) {
+        HeadOcclusionNode.create(
+            engine = engine,
+            materialLoader = materialLoader,
+        )
+    }
 
     when (source) {
         is FrameModelSource.Bundled -> {
@@ -230,6 +249,14 @@ private fun ModelScene(
                 mainLightNode = mainLightNode,
                 fillLightNode = null,
             ) {
+                HeadOcclusionNodeContent(
+                    node = headOcclusionNode,
+                    face = face,
+                    pose = pose,
+                    cameraNode = cameraNode,
+                    policy = headOcclusionPolicy,
+                    activeState = headOcclusionActive,
+                )
                 FaceOcclusionNodeContent(
                     node = faceOccluderNode,
                     face = face,
@@ -260,11 +287,10 @@ private fun ModelScene(
                         isVisible = showModelWithoutPose || pose != null,
                         apply = {
                             installTempleVisibilityUpdater {
-                                if (faceOcclusionActive.value) {
-                                    TempleVisibility.Both
-                                } else {
-                                    currentTempleVisibility.value
-                                }
+                                // The face-depth mesh covers the facial surface, not the ears or
+                                // the side/back of the head. Keep yaw-based far-temple hiding
+                                // active while full head segmentation is unavailable.
+                                currentTempleVisibility.value
                             }
                         },
                     )
@@ -308,6 +334,14 @@ private fun ModelScene(
                 mainLightNode = mainLightNode,
                 fillLightNode = null,
             ) {
+                HeadOcclusionNodeContent(
+                    node = headOcclusionNode,
+                    face = face,
+                    pose = pose,
+                    cameraNode = cameraNode,
+                    policy = headOcclusionPolicy,
+                    activeState = headOcclusionActive,
+                )
                 FaceOcclusionNodeContent(
                     node = faceOccluderNode,
                     face = face,
@@ -338,11 +372,10 @@ private fun ModelScene(
                         isVisible = showModelWithoutPose || pose != null,
                         apply = {
                             installTempleVisibilityUpdater {
-                                if (faceOcclusionActive.value) {
-                                    TempleVisibility.Both
-                                } else {
-                                    currentTempleVisibility.value
-                                }
+                                // The face-depth mesh covers the facial surface, not the ears or
+                                // the side/back of the head. Keep yaw-based far-temple hiding
+                                // active while full head segmentation is unavailable.
+                                currentTempleVisibility.value
                             }
                         },
                     )
@@ -399,6 +432,60 @@ private fun SceneScope.FaceOcclusionNodeContent(
         val active = if (mode == FaceOcclusionMode.Depth && pose != null) {
             node.update(
                 geometry = geometry,
+                view = view,
+                referencePlaneZ = pose.translationZ,
+            )
+        } else {
+            node.hide()
+            false
+        }
+        activeState.value = active
+    }
+}
+
+@Composable
+@Suppress("RestrictedApi")
+private fun SceneScope.HeadOcclusionNodeContent(
+    node: HeadOcclusionNode?,
+    face: FaceFrame?,
+    pose: FacePose?,
+    cameraNode: CameraNode,
+    policy: HeadOcclusionPolicy,
+    activeState: MutableState<Boolean>,
+) {
+    node ?: return
+
+    NodeLifecycle(node = node, content = null)
+    SideEffect {
+        val view = cameraNode.view
+        val mask = if (face != null && pose != null && view != null) {
+            val viewport = view.viewport
+            if (viewport.width > 0 && viewport.height > 0) {
+                face.headSegmentation?.let { segmentation ->
+                    mapHeadOcclusionMask(
+                        segmentation = segmentation,
+                        face = face,
+                        viewport = HeadOcclusionViewport(
+                            widthPx = viewport.width.toFloat(),
+                            heightPx = viewport.height.toFloat(),
+                        ),
+                    )
+                }
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+
+        val mode = policy.select(
+            face = face,
+            mask = mask,
+            nowTimestampMs = SystemClock.uptimeMillis(),
+        )
+        val active = if (mode == HeadOcclusionMode.Mask && pose != null) {
+            node.update(
+                mask = mask,
                 view = view,
                 referencePlaneZ = pose.translationZ,
             )

@@ -20,9 +20,10 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -346,6 +347,7 @@ private fun DateOfBirthField(
 }
 
 /** Same shape and tap behaviour as [DateOfBirthField], so both "choose a value" fields match. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GenderField(
     selectedGender: AppointmentRequestGender?,
@@ -354,11 +356,29 @@ private fun GenderField(
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Box(
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        OutlinedTextField(
+            value = selectedGender?.label.orEmpty(),
+            onValueChange = {},
+            label = { Text("Gender") },
+            placeholder = { Text("Choose an option") },
+            readOnly = true,
+            isError = error != null,
+            supportingText = error?.let { message -> { Text(message) } },
+            trailingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.ArrowDropDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { expanded = true }
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                 .semantics(mergeDescendants = true) {
                     role = Role.DropdownList
                     contentDescription = buildString {
@@ -368,27 +388,8 @@ private fun GenderField(
                         append(". Double tap to choose an option.")
                     }
                 },
-        ) {
-            OutlinedTextField(
-                value = selectedGender?.label.orEmpty(),
-                onValueChange = {},
-                label = { Text("Gender") },
-                placeholder = { Text("Choose an option") },
-                readOnly = true,
-                enabled = false,
-                isError = error != null,
-                supportingText = error?.let { message -> { Text(message) } },
-                trailingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.ArrowDropDown,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                },
-                modifier = Modifier.fillMaxWidth().clearAndSetSemantics { },
-            )
-        }
-        DropdownMenu(
+        )
+        ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {

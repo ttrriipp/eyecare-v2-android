@@ -129,8 +129,6 @@ class AppointmentRequestListViewModelTest {
         )
         vm = AppointmentRequestListViewModel(repo)
 
-        vm.onScreenResumed()
-
         coEvery { repo.getRequests(1, 15) } returns Result.success(
             PaginatedResult(listOf(fakeRequest(2)), 1, 1, 1)
         )

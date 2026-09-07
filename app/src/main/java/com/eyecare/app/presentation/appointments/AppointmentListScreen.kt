@@ -678,6 +678,13 @@ internal fun formatAppointmentTime(scheduledAt: String): String {
         ?: fallback.takeIf { it.matches(Regex("\\d{2}:\\d{2}")) } ?: "Time TBD"
 }
 
+internal fun appointmentRequestTitle(request: AppointmentRequest): String =
+    request.appointmentType?.name?.takeIf { it.isNotBlank() } ?: "Appointment details unavailable"
+
+internal fun appointmentRequestDurationLabel(request: AppointmentRequest): String? =
+    (request.provisionalDurationMinutes ?: request.appointmentType?.durationMinutes)
+        ?.let { "$it min visit" }
+
 internal fun appointmentOccursOnDate(scheduledAt: String, date: LocalDate): Boolean =
     parseAppointmentDate(scheduledAt) == date
 
@@ -1040,20 +1047,20 @@ private fun AppointmentRequestCard(
 ) {
     val presentation = requestStatusPresentation(request.status)
     val confirmedAppointmentId = request.appointmentId
+    val durationLabel = appointmentRequestDurationLabel(request)
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            AppointmentRequestStatusPill(request.status, presentation.label)
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1070,11 +1077,24 @@ private fun AppointmentRequestCard(
                         color = EyecareColors.current.accentText,
                     )
                     Text(
-                        text = "Request ${request.requestNumber}",
+                        text = appointmentRequestTitle(request),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = buildString {
+                            append("Request ${request.requestNumber}")
+                            durationLabel?.let {
+                                append(" · ")
+                                append(it)
+                            }
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -1086,23 +1106,10 @@ private fun AppointmentRequestCard(
                 )
             }
 
-            AppointmentRequestStatusPill(request.status, presentation.label)
-
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(9.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                val durationMinutes = request.provisionalDurationMinutes
-                    ?: request.appointmentType?.durationMinutes
-                val requestSummary = listOfNotNull(
-                    request.appointmentType?.name,
-                    durationMinutes?.let { "$it min" },
-                ).joinToString(" · ").ifBlank { "Appointment details unavailable" }
-                Text(
-                    text = requestSummary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 Text(
                     text = "Your preferred time",
                     style = MaterialTheme.typography.labelMedium,

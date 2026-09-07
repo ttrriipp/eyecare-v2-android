@@ -39,12 +39,42 @@ class ArTryOnContentStateTest {
             variants = emptyList(),
             selectedVariant = null,
             assetState = ArAssetState.Ready,
+            frameName = "Round frame",
             saveError = "Couldn't update saved state. Try again.",
             saveMessage = "Saved as a preference. Availability is not guaranteed.",
         ).toActiveTryOnContentState()
 
+        assertEquals("Round frame", content?.frameName)
         assertEquals("Couldn't update saved state. Try again.", content?.saveError)
         assertEquals("Saved as a preference. Availability is not guaranteed.", content?.saveMessage)
+    }
+
+    @Test
+    fun `face guidance is actionable and disappears when the asset cannot render`() {
+        assertEquals(
+            "Center your face inside the guide",
+            arFaceGuidanceMessage(
+                phase = ActiveTryOnPhase.Searching,
+                hasTrackedBefore = false,
+                assetState = ArAssetState.Ready,
+            ),
+        )
+        assertEquals(
+            "We lost you — center your face inside the guide",
+            arFaceGuidanceMessage(
+                phase = ActiveTryOnPhase.Searching,
+                hasTrackedBefore = true,
+                assetState = ArAssetState.Ready,
+            ),
+        )
+        assertEquals(
+            null,
+            arFaceGuidanceMessage(
+                phase = ActiveTryOnPhase.Searching,
+                hasTrackedBefore = false,
+                assetState = ArAssetState.Failed("No 3D asset"),
+            ),
+        )
     }
 
     private fun faceFrame() = FaceFrame(

@@ -251,12 +251,6 @@ private fun OrderCard(
                 )
             }
 
-            val (dateLabel, dateValue) = orderDateLabel(order)
-            Text(
-                "$dateLabel $dateValue",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

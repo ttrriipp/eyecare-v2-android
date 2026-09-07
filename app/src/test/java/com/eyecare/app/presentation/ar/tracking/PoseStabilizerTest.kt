@@ -11,6 +11,17 @@ import org.junit.jupiter.api.Test
 class PoseStabilizerTest {
 
     @Test
+    fun default_translation_response_avoids_a_visible_one_frame_trail() {
+        val stabilizer = PoseStabilizer()
+        stabilizer.update(pose(translationX = 0f), timestampMs = 0L)
+
+        val output = stabilizer.update(pose(translationX = 1f), timestampMs = 33L)
+
+        assertNotNull(output)
+        assertTrue(output!!.translationX > 0.33f)
+    }
+
+    @Test
     fun reducesAlternatingTranslationJitter() {
         val stabilizer = PoseStabilizer(responseTimeMs = 100f, maxTimestampGapMs = 250L)
         stabilizer.update(pose(translationX = 0f), timestampMs = 0L)

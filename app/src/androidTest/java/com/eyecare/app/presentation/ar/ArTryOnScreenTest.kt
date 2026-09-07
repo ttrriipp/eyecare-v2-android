@@ -4,13 +4,18 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.material3.SnackbarHostState
 import com.eyecare.app.presentation.ar.capability.ArCapabilityFailure
 import com.eyecare.app.presentation.ar.components.ArAssetStatusBanner
 import com.eyecare.app.presentation.ar.components.ArDisclosureBanner
+import com.eyecare.app.presentation.ar.components.ArPrivacyStatusBanner
 import com.eyecare.app.presentation.ar.components.ArStatusOverlay
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
+import com.eyecare.app.domain.model.FrameVariant
+import com.eyecare.app.presentation.common.components.SAVED_FRAME_DISCLAIMER
 import com.eyecare.app.ui.theme.EyecareTheme
+import java.math.BigDecimal
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -78,6 +83,39 @@ class ArTryOnScreenTest {
     }
 
     @Test
+    fun activeCameraPrivacyStatus_isVisible() {
+        composeRule.setContent {
+            EyecareTheme {
+                ArPrivacyStatusBanner()
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Camera on · processed on this device")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun activeSaveControls_matchFrameDetailWithoutStaticDisclaimer() {
+        composeRule.setContent {
+            EyecareTheme {
+                ArTryOnBottomControls(
+                    variants = emptyList(),
+                    selectedVariant = testVariant(isSaved = false),
+                    isSaving = false,
+                    onSelectVariant = {},
+                    onToggleSaved = {},
+                    onOpenCatalog = {},
+                    snackbarHostState = SnackbarHostState(),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Save frame").assertIsDisplayed()
+        composeRule.onNodeWithText(SAVED_FRAME_DISCLAIMER).assertDoesNotExist()
+    }
+
+    @Test
     fun capabilityState_hasDistinctGuidance() {
         composeRule.setContent {
             EyecareTheme {
@@ -115,4 +153,17 @@ class ArTryOnScreenTest {
 
         composeRule.onNodeWithText("3D preview unavailable. View frame images instead.").assertIsDisplayed()
     }
+
+    private fun testVariant(isSaved: Boolean) = FrameVariant(
+        id = 71,
+        name = "Black",
+        sku = "SKU-71",
+        price = BigDecimal("4500.00"),
+        compareAtPrice = null,
+        attributes = null,
+        arEligible = true,
+        arAssetReference = "asset-71",
+        images = emptyList(),
+        isSaved = isSaved,
+    )
 }

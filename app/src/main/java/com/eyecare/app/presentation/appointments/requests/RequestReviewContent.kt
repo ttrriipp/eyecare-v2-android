@@ -1,6 +1,5 @@
 package com.eyecare.app.presentation.appointments.requests
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,8 +30,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -206,12 +203,9 @@ fun RequestReviewContent(
             }
 
             state.identity?.let { identity ->
-                val hasSecondaryDetails = listOfNotNull(
-                    identity.gender,
-                    identity.occupation?.takeIf(String::isNotBlank),
-                    identity.address?.takeIf(String::isNotBlank),
-                ).isNotEmpty()
-                val detailsExpanded = remember { mutableStateOf(false) }
+                val hasSecondaryDetails = identity.gender != null ||
+                    identity.occupation?.isNotBlank() == true ||
+                    identity.address?.isNotBlank() == true
 
                 ReviewCard(
                     title = "Your details",
@@ -237,33 +231,16 @@ fun RequestReviewContent(
                         ReviewRow(label = "Email", value = it)
                     }
                     if (hasSecondaryDetails) {
-                        AnimatedVisibility(visible = detailsExpanded.value) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                identity.gender?.let {
-                                    ReviewRow(label = "Gender", value = it.label)
-                                }
-                                identity.occupation?.takeIf(String::isNotBlank)?.let {
-                                    ReviewRow(label = "Occupation", value = it)
-                                }
-                                identity.address?.takeIf(String::isNotBlank)?.let {
-                                    ReviewRow(label = "Home address", value = it)
-                                }
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            identity.gender?.let {
+                                ReviewRow(label = "Gender", value = it.label)
                             }
-                        }
-                        TextButton(
-                            onClick = { detailsExpanded.value = !detailsExpanded.value },
-                            modifier = Modifier.clearAndSetSemantics {
-                                contentDescription = if (detailsExpanded.value) {
-                                    "Collapse additional details"
-                                } else {
-                                    "Expand additional details"
-                                }
-                            },
-                        ) {
-                            Text(
-                                text = if (detailsExpanded.value) "Less details" else "More details",
-                                color = EyecareColors.current.accentText,
-                            )
+                            identity.occupation?.takeIf(String::isNotBlank)?.let {
+                                ReviewRow(label = "Occupation", value = it)
+                            }
+                            identity.address?.takeIf(String::isNotBlank)?.let {
+                                ReviewRow(label = "Home address", value = it)
+                            }
                         }
                     }
                 }

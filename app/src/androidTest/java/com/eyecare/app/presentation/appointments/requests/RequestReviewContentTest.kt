@@ -103,10 +103,16 @@ class RequestReviewContentTest {
             .performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Phone: +639171234567")
             .performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("More details")
-            .performScrollTo().performClick()
+        composeRule.onNodeWithContentDescription("Email: ana@example.com")
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Gender: Female")
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Occupation: Teacher")
+            .performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Home address: 12 Mabini Street, Quezon City")
             .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("More details").assertDoesNotExist()
+        composeRule.onNodeWithText("Less details").assertDoesNotExist()
     }
 
     @Test

@@ -1,7 +1,6 @@
 package com.eyecare.app.presentation.auth
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,12 +14,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.eyecare.app.R
 import com.eyecare.app.presentation.auth.components.AuthOutlinedButton
 import com.eyecare.app.presentation.auth.components.AuthPrimaryButton
+
+internal fun welcomeLogoResource(darkTheme: Boolean): Int =
+    if (darkTheme) R.drawable.ic_eyecare_logo_dark else R.drawable.ic_eyecare_logo_1
 
 @Composable
 fun WelcomeScreen(
@@ -40,11 +44,8 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             // ── Logo ──────────────────────────────────────────────────────────
-            val logoRes = if (isSystemInDarkTheme()) {
-                com.eyecare.app.R.drawable.ic_eyecare_logo_dark
-            } else {
-                com.eyecare.app.R.drawable.ic_eyecare_logo_1
-            }
+            val appUsesDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+            val logoRes = welcomeLogoResource(appUsesDarkTheme)
             Image(
                 painter = painterResource(id = logoRes),
                 contentDescription = "Eyecare logo",

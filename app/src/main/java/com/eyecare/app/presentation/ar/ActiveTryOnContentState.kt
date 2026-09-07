@@ -23,6 +23,7 @@ internal data class ActiveTryOnContentState(
     val isSaving: Boolean = false,
     val saveError: String? = null,
     val saveMessage: String? = null,
+    val frameName: String? = null,
 )
 
 internal enum class ActiveTryOnPhase {
@@ -42,6 +43,7 @@ internal fun ArTryOnUiState.toActiveTryOnContentState(): ActiveTryOnContentState
         isSaving = isSaving,
         saveError = saveError,
         saveMessage = saveMessage,
+        frameName = frameName,
     )
 
     is ArTryOnUiState.Searching -> ActiveTryOnContentState(
@@ -55,6 +57,7 @@ internal fun ArTryOnUiState.toActiveTryOnContentState(): ActiveTryOnContentState
         isSaving = isSaving,
         saveError = saveError,
         saveMessage = saveMessage,
+        frameName = frameName,
     )
 
     is ArTryOnUiState.Tracking -> ActiveTryOnContentState(
@@ -67,7 +70,19 @@ internal fun ArTryOnUiState.toActiveTryOnContentState(): ActiveTryOnContentState
         isSaving = isSaving,
         saveError = saveError,
         saveMessage = saveMessage,
+        frameName = frameName,
     )
 
     else -> null
+}
+
+internal fun arFaceGuidanceMessage(
+    phase: ActiveTryOnPhase,
+    hasTrackedBefore: Boolean,
+    assetState: ArAssetState,
+): String? = when {
+    assetState is ArAssetState.Failed -> null
+    phase == ActiveTryOnPhase.Loading -> "Preparing your try-on…"
+    hasTrackedBefore -> "We lost you — center your face inside the guide"
+    else -> "Center your face inside the guide"
 }

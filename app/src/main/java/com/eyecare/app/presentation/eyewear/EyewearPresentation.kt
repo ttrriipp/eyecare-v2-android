@@ -103,17 +103,6 @@ fun orderCardTitle(order: OpticalOrder): String {
     return if (items.size == 1) first else "$first and ${items.size - 1} more"
 }
 
-fun orderDateLabel(order: OpticalOrder): Pair<String, String> {
-    val ts = order.dispensedAt ?: order.readyAt ?: order.startedAt ?: order.createdAt
-    val label = when {
-        order.dispensedAt != null -> "Released"
-        order.readyAt != null -> "Ready"
-        order.startedAt != null -> "Started"
-        else -> "Created"
-    }
-    return label to formatTimestamp(ts)
-}
-
 // Current stage timestamp for the detail screen's reference box - terminal states (cancelled,
 // released) take priority since the tracker below already shows the full progression.
 fun orderDateLabelFull(order: OpticalOrder): Pair<String, String> {

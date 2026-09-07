@@ -30,6 +30,7 @@ sealed interface ArTryOnUiState {
         val isSaving: Boolean = false,
         val saveError: String? = null,
         val saveMessage: String? = null,
+        val frameName: String? = null,
     ) : ArTryOnUiState
 
     data class Searching(
@@ -41,6 +42,7 @@ sealed interface ArTryOnUiState {
         val isSaving: Boolean = false,
         val saveError: String? = null,
         val saveMessage: String? = null,
+        val frameName: String? = null,
     ) : ArTryOnUiState
 
     data class Tracking(
@@ -52,6 +54,7 @@ sealed interface ArTryOnUiState {
         val isSaving: Boolean = false,
         val saveError: String? = null,
         val saveMessage: String? = null,
+        val frameName: String? = null,
     ) : ArTryOnUiState
 
     data class Unsupported(

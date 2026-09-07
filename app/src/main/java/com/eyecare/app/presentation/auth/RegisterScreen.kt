@@ -58,6 +58,8 @@ import com.eyecare.app.presentation.auth.components.FormSection
 import com.eyecare.app.presentation.auth.components.OtpExpiryRow
 import com.eyecare.app.presentation.auth.components.OtpField
 import com.eyecare.app.presentation.auth.components.PasswordField
+import com.eyecare.app.presentation.auth.components.PasswordMatchGuidance
+import com.eyecare.app.presentation.auth.components.PasswordRequirements
 import com.eyecare.app.presentation.auth.components.PolicyConsentRow
 import java.time.Instant
 import java.time.LocalDate
@@ -313,19 +315,28 @@ private fun RegisterDetailsStep(
                 icon = Icons.Outlined.Lock,
                 badgeColor = AuthAccentMid,
             ) {
-                PasswordField(
-                    value = state.password,
-                    onValueChange = { viewModel.updateDetails(password = it) },
-                    label = "Password *",
-                    error = state.errors["password"],
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    PasswordField(
+                        value = state.password,
+                        onValueChange = { viewModel.updateDetails(password = it) },
+                        label = "Password *",
+                        error = state.errors["password"],
+                    )
+                    PasswordRequirements(password = state.password)
+                }
 
-                PasswordField(
-                    value = state.passwordConfirmation,
-                    onValueChange = { viewModel.updateDetails(passwordConfirmation = it) },
-                    label = "Confirm password *",
-                    error = state.errors["passwordConfirmation"],
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    PasswordField(
+                        value = state.passwordConfirmation,
+                        onValueChange = { viewModel.updateDetails(passwordConfirmation = it) },
+                        label = "Confirm password *",
+                        error = state.errors["passwordConfirmation"],
+                    )
+                    PasswordMatchGuidance(
+                        password = state.password,
+                        confirmation = state.passwordConfirmation,
+                    )
+                }
 
                 // Progressive disclosure: most patients don't have an invitation code, so it
                 // starts collapsed behind a link instead of always taking up a field's worth

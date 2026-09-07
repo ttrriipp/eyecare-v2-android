@@ -382,6 +382,11 @@ fun EyecareNavGraph(
                             frameId = route.frameId,
                             initialVariantId = route.variantId,
                             onBack = { navController.popBackStack() },
+                            onOpenCatalog = {
+                                navigatePatientFeature(
+                                    arImageFallbackDestination(route.frameId, route.variantId),
+                                )
+                            },
                         )
                     }
                     composable<PrescriptionList> {

@@ -119,6 +119,7 @@ class ArViewModelTest {
         viewModel.onPermissionResult(granted = true)
 
         val searching = assertInstanceOf(ArTryOnUiState.Searching::class.java, viewModel.uiState.value)
+        assertEquals("Round frame", searching.frameName)
         assertEquals(11, searching.selectedVariant?.id)
         assertEquals(2, searching.variants.size)
     }

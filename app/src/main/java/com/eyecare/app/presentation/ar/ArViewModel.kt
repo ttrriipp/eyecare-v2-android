@@ -72,6 +72,7 @@ class ArViewModel @AssistedInject constructor(
     private var capabilityPassed = false
     private var permissionGranted = false
     private var loadedVariants: List<FrameVariant> = emptyList()
+    private var loadedFrameName: String? = null
     private var selectedVariant: FrameVariant? = null
     private var latestFace: FaceFrame? = null
     private var latestPose: FacePose? = null
@@ -303,6 +304,7 @@ class ArViewModel @AssistedInject constructor(
         val refreshedVariants = frame.variants
         if (refreshedVariants.isEmpty()) return
 
+        loadedFrameName = frame.name
         val previousSelectedId = selectedVariant?.id
         loadedVariants = refreshedVariants
         val reconciledSelected = refreshedVariants.firstOrNull { it.id == previousSelectedId }
@@ -377,6 +379,7 @@ class ArViewModel @AssistedInject constructor(
     private fun loadVariants() {
         loadJob?.cancel()
         loadedVariants = emptyList()
+        loadedFrameName = null
         selectedVariant = null
         loadJob = viewModelScope.launch {
             val result = try {
@@ -396,6 +399,7 @@ class ArViewModel @AssistedInject constructor(
                         )
                         return@fold
                     }
+                    loadedFrameName = frame.name
                     loadedVariants = frame.variants
                     selectedVariant = frame.variants.firstOrNull { it.id == initialVariantId }
                         ?: frame.variants.first()
@@ -516,6 +520,7 @@ class ArViewModel @AssistedInject constructor(
                 isSaving = isSaving,
                 saveError = saveError,
                 saveMessage = saveMessage,
+                frameName = loadedFrameName,
             )
         } ?: ArTryOnUiState.Searching(
             variants = loadedVariants,
@@ -525,6 +530,7 @@ class ArViewModel @AssistedInject constructor(
             isSaving = isSaving,
             saveError = saveError,
             saveMessage = saveMessage,
+            frameName = loadedFrameName,
         )
     }
 
@@ -541,6 +547,7 @@ class ArViewModel @AssistedInject constructor(
         variants = loadedVariants,
         selectedVariant = selectedVariant,
         assetState = assetState,
+        frameName = loadedFrameName,
     )
 
     private fun clearTracking() {

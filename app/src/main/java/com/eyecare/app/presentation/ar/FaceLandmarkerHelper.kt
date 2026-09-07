@@ -1,16 +1,11 @@
 package com.eyecare.app.presentation.ar
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Matrix
-import android.os.SystemClock
 import android.util.Log
-import androidx.camera.core.ImageProxy
 import com.eyecare.app.presentation.ar.model.ArFaceState
 import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FaceMeshLandmarks
 import com.eyecare.app.presentation.ar.tracking.extractSingleFaceTransformationMatrix
-import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
@@ -54,16 +49,16 @@ class FaceLandmarkerHelper(
         }.onFailure { onResult(ArFaceState.NoFace) }
     }
 
-    private val rotationMatrix = Matrix()
-
-    /** Called from CameraX ImageAnalysis on each frame. */
-    fun detectAsync(imageProxy: ImageProxy) {
-        imageProxy.use { proxy ->
-            val bitmap = proxy.toBitmap().rotate(proxy.imageInfo.rotationDegrees.toFloat())
-            val mpImage = BitmapImageBuilder(bitmap).build()
-            runCatching {
-                landmarker?.detectAsync(mpImage, SystemClock.uptimeMillis())
-            }.onFailure { Log.w("FaceLandmarker", "detectAsync failed: ${it.message}") }
+    /** Submits one already-rotated camera image without taking ownership of it. */
+    fun detectAsync(image: MPImage, timestampMs: Long): Boolean {
+        if (timestampMs < 0L) return false
+        val current = landmarker ?: return false
+        return runCatching {
+            current.detectAsync(image, timestampMs)
+            true
+        }.getOrElse {
+            Log.w("FaceLandmarker", "detectAsync failed: ${it.message}")
+            false
         }
     }
 
@@ -148,10 +143,4 @@ class FaceLandmarkerHelper(
         )
     }
 
-    private fun Bitmap.rotate(degrees: Float): Bitmap {
-        if (degrees == 0f) return this
-        rotationMatrix.reset()
-        rotationMatrix.postRotate(degrees)
-        return Bitmap.createBitmap(this, 0, 0, width, height, rotationMatrix, true)
-    }
 }

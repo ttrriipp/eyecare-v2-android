@@ -103,7 +103,9 @@ class PoseStabilizer(
     }
 
     private companion object {
-        const val DEFAULT_RESPONSE_TIME_MS = 100f
+        // Keep movement responsive enough that the frame does not visibly trail the face during
+        // ordinary turns while retaining smoothing for detector noise.
+        const val DEFAULT_RESPONSE_TIME_MS = 70f
         const val DEFAULT_MAX_TIMESTAMP_GAP_MS = 250L
         const val HALF_TURN_DEGREES = 180f
         const val FULL_TURN_DEGREES = 360f

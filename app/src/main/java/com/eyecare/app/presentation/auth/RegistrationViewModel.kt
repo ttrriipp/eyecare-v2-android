@@ -330,7 +330,10 @@ class RegistrationViewModel @Inject constructor(
                 }
             }
         }
-        if (d.password.length < 12) errors["password"] = "Password must be at least 12 characters"
+        if (!passwordMeetsPolicy(d.password)) {
+            errors["password"] =
+                "Use at least $MIN_PASSWORD_LENGTH characters, including uppercase, lowercase, a number, and a special character."
+        }
         if (d.password != d.passwordConfirmation) errors["passwordConfirmation"] = "Passwords do not match"
         if (!d.privacyAccepted) errors["privacy"] = "You must accept the Privacy Policy"
         if (!d.termsAccepted) errors["terms"] = "You must accept the Terms of Service"

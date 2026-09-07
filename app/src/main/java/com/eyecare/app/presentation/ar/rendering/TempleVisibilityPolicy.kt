@@ -72,7 +72,10 @@ internal class TempleVisibilityPolicy(
     }
 
     private companion object {
-        const val DEFAULT_HIDE_YAW_DEGREES = 32f
+        // The pose yaw is intentionally smoothed for stable model motion. Hide the far temple
+        // slightly before the visual side-view threshold so that smoothing does not leave a brief
+        // frame showing through during a quick head turn.
+        const val DEFAULT_HIDE_YAW_DEGREES = 24f
         const val DEFAULT_SHOW_YAW_DEGREES = 22f
     }
 }

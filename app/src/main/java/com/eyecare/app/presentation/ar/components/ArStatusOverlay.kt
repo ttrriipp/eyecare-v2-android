@@ -1,11 +1,13 @@
 package com.eyecare.app.presentation.ar.components
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -17,11 +19,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
-import com.eyecare.app.presentation.common.components.SAVED_FRAME_DISCLAIMER
 
 private const val AR_DISCLOSURE_TEXT =
     "Visual preview only. Final fit is confirmed at the clinic."
@@ -100,6 +104,93 @@ fun ArStatusOverlay(
     }
 }
 
+/** Persistent identity and privacy context for the live camera surface. */
+@Composable
+fun ArPrivacyStatusBanner(
+    frameName: String? = null,
+    variantName: String? = null,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.widthIn(max = 320.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.Black.copy(alpha = 0.62f),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            frameName?.takeIf(String::isNotBlank)?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            variantName?.takeIf(String::isNotBlank)?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.86f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            Text(
+                text = "Camera on · processed on this device",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.82f),
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/** Centers a simple face target and a single actionable instruction over the camera preview. */
+@Composable
+fun ArFaceGuideOverlay(
+    message: String,
+    showGuide: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (showGuide) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 200.dp, height = 260.dp)
+                        .border(
+                            width = 2.dp,
+                            color = Color.White.copy(alpha = 0.86f),
+                            shape = RoundedCornerShape(50.dp),
+                        )
+                        .semantics { contentDescription = "Face positioning guide" },
+                )
+            }
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Black.copy(alpha = 0.58f),
+            ) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
 /** Non-clinical disclosure that remains visible while a face is being tracked. */
 @Composable
 fun ArDisclosureBanner(modifier: Modifier = Modifier) {
@@ -146,28 +237,6 @@ internal fun ArAssetState.statusBannerMessage(): String? = when (this) {
     ArAssetState.Loading -> "Loading 3D frame…"
     ArAssetState.Ready -> null
     is ArAssetState.Failed -> "3D preview unavailable. View frame images instead."
-}
-
-/**
- * The shared, white-card [SavedFrameDisclaimer][com.eyecare.app.presentation.common.components.SavedFrameDisclaimer]
- * is tuned for a light surface; over the live camera scrim it composites unpredictably. This
- * reuses the same disclaimer copy on the black-scrim treatment the AR overlays already use.
- */
-@Composable
-fun ArSavedFrameDisclaimer(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = Color.Black.copy(alpha = 0.62f),
-    ) {
-        Text(
-            text = SAVED_FRAME_DISCLAIMER,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-        )
-    }
 }
 
 private fun ArTryOnUiState.toStatusCopy(): ArStatusCopy? = when (this) {

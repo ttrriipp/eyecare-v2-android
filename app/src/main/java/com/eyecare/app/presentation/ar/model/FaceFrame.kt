@@ -64,6 +64,8 @@ data class FaceFrame(
     val timestampMs: Long,
     /** Complete validated face surface used by the optional depth occluder. */
     val faceMesh: FaceMeshLandmarks? = null,
+    /** Optional segmentation result from the same camera timestamp. */
+    val headSegmentation: HeadSegmentationFrame? = null,
 )
 
 sealed interface ArFaceState {

@@ -65,18 +65,19 @@ class OpticalOrderListScreenTest {
 
         composeRule.onNodeWithText("Order #OO-42").assertIsDisplayed()
         composeRule.onNodeWithText("Single vision lenses").assertIsDisplayed()
-        composeRule.onNodeWithText("In preparation").assertIsDisplayed()
+        composeRule.onNodeWithText("Ready for pickup").assertIsDisplayed()
+        composeRule.onNodeWithText("Ready Sep 4, 2026 6:11 PM").assertDoesNotExist()
         composeRule.onNodeWithContentDescription("View order details").assertIsDisplayed()
     }
 
     private fun createOrder() = OpticalOrder(
         id = 42,
         orderNumber = "OO-42",
-        status = OpticalOrderStatus.IN_PROGRESS,
+        status = OpticalOrderStatus.READY_FOR_DISPENSING,
         fulfillmentMode = FulfillmentMode.PREPARED,
         totalAmount = BigDecimal("5000.00"),
         startedAt = null,
-        readyAt = null,
+        readyAt = "2026-09-04T18:11:00+08:00",
         dispensedAt = null,
         cancelledAt = null,
         createdAt = "2026-08-01T10:00:00Z",

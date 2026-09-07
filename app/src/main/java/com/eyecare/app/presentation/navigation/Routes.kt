@@ -32,6 +32,9 @@ import kotlinx.serialization.Serializable
 @Serializable data class FrameDetail(val frameId: Int, val variantId: Int? = null)
 @Serializable object SavedFrames
 
+internal fun arImageFallbackDestination(frameId: Int, variantId: Int): FrameDetail =
+    FrameDetail(frameId = frameId, variantId = variantId)
+
 // Prescriptions
 @Serializable object PrescriptionList
 @Serializable data class PrescriptionDetail(val prescriptionId: Int)
