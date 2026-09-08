@@ -307,12 +307,42 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   422 save failure explains the option can no longer be saved.
 - **AR Try-On save toggle:** Provides save/remove actions for the selected variant. This is independent of
   appointment and patient-link state. AR asset loading, calibration, fallback, camera capability,
-  and renderer behavior are unchanged.
+  and renderer behavior are documented below.
 - **Navigation:** Typed `FrameDetail(frameId, variantId?)` with optional variant ID for exact
   saved-variant navigation. Saved Frames is classified account-only and never opens the
   Limited Account link hub.
 - **Route governance:** 8 public + 40 account-only + 11 active-link = 59 canonical routes.
   All five former Frame Reservation routes are rejected. Attachment download is account-only.
+
+## AR Try-On — Head/Ear Occlusion and Stability
+
+`presentation/ar/rendering/FrameModelRenderer.kt`, `HeadOcclusionNode.kt`,
+`presentation/ar/tracking/HeadOcclusionMapper.kt`, `HeadOcclusionPolicy.kt`,
+`HeadOcclusionStabilizer.kt`, and `presentation/ar/ArViewModel.kt`:
+
+- **Layered occlusion:** The validated face-depth occluder hides the frame where the face is in
+  front, while a segmentation-derived side-head/ear mask hides temple pieces behind the head at
+  oblique angles. If either result is missing, invalid, or stale, rendering falls back to the
+  yaw-based temple visibility policy instead of retaining a stale invisible blocker.
+- **Coordinate alignment:** Head segmentation is mapped using the same rotated, mirrored,
+  aspect-fill camera coordinates as face tracking. A narrow central-face/bridge corridor is always
+  excluded so the mask cannot cover the bridge or front rim. A bounded two-pixel source-space
+  padding closes the small soft-boundary gaps that otherwise let a temple leak through.
+- **Freshness and confidence:** Head masks require valid timestamps, at least 0.6 confidence, and
+  a current active region. The last valid mask may be reused for at most 100 ms while asynchronous
+  segmentation catches up; face loss, invalid timestamps, or expiry clears it immediately. Head-mask
+  mode is disabled for invalid or near-frontal yaw (under 24 degrees), preserving the safer
+  temple fallback in that range.
+- **Frame stability:** Segmentation can republish a face at the same camera timestamp. The
+  `ArViewModel` does not feed those duplicate timestamps into pose stabilization, preventing the
+  brief reset that caused visible frame flashes during mask updates.
+- **Production defaults and renderer safety:** The red segmentation proof overlay is opt-in and
+  disabled by default (`HeadSegmenterConfig.SHOW_DEBUG_OVERLAY = false`). When a mask has no active
+  cells, `HeadOcclusionNode` keeps a tiny off-camera sentinel quad so Filament retains valid bounds
+  instead of crashing on an empty AABB.
+- **Verification:** Focused unit tests cover mask mapping, freshness/confidence/yaw policy,
+  asynchronous mask reuse, temple fallback, and duplicate-timestamp handling. The AR test suite,
+  debug APK build, and lint pass before this behavior is shipped.
 
 ## Profile — Patient Account Hub (v21)
 
