@@ -62,7 +62,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun currentPrescription_isDisplayed() {
+    fun currentPrescription_isNotRenderedOnDashboard() {
         val state = successState().copy(
             currentPrescription = Prescription(
                 id = 1,
@@ -90,8 +90,10 @@ class HomeScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Current prescription").assertIsDisplayed()
-        composeRule.onNodeWithText("View details").assertIsDisplayed()
+        // Clinical data is kept in the prescriptions destination; the dashboard remains a
+        // product/appointment surface and must not leak a prescription summary into this card.
+        composeRule.onNodeWithText("Current prescription").assertDoesNotExist()
+        composeRule.onNodeWithText("View details").assertDoesNotExist()
     }
 
     @Test
