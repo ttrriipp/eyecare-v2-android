@@ -43,6 +43,7 @@ class NotificationRepositoryImpl @Inject constructor(
         title = title,
         body = body,
         mobileAction = mobileAction?.let { MobileDestination.from(it.type) },
+        mobileActionId = mobileAction?.id,
         readAt = readAt,
         createdAt = createdAt,
     )

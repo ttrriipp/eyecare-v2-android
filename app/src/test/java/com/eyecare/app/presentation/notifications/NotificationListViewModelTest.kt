@@ -38,6 +38,7 @@ class NotificationListViewModelTest {
         title: String = "New Message",
         body: String = "Dr. Santos sent a message.",
         mobileAction: MobileDestination? = MobileDestination.CONVERSATION,
+        mobileActionId: Int? = null,
         readAt: String? = null,
         createdAt: String = "2026-08-15T10:00:00+08:00",
     ) = AppNotification(
@@ -46,6 +47,7 @@ class NotificationListViewModelTest {
         title = title,
         body = body,
         mobileAction = mobileAction,
+        mobileActionId = mobileActionId,
         readAt = readAt,
         createdAt = createdAt,
     )
@@ -419,6 +421,67 @@ class NotificationListViewModelTest {
                 val effect = awaitItem()
                 assertInstanceOf(NotificationEffect.Navigate::class.java, effect)
                 assertEquals(MobileDestination.CONVERSATION, (effect as NotificationEffect.Navigate).destination)
+                cancelAndIgnoreRemainingEvents()
+            }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `detail action emits Navigate effect with typed ID`() = runTest {
+        val n1 = notification(
+            id = "uuid-1",
+            kind = NotificationKind.APPOINTMENT_RESCHEDULED,
+            title = "Appointment Rescheduled",
+            mobileAction = MobileDestination.APPOINTMENT,
+            mobileActionId = 123,
+        )
+        coEvery { repo.getNotifications(page = 1) } returns Result.success(page(listOf(n1)))
+        coEvery { repo.markOneRead("uuid-1") } returns Result.success(Unit)
+        val vm = vm()
+
+        try {
+            vm.effects.test {
+                dispatcher.scheduler.runCurrent()
+                vm.markOneRead(n1)
+                dispatcher.scheduler.runCurrent()
+
+                assertEquals(NotificationEffect.NotificationRead, awaitItem())
+                val effect = awaitItem() as NotificationEffect.Navigate
+                assertEquals(MobileDestination.APPOINTMENT, effect.destination)
+                assertEquals(123, effect.id)
+                cancelAndIgnoreRemainingEvents()
+            }
+        } finally {
+            vm.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `detail action without ID is readable but does not navigate`() = runTest {
+        val n1 = notification(
+            id = "uuid-1",
+            kind = NotificationKind.APPOINTMENT_CONFIRMED,
+            mobileAction = MobileDestination.APPOINTMENT,
+            mobileActionId = null,
+        )
+        coEvery { repo.getNotifications(page = 1) } returns Result.success(page(listOf(n1)))
+        coEvery { repo.markOneRead("uuid-1") } returns Result.success(Unit)
+        val vm = vm()
+
+        try {
+            vm.effects.test {
+                dispatcher.scheduler.runCurrent()
+                vm.markOneRead(n1)
+                dispatcher.scheduler.runCurrent()
+
+                assertEquals(NotificationEffect.NotificationRead, awaitItem())
+                expectNoEvents()
+                assertEquals(
+                    "No further details for this notification.",
+                    (vm.uiState.value as NotificationListUiState.Success).infoMessage,
+                )
                 cancelAndIgnoreRemainingEvents()
             }
         } finally {

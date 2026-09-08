@@ -103,8 +103,26 @@ class NotificationRepositoryImplTest {
         assertEquals("New Message", n.title)
         assertEquals("Dr. Santos sent a message.", n.body)
         assertEquals(MobileDestination.CONVERSATION, n.mobileAction)
+        assertNull(n.mobileActionId)
         assertNull(n.readAt)
         assertEquals("2026-08-15T10:00:00+08:00", n.createdAt)
+    }
+
+    @Test
+    fun `getNotifications maps detail action ID and documented event kind`() = runTest {
+        enqueueNotificationList(
+            notificationJson(
+                kind = "appointment_rescheduled",
+                title = "Appointment Rescheduled",
+                mobileAction = """{"type":"appointment","id":123}""",
+            ),
+        )
+
+        val notification = repository.getNotifications().getOrThrow().notifications.single()
+
+        assertEquals(NotificationKind.APPOINTMENT_RESCHEDULED, notification.kind)
+        assertEquals(MobileDestination.APPOINTMENT, notification.mobileAction)
+        assertEquals(123, notification.mobileActionId)
     }
 
     @Test

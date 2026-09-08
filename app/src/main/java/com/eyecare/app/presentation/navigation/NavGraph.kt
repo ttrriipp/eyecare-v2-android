@@ -526,6 +526,18 @@ fun EyecareNavGraph(
                                 when (effect) {
                                     is NotificationEffect.Navigate -> {
                                         when (effect.destination) {
+                                            MobileDestination.APPOINTMENT -> effect.id?.let { id ->
+                                                navController.navigate(AppointmentDetail(id))
+                                            }
+                                            MobileDestination.APPOINTMENT_REQUEST -> effect.id?.let { id ->
+                                                navController.navigate(AppointmentRequestDetail(id))
+                                            }
+                                            MobileDestination.PRESCRIPTION -> effect.id?.let { id ->
+                                                navController.navigate(PrescriptionDetail(id))
+                                            }
+                                            MobileDestination.OPTICAL_ORDER -> effect.id?.let { id ->
+                                                navController.navigate(OpticalOrderDetail(id))
+                                            }
                                             MobileDestination.CONVERSATION -> navController.navigate(Chat)
                                             MobileDestination.UNKNOWN -> { /* no-op */ }
                                         }

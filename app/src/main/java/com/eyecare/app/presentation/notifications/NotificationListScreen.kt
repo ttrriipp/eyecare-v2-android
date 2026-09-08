@@ -327,7 +327,7 @@ private fun NotificationRow(
 private fun NotificationKindBadge(kind: NotificationKind) {
     val icon: ImageVector = when (kind) {
         NotificationKind.NEW_MESSAGE -> Icons.AutoMirrored.Outlined.Chat
-        NotificationKind.UNKNOWN -> Icons.Outlined.Notifications
+        else -> Icons.Outlined.Notifications
     }
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,

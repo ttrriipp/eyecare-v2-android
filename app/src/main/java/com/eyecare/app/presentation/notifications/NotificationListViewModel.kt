@@ -34,7 +34,10 @@ sealed interface NotificationListUiState {
 }
 
 sealed interface NotificationEffect {
-    data class Navigate(val destination: MobileDestination) : NotificationEffect
+    data class Navigate(
+        val destination: MobileDestination,
+        val id: Int? = null,
+    ) : NotificationEffect
     data object NotificationRead : NotificationEffect
     data object AllNotificationsRead : NotificationEffect
     data class UnreadCountReconciled(val count: Int) : NotificationEffect
@@ -169,16 +172,15 @@ class NotificationListViewModel @Inject constructor(
             notificationRepository.markOneRead(notification.id).fold(
                 onSuccess = {
                     val latest = _uiState.value as? NotificationListUiState.Success ?: return@fold
-                    val hasDestination = notification.mobileAction != null &&
-                        notification.mobileAction != MobileDestination.UNKNOWN
+                    val navigation = notification.navigationEffectOrNull()
                     _uiState.value = latest.copy(
                         mutationInFlight = latest.mutationInFlight - notification.id,
                         inlineError = null,
-                        infoMessage = if (hasDestination) null else NO_DESTINATION_MESSAGE,
+                        infoMessage = if (navigation != null) null else NO_DESTINATION_MESSAGE,
                     )
                     _effects.send(NotificationEffect.NotificationRead)
-                    if (hasDestination) {
-                        _effects.send(NotificationEffect.Navigate(notification.mobileAction))
+                    if (navigation != null) {
+                        _effects.send(navigation)
                     }
                 },
                 onFailure = {
@@ -232,11 +234,10 @@ class NotificationListViewModel @Inject constructor(
             markOneRead(notification)
             return
         }
-        val hasDestination = notification.mobileAction != null &&
-            notification.mobileAction != MobileDestination.UNKNOWN
-        if (hasDestination) {
+        val navigation = notification.navigationEffectOrNull()
+        if (navigation != null) {
             viewModelScope.launch {
-                _effects.send(NotificationEffect.Navigate(notification.mobileAction))
+                _effects.send(navigation)
             }
         } else {
             val current = _uiState.value as? NotificationListUiState.Success ?: return
@@ -261,5 +262,11 @@ class NotificationListViewModel @Inject constructor(
                 // The mutation error remains the safe feedback shown to the patient.
             },
         )
+    }
+
+    private fun AppNotification.navigationEffectOrNull(): NotificationEffect.Navigate? {
+        val destination = mobileAction ?: return null
+        if (!destination.isActionable(mobileActionId)) return null
+        return NotificationEffect.Navigate(destination = destination, id = mobileActionId)
     }
 }
