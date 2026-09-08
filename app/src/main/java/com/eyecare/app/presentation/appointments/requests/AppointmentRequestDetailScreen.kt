@@ -247,11 +247,13 @@ private fun RequestDetailDataContent(
                                         "$it min visit",
                                     )
                                 }
-                                DetailMetadataRow(
-                                    Icons.Outlined.Info,
-                                    "Reason for visit",
-                                    state.request.reasonForVisit,
-                                )
+                                state.request.reasonForVisit?.takeIf { it.isNotBlank() }?.let { reason ->
+                                    DetailMetadataRow(
+                                        Icons.Outlined.Info,
+                                        "Reason for visit",
+                                        reason,
+                                    )
+                                }
                             }
                         }
 

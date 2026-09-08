@@ -63,6 +63,22 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         ).data.toDomain()
     }
 
+    override suspend fun createRebookingRequest(
+        appointmentId: Int,
+        scheduledAt: String,
+        alternativeScheduledTimes: List<String>?,
+        reasonForVisit: String?,
+    ): Result<AppointmentRequest> = safeApiCall {
+        api.createRequest(
+            CreateAppointmentRequest(
+                appointmentId = appointmentId,
+                scheduledAt = scheduledAt,
+                alternativeScheduledTimes = alternativeScheduledTimes,
+                reasonForVisit = reasonForVisit,
+            ),
+        ).data.toDomain()
+    }
+
     override suspend fun getRequest(id: Int): Result<AppointmentRequest> = safeApiCall {
         api.getRequest(id).data.toDomain()
     }
@@ -89,9 +105,12 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         id = id,
         requestNumber = requestNumber,
         status = AppointmentRequestStatus.fromRaw(status),
+        requestType = com.eyecare.app.domain.model.AppointmentRequestType.fromRaw(requestType),
         patientId = patientId,
         appointmentType = appointmentType?.toDomain(),
         scheduledAt = scheduledAt,
+        originalScheduledAt = originalScheduledAt,
+        selectedScheduledAt = selectedScheduledAt,
         alternativeScheduledTimes = alternativeScheduledTimes ?: emptyList(),
         provisionalDurationMinutes = provisionalDurationMinutes,
         reasonForVisit = reasonForVisit,

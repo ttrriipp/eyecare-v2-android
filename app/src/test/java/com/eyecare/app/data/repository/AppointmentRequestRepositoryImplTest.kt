@@ -13,6 +13,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -173,6 +174,29 @@ class AppointmentRequestRepositoryImplTest {
         assertTrue(body.contains("\"gender\":\"female\""))
         assertTrue(body.contains("\"occupation\":\"Teacher\""))
         assertTrue(body.contains("\"address\":\"123 Main St, Manila\""))
+    }
+
+    @Test
+    fun `createRebookingRequest sends linked appointment without replacement type or identity`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(201).setBody(
+            """{"data":{"id":7,"request_number":"APR-2026-000007","request_type":"reschedule","status":"pending","appointment_id":42,"scheduled_at":"2026-09-20T10:30:00+08:00","original_scheduled_at":"2026-09-01T09:00:00+08:00","selected_scheduled_at":null,"reason_for_visit":null,"created_at":"2026-09-08T10:00:00+08:00","appointment":{"id":42}}}"""
+        ))
+
+        val result = repository.createRebookingRequest(
+            appointmentId = 42,
+            scheduledAt = "2026-09-20T10:30:00+08:00",
+            alternativeScheduledTimes = listOf("2026-09-20T11:30:00+08:00"),
+        )
+
+        assertTrue(result.isSuccess)
+        val body = server.takeRequest().body.readUtf8()
+        assertTrue(body.contains("\"appointment_id\":42"))
+        assertTrue(body.contains("scheduled_at"))
+        assertFalse(body.contains("appointment_type_id"))
+        assertFalse(body.contains("referring_source"))
+        assertFalse(body.contains("\"identity\""))
+        assertEquals("2026-09-01T09:00:00+08:00", result.getOrThrow().originalScheduledAt)
+        assertEquals(null, result.getOrThrow().selectedScheduledAt)
     }
 
     @Test

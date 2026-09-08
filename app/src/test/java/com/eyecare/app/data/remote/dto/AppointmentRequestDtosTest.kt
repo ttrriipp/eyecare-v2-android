@@ -75,9 +75,14 @@ class AppointmentRequestDtosTest {
 
     @Test
     fun `decodes request list with expanded fields`() {
-        val body = """{"data":[{"id":1,"request_number":"APR-2026-000001","status":"pending","patient_id":null,"appointment_type":{"id":1,"name":"First eye examination","duration_minutes":45},"scheduled_at":"2026-08-10T10:00:00+08:00","alternative_scheduled_times":["2026-08-10T14:00:00+08:00"],"provisional_duration_minutes":45,"reason_for_visit":"Blurred vision","referring_source":null,"time_preferences_are_reserved":false,"expires_at":"2026-08-11T10:00:00+08:00","created_at":"2026-08-09T10:00:00+08:00","appointment":null}],"meta":{"current_page":1,"last_page":1,"per_page":15,"total":1}}"""
+        val body = """{"data":[{"id":1,"request_number":"APR-2026-000001","request_type":"reschedule","status":"pending","patient_id":1,"appointment_type":{"id":1,"name":"First eye examination","duration_minutes":45},"scheduled_at":"2026-08-10T10:00:00+08:00","original_scheduled_at":"2026-08-01T09:00:00+08:00","selected_scheduled_at":null,"alternative_scheduled_times":["2026-08-10T14:00:00+08:00"],"provisional_duration_minutes":45,"reason_for_visit":null,"referring_source":null,"time_preferences_are_reserved":false,"expires_at":"2026-08-11T10:00:00+08:00","created_at":"2026-08-09T10:00:00+08:00","appointment":{"id":42}}],"meta":{"current_page":1,"last_page":1,"per_page":15,"total":1}}"""
         val response = json.decodeFromString<AppointmentRequestListResponse>(body)
         val dto = response.data[0]
+        assertEquals("reschedule", dto.requestType)
+        assertEquals("2026-08-01T09:00:00+08:00", dto.originalScheduledAt)
+        assertNull(dto.selectedScheduledAt)
+        assertNull(dto.reasonForVisit)
+        assertEquals(42, dto.appointment?.id)
         assertEquals(1, dto.appointmentType?.id)
         assertEquals("First eye examination", dto.appointmentType?.name)
         assertEquals(45, dto.appointmentType?.durationMinutes)
@@ -178,6 +183,26 @@ class AppointmentRequestDtosTest {
         assertTrue(encoded.contains("\"gender\":\"female\""))
         assertTrue(encoded.contains("\"occupation\":\"Teacher\""))
         assertTrue(encoded.contains("\"address\":\"123 Main St, Manila\""))
+    }
+
+    @Test
+    fun `create rebooking request encodes appointment ID without new-booking fields`() {
+        val request = CreateAppointmentRequest(
+            appointmentId = 42,
+            scheduledAt = "2026-09-20T10:30:00+08:00",
+            alternativeScheduledTimes = listOf("2026-09-20T11:30:00+08:00"),
+            reasonForVisit = null,
+        )
+
+        val encoded = json.encodeToString(request)
+
+        assertTrue(encoded.contains("\"appointment_id\":42"))
+        assertTrue(encoded.contains("scheduled_at"))
+        assertTrue(encoded.contains("alternative_scheduled_times"))
+        assertTrue(encoded.contains("\"reason_for_visit\":null"))
+        assertFalse(encoded.contains("appointment_type_id"))
+        assertFalse(encoded.contains("referring_source"))
+        assertFalse(encoded.contains("\"identity\""))
     }
 
     @Test

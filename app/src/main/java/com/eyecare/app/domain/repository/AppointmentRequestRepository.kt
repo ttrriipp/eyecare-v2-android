@@ -17,6 +17,12 @@ interface AppointmentRequestRepository {
         referringSource: String? = null,
         identity: AppointmentRequestIdentity? = null,
     ): Result<AppointmentRequest>
+    suspend fun createRebookingRequest(
+        appointmentId: Int,
+        scheduledAt: String,
+        alternativeScheduledTimes: List<String>? = null,
+        reasonForVisit: String? = null,
+    ): Result<AppointmentRequest>
     suspend fun getRequest(id: Int): Result<AppointmentRequest>
     suspend fun cancelRequest(id: Int): Result<AppointmentRequest>
 }

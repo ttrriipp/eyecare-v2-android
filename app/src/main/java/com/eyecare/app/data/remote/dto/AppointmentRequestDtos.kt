@@ -73,13 +73,16 @@ data class AppointmentRequestTypeSummaryDto(
 data class AppointmentRequestDto(
     val id: Int,
     @SerialName("request_number") val requestNumber: String,
+    @SerialName("request_type") val requestType: String = "new",
     val status: String,
     @SerialName("patient_id") val patientId: Int? = null,
     @SerialName("appointment_type") val appointmentType: AppointmentRequestTypeSummaryDto? = null,
     @SerialName("scheduled_at") val scheduledAt: String,
+    @SerialName("original_scheduled_at") val originalScheduledAt: String? = null,
+    @SerialName("selected_scheduled_at") val selectedScheduledAt: String? = null,
     @SerialName("alternative_scheduled_times") val alternativeScheduledTimes: List<String>? = null,
     @SerialName("provisional_duration_minutes") val provisionalDurationMinutes: Int? = null,
-    @SerialName("reason_for_visit") val reasonForVisit: String,
+    @SerialName("reason_for_visit") val reasonForVisit: String? = null,
     @SerialName("referring_source") val referringSource: String? = null,
     @SerialName("time_preferences_are_reserved") val timePreferencesAreReserved: Boolean = false,
     @SerialName("expires_at") val expiresAt: String? = null,
@@ -96,10 +99,11 @@ data class AppointmentReferenceDto(
 
 @Serializable
 data class CreateAppointmentRequest(
-    @SerialName("appointment_type_id") val appointmentTypeId: Int,
+    @SerialName("appointment_id") val appointmentId: Int? = null,
+    @SerialName("appointment_type_id") val appointmentTypeId: Int? = null,
     @SerialName("scheduled_at") val scheduledAt: String,
     @SerialName("alternative_scheduled_times") val alternativeScheduledTimes: List<String>? = null,
-    @SerialName("reason_for_visit") val reasonForVisit: String,
+    @SerialName("reason_for_visit") val reasonForVisit: String?,
     @SerialName("referring_source") val referringSource: String? = null,
     val identity: AppointmentRequestIdentityDto? = null,
 )

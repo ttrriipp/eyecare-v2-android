@@ -26,6 +26,20 @@ enum class AppointmentRequestStatus {
         get() = this == PENDING
 }
 
+enum class AppointmentRequestType {
+    NEW,
+    RESCHEDULE,
+    UNKNOWN;
+
+    companion object {
+        fun fromRaw(value: String): AppointmentRequestType = when (value.lowercase()) {
+            "new" -> NEW
+            "reschedule" -> RESCHEDULE
+            else -> UNKNOWN
+        }
+    }
+}
+
 data class AppointmentRequestTypeSummary(
     val id: Int,
     val name: String,
@@ -36,12 +50,15 @@ data class AppointmentRequest(
     val id: Int,
     val requestNumber: String,
     val status: AppointmentRequestStatus,
+    val requestType: AppointmentRequestType = AppointmentRequestType.NEW,
     val patientId: Int?,
     val appointmentType: AppointmentRequestTypeSummary?,
     val scheduledAt: String,
+    val originalScheduledAt: String? = null,
+    val selectedScheduledAt: String? = null,
     val alternativeScheduledTimes: List<String>,
     val provisionalDurationMinutes: Int?,
-    val reasonForVisit: String,
+    val reasonForVisit: String?,
     val referringSource: String?,
     val timePreferencesAreReserved: Boolean,
     val expiresAt: String?,
