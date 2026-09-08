@@ -126,11 +126,21 @@ class AppointmentRequestDetailViewModelTest {
     }
 
     @Test
-    fun `cancel REQUEST_NOT_CANCELLABLE refreshes`() {
+    fun `cancel validation on request field refreshes`() {
         coEvery { repo.getRequest(1) } returns Result.success(pendingRequest)
-        coEvery { repo.cancelRequest(1) } returns Result.failure(ApiDomainError(422, "REQUEST_NOT_CANCELLABLE", "Cannot cancel"))
         val refreshedRequest = pendingRequest.copy(status = AppointmentRequestStatus.ACCEPTED, appointmentId = 42)
-        coEvery { repo.getRequest(1) } returns Result.success(refreshedRequest)
+        coEvery { repo.getRequest(1) } returnsMany listOf(
+            Result.success(pendingRequest),
+            Result.success(refreshedRequest),
+        )
+        coEvery { repo.cancelRequest(1) } returns Result.failure(
+            ApiDomainError(
+                httpStatus = 422,
+                code = "VALIDATION",
+                message = "Only pending appointment requests can be cancelled.",
+                fieldErrors = mapOf("request" to listOf("Only pending appointment requests can be cancelled.")),
+            ),
+        )
         vm.load(1)
         vm.cancel()
         val state = vm.state.value as RequestDetailState.Data

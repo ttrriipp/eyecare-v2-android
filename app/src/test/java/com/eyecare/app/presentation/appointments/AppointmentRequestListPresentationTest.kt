@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.appointments
 
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentRequestTypeSummary
 import com.eyecare.app.presentation.appointments.requests.hasReachedActiveAppointmentRequestLimit
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -63,6 +64,27 @@ class AppointmentRequestListPresentationTest {
     }
 
     @Test
+    fun `pending rebooking remains visible when its confirmed appointment is already listed`() {
+        val request = request(
+            id = 5,
+            status = AppointmentRequestStatus.PENDING,
+            requestType = AppointmentRequestType.RESCHEDULE,
+            scheduledAt = "2026-08-04T10:00:00+08:00",
+            appointmentId = 44,
+        )
+
+        assertEquals(
+            listOf(request),
+            appointmentRequestsForTab(
+                requests = listOf(request),
+                tab = AppointmentListTab.UPCOMING,
+                confirmedAppointmentIds = setOf(44),
+                now = now,
+            ),
+        )
+    }
+
+    @Test
     fun `active request limit is reached after two pending requests`() {
         val requests = listOf(
             request(1, AppointmentRequestStatus.PENDING, "2026-08-04T10:00:00+08:00"),
@@ -100,16 +122,30 @@ class AppointmentRequestListPresentationTest {
         assertEquals("45 min visit", appointmentRequestDurationLabel(request))
     }
 
+    @Test
+    fun `rebooking request uses reschedule title`() {
+        val request = request(
+            id = 6,
+            status = AppointmentRequestStatus.PENDING,
+            requestType = AppointmentRequestType.RESCHEDULE,
+            scheduledAt = "2026-08-07T10:00:00+08:00",
+        )
+
+        assertEquals("Reschedule request", appointmentRequestTitle(request))
+    }
+
     private fun request(
         id: Int,
         status: AppointmentRequestStatus,
         scheduledAt: String,
+        requestType: AppointmentRequestType = AppointmentRequestType.NEW,
         appointmentId: Int? = null,
         appointmentType: AppointmentRequestTypeSummary? = null,
     ) = AppointmentRequest(
         id = id,
         requestNumber = "APR-2026-${id.toString().padStart(6, '0')}",
         status = status,
+        requestType = requestType,
         patientId = null,
         appointmentType = appointmentType,
         scheduledAt = scheduledAt,

@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
@@ -146,10 +147,15 @@ private fun RequestDetailDataContent(
     // request reads identically on both surfaces.
     val durationMinutes = state.request.provisionalDurationMinutes
         ?: state.request.appointmentType?.durationMinutes
-    val heroTitle = listOfNotNull(
-        state.request.appointmentType?.name,
-        durationMinutes?.let { "$it min" },
-    ).joinToString(" · ").ifBlank { "Appointment request" }
+    val isRebooking = state.request.requestType == AppointmentRequestType.RESCHEDULE
+    val heroTitle = if (isRebooking) {
+        "Reschedule request"
+    } else {
+        listOfNotNull(
+            state.request.appointmentType?.name,
+            durationMinutes?.let { "$it min" },
+        ).joinToString(" · ").ifBlank { "Appointment request" }
+    }
     val showMessageAction = state.request.status == AppointmentRequestStatus.PENDING ||
         state.request.status == AppointmentRequestStatus.REJECTED
     val showCancel = presentation.showCancel && state.request.status.isCancellable
@@ -230,16 +236,33 @@ private fun RequestDetailDataContent(
                                 modifier = Modifier.padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                DetailMetadataRow(
-                                    Icons.Outlined.CalendarMonth,
-                                    "Date",
-                                    formatDetailDate(state.request.scheduledAt),
-                                )
-                                DetailMetadataRow(
-                                    Icons.Outlined.AccessTime,
-                                    "Preferred time",
-                                    formatDetailTime(state.request.scheduledAt),
-                                )
+                                if (isRebooking) {
+                                    state.request.originalScheduledAt?.let { originalTime ->
+                                        DetailMetadataRow(
+                                            Icons.Outlined.CalendarMonth,
+                                            "Current appointment",
+                                            formatDetailDateTime(originalTime),
+                                        )
+                                    }
+                                    DetailMetadataRow(
+                                        Icons.Outlined.AccessTime,
+                                        if (state.request.selectedScheduledAt != null) "Approved time" else "Requested new time",
+                                        formatDetailDateTime(
+                                            state.request.selectedScheduledAt ?: state.request.scheduledAt,
+                                        ),
+                                    )
+                                } else {
+                                    DetailMetadataRow(
+                                        Icons.Outlined.CalendarMonth,
+                                        "Date",
+                                        formatDetailDate(state.request.scheduledAt),
+                                    )
+                                    DetailMetadataRow(
+                                        Icons.Outlined.AccessTime,
+                                        "Preferred time",
+                                        formatDetailTime(state.request.scheduledAt),
+                                    )
+                                }
                                 durationMinutes?.let {
                                     DetailMetadataRow(
                                         Icons.Outlined.AccessTime,

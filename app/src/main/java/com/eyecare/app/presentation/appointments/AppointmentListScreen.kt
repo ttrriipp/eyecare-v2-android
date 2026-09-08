@@ -81,6 +81,7 @@ import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestListViewModel
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestStatusPill
@@ -679,7 +680,11 @@ internal fun formatAppointmentTime(scheduledAt: String): String {
 }
 
 internal fun appointmentRequestTitle(request: AppointmentRequest): String =
-    request.appointmentType?.name?.takeIf { it.isNotBlank() } ?: "Appointment details unavailable"
+    if (request.requestType == AppointmentRequestType.RESCHEDULE) {
+        "Reschedule request"
+    } else {
+        request.appointmentType?.name?.takeIf { it.isNotBlank() } ?: "Appointment details unavailable"
+    }
 
 internal fun appointmentRequestDurationLabel(request: AppointmentRequest): String? =
     (request.provisionalDurationMinutes ?: request.appointmentType?.durationMinutes)
@@ -1110,8 +1115,12 @@ private fun AppointmentRequestCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text(
-                    text = "Your preferred time",
+                    Text(
+                        text = if (request.requestType == AppointmentRequestType.RESCHEDULE) {
+                            "Requested new time"
+                        } else {
+                            "Your preferred time"
+                        },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1140,7 +1149,8 @@ internal fun appointmentRequestsForTab(
     now: LocalDateTime = LocalDateTime.now(),
 ): List<AppointmentRequest> {
     val visible = requests.filter { request ->
-        val isAlreadyListedAsConfirmed = request.appointmentId != null &&
+        val isAlreadyListedAsConfirmed = request.status == AppointmentRequestStatus.ACCEPTED &&
+            request.appointmentId != null &&
             request.appointmentId in confirmedAppointmentIds
         if (isAlreadyListedAsConfirmed) return@filter false
 

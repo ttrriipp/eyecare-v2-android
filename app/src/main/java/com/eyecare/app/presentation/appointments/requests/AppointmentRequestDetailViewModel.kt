@@ -78,19 +78,18 @@ class AppointmentRequestDetailViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     val apiError = error as? ApiDomainError
-                    when (apiError?.code) {
-                        "REQUEST_NOT_CANCELLABLE" -> {
-                            load(current.request.id)
-                        }
-                        else -> {
-                            _state.value = current.copy(
-                                isCancelling = false,
-                                cancelError = patientSafeAppointmentRequestError(
-                                    error = error,
-                                    fallback = "We couldn't cancel this request. Please try again.",
-                                ),
-                            )
-                        }
+                    if (apiError?.code == "REQUEST_NOT_CANCELLABLE" ||
+                        apiError?.hasAppointmentRequestFieldError("request") == true
+                    ) {
+                        refresh()
+                    } else {
+                        _state.value = current.copy(
+                            isCancelling = false,
+                            cancelError = patientSafeAppointmentRequestError(
+                                error = error,
+                                fallback = "We couldn't cancel this request. Please try again.",
+                            ),
+                        )
                     }
                 }
         }

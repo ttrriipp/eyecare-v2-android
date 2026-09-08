@@ -112,11 +112,11 @@ class AppointmentRequestDtosTest {
     }
 
     @Test
-    fun `decodes cancelled request with cancelled_at`() {
-        val body = """{"data":{"id":1,"request_number":"APR-2026-000001","status":"cancelled","scheduled_at":"2026-08-10T10:00:00+08:00","reason_for_visit":"Blurred vision","cancelled_at":"2026-08-09T11:00:00+08:00","created_at":"2026-08-09T10:00:00+08:00","appointment":null}}"""
+    fun `decodes cancelled request without cancellation timestamp`() {
+        val body = """{"data":{"id":1,"request_number":"APR-2026-000001","status":"cancelled","scheduled_at":"2026-08-10T10:00:00+08:00","reason_for_visit":"Blurred vision","created_at":"2026-08-09T10:00:00+08:00","appointment":null}}"""
         val response = json.decodeFromString<AppointmentRequestResponse>(body)
         assertEquals("cancelled", response.data.status)
-        assertEquals("2026-08-09T11:00:00+08:00", response.data.cancelledAt)
+        assertNull(response.data.cancelledAt)
     }
 
     @Test
