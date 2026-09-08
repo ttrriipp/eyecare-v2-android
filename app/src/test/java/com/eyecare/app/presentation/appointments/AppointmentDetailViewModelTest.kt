@@ -2,9 +2,13 @@ package com.eyecare.app.presentation.appointments
 
 import androidx.lifecycle.SavedStateHandle
 import com.eyecare.app.domain.model.AppointmentAvailability
+import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentSlot
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -31,6 +35,7 @@ class AppointmentDetailViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var appointments: AppointmentV1Repository
+    private lateinit var appointmentRequests: AppointmentRequestRepository
     private lateinit var viewModel: AppointmentDetailViewModel
 
     private val appointment = AppointmentV1(
@@ -65,10 +70,33 @@ class AppointmentDetailViewModelTest {
         slots = slots,
     )
 
+    private val pendingRebooking = AppointmentRequest(
+        id = 7,
+        requestNumber = "APR-2026-000007",
+        status = AppointmentRequestStatus.PENDING,
+        requestType = AppointmentRequestType.RESCHEDULE,
+        patientId = 1,
+        appointmentType = null,
+        scheduledAt = "2026-07-15T10:00:00+08:00",
+        originalScheduledAt = appointment.scheduledAt,
+        selectedScheduledAt = null,
+        alternativeScheduledTimes = emptyList(),
+        provisionalDurationMinutes = 15,
+        reasonForVisit = null,
+        referringSource = null,
+        timePreferencesAreReserved = false,
+        expiresAt = null,
+        cancelledAt = null,
+        rejectionReason = null,
+        createdAt = "2026-07-10T10:00:00+08:00",
+        appointmentId = appointment.id,
+    )
+
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
         appointments = mockk()
+        appointmentRequests = mockk()
         coEvery { appointments.getAppointment(4) } returns Result.success(appointment)
         // Week-strip prefetch fans out to every visible date; a catch-all keeps tests
         // independent of which real-world week "today" falls in.
@@ -76,6 +104,7 @@ class AppointmentDetailViewModelTest {
             Result.success(fakeAvailability())
         viewModel = AppointmentDetailViewModel(
             repository = appointments,
+            appointmentRequestRepository = appointmentRequests,
             savedStateHandle = SavedStateHandle(mapOf("appointmentId" to 4)),
         )
         dispatcher.scheduler.advanceUntilIdle()
@@ -85,24 +114,20 @@ class AppointmentDetailViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `customer reschedule uses returned appointment and clears staff reason without refetch`() = runTest {
-        val updated = appointment.copy(
-            scheduledAt = "2026-07-15T10:00:00+08:00",
-            status = AppointmentStatus.SCHEDULED,
-            lastRescheduleReason = null,
-        )
+    fun `customer reschedule submits linked request and keeps current appointment unchanged`() = runTest {
         coEvery {
-            appointments.rescheduleAppointment(4, "2026-07-15T10:00:00+08:00")
-        } returns Result.success(updated)
+            appointmentRequests.createRebookingRequest(4, "2026-07-15T10:00:00+08:00")
+        } returns Result.success(pendingRebooking)
 
         viewModel.rescheduleAppointment("2026-07-15T10:00:00+08:00")
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
-        assertEquals(null, state.appointment.lastRescheduleReason)
-        assertEquals("2026-07-15T10:00:00+08:00", state.appointment.scheduledAt)
+        assertEquals(appointment.scheduledAt, state.appointment.scheduledAt)
+        assertEquals(appointment.lastRescheduleReason, state.appointment.lastRescheduleReason)
         assertTrue(state.showRescheduleSuccessDialog)
         coVerify(exactly = 1) { appointments.getAppointment(4) }
+        coVerify(exactly = 1) { appointmentRequests.createRebookingRequest(4, "2026-07-15T10:00:00+08:00") }
     }
 
     @Test
@@ -138,6 +163,7 @@ class AppointmentDetailViewModelTest {
         coEvery { appointments.getAppointment(4) } returns Result.failure(RuntimeException("Network error"))
         val vm = AppointmentDetailViewModel(
             repository = appointments,
+            appointmentRequestRepository = appointmentRequests,
             savedStateHandle = SavedStateHandle(mapOf("appointmentId" to 4)),
         )
         dispatcher.scheduler.advanceUntilIdle()
@@ -164,7 +190,7 @@ class AppointmentDetailViewModelTest {
             appointments.getAppointmentAvailability("2026-07-14", 4)
         } returns Result.success(fakeAvailability())
         coEvery {
-            appointments.rescheduleAppointment(4, any())
+            appointmentRequests.createRebookingRequest(4, any())
         } returns Result.failure(RuntimeException("Slot taken"))
 
         viewModel.showRescheduleSheet()
@@ -172,7 +198,7 @@ class AppointmentDetailViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
-        assertEquals("We couldn't reschedule this appointment. Try again.", state.rescheduleError)
+        assertEquals("We couldn't submit this reschedule request. Try again.", state.rescheduleError)
         assertFalse(state.isRescheduling)
         assertTrue(state.showRescheduleSheet)
     }
@@ -181,6 +207,7 @@ class AppointmentDetailViewModelTest {
     fun `missing appointmentId shows error state`() = runTest {
         val vm = AppointmentDetailViewModel(
             repository = appointments,
+            appointmentRequestRepository = appointmentRequests,
             savedStateHandle = SavedStateHandle(emptyMap()),
         )
         dispatcher.scheduler.advanceUntilIdle()
@@ -191,8 +218,7 @@ class AppointmentDetailViewModelTest {
 
     @Test
     fun `dismiss reschedule success dialog clears flag`() = runTest {
-        val updated = appointment.copy(scheduledAt = "2026-07-15T10:00:00+08:00")
-        coEvery { appointments.rescheduleAppointment(4, any()) } returns Result.success(updated)
+        coEvery { appointmentRequests.createRebookingRequest(4, any()) } returns Result.success(pendingRebooking)
 
         viewModel.rescheduleAppointment("2026-07-15T10:00:00+08:00")
         dispatcher.scheduler.advanceUntilIdle()

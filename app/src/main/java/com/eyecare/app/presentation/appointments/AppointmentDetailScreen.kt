@@ -128,10 +128,11 @@ fun AppointmentDetailScreen(
         if (state.showRescheduleSuccessDialog) {
             AppConfirmationDialog(
                 icon = Icons.Outlined.EventAvailable,
-                title = "Appointment Rescheduled",
-                message = "Your appointment is now set for " +
+                title = "Reschedule request sent",
+                message = "Your current appointment remains at " +
                     "${formatAppointmentDate(state.appointment.scheduledAt)} at " +
-                    "${formatAppointmentTime(state.appointment.scheduledAt)}.",
+                    "${formatAppointmentTime(state.appointment.scheduledAt)} " +
+                    "until the clinic approves your requested time.",
                 confirmLabel = "Got it",
                 onConfirm = viewModel::dismissRescheduleSuccessDialog,
                 onDismissRequest = viewModel::dismissRescheduleSuccessDialog,

@@ -125,10 +125,11 @@ fun RescheduleBottomSheet(
     if (showConfirmDialog && selectedSlot != null) {
         AppConfirmationDialog(
             icon = Icons.Outlined.EventAvailable,
-            title = "Confirm reschedule",
-            message = "Move this appointment to ${formatRescheduleDate(selectedSlot.startsAt)} at " +
-                "${formatRescheduleTime(selectedSlot.startsAt)}?",
-            confirmLabel = "Reschedule appointment",
+            title = "Request this time change",
+            message = "Send a request to move this appointment to " +
+                "${formatRescheduleDate(selectedSlot.startsAt)} at " +
+                "${formatRescheduleTime(selectedSlot.startsAt)}? The clinic must approve it.",
+            confirmLabel = "Send request",
             dismissLabel = "Keep current time",
             onConfirm = {
                 showConfirmDialog = false

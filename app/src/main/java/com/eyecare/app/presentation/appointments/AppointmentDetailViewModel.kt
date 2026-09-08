@@ -7,6 +7,8 @@ import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -59,6 +61,7 @@ sealed interface AppointmentDetailUiState {
 @HiltViewModel
 class AppointmentDetailViewModel @Inject constructor(
     private val repository: AppointmentV1Repository,
+    private val appointmentRequestRepository: AppointmentRequestRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -261,10 +264,12 @@ class AppointmentDetailViewModel @Inject constructor(
             actionMessage = null,
         )
         viewModelScope.launch {
-            repository.rescheduleAppointment(appointmentId, scheduledAt).fold(
-                onSuccess = { updatedAppointment ->
+            appointmentRequestRepository.createRebookingRequest(
+                appointmentId = appointmentId,
+                scheduledAt = scheduledAt,
+            ).fold(
+                onSuccess = {
                     _uiState.value = current.copy(
-                        appointment = updatedAppointment,
                         isRescheduling = false,
                         showRescheduleSheet = false,
                         rescheduleAvailability = RescheduleAvailabilityState.Idle,
@@ -417,14 +422,26 @@ private fun patientSafeAppointmentError(
     AppointmentAction.CANCEL ->
         "We couldn't cancel this appointment. Check your connection and try again."
     AppointmentAction.RESCHEDULE ->
-        if (error is AppointmentError.ValidationError) {
-            "That time is no longer available. Choose another time."
-        } else {
-            "We couldn't reschedule this appointment. Try again."
-        }
+        patientSafeRescheduleError(error)
     AppointmentAction.RATE -> when (error) {
         is AppointmentError.NotFound -> "This appointment is no longer available."
         is AppointmentError.ValidationError -> "This visit can't be rated yet."
         else -> "We couldn't submit your rating. Try again."
+    }
+}
+
+private fun patientSafeRescheduleError(error: Throwable): String {
+    val apiError = error as? ApiDomainError
+    return when {
+        apiError?.code == "SLOT_UNAVAILABLE" ||
+            apiError?.fieldErrors?.keys?.any { it == "scheduled_at" || it.endsWith(".scheduled_at") } == true ->
+            "That time is no longer available. Choose another time."
+        apiError?.code == "ACTIVE_REQUEST_LIMIT_REACHED" ->
+            "You already have two pending appointment requests. Cancel one or wait for the clinic to respond."
+        apiError?.fieldErrors?.keys?.any { it == "appointment_id" || it.endsWith(".appointment_id") } == true ->
+            "This appointment can no longer be rescheduled. Refresh and try again."
+        error is AppointmentError.ValidationError ->
+            "That time is no longer available. Choose another time."
+        else -> "We couldn't submit this reschedule request. Try again."
     }
 }
