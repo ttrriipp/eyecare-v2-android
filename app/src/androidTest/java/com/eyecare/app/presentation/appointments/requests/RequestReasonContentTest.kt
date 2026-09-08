@@ -6,6 +6,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -93,7 +95,9 @@ class RequestReasonContentTest {
         setReason(reasonState(type = noPresetType))
 
         composeRule.onNodeWithText("Common reasons").assertDoesNotExist()
-        composeRule.onNodeWithText("Reason for visit").assertIsDisplayed()
+        composeRule.onNode(
+            hasText("Reason for visit") and hasSetTextAction(),
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Add details (optional)").assertDoesNotExist()
     }
 
