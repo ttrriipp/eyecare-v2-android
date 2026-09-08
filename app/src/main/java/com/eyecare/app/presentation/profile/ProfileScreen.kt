@@ -319,7 +319,11 @@ private fun ProfileHeader(account: PatientAccount? = null) {
         Surface(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier.size(56.dp),
+            modifier = Modifier
+                .size(56.dp)
+                .semantics {
+                    contentDescription = "Profile initials ${profileInitials(account)}"
+                },
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
