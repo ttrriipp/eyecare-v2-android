@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AppointmentType
@@ -46,11 +47,14 @@ class RequestIdentityContentTest {
         val genderField = composeRule.onNodeWithContentDescription(
             "Gender, not set. Double tap to choose an option.",
         )
+        genderField.performScrollTo()
+        composeRule.waitForIdle()
         val fieldWidth = genderField.fetchSemanticsNode().boundsInRoot.width
 
         genderField.performTouchInput {
             click(Offset(width - 8f, height / 2f))
         }
+        composeRule.waitForIdle()
 
         val femaleOption = composeRule.onNodeWithText("Female")
         femaleOption.assertIsDisplayed()
