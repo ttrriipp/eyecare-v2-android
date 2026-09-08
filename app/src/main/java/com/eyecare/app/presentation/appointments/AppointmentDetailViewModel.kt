@@ -3,13 +3,13 @@ package com.eyecare.app.presentation.appointments
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
-import com.eyecare.app.domain.model.ApiDomainError
-import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.model.VisitRating
+import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job

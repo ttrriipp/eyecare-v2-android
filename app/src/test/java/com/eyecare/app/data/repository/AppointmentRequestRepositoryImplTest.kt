@@ -120,6 +120,7 @@ class AppointmentRequestRepositoryImplTest {
         assertTrue(result.isSuccess)
         val body = server.takeRequest().body.readUtf8()
         assertTrue(body.contains("\"appointment_type_id\":1"))
+        assertFalse(body.contains("appointment_id"))
         assertTrue(body.contains("alternative_scheduled_times"))
         assertTrue(body.contains("2026-08-10T10:30:00+08:00"))
         assertTrue(body.contains("\"reason_for_visit\":\"Blurry\""))

@@ -130,6 +130,7 @@ class AppointmentRequestDtosTest {
         assertTrue(encoded.contains("\"appointment_type_id\":1"))
         assertTrue(encoded.contains("scheduled_at"))
         assertTrue(encoded.contains("reason_for_visit"))
+        assertFalse(encoded.contains("appointment_id"))
         assertFalse(encoded.contains("\"identity\""))
         assertFalse(encoded.contains("alternative"))
         assertFalse(encoded.contains("referring"))

@@ -13,6 +13,7 @@ import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentRequestTypeSummary
 import com.eyecare.app.domain.model.AppointmentType
 import com.eyecare.app.domain.model.AvailabilitySlot
@@ -105,7 +106,7 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         id = id,
         requestNumber = requestNumber,
         status = AppointmentRequestStatus.fromRaw(status),
-        requestType = com.eyecare.app.domain.model.AppointmentRequestType.fromRaw(requestType),
+        requestType = AppointmentRequestType.fromRaw(requestType),
         patientId = patientId,
         appointmentType = appointmentType?.toDomain(),
         scheduledAt = scheduledAt,
