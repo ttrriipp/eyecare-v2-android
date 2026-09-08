@@ -65,11 +65,6 @@ object AppointmentV1Dtos {
     data class AppointmentAvailabilityResponse(val data: AppointmentAvailabilityDto)
 
     @Serializable
-    data class RescheduleRequest(
-        @SerialName("scheduled_at") val scheduledAt: String,
-    )
-
-    @Serializable
     data class VisitRatingDto(
         val rating: Int,
         val comment: String? = null,

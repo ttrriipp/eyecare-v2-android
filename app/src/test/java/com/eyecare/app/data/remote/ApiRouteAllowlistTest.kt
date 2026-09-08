@@ -19,13 +19,13 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `active-link routes match expected count`() {
-        assertEquals(11, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes")
+        assertEquals(10, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes")
     }
 
     @Test
-    fun `total approved routes is exactly 59`() {
-        // 8 public + 40 account-only + 11 active-link = 59 canonical callable
-        assertEquals(59, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
+    fun `total approved routes is exactly 58`() {
+        // 8 public + 40 account-only + 10 active-link = 58 canonical callable
+        assertEquals(58, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test
@@ -36,6 +36,7 @@ class ApiRouteAllowlistTest {
         assertTrue("GET /api/v1/job-orders/{jobOrder}" in ApprovedApiRoutes.rejectedRoutes)
         assertTrue("GET /api/v1/billing-records" in ApprovedApiRoutes.rejectedRoutes)
         assertTrue("GET /api/v1/billing-records/{billingRecord}" in ApprovedApiRoutes.rejectedRoutes)
+        assertTrue("POST /api/v1/appointments/{appointment}/reschedule" in ApprovedApiRoutes.rejectedRoutes)
     }
 
     @Test
@@ -225,7 +226,6 @@ class ApiRouteAllowlistTest {
         return path
             .replace(Regex("""appointments/\{id\}"""), "appointments/{appointment}")
             .replace(Regex("""appointments/\{id\}/cancel"""), "appointments/{appointment}/cancel")
-            .replace(Regex("""appointments/\{id\}/reschedule"""), "appointments/{appointment}/reschedule")
             .replace(Regex("""appointments/\{id\}/rating"""), "appointments/{appointment}/rating")
             .replace(Regex("""frames/\{id\}"""), "frames/{frame}")
             .replace(Regex("""saved-frames/\{id\}"""), "saved-frames/{productVariant}")

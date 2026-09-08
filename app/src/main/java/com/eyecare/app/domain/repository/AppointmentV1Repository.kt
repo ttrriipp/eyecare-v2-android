@@ -12,7 +12,6 @@ interface AppointmentV1Repository {
         appointmentId: Int? = null,
     ): Result<AppointmentAvailability>
     suspend fun cancelAppointment(id: Int): Result<AppointmentV1>
-    suspend fun rescheduleAppointment(id: Int, scheduledAt: String): Result<AppointmentV1>
     suspend fun rateAppointment(id: Int, rating: Int, comment: String?): Result<VisitRating>
 }
 

@@ -46,17 +46,6 @@ class AppointmentV1RepositoryImpl @Inject constructor(
         api.cancelAppointment(id).data.toDomain()
     }
 
-    override suspend fun rescheduleAppointment(id: Int, scheduledAt: String): Result<AppointmentV1> = runCatching {
-        api.rescheduleAppointment(id, AppointmentV1Dtos.RescheduleRequest(scheduledAt)).data.toDomain()
-    }.recoverCatching { throwable ->
-        if (throwable is HttpException && throwable.code() == 422) {
-            val body = throwable.response()?.errorBody()?.use { it.string() } ?: ""
-            val parsed = json.decodeFromString<ApiErrorBody>(body)
-            throw AppointmentError.ValidationError(parsed.errors ?: emptyMap())
-        }
-        throw throwable
-    }
-
     override suspend fun rateAppointment(id: Int, rating: Int, comment: String?): Result<VisitRating> = runCatching {
         val response = api.rateAppointment(id, AppointmentV1Dtos.VisitRatingRequest(rating = rating, comment = comment))
         response.data.toDomain()

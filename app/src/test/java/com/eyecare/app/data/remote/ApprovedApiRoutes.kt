@@ -1,14 +1,14 @@
 package com.eyecare.app.data.remote
 
 /**
- * V20 route governance — 59-route contract.
+ * V21 route governance — 58-route contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
  * 2. Account-only routes (40) — authenticated, no patient link required
- * 3. Active-link routes (11) — require active patient link
+ * 3. Active-link routes (10) — require active patient link
  *
- * Total canonical callable routes: 8 + 40 + 11 = 59.
+ * Total canonical callable routes: 8 + 40 + 10 = 58.
  *
  * Conversation read/list/send/search/read-mark are account-only; attachment download is account-only.
  * Saved Frames (GET/PUT/DELETE) are account-only.
@@ -77,13 +77,12 @@ internal object ApprovedApiRoutes {
         "PATCH $BASE/notifications/read-all",
     )
 
-    /** Active-link routes — require active patient link. (11) */
+    /** Active-link routes — require active patient link. (10) */
     val activeLinkRoutes: Set<String> = setOf(
         "GET $BASE/appointment-availability",
         "GET $BASE/appointments",
         "GET $BASE/appointments/{appointment}",
         "POST $BASE/appointments/{appointment}/cancel",
-        "POST $BASE/appointments/{appointment}/reschedule",
         "POST $BASE/appointments/{appointment}/rating",
         "GET $BASE/prescriptions",
         "GET $BASE/prescriptions/{prescription}",
@@ -97,6 +96,8 @@ internal object ApprovedApiRoutes {
         // Legacy auth
         "POST $BASE/register",
         "POST $BASE/login",
+        // Direct patient rescheduling was replaced by linked appointment requests.
+        "POST $BASE/appointments/{appointment}/reschedule",
         // Aggregate eyewear (V12)
         "GET $BASE/eyewear",
         "GET $BASE/eyewear/{key}",

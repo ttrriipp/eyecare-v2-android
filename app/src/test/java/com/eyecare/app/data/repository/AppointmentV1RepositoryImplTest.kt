@@ -115,25 +115,6 @@ class AppointmentV1RepositoryImplTest {
     }
 
     @Test
-    fun `rescheduleAppointment returns updated appointment`() = runTest {
-        server.enqueue(
-            MockResponse().setResponseCode(200).setBody(
-                """
-                {"data":{"id":4,"appointment_number":"APT-004","appointment_type":"New Patient",
-                 "duration_minutes":30,"referring_source":null,"status":"scheduled",
-                 "scheduled_at":"2026-08-01T13:00:00+08:00","contact_notes":null,
-                 "reason_for_visit":null,"last_reschedule_reason":"Patient request","source":"mobile",
-                 "assigned_optometrist":null}}
-                """.trimIndent(),
-            ),
-        )
-
-        val result = repository.rescheduleAppointment(4, "2026-08-01T13:00:00+08:00")
-        assertTrue(result.isSuccess)
-        assertEquals("2026-08-01T13:00:00+08:00", result.getOrThrow().scheduledAt)
-    }
-
-    @Test
     fun `getAppointment maps reason_for_visit`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
