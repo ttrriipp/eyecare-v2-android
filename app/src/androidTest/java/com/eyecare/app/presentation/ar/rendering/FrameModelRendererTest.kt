@@ -1,8 +1,10 @@
 package com.eyecare.app.presentation.ar.rendering
 
 import android.os.SystemClock
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import com.eyecare.app.presentation.ar.model.BundledFrameAsset
 import java.util.concurrent.atomic.AtomicReference
@@ -36,8 +38,8 @@ class FrameModelRendererTest {
 
         assertTrue(state.get() is FrameModelRenderState.Failed)
         composeRule
-            .onNodeWithText("Unable to load the bundled 3D frame. Try the image preview instead.")
-            .assertIsDisplayed()
+            .onAllNodesWithText("Unable to load the bundled 3D frame. Try the image preview instead.")
+            .assertCountEquals(1)
     }
 
     @Test

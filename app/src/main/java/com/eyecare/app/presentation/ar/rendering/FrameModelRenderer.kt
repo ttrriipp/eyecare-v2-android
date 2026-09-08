@@ -122,18 +122,7 @@ fun FrameModelRenderer(
             .fillMaxSize()
             .testTag(FRAME_MODEL_RENDERER_TAG),
     ) {
-        when (val check = assetCheck) {
-            AssetCheck.Checking -> if (showStatus) {
-                RendererStatus(
-                    message = "Checking frame model",
-                    showProgress = true,
-                )
-            }
-
-            is AssetCheck.Invalid -> if (showStatus) {
-                RendererStatus(message = check.message)
-            }
-
+        when (assetCheck) {
             AssetCheck.Valid -> {
                 ModelScene(
                     source = source,
@@ -145,13 +134,20 @@ fun FrameModelRenderer(
                     onRenderStateChange = { renderState = it },
                 )
             }
+
+            AssetCheck.Checking,
+            is AssetCheck.Invalid,
+            -> Unit
         }
 
         if (showStatus) {
             when (val state = renderState) {
-                FrameModelRenderState.CheckingAsset,
-                FrameModelRenderState.Loading,
-                -> RendererStatus(
+                FrameModelRenderState.CheckingAsset -> RendererStatus(
+                    message = "Checking frame model",
+                    showProgress = true,
+                )
+
+                FrameModelRenderState.Loading -> RendererStatus(
                     message = "Loading 3D frame",
                     showProgress = true,
                 )
