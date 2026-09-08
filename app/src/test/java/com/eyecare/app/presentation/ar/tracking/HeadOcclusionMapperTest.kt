@@ -19,6 +19,7 @@ class HeadOcclusionMapperTest {
             config = HeadOcclusionMappingConfig(
                 mirrorFrontCamera = false,
                 centralFaceMarginNorm = 0.05f,
+                boundaryPaddingPixels = 0,
             ),
         )
 
@@ -27,6 +28,28 @@ class HeadOcclusionMapperTest {
         assertTrue(checkNotNull(mask).isActive(9, 0))
         assertEquals(0, checkNotNull(mask).alphaAt(3, 0))
         assertEquals(0, checkNotNull(mask).alphaAt(6, 0))
+    }
+
+    @Test
+    fun `boundary padding closes small side-mask gaps without entering central face corridor`() {
+        val mask = mapHeadOcclusionMask(
+            segmentation = segmentation(width = 20, height = 3) { x, _ ->
+                if (x == 2) 0.9f else 0f
+            },
+            face = face(),
+            viewport = HeadOcclusionViewport(widthPx = 500f, heightPx = 500f),
+            config = HeadOcclusionMappingConfig(
+                mirrorFrontCamera = false,
+                centralFaceMarginNorm = 0.05f,
+                boundaryPaddingPixels = 2,
+            ),
+        )
+
+        assertTrue(checkNotNull(mask).isActive(0, 1))
+        assertTrue(checkNotNull(mask).isActive(1, 1))
+        assertTrue(checkNotNull(mask).isActive(2, 1))
+        // x=4 is inside the central corridor (0.20..0.80) and must stay clear.
+        assertEquals(0, checkNotNull(mask).alphaAt(4, 1))
     }
 
     @Test

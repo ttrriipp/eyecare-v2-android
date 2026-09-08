@@ -212,10 +212,10 @@ private fun ActiveTryOnContent(
             )
         }
 
-        // Keep the segmentation proof layer debug-only. It is deliberately
-        // above the model so side-head alignment and central-face exclusion
-        // can be inspected before introducing a GPU compositor.
-        if (BuildConfig.DEBUG) {
+        // Keep the segmentation proof layer debug-only and opt-in. It is deliberately
+        // above the model when enabled so side-head alignment and central-face
+        // exclusion can be inspected without tinting the normal preview.
+        if (BuildConfig.DEBUG && HeadSegmenterConfig.SHOW_DEBUG_OVERLAY) {
             HeadOcclusionDebugOverlay(
                 modifier = Modifier.fillMaxSize(),
                 face = state.face,

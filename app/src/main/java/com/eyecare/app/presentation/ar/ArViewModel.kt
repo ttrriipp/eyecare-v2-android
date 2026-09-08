@@ -111,14 +111,28 @@ class ArViewModel @AssistedInject constructor(
 
         when (state) {
             is ArFaceState.Detected -> {
-                latestFace = state.frame
-                latestPose = poseStabilizer.update(
-                    pose = mapFacePose(
-                        matrix = state.frame.transformationMatrix,
-                        calibration = poseCalibration,
-                    ),
-                    timestampMs = state.frame.timestampMs,
-                )
+                val previousFace = latestFace
+                when {
+                    previousFace == null || state.frame.timestampMs > previousFace.timestampMs -> {
+                        latestFace = state.frame
+                        latestPose = poseStabilizer.update(
+                            pose = mapFacePose(
+                                matrix = state.frame.transformationMatrix,
+                                calibration = poseCalibration,
+                            ),
+                            timestampMs = state.frame.timestampMs,
+                        )
+                    }
+
+                    state.frame.timestampMs == previousFace.timestampMs -> {
+                        // The mask pairer republishes this face timestamp when the asynchronous
+                        // segmentation callback arrives. Attach the richer frame, but do not
+                        // feed a duplicate timestamp into PoseStabilizer (which would reset the
+                        // pose and make the rendered frame blink).
+                        latestFace = state.frame
+                    }
+                    // Older callbacks cannot move the renderer backwards.
+                }
             }
 
             ArFaceState.NoFace,

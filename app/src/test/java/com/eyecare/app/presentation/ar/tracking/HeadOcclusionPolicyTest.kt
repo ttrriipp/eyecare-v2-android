@@ -38,12 +38,52 @@ class HeadOcclusionPolicyTest {
     }
 
     @Test
-    fun `mask from a different source timestamp cannot activate`() {
+    fun `recent mask reuse can activate within the freshness window`() {
+        val policy = HeadOcclusionPolicy(maxFreshnessMs = 100L)
+
+        assertEquals(
+            HeadOcclusionMode.Mask,
+            policy.select(face = face(1_033L), mask = mask(1_000L, 0.9f), nowTimestampMs = 1_033L),
+        )
+    }
+
+    @Test
+    fun `front-facing pose keeps head mask disabled`() {
         val policy = HeadOcclusionPolicy()
 
         assertEquals(
             HeadOcclusionMode.TempleFallback,
-            policy.select(face = face(1_000L), mask = mask(999L, 0.9f), nowTimestampMs = 1_000L),
+            policy.select(
+                face = face(1_000L),
+                mask = mask(1_000L, 0.9f),
+                nowTimestampMs = 1_000L,
+                yawDegrees = 0f,
+            ),
+        )
+    }
+
+    @Test
+    fun `oblique pose allows current head mask`() {
+        val policy = HeadOcclusionPolicy()
+
+        assertEquals(
+            HeadOcclusionMode.Mask,
+            policy.select(
+                face = face(1_000L),
+                mask = mask(1_000L, 0.9f),
+                nowTimestampMs = 1_000L,
+                yawDegrees = 30f,
+            ),
+        )
+    }
+
+    @Test
+    fun `mask older than the freshness window cannot activate`() {
+        val policy = HeadOcclusionPolicy(maxFreshnessMs = 100L)
+
+        assertEquals(
+            HeadOcclusionMode.TempleFallback,
+            policy.select(face = face(1_101L), mask = mask(1_000L, 0.9f), nowTimestampMs = 1_101L),
         )
     }
 

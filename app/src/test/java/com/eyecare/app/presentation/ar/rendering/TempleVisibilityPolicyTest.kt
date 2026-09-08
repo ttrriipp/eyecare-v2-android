@@ -55,4 +55,28 @@ class TempleVisibilityPolicyTest {
         assertEquals(TempleVisibility.RightOnly, policy.update(-40f))
         assertEquals(TempleVisibility.Both, policy.update(Float.NaN))
     }
+
+    @Test
+    fun `head mask keeps conservative far-temple fallback at oblique yaw`() {
+        assertEquals(
+            TempleVisibility.LeftOnly,
+            TempleVisibility.LeftOnly.withHeadOcclusionSafety(),
+        )
+        assertEquals(
+            TempleVisibility.RightOnly,
+            TempleVisibility.RightOnly.withHeadOcclusionSafety(),
+        )
+    }
+
+    @Test
+    fun `head mask restores both temples only for frontal fallback`() {
+        assertEquals(
+            TempleVisibility.Both,
+            TempleVisibility.None.withHeadOcclusionSafety(),
+        )
+        assertEquals(
+            TempleVisibility.Both,
+            TempleVisibility.Both.withHeadOcclusionSafety(),
+        )
+    }
 }

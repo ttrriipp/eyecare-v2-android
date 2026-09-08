@@ -18,6 +18,8 @@ internal data class HeadOcclusionMappingConfig(
     val mirrorFrontCamera: Boolean = true,
     val confidenceThreshold: Float = DEFAULT_CONFIDENCE_THRESHOLD,
     val centralFaceMarginNorm: Float = DEFAULT_CENTRAL_FACE_MARGIN_NORM,
+    /** Expands confident side pixels to cover the segmenter's soft boundary. */
+    val boundaryPaddingPixels: Int = DEFAULT_BOUNDARY_PADDING_PIXELS,
 ) {
 
     init {
@@ -33,12 +35,17 @@ internal data class HeadOcclusionMappingConfig(
         ) {
             "Central face margin must be between 0 and $MAX_CENTRAL_FACE_MARGIN_NORM"
         }
+        require(boundaryPaddingPixels in 0..MAX_BOUNDARY_PADDING_PIXELS) {
+            "Boundary padding must be between 0 and $MAX_BOUNDARY_PADDING_PIXELS pixels"
+        }
     }
 
     private companion object {
         const val DEFAULT_CONFIDENCE_THRESHOLD = 0.6f
         const val DEFAULT_CENTRAL_FACE_MARGIN_NORM = 0.04f
         const val MAX_CENTRAL_FACE_MARGIN_NORM = 0.25f
+        const val DEFAULT_BOUNDARY_PADDING_PIXELS = 2
+        const val MAX_BOUNDARY_PADDING_PIXELS = 4
     }
 }
 
@@ -107,7 +114,7 @@ internal fun mapHeadOcclusionMask(
     if (centralLeft >= centralRight) return null
 
     val alpha = ByteArray(segmentation.imageWidth * segmentation.imageHeight)
-    var activePixelCount = 0
+    var sourceActivePixelCount = 0
     var confidenceSum = 0f
     for (y in 0 until segmentation.imageHeight) {
         for (x in 0 until segmentation.imageWidth) {
@@ -121,11 +128,44 @@ internal fun mapHeadOcclusionMask(
 
             val byteAlpha = (confidence * 255f).roundToInt().coerceIn(1, 255)
             alpha[y * segmentation.imageWidth + x] = byteAlpha.toByte()
-            activePixelCount++
+            sourceActivePixelCount++
             confidenceSum += confidence
         }
     }
-    if (activePixelCount == 0) return null
+    if (sourceActivePixelCount == 0) return null
+
+    // Selfie segmentation intentionally returns a soft person boundary. A
+    // small source-space expansion prevents a temple from leaking through a
+    // one- or two-pixel confidence gap, while reapplying the central corridor
+    // guard keeps the front frame and face surface out of this side mask.
+    var activePixelCount = sourceActivePixelCount
+    for (y in 0 until segmentation.imageHeight) {
+        for (x in 0 until segmentation.imageWidth) {
+            val sourceConfidence = segmentation.confidenceAt(x, y)
+            if (sourceConfidence < config.confidenceThreshold) continue
+
+            val byteAlpha = (sourceConfidence * 255f).roundToInt().coerceIn(1, 255)
+            val minX = (x - config.boundaryPaddingPixels).coerceAtLeast(0)
+            val maxX = (x + config.boundaryPaddingPixels)
+                .coerceAtMost(segmentation.imageWidth - 1)
+            val minY = (y - config.boundaryPaddingPixels).coerceAtLeast(0)
+            val maxY = (y + config.boundaryPaddingPixels)
+                .coerceAtMost(segmentation.imageHeight - 1)
+            for (expandedY in minY..maxY) {
+                for (expandedX in minX..maxX) {
+                    val expandedSourceX = (expandedX + 0.5f) / maskWidth
+                    if (expandedSourceX in centralLeft..centralRight) continue
+
+                    val expandedIndex = expandedY * segmentation.imageWidth + expandedX
+                    val previousAlpha = alpha[expandedIndex].toInt() and 0xFF
+                    if (previousAlpha == 0) activePixelCount++
+                    if (byteAlpha > previousAlpha) {
+                        alpha[expandedIndex] = byteAlpha.toByte()
+                    }
+                }
+            }
+        }
+    }
 
     return HeadOcclusionMask.from(
         imageWidth = segmentation.imageWidth,
@@ -137,7 +177,7 @@ internal fun mapHeadOcclusionMask(
         cropX = cropX,
         cropY = cropY,
         mirrorFrontCamera = config.mirrorFrontCamera,
-        confidence = (confidenceSum / activePixelCount).coerceIn(0f, 1f),
+        confidence = (confidenceSum / sourceActivePixelCount).coerceIn(0f, 1f),
         activePixelCount = activePixelCount,
         alpha = alpha,
     )

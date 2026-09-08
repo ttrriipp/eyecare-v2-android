@@ -47,8 +47,8 @@ internal class TempleVisibilityPolicy(
         val absoluteYaw = abs(yawDegrees)
         if (absoluteYaw <= showYawDegrees) {
             // In a frontal fallback view the temples sit behind the wearer's face. Hide both
-            // rather than drawing the rear arms through transparent lenses; depth occlusion, when
-            // active, deliberately overrides this fallback and restores both renderables.
+            // rather than drawing the rear arms through transparent lenses. The head mask may
+            // restore both renderables once its depth mesh is current.
             hiddenTemple = null
             return TempleVisibility.None
         }
@@ -78,4 +78,18 @@ internal class TempleVisibilityPolicy(
         const val DEFAULT_HIDE_YAW_DEGREES = 24f
         const val DEFAULT_SHOW_YAW_DEGREES = 22f
     }
+}
+
+/**
+ * Keeps the proven far-temple guard at oblique yaw while allowing the head mask
+ * to restore both renderables in the frontal view.
+ */
+internal fun TempleVisibility.withHeadOcclusionSafety(): TempleVisibility = when (this) {
+    TempleVisibility.LeftOnly,
+    TempleVisibility.RightOnly,
+    -> this
+
+    TempleVisibility.None,
+    TempleVisibility.Both,
+    -> TempleVisibility.Both
 }

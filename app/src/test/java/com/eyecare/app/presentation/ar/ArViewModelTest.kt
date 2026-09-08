@@ -157,6 +157,29 @@ class ArViewModelTest {
     }
 
     @Test
+    fun `duplicate face timestamp used for mask attachment preserves the pose`() {
+        val viewModel = viewModel()
+        drain()
+        viewModel.onPermissionResult(granted = true)
+
+        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 100L)))
+        val firstPose = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        ).pose
+        assertNotNull(firstPose)
+
+        // ArFrameMaskPairer emits the same face again when the asynchronous mask arrives.
+        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 100L)))
+
+        val secondPose = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        ).pose
+        assertEquals(firstPose, secondPose)
+    }
+
+    @Test
     fun `invalid mapped transform keeps tracking but leaves pose unavailable for image fallback`() {
         val viewModel = viewModel()
         drain()

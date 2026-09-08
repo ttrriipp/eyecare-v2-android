@@ -206,21 +206,22 @@ internal class HeadOcclusionNode private constructor(
 
         /**
          * Builds the fixed-capacity vertex list used both at creation and on
-         * every update. The last four vertices form a degenerate quad with a
-         * non-empty extent, so its triangles never write depth but always keep
-         * Filament's AABB valid.
+         * every update. The last four vertices form a tiny quad behind the AR
+         * camera. It is never visible, but gives Filament a non-zero extent on
+         * all three axes (a flat/collinear sentinel is still an empty AABB).
          */
         private fun placeholderVertices(): List<Geometry.Vertex> = buildList(MAX_VERTEX_COUNT) {
             repeat(CELL_VERTEX_COUNT) {
                 add(Geometry.Vertex(position = Position()))
             }
-            add(Geometry.Vertex(position = Position(x = 0f, y = 0f, z = 0f)))
-            add(Geometry.Vertex(position = Position(x = 0f, y = 0f, z = 0f)))
-            add(Geometry.Vertex(position = Position(x = 0f, y = 0f, z = 0f)))
-            add(Geometry.Vertex(position = Position(x = SENTINEL_EXTENT, y = 0f, z = 0f)))
+            add(Geometry.Vertex(position = Position(x = 0f, y = 0f, z = SENTINEL_DEPTH)))
+            add(Geometry.Vertex(position = Position(x = SENTINEL_EXTENT, y = 0f, z = SENTINEL_DEPTH)))
+            add(Geometry.Vertex(position = Position(x = SENTINEL_EXTENT, y = SENTINEL_EXTENT, z = SENTINEL_DEPTH)))
+            add(Geometry.Vertex(position = Position(x = 0f, y = SENTINEL_EXTENT, z = SENTINEL_DEPTH)))
         }
 
         private const val SENTINEL_EXTENT = 0.001f
+        private const val SENTINEL_DEPTH = 1f
 
         private fun triangleIndices(): List<Int> = buildList(MAX_GRID_SIZE * MAX_GRID_SIZE * 6 + 6) {
             repeat(MAX_GRID_SIZE * MAX_GRID_SIZE) { cellIndex ->
