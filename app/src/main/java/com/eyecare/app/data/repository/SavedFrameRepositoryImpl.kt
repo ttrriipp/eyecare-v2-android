@@ -66,7 +66,7 @@ class SavedFrameRepositoryImpl @Inject constructor(
         id = id,
         name = name,
         brand = brand,
-        category = category,
+        category = category.orEmpty(),
     )
 
     private fun FrameDtos.ArAssetDto.toDomain() = ArAsset(

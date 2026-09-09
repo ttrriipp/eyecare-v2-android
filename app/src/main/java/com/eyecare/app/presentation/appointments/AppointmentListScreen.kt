@@ -91,6 +91,7 @@ import com.eyecare.app.presentation.appointments.requests.hasReachedActiveAppoin
 import com.eyecare.app.presentation.appointments.requests.requestStatusPresentation
 import com.eyecare.app.ui.theme.EyecareTheme
 import com.eyecare.app.ui.theme.EyecareColors
+import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -552,12 +553,6 @@ private fun AppointmentCard(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
-                            "Confirmed appointment",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = EyecareColors.current.accentText,
-                        )
-                        Text(
                             formatAppointmentTitle(appointment.appointmentType),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
@@ -581,6 +576,10 @@ private fun AppointmentCard(
                 AppointmentInfoRow(
                     icon = Icons.Outlined.AccessTime,
                     text = formatAppointmentTime(appointment.scheduledAt),
+                )
+                AppointmentInfoRow(
+                    icon = Icons.Outlined.AccessTime,
+                    text = "${appointment.durationMinutes} min visit",
                 )
 
                 if (onRateClick != null) {
@@ -799,6 +798,18 @@ private fun AppointmentListContent(
         confirmedState is AppointmentListUiState.Loading ||
         confirmedState is AppointmentListUiState.Error
     val hasStaleDataWarning = requestRefreshError != null || confirmedRefreshError != null
+    val isInitialLoading = visibleAppointments.isEmpty() &&
+        visibleRequests.isEmpty() &&
+        (requestState is RequestListState.Loading || confirmedState is AppointmentListUiState.Loading)
+    var showInitialLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isInitialLoading) {
+        showInitialLoading = false
+        if (isInitialLoading) {
+            delay(300)
+            showInitialLoading = true
+        }
+    }
 
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 112.dp),
@@ -836,8 +847,8 @@ private fun AppointmentListContent(
                 )
             }
         }
-        if (requestState is RequestListState.Loading) {
-            item { RequestListLoadingRow("Loading appointment requests") }
+        if (showInitialLoading) {
+            item { AppointmentsLoadingCard() }
         }
         if (requestState is RequestListState.Error) {
             item {
@@ -854,9 +865,6 @@ private fun AppointmentListContent(
                     onRetry = onRefreshRequests,
                 )
             }
-        }
-        if (confirmedState is AppointmentListUiState.Loading) {
-            item { RequestListLoadingRow("Loading confirmed appointments") }
         }
         if (confirmedState is AppointmentListUiState.Error) {
             item {
@@ -973,15 +981,35 @@ private fun AppointmentListContent(
 }
 
 @Composable
-private fun RequestListLoadingRow(message: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
+private fun AppointmentsLoadingCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(message, style = MaterialTheme.typography.bodySmall)
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "Loading appointments",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Checking your requests and confirmed visits",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
@@ -1076,12 +1104,6 @@ private fun AppointmentRequestCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        "Appointment request",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = EyecareColors.current.accentText,
-                    )
-                    Text(
                         text = appointmentRequestTitle(request),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -1090,13 +1112,7 @@ private fun AppointmentRequestCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = buildString {
-                            append("Request ${request.requestNumber}")
-                            durationLabel?.let {
-                                append(" · ")
-                                append(it)
-                            }
-                        },
+                        text = "Request ${request.requestNumber}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1126,6 +1142,9 @@ private fun AppointmentRequestCard(
                 )
                 AppointmentInfoRow(Icons.Outlined.CalendarMonth, formatAppointmentDate(request.scheduledAt))
                 AppointmentInfoRow(Icons.Outlined.AccessTime, formatAppointmentTime(request.scheduledAt))
+                durationLabel?.let { duration ->
+                    AppointmentInfoRow(Icons.Outlined.AccessTime, duration)
+                }
 
                 if (presentation.showViewConfirmed && confirmedAppointmentId != null) {
                     Row(

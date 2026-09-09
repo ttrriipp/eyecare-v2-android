@@ -41,7 +41,6 @@ import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
 import com.eyecare.app.ui.theme.EyecareColors
-import java.math.BigDecimal
 
 @Composable
 fun OpticalOrderListContent(
@@ -186,6 +185,9 @@ private fun OrderCard(
     order: OpticalOrder,
     onClick: () -> Unit,
 ) {
+    val featuredItem = order.items.firstOrNull { !it.imagePath.isNullOrBlank() }
+        ?: order.items.firstOrNull()
+
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -193,25 +195,29 @@ private fun OrderCard(
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                OrderItemImage(
+                    imagePath = featuredItem?.imagePath,
+                    description = featuredItem?.description ?: "Eyewear item",
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        orderReferenceLabel(order.orderNumber),
+                        orderCardTitle(order),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        orderCardTitle(order),
+                        orderReferenceLabel(order.orderNumber),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -222,35 +228,36 @@ private fun OrderCard(
                 )
             }
 
-            val statusColor = orderStatusColor(order.status)
-            val statusTextColor = orderStatusTextColor(order.status)
-            Surface(shape = RoundedCornerShape(50), color = statusColor.copy(alpha = 0.12f)) {
-                Text(
-                    orderStatusLabel(order.status),
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = statusTextColor,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val statusColor = orderStatusColor(order.status)
+                val statusTextColor = orderStatusTextColor(order.status)
+                Surface(shape = RoundedCornerShape(50), color = statusColor.copy(alpha = 0.12f)) {
+                    Text(
+                        orderStatusLabel(order.status),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusTextColor,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "Order total",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        formatPeso(order.totalAmount),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = EyecareColors.current.accentText,
+                    )
+                }
             }
-
-            val balanceDue = order.paymentSummary?.balanceDue?.takeIf { it > BigDecimal.ZERO }
-            if (balanceDue != null) {
-                Text(
-                    "Balance due: ${formatPeso(balanceDue)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            } else {
-                Text(
-                    "Total: ${formatPeso(order.totalAmount)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = EyecareColors.current.accentText,
-                )
-            }
-
         }
     }
 }

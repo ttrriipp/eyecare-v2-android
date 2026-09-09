@@ -81,6 +81,25 @@ class SavedFrameRepositoryImplTest {
     }
 
     @Test
+    fun `save maps a null product category to an empty domain value`() = runTest {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    ApiContractFixtures.savedFrameSaveResponse.replace(
+                        "\"category\": \"Full Rim\"",
+                        "\"category\": null",
+                    ),
+                ),
+        )
+
+        val result = repository.save(42)
+
+        assertTrue(result.isSuccess)
+        assertEquals("", result.getOrNull()!!.variant.product.category)
+    }
+
+    @Test
     fun `remove treats 204 as success`() = runTest {
         server.enqueue(MockResponse().setResponseCode(204))
 

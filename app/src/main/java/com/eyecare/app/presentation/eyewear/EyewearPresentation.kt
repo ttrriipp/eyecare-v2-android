@@ -41,7 +41,7 @@ fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
     OpticalOrderStatus.QUEUED -> "Preparing"
     OpticalOrderStatus.IN_PROGRESS -> "In preparation"
     OpticalOrderStatus.READY_FOR_DISPENSING -> "Ready for pickup"
-    OpticalOrderStatus.DISPENSED -> "Released to you"
+    OpticalOrderStatus.DISPENSED -> "Picked up"
     OpticalOrderStatus.CANCELLED -> "Cancelled"
     OpticalOrderStatus.UNKNOWN -> "Status unavailable"
 }
@@ -109,7 +109,7 @@ fun orderDateLabelFull(order: OpticalOrder): Pair<String, String> {
     val ts = order.cancelledAt ?: order.dispensedAt ?: order.readyAt ?: order.startedAt ?: order.createdAt
     val label = when {
         order.cancelledAt != null -> "Cancelled"
-        order.dispensedAt != null -> "Released"
+        order.dispensedAt != null -> "Picked up"
         order.readyAt != null -> "Ready"
         order.startedAt != null -> "Started"
         else -> "Created"
@@ -153,7 +153,7 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
                 TrackerStep.RELEASED to true,
             ),
             activeStep = null,
-            terminalMessage = "Released to you",
+            terminalMessage = "Order picked up",
         )
         OpticalOrderStatus.CANCELLED -> TrackerState(
             steps = listOf(

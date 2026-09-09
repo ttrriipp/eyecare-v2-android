@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-30.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-09-08.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -23,6 +23,85 @@
 > records per source. The admin-only **Reports** cluster now provides
 > aggregate Financial, Appointments, Optical Orders, and Feedback pages with
 > shared clinic-timezone filters and safe CSV exports.
+
+> **Shipped (2026-09-07): patient-action admin database notifications.** Eight
+> operational patient events now create queued, after-commit Filament bell
+> alerts: appointment-request submission and cancellation, patient-link-request
+> submission, patient conversation messages, confirmed-appointment cancellation
+> and rescheduling, and new or materially revised 1–2 star visit and frame
+> ratings. `NotifyAdminUsers` sends only to active users with `staff` or `admin`
+> roles; optometrist-only and inactive accounts are excluded. Every alert has a
+> mark-as-read **View** action to the relevant admin screen. Repeated pending
+> link requests and identical low-rating retries are deduplicated, while
+> clinic-initiated appointment changes and 3–5 star ratings remain silent.
+> Delivery failure is reported without rolling back or changing a successful
+> patient API response, and notification bodies omit medical reasons, identity
+> snapshots, message content, and rating comments. The approved contract is in
+> `docs/specs/admin-patient-action-notifications-spec.md`.
+
+> **Shipped (2026-09-08): patient in-app notifications for clinic actions.**
+> The existing mobile notification feed now receives queued, after-commit,
+> deduplicated alerts for appointment request decisions, clinic appointment
+> changes, completed visits and available prescriptions, optical-order
+> confirmation/readiness/cancellation/release, standalone payment recording or
+> correction, and staff replies. Each new payload carries a stable snake-case
+> `kind` and closed, typed `mobile_action` for Android navigation. The earlier
+> patient-app-relative `action_url`, `related_type`, and `related_id` fields are
+> retained additively for compatibility but do not drive Android navigation.
+> Immediate fulfillment and payments collected during order confirmation or dispensing
+> are coalesced to avoid duplicate alerts. Internal workflow stages,
+> patient-invisible quotation changes, and patient-initiated actions remain
+> silent. Bodies omit clinical details, reasons, notes, message contents, and
+> payment method/reference data. The approved contract is in
+> `docs/specs/patient-in-app-notifications-spec.md`.
+
+> **Reconciled (2026-09-07): appointment-request cancellation and active
+> limit.** `POST /api/v1/appointment-requests` allows at most two active
+> requests, defined as stored `pending` rows with `expires_at` in the future.
+> Cancelled, accepted, rejected, and expired requests remain historical but do
+> not consume the limit. Cancellation persists `status: cancelled`; cancelling
+> both active requests therefore permits a third submission. A rejected third
+> active request returns HTTP 422 with
+> `error.code: ACTIVE_REQUEST_LIMIT_REACHED` and `max_active_requests: 2`.
+
+> **Shipped (2026-09-08): unified patient rebooking requests.** Patients use
+> the existing `POST /api/v1/appointment-requests` workflow for both new
+> bookings and changes to a confirmed appointment. Supplying an owned,
+> future scheduled `appointment_id` creates a new linked row with
+> `request_type: reschedule` and an `original_scheduled_at` snapshot; it never
+> reopens the original request or moves the appointment during submission.
+> Pending rebooking proposals do not reserve candidate capacity. Staff review
+> them in the existing Appointment Requests queue and, on approval, move the
+> same appointment atomically, set `selected_scheduled_at`, and append exactly
+> one `AppointmentReschedule` history row. Rejection, cancellation, expiry,
+> stale appointment state, or a conflict leaves the appointment unchanged.
+> Patient outcome SMS/database delivery and the internal admin alert reuse the
+> existing appointment-change notification boundary. The former direct patient
+> `POST /api/v1/appointments/{appointment}/reschedule` route is retired.
+> The canonical backend specification and implementation plan are maintained
+> in this repository at `docs/specs/appointment-request-rebooking-spec.md` and
+> `tasks/appointment-request-rebooking-plan.md`. The Android repository should
+> consume the API contract below and does not need to mirror these backend-only
+> planning files.
+
+> **Shipped (2026-09-08): staff-panel authenticator removal.** The Filament
+> staff/admin panel now uses password-only authentication. The app/TOTP MFA
+> provider, enrollment UI, and `users.app_authentication_secret` storage were
+> removed. Role authorization, password policy, single-session protection, and
+> authentication audit events remain active. Patient SMS OTP, invitation OTP,
+> recovery OTP, and sensitive-change step-up OTP are unchanged.
+
+> **Android handoff and deployment ordering:** The Android rebooking screen
+> should read `GET /api/v1/appointment-availability` with the owned
+> `appointment_id`, then submit the chosen time through
+> `POST /api/v1/appointment-requests` with that same ID. It must not send a
+> replacement type, duration, referring source, or identity payload. Apply the
+> migration before serving writers for the new columns, and release the Android
+> unified-request flow before removing the legacy direct-reschedule route (or
+> perform both as one minimum-version cutover). Existing new-booking clients
+> remain compatible because `appointment_id` is optional. Once linked rows
+> exist, production recovery is forward-only: restoring the old unique index
+> would conflict with valid historical rows that reference the same appointment.
 
 > **Consultation presentation terminology (2026-08-21).** The Filament panel
 > presents the backend `Encounter` record as a **Consultation** across clinical,
@@ -188,8 +267,11 @@
 > `message_context_links` table are removed. The send throttle is
 > 10 requests/minute. Notification feed routes (`GET /notifications`,
 > `GET /notifications/unread-count`, `PATCH /notifications/{notification}/read`,
-> `PATCH /notifications/read-all`) are wired. Both parties are notified
-> of new messages (`NewMessageReceived`); deactivated staff are excluded.
+> `PATCH /notifications/read-all`) are wired. Staff-to-patient messages use the
+> shared patient notification contract with `kind: new_message` and a typed
+> `conversation` mobile action. Patient-to-staff
+> messages create the operational `AdminDatabaseNotification` described above;
+> inactive staff and administrators are excluded.
 > `GET /conversation/messages/search?q=` provides conversation-scoped MySQL
 > FULLTEXT message search. `GET /conversation/messages` and the search endpoint
 > are cursor-paginated newest-first with stable `(created_at, id)` ordering
@@ -297,7 +379,9 @@
 > `products` table no longer has `lens_category_id`; permitted product types
 > are `frame`, `contact_lens`, `accessory`. The commerce reconciliation reduced
 > the route count from 55 to 54; subsequent messaging hardening brought the
-> current total to 61. The historical aggregate-only inventory simplification
+> total to 61 before later coordinated mobile cutovers. The current canonical
+> inventory is 58 routes (see the Mobile REST API section). The historical
+> aggregate-only inventory simplification
 > was superseded by the contact-lens lot tracking shipped on 2026-08-28 (see
 > the current inventory note above).
 >
@@ -321,6 +405,9 @@ keeping the domain actions as the server-side source of truth:
 - **Appointment requests and scheduling.** Request review shows the patient
   and internal appointment-type labels, provisional duration, referral
   context, all submitted time alternatives, request age, and overdue state.
+  Linked rebooking rows identify the current appointment and remain in the
+  same queue; the review page derives and locks the existing type, duration,
+  and provider while staff choose the final available time.
   Acceptance and staff-created or edited appointments revalidate active
   appointment types, 5-minute duration bounds, referral requirements, and
   schedule-grid availability. A final accepted time outside the submitted
@@ -573,7 +660,7 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 
 | Area | Staff | Optometrist | Admin |
 |---|---|---|---|
-| Panel login and own profile/MFA | Yes | Yes | Yes |
+| Panel login and own profile | Yes | Yes | Yes |
 | Appointments: view, create, check-in, reschedule, cancel, no-show | Yes | Yes | Yes |
 | Appointments: bulk cancellation | No | No | Yes |
 | Encounters: view | Yes | Yes | Yes |
@@ -621,7 +708,7 @@ Every panel account can manage its own credentials via the panel's Profile page 
 
 Staff/admin accounts used to be entirely admin-managed: an admin typed each user's initial password directly into the Staff Accounts form, and there was no way to disable an account short of deleting it (which is unsafe — see the `users` table note above). Both gaps are closed:
 
-- **Self-service.** The panel exposes `->profile()` (`App\Filament\Pages\Auth\EditProfile`, extending Filament's base to swap the single `name` field for structured `first_name`/`middle_name`/`last_name`) and `->passwordReset()`. Every staff/admin account can change its own name, email, and password, and enrol TOTP MFA, without admin involvement. Changing the password requires the current password (Filament's built-in `currentPassword` field).
+- **Self-service.** The panel exposes `->profile()` (`App\Filament\Pages\Auth\EditProfile`, extending Filament's base to swap the single `name` field for structured `first_name`/`middle_name`/`last_name`) and `->passwordReset()`. Every staff/admin account can change its own name, email, and password without admin involvement. Changing the password requires the current password (Filament's built-in `currentPassword` field).
 - **Password policy.** `Password::defaults()` is configured once in `AppServiceProvider::boot()` (`min(12)->mixedCase()->numbers()` in production, `min(8)` elsewhere) and used by both the Staff Accounts form and the profile page, replacing a bare `minLength(8)`.
 - **Forced first-login password change.** When an admin creates a user or resets an existing user's password on their behalf, `must_change_password` is set (`CreateUser::mutateFormDataBeforeCreate()`, and `UserObserver::saving()` for admin-initiated password changes on someone else's account — distinguished from self-service by comparing `auth()->id()` to the record being saved). The `EnsurePasswordIsChanged` middleware (registered in the panel's `authMiddleware`) redirects any such user to the profile page until they change it themselves, while still allowing the profile page and logout so they're never locked out. `password_changed_at` is stamped whenever the password changes.
 - **Deactivation, not deletion.** Admins can activate/deactivate any staff/admin account from the Staff Accounts table (`toggleActive` action), guarded so the last active admin cannot be deactivated (mirrors the existing last-admin-demotion guard on role changes). A deactivated account fails `canAccessPanel()` immediately and is excluded from `scopeOptometrists()`, but every record they authored (encounters, prescriptions, provider hours, audit entries) is untouched.
@@ -672,7 +759,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected/expired), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. New snapshots include normalized nullable `middle_name`; historical snapshots without it compare as null. Actual account identity or relevant verified-contact changes expire pending requests while preserving snapshot and candidate evidence; expiry audits store only safe reason categories. |
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
-| `appointment_requests` | Patient appointment requests. `request_number`, `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (unique), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required when type requires referral), `encrypted_identity_snapshot` for unlinked submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time for new requests), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
+| `appointment_requests` | Patient appointment requests. `request_number`, `request_type` (`new`/`reschedule`), `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (optional association for new requests and required association for rebooking; not unique), `original_scheduled_at` (rebooking snapshot), `selected_scheduled_at` (staff-selected rebooking result), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type or current appointment), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required only when a new type requires referral), `encrypted_identity_snapshot` for unlinked new submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity; rebooking proposals specifically do not hold their candidate slots. The per-account maximum of two counts only actionable pending rows: stored `pending` rows with a future `expires_at`, with rebooking rows counted only while their associated appointment remains scheduled. Cancelled, accepted, rejected, expired, and stale rebooking rows do not count. Cancellation persists the `cancelled` enum value, so historical rows remain visible while a replacement request can be submitted. A rebooking approval moves the existing appointment and appends one immutable `appointment_reschedules` row; the original accepted booking request remains unchanged. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
 | `appointment_type_visit_reason_presets` | Backend-managed patient-facing suggestions belonging to an appointment type. Stores `appointment_type_id`, `label` (trimmed, nonblank, max 255 characters), `sort_order`, and `is_active`; inactive presets remain editable by clinic administrators but are excluded from the mobile appointment-type catalog. `Other` is client-provided and is never stored here. |
 | `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
@@ -788,7 +875,7 @@ unlinked choices, and deletes the legacy rows atomically.
 
 URL: `/admin` — accessible to users with at least one of `admin`, `optometrist`, or `staff` roles. `canAccessPanel()` also requires `is_active`, so a deactivated account is blocked regardless of role.
 
-Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::class)`, `->profile(EditProfile::class, isSimple: false)`, `->passwordReset()`, and `->multiFactorAuthentication([AppAuthentication::make()], isRequired: app()->isProduction())` (TOTP, required in production, optional and enrollable via the profile page otherwise). `EnsurePasswordIsChanged` runs as panel `authMiddleware` alongside Filament's `Authenticate`.
+Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::class)`, `->profile(EditProfile::class, isSimple: false)`, and `->passwordReset()`. The panel uses password-only authentication; `EnsurePasswordIsChanged` runs as panel `authMiddleware` alongside Filament's `Authenticate`.
 
 **Navigation groups (in order), workflow-shaped rather than by data domain:**
 - Today — Appointments, Appointment Requests, Availability (cluster)
@@ -948,11 +1035,10 @@ patient link. Staff see them only through a Patient's current link.
 
 ### Active Patient Link Required (token + active link)
 ```
-GET    /api/v1/appointment-availability
+GET    /api/v1/appointment-availability              Rebooking availability
 GET    /api/v1/appointments
 GET    /api/v1/appointments/{id}
 POST   /api/v1/appointments/{id}/cancel
-POST   /api/v1/appointments/{id}/reschedule
 POST   /api/v1/appointments/{id}/rating
 GET    /api/v1/prescriptions
 GET    /api/v1/prescriptions/{id}
@@ -961,7 +1047,7 @@ GET    /api/v1/optical-orders/{id}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 40 account-only + 11 active-link = **59 routes total.**
+**Route count:** 8 public + 40 account-only + 10 active-link = **58 routes total.**
 
 Conversation routes (including attachment download) are in the account-only tier —
 no patient link required for read, send, or download. Upload still requires a
@@ -1019,12 +1105,13 @@ orders, billings, checkout records, or purchases.
 | `IssuePatientInvitation` | `app/Actions/PatientAccounts/` | Creates single-use expiring invitation |
 | `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Atomically verifies the account-bound OTP, locks and activates the patient link, and safely returns the existing link on a same-account retry |
 | `SearchPatientDuplicates` | `app/Actions/Patients/` | Searches by email hash, phone hash, name+DOB |
-| `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with type-based duration snapshot, validates all time preferences for availability, persists alternatives, encrypted referral source, and latest-preference expiry; does NOT create capacity holds |
+| `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates a new appointment request or an optional linked rebooking request with a server-derived type/duration snapshot, validates all time preferences, persists alternatives and latest-preference expiry, and enforces the actionable active limit; never moves an appointment or creates a capacity hold |
 | `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
-| `CancelAppointmentRequest` | `app/Actions/Appointments/` | Ownership check, status validation |
-| `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Creates scheduled appointment with final provider, type, duration, and start under schedule-date lock with deadlock retries; enforces referral and outside-preference contact note rules; idempotent |
+| `CancelAppointmentRequest` | `app/Actions/Appointments/` | Verifies ownership and pending state, persists `cancelled`, audits the mutation, and emits the after-commit admin alert |
+| `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Accepts new requests by creating a scheduled appointment, or accepts linked rebooking requests by moving the existing appointment and appending one immutable history row; all paths lock schedule dates, enforce availability/contact-note rules, deliver outcomes, and remain idempotent |
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |
-| `ExpireAppointmentRequests` | `app/Actions/Appointments/` | Idempotent scheduled expiry of pending requests |
+| `ExpireAppointmentRequests` | `app/Actions/Appointments/` | Idempotent scheduled expiry of pending requests, including rebooking rows whose target appointment is no longer scheduled |
+| `NotifyAdminUsers` | `app/Actions/Notifications/` | Selects active staff/admin recipients and dispatches queued, after-commit, Filament-compatible database alerts for approved patient-originated events without failing the completed patient mutation |
 | `BuildScheduleBlocks` | `app/Actions/Appointments/` | Produces blocks from appointments + request holds |
 | `UpdateClinicHours` | `app/Actions/Appointments/` | Updates the weekly `clinic_hours` schedule, audit-logged |
 | `UpdateProviderHours` | `app/Actions/Appointments/` | Updates a single optometrist's weekly `provider_hours` schedule, audit-logged |

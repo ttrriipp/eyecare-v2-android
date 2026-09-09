@@ -1,16 +1,32 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-28) — Saved Frames
-> replacement complete: Frame Reservations replaced with account-owned Saved
-> Frames. Patients save frame variants as persistent preferences without
-> withholding inventory. Three new account-only routes (`GET /saved-frames`,
-> `PUT /saved-frames/{productVariant}`, and `DELETE /saved-frames/{productVariant}`).
-> Five reservation routes removed. `is_saved` field added to
-> frame catalog variants. Route count: 59 (8 public + 40 account-only +
-> 11 active-link). Previous: remote frame 3D assets, reservation maximum three,
-> direct messaging hardening, optical commerce and dispensing, resilient patient
-> invitation linking, simplified frame reservations, and commerce model
-> simplification.
+> **Backend version:** Current repository state (2026-09-09) — appointment
+> request cancellation and active-limit behavior is reconciled below, and
+> patient-originated Filament bell notifications are documented separately
+> from the mobile notification feed. The public route count is 58
+> (8 public + 40 account-only + 10 active-link).
+
+> **Shipped 2026-09-07: appointment-request cancellation and active limit.**
+> The maximum of two counts only requests whose stored status is `pending` and
+> whose `expires_at` is still in the future. Cancelled, accepted, rejected, and
+> expired requests remain in history but do not consume the limit. Therefore,
+> after cancelling two pending requests, the same account can create a third.
+> A limit rejection returns the stable `ACTIVE_REQUEST_LIMIT_REACHED` error
+> documented in §8. No route or successful-response shape changed.
+
+> **Shipped 2026-09-07: actionable admin notifications for patient actions.**
+> Eight approved patient events now create queued, after-commit Filament
+> database notifications for active staff and administrators. These internal
+> admin alerts do not change the patient-facing notification endpoints in §15b.
+
+> **Shipped 2026-09-08: unified patient rebooking requests.** Patients now
+> request a different time through `POST /appointment-requests` with an
+> `appointment_id`; this creates a linked `request_type: "reschedule"` row
+> without moving the current appointment. Staff approve it from the existing
+> request review page, which moves the same appointment once and records one
+> immutable reschedule-history row. Pending rebooking proposals do not reserve
+> candidate slots, and the former direct patient
+> `POST /appointments/{appointment}/reschedule` route is retired.
 
 > **Shipped 2026-08-28: patient account self-service profile boundary.**
 > `PATCH /me` now accepts only account `first_name`, `middle_name`,
@@ -1177,9 +1193,12 @@ Paginated list of the authenticated account's appointment requests.
     {
       "id": 1,
       "request_number": "APR-2026-000001",
+      "request_type": "new",
       "status": "pending",
       "patient_id": null,
       "scheduled_at": "2026-07-28T10:00:00+08:00",
+      "original_scheduled_at": null,
+      "selected_scheduled_at": null,
       "reason_for_visit": "Blurred vision in left eye",
       "rejection_reason": null,
       "expires_at": "2026-07-29T10:00:00+08:00",
@@ -1202,8 +1221,18 @@ Paginated list of the authenticated account's appointment requests.
 - If the account is later unlinked, pending requests return to
   `patient_id: null`; terminal requests retain their historical patient
   association.
-- `appointment` is populated only when `status` is `accepted`.
+- `appointment` is `null` for a new request until it is accepted. A rebooking
+  request includes its associated appointment while pending and after acceptance.
+  The associated appointment keeps its current scheduled time while the
+  rebooking is pending; after acceptance it contains the moved time.
 - `rejection_reason` is `null` for non-rejected requests; contains the staff-provided reason when `status` is `rejected`.
+- Cancelled requests remain in this history and return `status: "cancelled"`.
+- A stored pending request whose `expires_at` has passed is returned with the
+  effective `status: "expired"` and does not count toward the active-request
+  maximum.
+- A pending rebooking whose target appointment is cancelled, fulfilled, marked
+  no-show, or missing is also returned with effective `status: "expired"` and
+  cannot be accepted.
 - Identity snapshots and contact details are excluded from list responses.
 
 ---
@@ -1215,6 +1244,20 @@ Creates a new appointment request.
 **Auth:** Required (Sanctum token).
 
 **Request:**
+```json
+{
+  "appointment_id": 42,
+  "scheduled_at": "2026-09-20T10:30:00+08:00",
+  "alternative_scheduled_times": [
+    "2026-09-20T11:30:00+08:00"
+  ],
+  "reason_for_visit": null
+}
+```
+
+For a new booking, omit `appointment_id` and submit the appointment type
+and required reason as shown below:
+
 ```json
 {
   "appointment_type_id": 1,
@@ -1229,15 +1272,21 @@ Creates a new appointment request.
 }
 ```
 
+When `appointment_id` is present, the server derives the appointment type
+and duration from the owned scheduled appointment. The request is a
+`request_type: "reschedule"` row; the current appointment is not moved
+until staff approval.
+
 **Request fields:**
 | Field | Type | Required | Rules |
 |---|---|---|---|
-| `appointment_type_id` | integer | yes | Must reference an active, patient-visible type |
+| `appointment_id` | integer | conditional | Must reference a future scheduled appointment owned by the authenticated patient; mutually exclusive with `appointment_type_id` |
+| `appointment_type_id` | integer | conditional | Required when `appointment_id` is omitted; must reference an active, patient-visible type |
 | `scheduled_at` | datetime | yes | ISO 8601, must be future, grid-aligned, available |
 | `alternative_scheduled_times` | array | no | Max 2 values, distinct, future, grid-aligned, available |
-| `reason_for_visit` | string | yes | Max 1000 characters |
-| `referring_source` | string | conditional | Required when type `requires_referral` is true |
-| `identity` | object | no | For unlinked accounts only (see below) |
+| `reason_for_visit` | string | conditional | Required for new requests; optional rebooking note when `appointment_id` is present; max 1000 characters |
+| `referring_source` | string | conditional | New requests only; required when type `requires_referral` is true; prohibited for rebooking |
+| `identity` | object | conditional | New requests for unlinked accounts only; prohibited for rebooking |
 
 **Identity object rules:**
 - `identity` is optional for unlinked accounts. When omitted, the server uses the account's current structured name, date of birth, phone, optional email, and address as fallback; unavailable demographic fields remain `null` in the staff-only snapshot.
@@ -1254,6 +1303,7 @@ Creates a new appointment request.
   "data": {
     "id": 1,
     "request_number": "APR-2026-000001",
+    "request_type": "new",
     "status": "pending",
     "patient_id": null,
     "appointment_type": {
@@ -1262,6 +1312,8 @@ Creates a new appointment request.
       "duration_minutes": 45
     },
     "scheduled_at": "2026-07-28T09:15:00+08:00",
+    "original_scheduled_at": null,
+    "selected_scheduled_at": null,
     "alternative_scheduled_times": [
       "2026-07-28T10:30:00+08:00",
       "2026-07-29T09:00:00+08:00"
@@ -1277,16 +1329,30 @@ Creates a new appointment request.
 }
 ```
 
+For a rebooking response, `request_type` is `reschedule`,
+`original_scheduled_at` is the appointment time captured at submission,
+`selected_scheduled_at` is null until staff accepts, and `appointment`
+contains the unchanged current appointment while the request is pending.
+
 **Notes:**
 - The response does not include identity, contact, or snapshot data.
 - Identity and contact snapshots are stored encrypted and are staff-only.
 - `time_preferences_are_reserved` is always `false` (pending requests never reserve capacity).
+- A rebooking request never creates a second appointment. Staff approval moves
+  the associated appointment and sets `selected_scheduled_at`; rejection,
+  cancellation, expiry, stale snapshots, and conflicts leave it unchanged.
 
 **Behavior:**
 - All submitted time preferences are validated for current availability.
 - Duration is snapshot from the selected appointment type.
 - `expires_at` is the latest submitted preference time.
 - Pending requests do NOT create capacity holds.
+- When `appointment_id` is supplied, the request derives type and duration
+  from the existing appointment, prohibits `identity` and
+  `referring_source`, and allows an optional request note.
+- A rebooking request requires an owned, future `scheduled` appointment and
+  one effective pending row per appointment. Its proposed times are validated
+  while excluding the current appointment from availability.
 - For linked accounts, `patient_id` is copied from the active link.
 - For unlinked accounts, `patient_id` remains `null`.
 - For unlinked accounts, an encrypted identity snapshot is stored.
@@ -1295,17 +1361,50 @@ Creates a new appointment request.
   snapshots.
 - Unlinking the account clears `patient_id` only for pending requests;
   terminal requests retain their historical patient link.
-- Maximum 2 active pending requests per account.
+- Maximum 2 active pending requests per account. Only records with stored
+  `status: "pending"` and a future `expires_at` count. Cancelled, accepted,
+  rejected, and expired requests do not count.
 - Rate limited per account and per IP.
 - Does **not** create a Patient or an Appointment.
 
 **Errors:**
 - `422 SLOT_UNAVAILABLE`: The requested slot is no longer available.
 - `422 ACTIVE_REQUEST_LIMIT_REACHED`: Maximum active pending requests reached.
+- `422` validation errors on `appointment_id` or `scheduled_at` when
+  the appointment is not eligible, already has an effective pending rebooking,
+  or a proposed time is unavailable. An appointment owned by another patient
+  returns `404`.
 - `422 IDENTITY_NOT_ALLOWED`: Identity object provided for a linked account.
 - `422 INVALID_IDENTITY`: Missing required identity fields or invalid date of birth.
 - `422 NO_VERIFIED_CONTACT`: No unique verified primary contact found on the account.
 - `422 NO_VERIFIED_PHONE` or phone validation error: The account has no verified phone or the supplied phone does not match it.
+
+When two active pending requests already exist, the response is:
+
+```json
+{
+  "error": {
+    "code": "ACTIVE_REQUEST_LIMIT_REACHED",
+    "message": "You have reached the maximum of 2 active appointment requests.",
+    "max_active_requests": 2
+  }
+}
+```
+
+**Android handoff and release ordering:**
+- The rebooking screen reads `GET /appointment-availability` with the owned
+  `appointment_id`, then submits the selected time through this endpoint with
+  the same `appointment_id`. The client must not send a replacement
+  `appointment_type_id`, `referring_source`, `identity`, or duration for a
+  linked request.
+- Apply the rebooking migration before serving code that writes the new
+  columns. Release the Android client that uses the unified request flow before
+  removing the legacy direct-reschedule route, or make the backend and Android
+  releases an atomic minimum-version cutover. Existing new-booking clients
+  remain compatible because `appointment_id` is optional.
+- Once linked rows exist, treat the migration as forward-only in production;
+  rolling back the dropped unique index would conflict with historical rows
+  that legitimately reference the same appointment.
 
 ---
 
@@ -1336,20 +1435,48 @@ Cancels a pending appointment request.
   "data": {
     "id": 1,
     "request_number": "APR-2026-000001",
+    "request_type": "new",
     "status": "cancelled",
+    "patient_id": null,
+    "appointment_type": {
+      "id": 1,
+      "name": "First eye examination",
+      "duration_minutes": 45
+    },
     "scheduled_at": "2026-07-28T10:00:00+08:00",
+    "original_scheduled_at": null,
+    "selected_scheduled_at": null,
+    "alternative_scheduled_times": [],
+    "provisional_duration_minutes": 45,
     "reason_for_visit": "Blurred vision in left eye",
+    "referring_source": null,
     "expires_at": "2026-07-29T10:00:00+08:00",
-    "cancelled_at": "2026-07-27T11:00:00+08:00",
+    "rejection_reason": null,
     "created_at": "2026-07-27T10:00:00+08:00",
+    "time_preferences_are_reserved": false,
     "appointment": null
   }
 }
 ```
 
+Cancellation persists the stored status as `cancelled`. There is no
+`cancelled_at` field in this response.
+
+For a rebooking request, cancellation leaves the associated appointment and its
+current schedule unchanged; `selected_scheduled_at` remains `null`.
+
 **Errors:**
 - `404`: Request not found or not owned by this account.
-- `422 REQUEST_NOT_CANCELLABLE`: Only pending requests can be cancelled.
+- `422` Laravel validation response when the request is no longer pending:
+
+```json
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "request": ["Only pending appointment requests can be cancelled."]
+  }
+}
+```
 
 ---
 
@@ -1357,7 +1484,8 @@ Cancels a pending appointment request.
 
 ### GET `/appointment-availability`
 
-Returns time slots for a given date. Used for confirmed appointment rescheduling.
+Returns time slots for a given date. When `appointment_id` is supplied,
+the result is used to choose a linked rebooking request time.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
@@ -1401,18 +1529,20 @@ sent, they must refer to the same appointment type.
 **Validation (with `appointment_id`):**
 - The appointment is looked up within the authenticated patient's records;
   another patient's appointment returns `404`.
-- The appointment must be in an eligible reschedule context.
+- The appointment must be in an eligible rebooking context.
 - Duration and type are derived from the existing appointment.
 - A submitted `appointment_type_id`, when present, must match the appointment's
   resolved type.
 
 **Notes:**
-- When rescheduling, `appointment_type_id` and `visit_duration_minutes` are
+- When requesting a rebooking, `appointment_type_id` and `visit_duration_minutes` are
   derived from the existing appointment rather than requiring the client to
   submit the type.
 - The response always includes the resolved integer `appointment_type_id`,
   including when the request supplied only `appointment_id`.
-- Unexpired pending request holds are included in capacity calculations.
+- Confirmed appointment blocks are included in capacity calculations; pending
+  request rows are non-binding and do not consume capacity, including linked
+  rebooking proposals.
 - This endpoint is separate from `GET /appointment-request-availability`,
   which always requires `appointment_type_id` because it creates a new
   appointment request without an existing appointment.
@@ -1511,27 +1641,9 @@ Cancels an appointment. Only `scheduled` or `checked_in` appointments can be can
 
 ---
 
-### POST `/appointments/{appointment}/reschedule`
-
-Reschedules an appointment to a new time.
-
-**Auth:** Required (Sanctum token). **Active patient link required.**
-
-**Request:**
-```json
-{
-  "scheduled_at": "datetime (required, after:now, must be an available slot)"
-}
-```
-
-**Response (200):**
-```json
-{
-  "data": { /* AppointmentResource with new scheduled_at */ }
-}
-```
-
-**Validation:** Appointment must belong to the patient and be in `scheduled` status. Duration and type are derived from the existing appointment.
+Patients do not move confirmed appointments directly. To request a different
+time, submit a linked rebooking through `POST /appointment-requests` with
+`appointment_id`; staff approval moves the existing appointment.
 
 ---
 
@@ -2401,8 +2513,30 @@ Returns 404 for missing files or attachments from other conversations
 **Authenticated account-only (no active patient link required).**
 
 The notification feed provides an in-app inbox for database-backed
-notifications. Notifications are created by the backend when events occur
-(e.g. new message from staff).
+notifications. The backend creates privacy-safe patient notifications for
+material clinic-driven outcomes while routine internal stages remain silent.
+
+| Clinic event | Stable `kind` | Patient title | Typed `mobile_action` | Legacy action path |
+|---|---|---|---|---|
+| Accept appointment request | `appointment_confirmed` | Appointment Confirmed | `appointment` + ID | `/appointments/{id}` |
+| Reject appointment request | `appointment_request_declined` | Appointment Request Declined | `appointment_request` + ID | `/appointment-requests/{id}` |
+| Approve rebooking or reschedule appointment | `appointment_rescheduled` | Appointment Rescheduled | `appointment` + ID | `/appointments/{id}` |
+| Clinic cancels appointment | `appointment_cancelled` | Appointment Cancelled | `appointment` + ID | `/appointments/{id}` |
+| Complete consultation with prescription | `prescription_available` | Prescription Available | `prescription` + ID | `/prescriptions/{id}` |
+| Complete consultation without prescription | `visit_completed` | Visit Completed | `appointment` + ID when available | `/appointments/{id}` when available |
+| Confirm prepared optical order | `optical_order_confirmed` | Optical Order Confirmed | `optical_order` + ID | `/optical-orders/{id}` |
+| Mark order ready | `optical_order_ready` | Order Ready for Pickup | `optical_order` + ID | `/optical-orders/{id}` |
+| Cancel optical order | `optical_order_cancelled` | Optical Order Cancelled | `optical_order` + ID | `/optical-orders/{id}` |
+| Record standalone payment | `payment_recorded` | Payment Recorded | `optical_order` + ID, or `null` | Order path or `null` |
+| Correct payment | `payment_updated` | Payment Updated | `optical_order` + ID, or `null` | Order path or `null` |
+| Dispense or immediately fulfill order | `optical_order_released` | Order Released | `optical_order` + ID | `/optical-orders/{id}` |
+| Staff sends message | `new_message` | New Message | `conversation` without an ID | `/conversation` |
+
+Order creation/dispensing payments are coalesced into the corresponding order
+notification. Check-in, encounter drafts, order `in_progress`, quotation
+changes, billing recalculation, reminders, and patient-initiated actions do not
+create patient inbox noise. Bodies exclude clinical details, reasons, private
+notes, message contents, and payment method/reference data.
 
 ### GET `/notifications`
 
@@ -2418,12 +2552,17 @@ Returns paginated notifications for the authenticated account.
   "data": [
     {
       "id": "uuid",
-      "type": "App\\Notifications\\NewMessageReceived",
-      "title": "New Message",
-      "body": "Dr. Santos sent a message.",
-      "action_url": "/admin/conversations/1",
-      "related_type": null,
-      "related_id": null,
+      "kind": "appointment_confirmed",
+      "type": "App\\Notifications\\PatientDatabaseNotification",
+      "title": "Appointment Confirmed",
+      "body": "Your appointment APT-2026-000123 is confirmed for Sep 10, 2026 9:00 AM.",
+      "mobile_action": {
+        "type": "appointment",
+        "id": 123
+      },
+      "action_url": "/appointments/123",
+      "related_type": "appointment",
+      "related_id": 123,
       "read_at": null,
       "created_at": "2026-08-15T10:00:00+08:00"
     }
@@ -2432,6 +2571,21 @@ Returns paginated notifications for the authenticated account.
   "meta": { "current_page": 1, "last_page": 1, "per_page": 20, "total": 1 }
 }
 ```
+
+`kind` is the stable snake-case product event enum. `mobile_action` is the
+canonical Android navigation instruction and is either `null` or an object with
+a closed `type` of `appointment`, `appointment_request`, `prescription`,
+`optical_order`, or `conversation`; record-detail actions include an integer
+`id`, while `conversation` does not. Android must map these values to known app
+destinations, treat unknown values as non-actionable, and never open a
+server-provided URL.
+
+`type` is the stored Laravel notification class and must not drive client
+behavior. `action_url`, `related_type`, and `related_id` remain additive legacy
+metadata for compatibility: `action_url` is nullable and patient-app-relative,
+and is never a Filament/admin URL. Older or generic notifications return
+`kind: "unknown"`, `mobile_action: null`, and may retain null legacy navigation
+fields.
 
 ### GET `/notifications/unread-count`
 
@@ -2475,6 +2629,37 @@ Marks all unread notifications as read.
 }
 ```
 
+### Internal Admin Database Notifications
+
+These are Filament bell notifications for clinic operations, not mobile API
+resources. They are stored against active users holding the `staff` or `admin`
+role and are not returned to a patient by the endpoints above. An
+optometrist-only account is not a recipient; an optometrist who also holds an
+operational role is.
+
+| Patient-originated event | Admin title | Status | View destination |
+|---|---|---|---|
+| Submit appointment request | New Appointment Request | info | Request review or details |
+| Cancel pending appointment request | Appointment Request Cancelled | warning | Request details |
+| Submit patient-link request | New Patient Link Request | info | Link-request review |
+| Send conversation message | New Message | info | Conversation inbox |
+| Cancel confirmed appointment | Appointment Cancelled by Patient | warning | Appointment edit |
+| Reschedule confirmed appointment | Appointment Rescheduled by Patient | warning | Appointment edit |
+| Create or materially revise a 1–2 star visit rating | Low Visit Rating | danger | Visit-rating details |
+| Create or materially revise a 1–2 star frame rating | Low Frame Rating | danger | Frame-rating edit |
+
+The notifications are queued after the patient mutation commits. Delivery
+failure is reported internally but does not roll back the successful mutation
+or change its API response. Each notification has a **View** action that marks
+it read and opens the relevant Filament screen.
+
+Repeated submission of an already-pending patient-link request does not create
+another alert. An identical retry of a low rating is also silent; the low-rating
+alert repeats only when the resulting rating is still 1–2 stars and its rating
+or comment materially changed. Ratings of 3–5 stars and clinic-initiated
+appointment changes are not included. Notification bodies exclude visit
+reasons, identity snapshots, message bodies, and rating comments.
+
 ---
 
 ## 16. Error Responses
@@ -2493,7 +2678,9 @@ validation envelope:
 ```
 
 Endpoints that return an explicit machine-readable error code (for example,
-step-up middleware and rate limiting) use this envelope:
+step-up middleware and rate limiting) use this envelope. Endpoint-specific
+metadata may appear beside `code` and `message`, as with
+`max_active_requests` in the appointment-request limit response:
 
 ```json
 {
@@ -2527,10 +2714,9 @@ step-up middleware and rate limiting) use this envelope:
 | `PATIENT_RESOLUTION_REQUIRED` | 422 | Unlinked request must be resolved to a patient first |
 | `SLOT_UNAVAILABLE` | 422 | Requested appointment slot is no longer available |
 | `ACTIVE_PATIENT_LINK_REQUIRED` | 403 | Route requires an active patient link |
-| `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | Maximum active pending requests reached |
+| `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | The account already has the configured maximum of active, unexpired pending appointment requests |
 | `LAST_CONTACT_REMAINING` | 422 | Cannot remove the last verified login contact |
 | `CONTACT_NOT_VERIFIED` | 422 | Cannot set an unverified contact as primary |
-| `REQUEST_NOT_CANCELLABLE` | 422 | Only pending requests can be cancelled |
 
 ### Standard HTTP Status Codes
 
@@ -2632,11 +2818,11 @@ authoritative in §§15 and 15b.
 |---|---|
 | `GET /me` | Returns `PatientAccountResource` schema; `link_status`, structured names |
 | `PATCH /me` | Account `first_name`, `middle_name`, and `last_name` are editable; `date_of_birth` is editable with a same-account step-up token. Unsupported and mixed fields fail with `422`. |
-| `GET /appointment-availability` | Now includes request holds in capacity |
+| `GET /appointment-availability` | Supports linked rebooking by resolving type/duration from `appointment_id` and excluding the target appointment from candidate conflicts |
+| `POST /appointment-requests` | Accepts optional `appointment_id` for a linked patient rebooking; staff approval moves the existing appointment |
 | `GET /appointments` | Requires active patient link |
 | `GET /appointments/{id}` | Requires active patient link |
 | `POST /appointments/{id}/cancel` | Requires active patient link |
-| `POST /appointments/{id}/reschedule` | Duration derived from appointment |
 | `GET /frames` | Frame variants now include additive nullable `ar` metadata for the current validated and published remote GLB asset; legacy AR fields remain unchanged |
 | `GET /frames/{id}` | Same additive `ar` variant metadata and safe `null` fallback as the frame list |
 
@@ -2649,6 +2835,7 @@ The following old mobile features/routes are **intentionally retired**:
 | Feature | Status |
 |---|---|
 | Direct `POST /appointments` | Retired. All mobile bookings use appointment requests. |
+| Direct patient `POST /appointments/{appointment}/reschedule` | Retired. Submit a linked `POST /appointment-requests` request and wait for staff approval. |
 | Patient intake routes (`/appointments/{id}/intake`) | Retired. Clinical data moves to Encounter. |
 | Patient-completed intake forms | Retired. Only free-text reason for visit at booking. |
 | Accessories and orders (`/orders`, `/accessories`) | Retired. |
@@ -2686,7 +2873,7 @@ field on `/me` reflects the current state.
 Every mobile booking creates an `AppointmentRequest`, not an `Appointment`. Staff accept requests to create confirmed `Appointment` records. Only confirmed appointments appear in the confirmed appointments list and calendar.
 
 ### Appointment type selection by patients
-The mobile API exposes `GET /appointment-types` as an authenticated, account-only catalog. Patients use the returned active, patient-visible type ID when requesting availability and creating an appointment request. Every appointment type includes a `visit_reason_presets` array. The array may be empty. Active presets help the patient choose a common reason after selecting a type, but preset selection is optional. Both `GET /appointment-request-availability` and `POST /appointment-requests` require `appointment_type_id`, and the server validates that it references an active, patient-visible type. Confirmed appointment type and duration snapshots remain server-controlled; rescheduling derives them from the existing appointment.
+The mobile API exposes `GET /appointment-types` as an authenticated, account-only catalog. Patients use the returned active, patient-visible type ID when requesting availability and creating a new appointment request. Every appointment type includes a `visit_reason_presets` array. The array may be empty. Active presets help the patient choose a common reason after selecting a type, but preset selection is optional. `GET /appointment-request-availability` always requires `appointment_type_id`. `POST /appointment-requests` requires `appointment_type_id` for a new request or `appointment_id` for a linked rebooking, and the two fields are mutually exclusive. Confirmed appointment type and duration snapshots remain server-controlled; rebooking derives them from the existing appointment.
 
 ### Reason for visit
 Appointment requests require a free-text `reason_for_visit` (max 1000 characters), whether or not the patient chooses a preset. The patient may use the mobile app's `Other` option to enter an exact custom description; no preset ID is submitted or stored. This is copied to the confirmed Appointment and prefills the Encounter chief complaint at check-in. It remains clinician-editable.
@@ -2830,11 +3017,10 @@ limits also include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and
 ### Active Patient Link Required (token + active link)
 
 ```
-GET    /api/v1/appointment-availability        Reschedule availability
+GET    /api/v1/appointment-availability        Rebooking availability
 GET    /api/v1/appointments                   List confirmed appointments
 GET    /api/v1/appointments/{id}              Get appointment detail
 POST   /api/v1/appointments/{id}/cancel       Cancel appointment
-POST   /api/v1/appointments/{id}/reschedule   Reschedule appointment
 POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
 GET    /api/v1/prescriptions                  List prescriptions
@@ -2845,4 +3031,4 @@ GET    /api/v1/optical-orders/{id}            Get optical order
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 40 account-only + 11 active-link = **59 routes total.**
+**Route count:** 8 public + 40 account-only + 10 active-link = **58 routes total.**

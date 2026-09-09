@@ -43,7 +43,7 @@ object SavedFrameDtos {
         val id: Int,
         val name: String,
         val brand: String,
-        val category: String,
+        val category: String? = null,
     )
 
     @Serializable

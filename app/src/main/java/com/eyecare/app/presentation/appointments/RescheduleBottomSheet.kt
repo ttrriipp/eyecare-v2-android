@@ -12,8 +12,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -143,80 +146,103 @@ fun RescheduleBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .fillMaxHeight(),
         ) {
-            Text(
-                text = "Reschedule appointment",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = "Choose a day and a time the clinic has confirmed as available.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    // Keep the last slot and any inline error clear of the pinned action bar.
+                    .padding(bottom = 140.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "Reschedule appointment",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Choose a day and a time the clinic has confirmed as available.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
-            RescheduleWeekStrip(
-                weekStart = weekStart,
-                selectedDate = selectedDate,
-                dayAvailability = dayAvailability,
-                onShowWeek = onShowWeek,
-                onDateSelected = { date ->
-                    if (date != selectedDate) {
-                        selectedDate = date
-                        onDateChanged(date)
+                RescheduleWeekStrip(
+                    weekStart = weekStart,
+                    selectedDate = selectedDate,
+                    dayAvailability = dayAvailability,
+                    onShowWeek = onShowWeek,
+                    onDateSelected = { date ->
+                        if (date != selectedDate) {
+                            selectedDate = date
+                            onDateChanged(date)
+                        }
+                    },
+                )
+
+                RescheduleSlotSection(
+                    availabilityState = availabilityState,
+                    availableSlots = availableSlots,
+                    selectedSlotStartsAt = selectedSlotStartsAt,
+                    isSubmitting = isSubmitting,
+                    onSelectSlot = { selectedSlotStartsAt = it },
+                    onRetryAvailability = onRetryAvailability,
+                )
+
+                if (errorMessage != null) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics {
+                                liveRegion = LiveRegionMode.Polite
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                    ) {
+                        Text(
+                            text = errorMessage,
+                            modifier = Modifier.padding(12.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
-                },
-            )
+                }
 
-            RescheduleSlotSection(
-                availabilityState = availabilityState,
-                availableSlots = availableSlots,
-                selectedSlotStartsAt = selectedSlotStartsAt,
-                isSubmitting = isSubmitting,
-                onSelectSlot = { selectedSlotStartsAt = it },
-                onRetryAvailability = onRetryAvailability,
-            )
-
-            if (errorMessage != null) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics {
-                            liveRegion = LiveRegionMode.Polite
-                        },
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.errorContainer,
-                ) {
+                if (isCurrentSlot) {
                     Text(
-                        text = errorMessage,
-                        modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        text = "That is already your current appointment time. Choose another slot.",
+                        color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
 
-            if (isCurrentSlot) {
-                Text(
-                    text = "That is already your current appointment time. Choose another slot.",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 3.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .navigationBarsPadding(),
+                ) {
+                    AppointmentPrimaryButton(
+                        text = "Review reschedule",
+                        onClick = { showConfirmDialog = true },
+                        enabled = canConfirm,
+                        loading = isSubmitting,
+                    )
+                }
             }
-
-            AppointmentPrimaryButton(
-                text = "Review reschedule",
-                onClick = { showConfirmDialog = true },
-                enabled = canConfirm,
-                loading = isSubmitting,
-            )
         }
     }
 }

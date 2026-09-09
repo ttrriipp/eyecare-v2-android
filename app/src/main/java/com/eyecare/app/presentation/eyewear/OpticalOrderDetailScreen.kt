@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -51,6 +52,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -327,7 +329,7 @@ internal fun OrderDetailContent(
 }
 
 @Composable
-private fun OrderItemImage(
+internal fun OrderItemImage(
     imagePath: String?,
     description: String,
 ) {
@@ -406,8 +408,8 @@ private fun OrderStatusGuidance(status: OpticalOrderStatus) {
             icon = Icons.Outlined.CheckCircle,
         )
         OpticalOrderStatus.DISPENSED -> OrderStatusGuidanceCopy(
-            title = "Released to you",
-            message = "This order has been completed and released.",
+            title = "Order picked up",
+            message = "This order has been completed and picked up.",
             icon = Icons.Outlined.CheckCircle,
         )
         OpticalOrderStatus.CANCELLED -> OrderStatusGuidanceCopy(
@@ -471,50 +473,89 @@ private fun OrderTracker(status: OpticalOrderStatus) {
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Row(
-            Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            tracker.steps.forEachIndexed { index, (step, completed) ->
-                // The active step gets a solid fill (matching this app's primary/onPrimary
-                // "selected" convention) so it reads as distinct from a step that's merely
-                // done - without this, "Prep" and "Ready" render identically once ready.
-                val isActive = step == tracker.activeStep
-                val (fillColor, textColor, weight) = when {
-                    isActive -> Triple(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.onPrimary,
-                        FontWeight.Bold,
-                    )
-                    completed -> Triple(
-                        EyecareColors.current.accentText.copy(alpha = 0.12f),
-                        EyecareColors.current.accentText,
-                        FontWeight.SemiBold,
-                    )
-                    else -> Triple(
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                        FontWeight.Normal,
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Surface(shape = RoundedCornerShape(50), color = fillColor) {
-                        Text(
-                            when (step) {
-                                TrackerStep.PREPARATION -> "Prep"
-                                TrackerStep.READY -> "Ready"
-                                TrackerStep.RELEASED -> "Released"
-                            },
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = textColor,
-                            fontWeight = weight,
+            Text(
+                "Order progress",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                tracker.steps.forEachIndexed { index, (step, completed) ->
+                    val isActive = step == tracker.activeStep
+                    val (fillColor, textColor, weight) = when {
+                        isActive -> Triple(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.onPrimary,
+                            FontWeight.Bold,
+                        )
+                        completed -> Triple(
+                            EyecareColors.current.accentText.copy(alpha = 0.14f),
+                            EyecareColors.current.accentText,
+                            FontWeight.SemiBold,
+                        )
+                        else -> Triple(
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                            FontWeight.Normal,
                         )
                     }
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(30.dp),
+                            shape = CircleShape,
+                            color = fillColor,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = (index + 1).toString(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = textColor,
+                                    fontWeight = weight,
+                                )
+                            }
+                        }
+                    }
+                    if (index < tracker.steps.lastIndex) {
+                        Surface(
+                            modifier = Modifier.width(24.dp).height(2.dp),
+                            shape = RoundedCornerShape(50),
+                            color = if (tracker.steps[index + 1].second) {
+                                EyecareColors.current.accentText.copy(alpha = 0.45f)
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant
+                            },
+                        ) {}
+                    }
                 }
-                if (index < tracker.steps.lastIndex) {
-                    Spacer(Modifier.width(4.dp))
+            }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                tracker.steps.forEachIndexed { index, (step, _) ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = when (step) {
+                                TrackerStep.PREPARATION -> "Preparing"
+                                TrackerStep.READY -> "Ready for pickup"
+                                TrackerStep.RELEASED -> "Picked up"
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                        )
+                    }
+                    if (index < tracker.steps.lastIndex) {
+                        Spacer(Modifier.width(24.dp))
+                    }
                 }
             }
         }

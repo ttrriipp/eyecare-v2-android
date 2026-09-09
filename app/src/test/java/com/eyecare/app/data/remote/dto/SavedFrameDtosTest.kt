@@ -74,6 +74,18 @@ class SavedFrameDtosTest {
     }
 
     @Test
+    fun `decodes save response when product category is null`() {
+        val response = json.decodeFromString<SavedFrameDtos.SavedFrameSaveResponse>(
+            ApiContractFixtures.savedFrameSaveResponse.replace(
+                "\"category\": \"Full Rim\"",
+                "\"category\": null",
+            ),
+        )
+
+        assertNull(response.data.variant.product.category)
+    }
+
+    @Test
     fun `availability maps fail closed for unknown values`() {
         val page = json.decodeFromString<SavedFrameDtos.SavedFramePageResponse>(
             ApiContractFixtures.savedFramesPageAvailable.replace("\"available\"", "\"future_status\""),

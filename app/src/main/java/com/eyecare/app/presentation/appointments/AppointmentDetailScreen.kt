@@ -437,43 +437,109 @@ private fun VisitFeedbackCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (visitRating != null) {
                 Row(
-                    modifier = Modifier.semantics(mergeDescendants = true) {
-                        contentDescription = "${visitRating.rating} out of 5 stars"
-                    },
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    (1..5).forEach { star ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Icon(
-                            imageVector = if (star <= visitRating.rating) Icons.Filled.Star else Icons.Outlined.Star,
+                            Icons.Outlined.RateReview,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
-                            tint = if (star <= visitRating.rating) EyecareColors.current.accentText
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = EyecareColors.current.accentText,
+                        )
+                        Text(
+                            "Your rating",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Text(
+                        "${visitRating.rating}/5",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = EyecareColors.current.accentText,
+                    )
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.semantics(mergeDescendants = true) {
+                                contentDescription = "${visitRating.rating} out of 5 stars"
+                            },
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            (1..5).forEach { star ->
+                                Icon(
+                                    imageVector = if (star <= visitRating.rating) Icons.Filled.Star else Icons.Outlined.Star,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(22.dp),
+                                    tint = if (star <= visitRating.rating) EyecareColors.current.accentText
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        visitRating.comment?.takeIf { it.isNotBlank() }?.let { comment ->
+                            Text(
+                                text = comment,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                visitRating.createdAt?.takeIf { it.isNotBlank() }?.let { createdAt ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Outlined.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = "Rated on ${formatAppointmentDate(createdAt)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
-                visitRating.comment?.takeIf { it.isNotBlank() }?.let { comment ->
-                    Text(
-                        text = comment,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+
+                OutlinedButton(
+                    onClick = onRateClick,
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = EyecareColors.current.accentText,
+                    ),
+                ) {
+                    Icon(
+                        Icons.Outlined.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
                     )
-                }
-                visitRating.createdAt?.takeIf { it.isNotBlank() }?.let { createdAt ->
-                    Text(
-                        text = "Rated on ${formatAppointmentDate(createdAt)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                TextButton(onClick = onRateClick) {
-                    Text("Update rating")
+                    Spacer(Modifier.size(8.dp))
+                    Text("Update rating", fontWeight = FontWeight.SemiBold)
                 }
             } else {
                 Row(

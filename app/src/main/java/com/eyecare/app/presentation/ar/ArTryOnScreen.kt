@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,7 +38,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -62,6 +66,7 @@ import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderer
 import com.eyecare.app.presentation.ar.rendering.FrameModelSource
+import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 
 @Composable
@@ -290,10 +295,31 @@ internal fun ArTryOnBottomControls(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
+    var showRemoveSavedDialog by rememberSaveable { mutableStateOf(false) }
+
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        selectedVariant?.takeIf { it.isSaved }?.let { savedVariant ->
+            if (showRemoveSavedDialog) {
+                AppConfirmationDialog(
+                    icon = Icons.Outlined.BookmarkBorder,
+                    title = "Remove saved frame?",
+                    message = "Remove ${savedVariant.name} from your saved frames?",
+                    confirmLabel = "Remove",
+                    dismissLabel = "Keep saved",
+                    iconTint = MaterialTheme.colorScheme.error,
+                    isDestructive = true,
+                    onConfirm = {
+                        showRemoveSavedDialog = false
+                        onToggleSaved()
+                    },
+                    onDismissRequest = { showRemoveSavedDialog = false },
+                )
+            }
+        }
+
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier
@@ -323,26 +349,47 @@ internal fun ArTryOnBottomControls(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             selectedVariant?.let { variant ->
-                Button(
-                    onClick = onToggleSaved,
-                    enabled = !isSaving,
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                    ),
-                ) {
-                    if (isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                        Spacer(Modifier.size(6.dp))
+                if (variant.isSaved) {
+                    OutlinedButton(
+                        onClick = { showRemoveSavedDialog = true },
+                        enabled = !isSaving,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.size(6.dp))
+                        }
+                        Text("Remove from saved")
                     }
-                    Text(if (variant.isSaved) "Remove from saved" else "Save frame")
+                } else {
+                    Button(
+                        onClick = onToggleSaved,
+                        enabled = !isSaving,
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                        ),
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                            Spacer(Modifier.size(6.dp))
+                        }
+                        Text("Save frame")
+                    }
                 }
             }
             OutlinedButton(
