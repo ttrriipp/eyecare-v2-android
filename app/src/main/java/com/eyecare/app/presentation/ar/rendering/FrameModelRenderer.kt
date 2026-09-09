@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import com.eyecare.app.presentation.ar.model.BundledFrameAsset
 import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FacePose
+import com.eyecare.app.presentation.ar.model.HeadOcclusionMask
+import com.eyecare.app.presentation.ar.model.HeadSegmentationFrame
 import com.eyecare.app.presentation.ar.tracking.HeadOcclusionMode
 import com.eyecare.app.presentation.ar.tracking.HeadOcclusionPolicy
 import com.eyecare.app.presentation.ar.tracking.HeadOcclusionStabilizer
@@ -457,6 +459,7 @@ private fun SceneScope.HeadOcclusionNodeContent(
 ) {
     node ?: return
 
+    val mappingCache = remember { HeadOcclusionMappingCache() }
     NodeLifecycle(node = node, content = null)
     SideEffect {
         val view = cameraNode.view
@@ -469,19 +472,22 @@ private fun SceneScope.HeadOcclusionNodeContent(
             val viewport = view.viewport
             if (viewport.width > 0 && viewport.height > 0) {
                 effectiveSegmentation?.let { segmentation ->
-                    mapHeadOcclusionMask(
+                    mappingCache.map(
                         segmentation = segmentation,
                         face = face,
-                        viewport = HeadOcclusionViewport(
-                            widthPx = viewport.width.toFloat(),
-                            heightPx = viewport.height.toFloat(),
-                        ),
+                        viewportWidthPx = viewport.width.toFloat(),
+                        viewportHeightPx = viewport.height.toFloat(),
                     )
+                } ?: run {
+                    mappingCache.clear()
+                    null
                 }
             } else {
+                mappingCache.clear()
                 null
             }
         } else {
+            mappingCache.clear()
             null
         }
 
@@ -502,6 +508,55 @@ private fun SceneScope.HeadOcclusionNodeContent(
             false
         }
         activeState.value = active
+    }
+}
+
+/**
+ * A segmentation mask is already tied to one camera timestamp. Re-mapping it
+ * for every full-rate face pose allocates a new alpha buffer and repeats the
+ * pixel dilation work without adding information, so keep the mapped result
+ * until a new mask or viewport arrives.
+ */
+private class HeadOcclusionMappingCache {
+    private var timestampMs: Long? = null
+    private var viewportWidthPx = 0f
+    private var viewportHeightPx = 0f
+    private var mappedMask: HeadOcclusionMask? = null
+
+    fun map(
+        segmentation: HeadSegmentationFrame,
+        face: FaceFrame,
+        viewportWidthPx: Float,
+        viewportHeightPx: Float,
+    ): HeadOcclusionMask? {
+        if (
+            timestampMs == segmentation.timestampMs &&
+            this.viewportWidthPx == viewportWidthPx &&
+            this.viewportHeightPx == viewportHeightPx
+        ) {
+            return mappedMask
+        }
+
+        val mapped = mapHeadOcclusionMask(
+            segmentation = segmentation,
+            face = face,
+            viewport = HeadOcclusionViewport(
+                widthPx = viewportWidthPx,
+                heightPx = viewportHeightPx,
+            ),
+        )
+        timestampMs = segmentation.timestampMs
+        this.viewportWidthPx = viewportWidthPx
+        this.viewportHeightPx = viewportHeightPx
+        mappedMask = mapped
+        return mapped
+    }
+
+    fun clear() {
+        timestampMs = null
+        viewportWidthPx = 0f
+        viewportHeightPx = 0f
+        mappedMask = null
     }
 }
 

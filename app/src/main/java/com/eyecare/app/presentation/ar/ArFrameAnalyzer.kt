@@ -8,7 +8,8 @@ import androidx.camera.core.ImageProxy
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 
 /**
- * Converts one CameraX frame once and submits it to both vision tasks.
+ * Converts one CameraX frame once and submits it to face tracking and the
+ * lower-cadence segmentation task.
  *
  * The analyzer owns the ImageProxy lifetime. The task helpers only borrow the
  * resulting MPImage for asynchronous inference.
@@ -25,6 +26,7 @@ internal class ArFrameAnalyzer(
         onResult = pairer::onMaskResult,
         onError = {},
     )
+    private val segmentationScheduler = SegmentationSubmissionScheduler()
     private val rotationMatrix = Matrix()
     private var closed = false
 
@@ -44,7 +46,9 @@ internal class ArFrameAnalyzer(
             }
 
             faceLandmarker.detectAsync(mpImage, timestampMs)
-            segmenter.segmentAsync(mpImage, timestampMs)
+            if (segmentationScheduler.shouldSubmit(timestampMs)) {
+                segmenter.segmentAsync(mpImage, timestampMs)
+            }
         }
     }
 

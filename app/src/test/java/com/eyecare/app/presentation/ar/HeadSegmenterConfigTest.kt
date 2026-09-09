@@ -16,6 +16,7 @@ class HeadSegmenterConfigTest {
         assertEquals("selfie_segmenter.tflite", HeadSegmenterConfig.MODEL_ASSET)
         assertTrue(HeadSegmenterConfig.USE_CONFIDENCE_MASK)
         assertEquals(HeadSegmenterConfig.PERSON_CATEGORY_INDEX, 1)
+        assertEquals(66L, HeadSegmenterConfig.MIN_SUBMISSION_INTERVAL_MS)
     }
 
     @Test

@@ -38,6 +38,12 @@ internal class HeadOcclusionNode private constructor(
         isVisible = false
     }
 
+    private var lastMaskTimestampMs: Long? = null
+    private var lastViewportWidth = 0
+    private var lastViewportHeight = 0
+    private var lastReferencePlaneZ = 0f
+    private var lastUpdateWasVisible = false
+
     /** Returns true when at least one valid side-mask cell is depth-active. */
     fun update(
         mask: HeadOcclusionMask?,
@@ -51,12 +57,24 @@ internal class HeadOcclusionNode private constructor(
             view.viewport.width <= 0 ||
             view.viewport.height <= 0
         ) {
-            isVisible = false
+            hide()
             return false
         }
 
+        val viewportWidth = view.viewport.width
+        val viewportHeight = view.viewport.height
+        if (
+            mask.timestampMs == lastMaskTimestampMs &&
+            viewportWidth == lastViewportWidth &&
+            viewportHeight == lastViewportHeight &&
+            abs(referencePlaneZ - lastReferencePlaneZ) <= MAX_CACHED_DEPTH_DELTA
+        ) {
+            isVisible = lastUpdateWasVisible
+            return lastUpdateWasVisible
+        }
+
         // Filament vertex/index buffer capacities are fixed at build time. Keep
-        // one bounded 64x64-cell topology and collapse inactive cells to
+        // one bounded 32x32-cell topology and collapse inactive cells to
         // degenerate triangles instead of resizing GPU buffers per result.
         // Keep one permanent degenerate sentinel quad in the buffer. Filament
         // rejects an empty AABB, including the valid-but-empty case where all
@@ -97,7 +115,13 @@ internal class HeadOcclusionNode private constructor(
         }
 
         if (projectedCellCount == 0) {
-            isVisible = false
+            rememberUpdate(
+                mask = mask,
+                viewportWidth = viewportWidth,
+                viewportHeight = viewportHeight,
+                referencePlaneZ = referencePlaneZ,
+                visible = false,
+            )
             return false
         }
 
@@ -105,12 +129,38 @@ internal class HeadOcclusionNode private constructor(
             vertices = vertices,
             indices = listOf(triangleIndices),
         )
-        isVisible = true
+        rememberUpdate(
+            mask = mask,
+            viewportWidth = viewportWidth,
+            viewportHeight = viewportHeight,
+            referencePlaneZ = referencePlaneZ,
+            visible = true,
+        )
         return true
     }
 
     fun hide() {
         isVisible = false
+        lastMaskTimestampMs = null
+        lastViewportWidth = 0
+        lastViewportHeight = 0
+        lastReferencePlaneZ = 0f
+        lastUpdateWasVisible = false
+    }
+
+    private fun rememberUpdate(
+        mask: HeadOcclusionMask,
+        viewportWidth: Int,
+        viewportHeight: Int,
+        referencePlaneZ: Float,
+        visible: Boolean,
+    ) {
+        lastMaskTimestampMs = mask.timestampMs
+        lastViewportWidth = viewportWidth
+        lastViewportHeight = viewportHeight
+        lastReferencePlaneZ = referencePlaneZ
+        lastUpdateWasVisible = visible
+        isVisible = visible
     }
 
     private fun hasActivePixel(
@@ -195,7 +245,7 @@ internal class HeadOcclusionNode private constructor(
     )
 
     companion object {
-        private const val MAX_GRID_SIZE = 64
+        private const val MAX_GRID_SIZE = 32
         private const val VERTICES_PER_CELL = 4
         private const val CELL_VERTEX_COUNT = MAX_GRID_SIZE * MAX_GRID_SIZE * VERTICES_PER_CELL
         private const val SENTINEL_VERTEX_OFFSET = CELL_VERTEX_COUNT
@@ -203,6 +253,7 @@ internal class HeadOcclusionNode private constructor(
         private const val CELL_SAMPLE_GRID = 4
         private const val MINIMUM_RECT_SIZE = 0.25f
         private const val MINIMUM_RAY_DEPTH = 0.0001f
+        private const val MAX_CACHED_DEPTH_DELTA = 0.01f
 
         /**
          * Builds the fixed-capacity vertex list used both at creation and on
