@@ -23,6 +23,7 @@ class ArTryOnContentStateTest {
                 face = faceFrame(),
                 pose = FacePose(0f, 0f, 0f, 0f, 0f, 0f, 1f),
                 assetState = ArAssetState.Ready,
+                trackingQuality = ArTrackingQuality.LookStraight,
             ),
         )
 
@@ -32,6 +33,11 @@ class ArTryOnContentStateTest {
             assertNotNull(content)
             assertEquals(EXPECTED_PHASES[index], content?.phase)
         }
+
+        assertEquals(
+            ArTrackingQuality.LookStraight,
+            states.last().toActiveTryOnContentState()?.trackingQuality,
+        )
     }
 
     @Test
@@ -105,6 +111,19 @@ class ArTryOnContentStateTest {
                 hasTrackedBefore = false,
                 assetState = ArAssetState.Ready,
                 trackingQuality = ArTrackingQuality.Reacquiring,
+            ),
+        )
+    }
+
+    @Test
+    fun `stable tracking has no guidance overlay message`() {
+        assertEquals(
+            null,
+            arFaceGuidanceMessage(
+                phase = ActiveTryOnPhase.Tracking,
+                hasTrackedBefore = true,
+                assetState = ArAssetState.Ready,
+                trackingQuality = ArTrackingQuality.Stable,
             ),
         )
     }

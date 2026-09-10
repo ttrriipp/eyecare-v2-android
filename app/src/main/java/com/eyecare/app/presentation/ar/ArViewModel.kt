@@ -145,16 +145,26 @@ class ArViewModel @AssistedInject constructor(
                         )
                         val previousQuality = trackingQuality
                         val effectiveQuality = updateTrackingQuality(candidateQuality)
-                        latestPose = if (effectiveQuality == ArTrackingQuality.Stable) {
-                            poseStabilizer.update(
-                                pose = distanceAdjustedPose,
-                                timestampMs = state.frame.timestampMs,
-                            )
-                        } else {
-                            if (previousQuality == ArTrackingQuality.Stable) {
-                                poseStabilizer.reset()
+                        latestPose = when {
+                            effectiveQuality == ArTrackingQuality.Stable &&
+                                candidateQuality == ArTrackingQuality.Stable -> {
+                                poseStabilizer.update(
+                                    pose = distanceAdjustedPose,
+                                    timestampMs = state.frame.timestampMs,
+                                )
                             }
-                            null
+                            effectiveQuality == ArTrackingQuality.Stable -> {
+                                // Keep the last good pose during the short grace window. This
+                                // prevents a single malformed transform from blanking the model
+                                // before hysteresis can decide whether tracking is really lost.
+                                latestPose
+                            }
+                            else -> {
+                                if (previousQuality == ArTrackingQuality.Stable) {
+                                    poseStabilizer.reset()
+                                }
+                                null
+                            }
                         }
                     }
 

@@ -87,6 +87,7 @@ internal fun arFaceGuidanceMessage(
 ): String? = when {
     assetState is ArAssetState.Failed -> null
     phase == ActiveTryOnPhase.Loading -> "Preparing your try-on…"
+    trackingQuality == ArTrackingQuality.Stable -> null
     trackingQuality == ArTrackingQuality.Reacquiring ->
         "Preview paused — hold still while we reacquire your face"
     trackingQuality == ArTrackingQuality.CenterFace -> "Center your face inside the guide"

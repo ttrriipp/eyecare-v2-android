@@ -62,6 +62,7 @@ import com.eyecare.app.presentation.ar.components.VariantChipRow
 import com.eyecare.app.presentation.ar.model.ArAssetSource
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArFaceState
+import com.eyecare.app.presentation.ar.model.ArTrackingQuality
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderState
 import com.eyecare.app.presentation.ar.rendering.FrameModelRenderer
@@ -208,7 +209,13 @@ private fun ActiveTryOnContent(
                 modifier = Modifier.fillMaxSize(),
                 source = rendererSource,
                 face = state.face,
-                pose = if (state.face != null) state.pose else null,
+                pose = if (
+                    state.face != null && state.trackingQuality == ArTrackingQuality.Stable
+                ) {
+                    state.pose
+                } else {
+                    null
+                },
                 showModelWithoutPose = false,
                 transparent = true,
                 autoCenterContent = false,
@@ -233,8 +240,12 @@ private fun ActiveTryOnContent(
             phase = state.phase,
             hasTrackedBefore = state.hasTrackedBefore,
             assetState = state.assetState,
+            trackingQuality = state.trackingQuality,
         )?.let { guidanceMessage ->
-            if (state.face == null || state.pose == null) {
+            if (
+                state.face == null || state.pose == null ||
+                state.trackingQuality != ArTrackingQuality.Stable
+            ) {
                 ArFaceGuideOverlay(
                     message = guidanceMessage,
                     showGuide = state.phase != ActiveTryOnPhase.Loading,

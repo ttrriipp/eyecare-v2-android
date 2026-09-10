@@ -241,7 +241,7 @@ class ArViewModelTest {
         }
         val grace = assertInstanceOf(ArTryOnUiState.Tracking::class.java, viewModel.uiState.value)
         assertEquals(ArTrackingQuality.Stable, grace.trackingQuality)
-        assertNotNull(grace.pose)
+        assertEquals(stable.pose, grace.pose)
 
         viewModel.onFaceResult(
             ArFaceState.Detected(
