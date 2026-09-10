@@ -29,7 +29,7 @@ class FaceTrackingQualityTest {
     fun `turned face asks user to look straight`() {
         assertEquals(
             ArTrackingQuality.LookStraight,
-            classifyFaceTrackingQuality(face(), pose(yawDeg = 24f)),
+            classifyFaceTrackingQuality(face(), pose(yawDeg = 28f)),
         )
     }
 
@@ -38,6 +38,14 @@ class FaceTrackingQualityTest {
         assertEquals(
             ArTrackingQuality.Stable,
             classifyFaceTrackingQuality(face(), pose(yawDeg = 18f)),
+        )
+    }
+
+    @Test
+    fun `moderate side turn remains stable up to the temple safety angle`() {
+        assertEquals(
+            ArTrackingQuality.Stable,
+            classifyFaceTrackingQuality(face(), pose(yawDeg = 24f)),
         )
     }
 

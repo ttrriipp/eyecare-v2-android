@@ -11,8 +11,8 @@ internal object FaceTrackingThresholds {
     const val MAX_CENTER_OFFSET_X = 0.15f
     const val MAX_CENTER_OFFSET_Y = 0.18f
     const val MAX_PITCH_DEGREES = 12f
-    // Allow a modest side turn while staying inside the renderer's far-temple safety range.
-    const val MAX_YAW_DEGREES = 20f
+    // Allow a moderate side turn up to the renderer's far-temple safety boundary.
+    const val MAX_YAW_DEGREES = 24f
     const val MAX_ROLL_DEGREES = 10f
 }
 
