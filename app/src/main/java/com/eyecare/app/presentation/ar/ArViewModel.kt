@@ -126,7 +126,11 @@ class ArViewModel @AssistedInject constructor(
                                 faceWidthNorm = state.frame.faceWidthNorm,
                                 mappedPoseScale = pose.scale,
                                 yawDeg = pose.yawDeg,
-                            )?.let { scale -> pose.copy(scale = scale) } ?: pose
+                                faceCenterX = state.frame.noseBridgeX,
+                                faceCenterY = state.frame.noseBridgeY,
+                                pitchDeg = pose.pitchDeg,
+                                rollDeg = pose.rollDeg,
+                            )?.let { scale -> pose.copy(scale = scale) }
                         }
                         latestPose = poseStabilizer.update(
                             pose = distanceAdjustedPose,

@@ -200,6 +200,35 @@ class ArViewModelTest {
     }
 
     @Test
+    fun `initial tracking waits for a centered face before exposing the pose`() {
+        val viewModel = viewModel()
+        drain()
+        viewModel.onPermissionResult(granted = true)
+
+        viewModel.onFaceResult(
+            ArFaceState.Detected(
+                frame(timestampMs = 0L, noseBridgeX = 0.8f),
+            ),
+        )
+        val untrustedTracking = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        )
+        assertNull(untrustedTracking.pose)
+
+        viewModel.onFaceResult(
+            ArFaceState.Detected(
+                frame(timestampMs = 100L),
+            ),
+        )
+        val trustedTracking = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        )
+        assertNotNull(trustedTracking.pose)
+    }
+
+    @Test
     fun `duplicate face timestamp used for mask attachment preserves the pose`() {
         val viewModel = viewModel()
         drain()
@@ -713,9 +742,11 @@ class ArViewModelTest {
         timestampMs: Long,
         matrix: FaceTransformationMatrix = IDENTITY_MATRIX,
         faceWidthNorm: Float = 0.4f,
+        noseBridgeX: Float = 0.5f,
+        noseBridgeY: Float = 0.5f,
     ): FaceFrame = FaceFrame(
-        noseBridgeX = 0.5f,
-        noseBridgeY = 0.5f,
+        noseBridgeX = noseBridgeX,
+        noseBridgeY = noseBridgeY,
         leftTempleX = 0.3f,
         rightTempleX = 0.7f,
         faceWidthNorm = faceWidthNorm,

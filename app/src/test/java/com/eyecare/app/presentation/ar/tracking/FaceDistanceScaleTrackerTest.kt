@@ -1,6 +1,6 @@
 package com.eyecare.app.presentation.ar.tracking
 
-import kotlin.math.sqrt
+import kotlin.math.cos
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class FaceDistanceScaleTrackerTest {
 
     @Test
-    fun first_valid_sample_preserves_the_mapped_pose_scale() {
+    fun first_trusted_sample_preserves_the_mapped_pose_scale() {
         val tracker = FaceDistanceScaleTracker()
 
         val scale = tracker.update(
@@ -69,12 +69,49 @@ class FaceDistanceScaleTrackerTest {
         tracker.update(faceWidthNorm = 0.4f, mappedPoseScale = 1f, yawDeg = 0f)
 
         val sideViewScale = tracker.update(
-            faceWidthNorm = 0.4f * sqrt(0.5f),
+            faceWidthNorm = 0.4f * cos(Math.toRadians(15.0)).toFloat(),
             mappedPoseScale = 1f,
-            yawDeg = 45f,
+            yawDeg = 15f,
         )
 
         assertEquals(1f, sideViewScale!!, 0.001f)
+    }
+
+    @Test
+    fun untrusted_first_pose_does_not_establish_a_scale_baseline() {
+        val tracker = FaceDistanceScaleTracker()
+
+        val scale = tracker.update(
+            faceWidthNorm = 0.4f,
+            mappedPoseScale = 1f,
+            yawDeg = 0f,
+            faceCenterX = 0.8f,
+        )
+
+        assertNull(scale)
+        assertEquals(
+            1f,
+            tracker.update(
+                faceWidthNorm = 0.4f,
+                mappedPoseScale = 1f,
+                yawDeg = 0f,
+            ),
+        )
+    }
+
+    @Test
+    fun untrusted_pose_holds_the_last_trusted_scale() {
+        val tracker = FaceDistanceScaleTracker()
+        tracker.update(faceWidthNorm = 0.4f, mappedPoseScale = 1f, yawDeg = 0f)
+        tracker.update(faceWidthNorm = 0.6f, mappedPoseScale = 1f, yawDeg = 0f)
+
+        val heldScale = tracker.update(
+            faceWidthNorm = 0.2f,
+            mappedPoseScale = 1f,
+            yawDeg = 35f,
+        )
+
+        assertEquals(1.3f, heldScale)
     }
 
     @Test

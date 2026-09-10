@@ -234,7 +234,7 @@ private fun ActiveTryOnContent(
             hasTrackedBefore = state.hasTrackedBefore,
             assetState = state.assetState,
         )?.let { guidanceMessage ->
-            if (state.face == null) {
+            if (state.face == null || state.pose == null) {
                 ArFaceGuideOverlay(
                     message = guidanceMessage,
                     showGuide = state.phase != ActiveTryOnPhase.Loading,
