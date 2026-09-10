@@ -157,6 +157,49 @@ class ArViewModelTest {
     }
 
     @Test
+    fun `detected face width adjusts the stabilized visible pose scale`() {
+        val viewModel = viewModel()
+        drain()
+        viewModel.onPermissionResult(granted = true)
+
+        viewModel.onFaceResult(
+            ArFaceState.Detected(
+                frame(timestampMs = 0L, faceWidthNorm = 0.4f),
+            ),
+        )
+        val initialScale = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        ).pose!!.scale
+
+        viewModel.onFaceResult(
+            ArFaceState.Detected(
+                frame(timestampMs = 100L, faceWidthNorm = 0.6f),
+            ),
+        )
+        val closerScale = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        ).pose!!.scale
+
+        assertTrue(closerScale > initialScale)
+        assertTrue(closerScale < 1.5f)
+
+        viewModel.onFaceResult(ArFaceState.NoFace)
+        viewModel.onFaceResult(
+            ArFaceState.Detected(
+                frame(timestampMs = 200L, faceWidthNorm = 0.6f),
+            ),
+        )
+        val resumedScale = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        ).pose!!.scale
+
+        assertEquals(1f, resumedScale)
+    }
+
+    @Test
     fun `duplicate face timestamp used for mask attachment preserves the pose`() {
         val viewModel = viewModel()
         drain()
@@ -669,12 +712,13 @@ class ArViewModelTest {
     private fun frame(
         timestampMs: Long,
         matrix: FaceTransformationMatrix = IDENTITY_MATRIX,
+        faceWidthNorm: Float = 0.4f,
     ): FaceFrame = FaceFrame(
         noseBridgeX = 0.5f,
         noseBridgeY = 0.5f,
         leftTempleX = 0.3f,
         rightTempleX = 0.7f,
-        faceWidthNorm = 0.4f,
+        faceWidthNorm = faceWidthNorm,
         rotationDeg = 0f,
         imageWidth = 640,
         imageHeight = 480,

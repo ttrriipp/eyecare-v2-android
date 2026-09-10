@@ -20,6 +20,7 @@ import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FacePose
 import com.eyecare.app.presentation.ar.model.FacePoseCalibration
 import com.eyecare.app.presentation.ar.model.FrameModelScale
+import com.eyecare.app.presentation.ar.tracking.FaceDistanceScaleTracker
 import com.eyecare.app.presentation.ar.tracking.PoseStabilizer
 import com.eyecare.app.presentation.ar.tracking.mapFacePose
 import dagger.assisted.Assisted
@@ -62,6 +63,7 @@ class ArViewModel @AssistedInject constructor(
     val assetSource: StateFlow<ArAssetSource> = _assetSource.asStateFlow()
 
     private val poseStabilizer = PoseStabilizer()
+    private val faceDistanceScaleTracker = FaceDistanceScaleTracker()
     private var poseCalibration = FacePoseCalibration.ProvisionalRoundFrame
     private var loadJob: Job? = null
     private var assetLoadJob: Job? = null
@@ -115,11 +117,19 @@ class ArViewModel @AssistedInject constructor(
                 when {
                     previousFace == null || state.frame.timestampMs > previousFace.timestampMs -> {
                         latestFace = state.frame
+                        val mappedPose = mapFacePose(
+                            matrix = state.frame.transformationMatrix,
+                            calibration = poseCalibration,
+                        )
+                        val distanceAdjustedPose = mappedPose?.let { pose ->
+                            faceDistanceScaleTracker.update(
+                                faceWidthNorm = state.frame.faceWidthNorm,
+                                mappedPoseScale = pose.scale,
+                                yawDeg = pose.yawDeg,
+                            )?.let { scale -> pose.copy(scale = scale) } ?: pose
+                        }
                         latestPose = poseStabilizer.update(
-                            pose = mapFacePose(
-                                matrix = state.frame.transformationMatrix,
-                                calibration = poseCalibration,
-                            ),
+                            pose = distanceAdjustedPose,
                             timestampMs = state.frame.timestampMs,
                         )
                     }
@@ -466,6 +476,10 @@ class ArViewModel @AssistedInject constructor(
                             z = cal.scale.z.toFloat(),
                         ),
                     )
+                    // A remote asset can carry a different pose calibration. Keep the current
+                    // face tracking, but let its next valid sample establish a fresh scale
+                    // baseline for the newly calibrated model.
+                    faceDistanceScaleTracker.reset()
                     poseCalibration = FacePoseCalibration(
                         translationScale = 0.01f,
                         scaleMultiplier = 1f,
@@ -566,6 +580,7 @@ class ArViewModel @AssistedInject constructor(
 
     private fun clearTracking() {
         poseStabilizer.reset()
+        faceDistanceScaleTracker.reset()
         latestFace = null
         latestPose = null
     }
