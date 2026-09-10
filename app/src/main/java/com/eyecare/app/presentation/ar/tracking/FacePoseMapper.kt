@@ -7,6 +7,7 @@ import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 private const val AFFINE_TOLERANCE = 0.001f
@@ -103,15 +104,37 @@ fun mapFacePose(
     }
 
     val mirrorSign = if (calibration.mirrorFrontCamera) -1f else 1f
-    val translationX = matrix.element(row = 0, column = 3) * mirrorSign * calibration.translationScale +
-        calibration.anchorX
-    val translationY = matrix.element(row = 1, column = 3) * calibration.translationScale +
-        calibration.anchorY
-    val translationZ = matrix.element(row = 2, column = 3) * calibration.translationScale +
-        calibration.anchorZ
     val pitchDeg = (pitchRadians * RADIANS_TO_DEGREES).toFloat() + calibration.pitchOffsetDeg
     val yawDeg = (yawRadians * RADIANS_TO_DEGREES).toFloat() * mirrorSign + calibration.yawOffsetDeg
     val rollDeg = (rollRadians * RADIANS_TO_DEGREES).toFloat() * mirrorSign + calibration.rollOffsetDeg
+    // Calibration anchors are expressed in model-local coordinates. Rotate them with the final
+    // renderer pose so a bridge correction remains attached to the frame as the head turns,
+    // rather than becoming a fixed world-space offset.
+    val pitch = Math.toRadians(pitchDeg.toDouble())
+    val yaw = Math.toRadians(yawDeg.toDouble())
+    val roll = Math.toRadians(rollDeg.toDouble())
+    val pitchCosine = cos(pitch)
+    val pitchSine = sin(pitch)
+    val yawCosine = cos(yaw)
+    val yawSine = sin(yaw)
+    val rollCosine = cos(roll)
+    val rollSine = sin(roll)
+    // Match the renderer's X (pitch), Y (yaw), Z (roll) order: Rz * Ry * Rx.
+    val afterPitchX = calibration.anchorX.toDouble()
+    val afterPitchY = pitchCosine * calibration.anchorY - pitchSine * calibration.anchorZ
+    val afterPitchZ = pitchSine * calibration.anchorY + pitchCosine * calibration.anchorZ
+    val afterYawX = yawCosine * afterPitchX + yawSine * afterPitchZ
+    val afterYawY = afterPitchY
+    val afterYawZ = -yawSine * afterPitchX + yawCosine * afterPitchZ
+    val rotatedAnchorX = (rollCosine * afterYawX - rollSine * afterYawY).toFloat()
+    val rotatedAnchorY = (rollSine * afterYawX + rollCosine * afterYawY).toFloat()
+    val rotatedAnchorZ = afterYawZ.toFloat()
+    val translationX = matrix.element(row = 0, column = 3) * mirrorSign * calibration.translationScale +
+        rotatedAnchorX
+    val translationY = matrix.element(row = 1, column = 3) * calibration.translationScale +
+        rotatedAnchorY
+    val translationZ = matrix.element(row = 2, column = 3) * calibration.translationScale +
+        rotatedAnchorZ
     val scale = ((xLength + yLength + zLength) / 3f) * calibration.scaleMultiplier
 
     if (

@@ -35,6 +35,23 @@ class FacePoseMapperTest {
     }
 
     @Test
+    fun rotatesCalibrationAnchorWithFaceRotation() {
+        val pose = mapFacePose(
+            matrix = transformationMatrix(rollDeg = 90f),
+            calibration = calibration(
+                mirrorFrontCamera = false,
+                anchorX = 0.1f,
+            ),
+        )
+
+        assertNotNull(pose)
+        assertEquals(0f, pose!!.translationX, ANGLE_EPSILON)
+        assertEquals(0.1f, pose.translationY, ANGLE_EPSILON)
+        assertEquals(0f, pose.translationZ, ANGLE_EPSILON)
+        assertEquals(90f, pose.rollDeg, ANGLE_EPSILON)
+    }
+
+    @Test
     fun mapsTranslationThroughMetricScaleAndFrontCameraMirror() {
         val pose = mapFacePose(
             matrix = transformationMatrix(translationX = 4f, translationY = -2f, translationZ = -10f),
