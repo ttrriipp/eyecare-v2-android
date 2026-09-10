@@ -383,6 +383,48 @@ class ArViewModelTest {
     }
 
     @Test
+    fun `asset readiness clears poses captured while the model was loading`() {
+        val arAsset = typedArAsset()
+        val assetResult = CompletableDeferred<ArAssetLoadResult>()
+        val viewModel = viewModel(
+            frameResult = Result.success(frameWithTypedAr(arAsset)),
+            pendingArAssetResult = assetResult,
+        )
+        drain()
+        viewModel.onPermissionResult(granted = true)
+        drain()
+
+        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 0L)))
+        val loadingPose = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        ).pose
+        assertNotNull(loadingPose)
+
+        assetResult.complete(
+            ArAssetLoadResult.Downloaded(
+                identity = ArAssetIdentity(42, 2, "a".repeat(64)),
+                asset = arAsset,
+                localFilePath = "/tmp/test.glb",
+            ),
+        )
+        drain()
+
+        val waitingForFreshPose = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        ).pose
+        assertNull(waitingForFreshPose)
+
+        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 100L)))
+        val freshPose = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        ).pose
+        assertNotNull(freshPose)
+    }
+
+    @Test
     fun `asset load failure sets source to Failed`() {
         val arAsset = typedArAsset()
         val viewModel = viewModel(
@@ -639,6 +681,7 @@ class ArViewModelTest {
         frameResult: Result<Frame>? = null,
         pendingResult: CompletableDeferred<Result<Frame>>? = null,
         arAssetResult: ArAssetLoadResult? = null,
+        pendingArAssetResult: CompletableDeferred<ArAssetLoadResult>? = null,
         arAssetRepository: ArAssetRepository? = null,
         frameRepository: FrameRepository? = null,
         savedFrameRepository: SavedFrameRepository? = null,
@@ -649,7 +692,9 @@ class ArViewModelTest {
             }
         }
         val arRepo = arAssetRepository ?: mockk<ArAssetRepository>().also { repo ->
-            if (arAssetResult != null) {
+            if (pendingArAssetResult != null) {
+                coEvery { repo.load(any(), any()) } coAnswers { pendingArAssetResult.await() }
+            } else if (arAssetResult != null) {
                 coEvery { repo.load(any(), any()) } returns arAssetResult
             }
         }

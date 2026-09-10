@@ -480,10 +480,12 @@ class ArViewModel @AssistedInject constructor(
                             z = cal.scale.z.toFloat(),
                         ),
                     )
-                    // A remote asset can carry a different pose calibration. Keep the current
-                    // face tracking, but let its next valid sample establish a fresh scale
-                    // baseline for the newly calibrated model.
+                    // A remote asset can carry a different pose calibration. Face callbacks may
+                    // have arrived while it was downloading, so do not reuse that pose for the
+                    // newly calibrated model; the next trusted sample must establish its baseline.
                     faceDistanceScaleTracker.reset()
+                    poseStabilizer.reset()
+                    latestPose = null
                     poseCalibration = FacePoseCalibration(
                         translationScale = 0.01f,
                         scaleMultiplier = 1f,
