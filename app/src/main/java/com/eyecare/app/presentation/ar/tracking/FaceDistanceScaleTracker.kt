@@ -60,8 +60,8 @@ internal class FaceDistanceScaleTracker(
         faceWidthNorm: Float,
         mappedPoseScale: Float,
         yawDeg: Float,
-        faceCenterX: Float = DEFAULT_FACE_CENTER,
-        faceCenterY: Float = DEFAULT_FACE_CENTER,
+        faceCenterX: Float = FaceTrackingThresholds.DEFAULT_FACE_CENTER,
+        faceCenterY: Float = FaceTrackingThresholds.DEFAULT_FACE_CENTER,
         pitchDeg: Float = 0f,
         rollDeg: Float = 0f,
     ): Float? {
@@ -76,7 +76,7 @@ internal class FaceDistanceScaleTracker(
             return currentScale
         }
 
-        if (!isTrustedPose(faceCenterX, faceCenterY, pitchDeg, yawDeg, rollDeg)) {
+        if (!isTrustedFacePose(faceCenterX, faceCenterY, pitchDeg, yawDeg, rollDeg)) {
             // Do not establish a baseline from an oblique or off-guide face. Once tracking has
             // started, holding the last trusted value avoids a scale jump while the user turns.
             clearStartupSamplesIfNeeded()
@@ -163,19 +163,6 @@ internal class FaceDistanceScaleTracker(
         return sortedFaceWidths[recentFaceWidthCount / 2]
     }
 
-    private fun isTrustedPose(
-        faceCenterX: Float,
-        faceCenterY: Float,
-        pitchDeg: Float,
-        yawDeg: Float,
-        rollDeg: Float,
-    ): Boolean =
-        abs(faceCenterX - DEFAULT_FACE_CENTER) <= MAX_CENTER_OFFSET_X &&
-            abs(faceCenterY - DEFAULT_FACE_CENTER) <= MAX_CENTER_OFFSET_Y &&
-            abs(pitchDeg) <= MAX_PITCH_DEGREES &&
-            abs(yawDeg) <= MAX_YAW_DEGREES &&
-            abs(rollDeg) <= MAX_ROLL_DEGREES
-
     private fun compensateForYaw(faceWidthNorm: Float, yawDeg: Float): Float {
         val yawRadians = Math.toRadians(yawDeg.toDouble())
         val projectedWidthFactor = abs(cos(yawRadians)).toFloat()
@@ -186,13 +173,7 @@ internal class FaceDistanceScaleTracker(
     private companion object {
         // Temple landmarks become unreliable when the detector has only a small face span.
         const val MIN_FACE_WIDTH_NORM = 0.05f
-        const val DEFAULT_FACE_CENTER = 0.5f
         // Scale calibration is enabled only while the face remains inside the central guide.
-        const val MAX_CENTER_OFFSET_X = 0.15f
-        const val MAX_CENTER_OFFSET_Y = 0.18f
-        const val MAX_PITCH_DEGREES = 12f
-        const val MAX_YAW_DEGREES = 12f
-        const val MAX_ROLL_DEGREES = 10f
         // Do not let extreme oblique poses amplify detector noise without bound.
         const val DEFAULT_MINIMUM_YAW_COSINE = 0.5f
         // Keep the initial backend/asset calibration as the center of the visual range.
