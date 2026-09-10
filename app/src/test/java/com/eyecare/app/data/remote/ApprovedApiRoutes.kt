@@ -1,14 +1,14 @@
 package com.eyecare.app.data.remote
 
 /**
- * V21 route governance — 58-route contract.
+ * V22 route governance — 59-route contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
- * 2. Account-only routes (40) — authenticated, no patient link required
+ * 2. Account-only routes (41) — authenticated, no patient link required
  * 3. Active-link routes (10) — require active patient link
  *
- * Total canonical callable routes: 8 + 40 + 10 = 58.
+ * Total canonical callable routes: 8 + 41 + 10 = 59.
  *
  * Conversation read/list/send/search/read-mark are account-only; attachment download is account-only.
  * Saved Frames (GET/PUT/DELETE) are account-only.
@@ -30,7 +30,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/auth/policies",
     )
 
-    /** Account-only routes — authenticated, no patient link required. (40) */
+    /** Account-only routes — authenticated, no patient link required. (41) */
     val accountOnlyRoutes: Set<String> = setOf(
         "POST $BASE/logout",
         "POST $BASE/logout-all",
@@ -56,6 +56,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/appointment-requests",
         "POST $BASE/appointment-requests",
         "GET $BASE/appointment-requests/{appointmentRequest}",
+        "PATCH $BASE/appointment-requests/{appointmentRequest}",
         "POST $BASE/appointment-requests/{appointmentRequest}/cancel",
         "GET $BASE/frames",
         "GET $BASE/frames/{frame}",

@@ -440,6 +440,7 @@ fun EyecareNavGraph(
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
                             onBack = { navController.popBackStack() },
+                            onNavigateToMessages = { navigatePatientFeature(Chat) },
                         )
                     }
                     composable<AppointmentRequestDetail> { backStackEntry ->

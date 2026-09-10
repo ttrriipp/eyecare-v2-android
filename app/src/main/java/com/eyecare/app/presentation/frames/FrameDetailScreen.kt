@@ -189,11 +189,6 @@ fun FrameDetailScreen(
                                 frameName = frame.name,
                                 images = images,
                                 pagerState = pagerState,
-                                onTryOn = if (selected.isTypedArReady) {
-                                    { onNavigateToAr(frame.id, selected.id) }
-                                } else {
-                                    null
-                                },
                             )
                         }
 
@@ -558,7 +553,6 @@ private fun FrameHeroMedia(
     frameName: String,
     images: List<String>,
     pagerState: PagerState,
-    onTryOn: (() -> Unit)?,
 ) {
     Box(
         modifier = Modifier
@@ -603,25 +597,6 @@ private fun FrameHeroMedia(
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
-                }
-            }
-
-            onTryOn?.let { tryOn ->
-                Button(
-                    onClick = tryOn,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp)
-                        .heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(24.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.FaceRetouchingNatural,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text("Try on")
                 }
             }
         }

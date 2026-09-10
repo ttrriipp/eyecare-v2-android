@@ -4,6 +4,7 @@ import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
+import com.eyecare.app.domain.repository.AppointmentV1Repository
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ class AppointmentRequestDetailViewModelTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
     private lateinit var repo: AppointmentRequestRepository
+    private lateinit var appointmentRepo: AppointmentV1Repository
     private lateinit var vm: AppointmentRequestDetailViewModel
 
     private val pendingRequest = AppointmentRequest(
@@ -40,7 +42,8 @@ class AppointmentRequestDetailViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
-        vm = AppointmentRequestDetailViewModel(repo)
+        appointmentRepo = mockk()
+        vm = AppointmentRequestDetailViewModel(repo, appointmentRepo)
     }
 
     @AfterEach

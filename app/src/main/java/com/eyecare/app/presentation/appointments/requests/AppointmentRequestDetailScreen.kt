@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,6 +51,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
+import com.eyecare.app.presentation.appointments.RescheduleBottomSheet
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
@@ -101,6 +103,12 @@ fun AppointmentRequestDetailScreen(
             onViewConfirmed = { onViewConfirmedAppointment(it) },
             onRefresh = viewModel::refresh,
             onMessageClick = onNavigateToMessages,
+            onEditScheduleClick = viewModel::showScheduleSheet,
+            onDismissScheduleSheet = viewModel::dismissScheduleSheet,
+            onShowScheduleWeek = viewModel::loadScheduleWeekAvailability,
+            onScheduleDateChanged = viewModel::loadScheduleAvailability,
+            onRetryScheduleAvailability = viewModel::retryScheduleAvailability,
+            onUpdateSchedule = viewModel::updateSchedule,
         )
         is RequestDetailState.Error -> ErrorContent(
             message = s.message,
@@ -141,6 +149,12 @@ private fun RequestDetailDataContent(
     onViewConfirmed: (Int) -> Unit,
     onRefresh: () -> Unit,
     onMessageClick: () -> Unit,
+    onEditScheduleClick: () -> Unit,
+    onDismissScheduleSheet: () -> Unit,
+    onShowScheduleWeek: (String) -> Unit,
+    onScheduleDateChanged: (String) -> Unit,
+    onRetryScheduleAvailability: () -> Unit,
+    onUpdateSchedule: (String) -> Unit,
 ) {
     val presentation = requestStatusPresentation(state.request.status)
     // Mirrors the list card's own type/duration join (AppointmentListScreen.kt) so the same
@@ -161,7 +175,8 @@ private fun RequestDetailDataContent(
     val showCancel = presentation.showCancel && state.request.status.isCancellable
     val confirmedAppointmentId = state.request.appointmentId
         .takeIf { presentation.showViewConfirmed && state.isLinked }
-    val showBottomBar = showMessageAction || showCancel || confirmedAppointmentId != null
+    val showScheduleAction = state.request.status.isCancellable
+    val showBottomBar = showMessageAction || showCancel || confirmedAppointmentId != null || showScheduleAction
 
     Scaffold(
         topBar = {
@@ -176,10 +191,13 @@ private fun RequestDetailDataContent(
                     confirmedAppointmentId = confirmedAppointmentId,
                     showMessageAction = showMessageAction,
                     showCancel = showCancel,
+                    showScheduleAction = showScheduleAction,
                     isCancelling = state.isCancelling,
+                    isUpdatingSchedule = state.isUpdatingSchedule,
                     onViewConfirmed = onViewConfirmed,
                     onMessageClick = onMessageClick,
                     onCancelClick = onCancelClick,
+                    onEditScheduleClick = onEditScheduleClick,
                 )
             }
         },
@@ -344,6 +362,30 @@ private fun RequestDetailDataContent(
             }
         }
     }
+
+    if (state.showScheduleSheet) {
+        RescheduleBottomSheet(
+            currentScheduledAt = state.request.scheduledAt,
+            weekStart = state.scheduleWeekStart,
+            dayAvailability = state.scheduleDayAvailability,
+            availabilityState = state.scheduleAvailability,
+            isSubmitting = state.isUpdatingSchedule,
+            errorMessage = state.scheduleError,
+            title = "Change requested time",
+            description = "Choose a new preferred time. Your request stays pending until the clinic reviews it.",
+            confirmationTitle = "Update requested time",
+            confirmationMessage = { date, time ->
+                "Update this request to $date at $time? The request will stay pending until the clinic reviews it."
+            },
+            confirmLabel = "Update request",
+            dismissLabel = "Keep current time",
+            onShowWeek = onShowScheduleWeek,
+            onDateChanged = onScheduleDateChanged,
+            onRetryAvailability = onRetryScheduleAvailability,
+            onDismiss = onDismissScheduleSheet,
+            onConfirm = onUpdateSchedule,
+        )
+    }
 }
 
 @Composable
@@ -351,10 +393,13 @@ private fun RequestDetailBottomBar(
     confirmedAppointmentId: Int?,
     showMessageAction: Boolean,
     showCancel: Boolean,
+    showScheduleAction: Boolean,
     isCancelling: Boolean,
+    isUpdatingSchedule: Boolean,
     onViewConfirmed: (Int) -> Unit,
     onMessageClick: () -> Unit,
     onCancelClick: () -> Unit,
+    onEditScheduleClick: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -372,6 +417,15 @@ private fun RequestDetailBottomBar(
                     text = "View confirmed appointment",
                     onClick = { onViewConfirmed(confirmedAppointmentId) },
                     icon = Icons.Outlined.EventAvailable,
+                )
+            }
+            if (showScheduleAction) {
+                AppointmentPrimaryButton(
+                    text = "Change requested time",
+                    onClick = onEditScheduleClick,
+                    enabled = !isUpdatingSchedule,
+                    loading = isUpdatingSchedule,
+                    icon = Icons.Outlined.EditCalendar,
                 )
             }
             if (showMessageAction) {

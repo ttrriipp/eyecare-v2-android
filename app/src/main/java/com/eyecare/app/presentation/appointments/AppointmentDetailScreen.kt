@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Edit
@@ -66,6 +67,7 @@ import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.appointments.components.VisitFeedbackDialog
+import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.VisitRating
@@ -75,6 +77,7 @@ import com.eyecare.app.ui.theme.EyecareColors
 @Composable
 fun AppointmentDetailScreen(
     onBack: () -> Unit,
+    onNavigateToMessages: () -> Unit = {},
     viewModel: AppointmentDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -185,6 +188,7 @@ fun AppointmentDetailScreen(
                     onCancel = { showCancelDialog = true },
                     onRateVisit = viewModel::showRatingDialog,
                     onRetry = viewModel::refresh,
+                    onMessageClick = onNavigateToMessages,
                 )
             }
         }
@@ -198,16 +202,21 @@ private fun AppointmentDetailContent(
     onCancel: () -> Unit,
     onRateVisit: () -> Unit = {},
     onRetry: () -> Unit = {},
+    onMessageClick: () -> Unit = {},
 ) {
     val appointment = state.appointment
     val canCancel = appointment.status.canCancel
     val canReschedule = appointment.status.canReschedule
+    val canMessage = appointment.status.isActive
     val customerNote = appointment.contactNotes?.takeIf { it.isNotBlank() }
     val clinicNote: String? = null
     val rescheduleReason = displayableRescheduleReason(appointment.lastRescheduleReason)
-    val bottomContentPadding = when {
-        canCancel || canReschedule -> 120.dp
-        else -> 24.dp
+    val actionCount = listOf(canCancel, canReschedule, canMessage).count { it }
+    val bottomContentPadding = when (actionCount) {
+        0 -> 24.dp
+        1 -> 120.dp
+        2 -> 180.dp
+        else -> 240.dp
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -331,7 +340,7 @@ private fun AppointmentDetailContent(
 
         }
 
-        if (canCancel || canReschedule) {
+        if (actionCount > 0) {
             Surface(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
                 color = MaterialTheme.colorScheme.background,
@@ -381,6 +390,14 @@ private fun AppointmentDetailContent(
                                 Text("Cancel appointment", fontWeight = FontWeight.SemiBold)
                             }
                         }
+                    }
+                    if (canMessage) {
+                        AppointmentOutlinedButton(
+                            text = "Message the clinic",
+                            onClick = onMessageClick,
+                            enabled = !state.isCancelling && !state.isRescheduling,
+                            icon = Icons.AutoMirrored.Outlined.Chat,
+                        )
                     }
                 }
             }

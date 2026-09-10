@@ -98,6 +98,14 @@ fun RescheduleBottomSheet(
     availabilityState: RescheduleAvailabilityState,
     isSubmitting: Boolean,
     errorMessage: String?,
+    title: String = "Reschedule appointment",
+    description: String = "Choose a day and a time the clinic has confirmed as available.",
+    confirmationTitle: String = "Request this time change",
+    confirmationMessage: (date: String, time: String) -> String = { date, time ->
+        "Send a request to move this appointment to $date at $time? The clinic must approve it."
+    },
+    confirmLabel: String = "Send request",
+    dismissLabel: String = "Keep current time",
     onShowWeek: (String) -> Unit,
     onDateChanged: (String) -> Unit,
     onRetryAvailability: () -> Unit,
@@ -128,12 +136,13 @@ fun RescheduleBottomSheet(
     if (showConfirmDialog && selectedSlot != null) {
         AppConfirmationDialog(
             icon = Icons.Outlined.EventAvailable,
-            title = "Request this time change",
-            message = "Send a request to move this appointment to " +
-                "${formatRescheduleDate(selectedSlot.startsAt)} at " +
-                "${formatRescheduleTime(selectedSlot.startsAt)}? The clinic must approve it.",
-            confirmLabel = "Send request",
-            dismissLabel = "Keep current time",
+            title = confirmationTitle,
+            message = confirmationMessage(
+                formatRescheduleDate(selectedSlot.startsAt),
+                formatRescheduleTime(selectedSlot.startsAt),
+            ),
+            confirmLabel = confirmLabel,
+            dismissLabel = dismissLabel,
             onConfirm = {
                 showConfirmDialog = false
                 onConfirm(selectedSlot.startsAt)
@@ -161,12 +170,12 @@ fun RescheduleBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
-                    text = "Reschedule appointment",
+                    text = title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "Choose a day and a time the clinic has confirmed as available.",
+                    text = description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

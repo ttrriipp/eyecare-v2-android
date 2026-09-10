@@ -30,12 +30,15 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2/api/v1/\"")
+        buildConfigField("String", "CATALOG_IMAGE_BASE_URL", "\"\"")
     }
 
     buildTypes {
         debug {
             val debugUrl = localProps.getProperty("api.base.url", "http://10.0.2.2/api/v1/")
             buildConfigField("String", "API_BASE_URL", "\"$debugUrl\"")
+            val catalogImageUrl = localProps.getProperty("api.catalog.image.base.url", "")
+            buildConfigField("String", "CATALOG_IMAGE_BASE_URL", "\"$catalogImageUrl\"")
         }
         release {
             isMinifyEnabled = true
@@ -45,6 +48,8 @@ android {
             )
             val releaseUrl = localProps.getProperty("api.release.url", "https://your-production-url.com/api/v1/")
             buildConfigField("String", "API_BASE_URL", "\"$releaseUrl\"")
+            val catalogImageUrl = localProps.getProperty("api.catalog.image.base.url", "")
+            buildConfigField("String", "CATALOG_IMAGE_BASE_URL", "\"$catalogImageUrl\"")
         }
     }
 

@@ -284,165 +284,189 @@ private fun WeeklyAppointmentCalendar(
     onClearFilter: () -> Unit,
 ) {
     val visibleWeekStart = weekDays.firstOrNull() ?: selectedDate
+    val today = LocalDate.now()
 
-    Column(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        tonalElevation = 1.dp,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            WeekNavigationButton(
-                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Previous week",
-                onClick = onPreviousWeek,
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "Week of ${appointmentWeekRangeLabel(appointmentWeekDays(visibleWeekStart))}",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                WeekNavigationButton(
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "Previous week",
+                    onClick = onPreviousWeek,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(
-                        onClick = onTodayClick,
-                        enabled = selectedDate != LocalDate.now(),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                    ) {
-                        Text("Today")
-                    }
-                    TextButton(
-                        onClick = onClearFilter,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                    ) {
-                        Text("Clear filter")
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = "Week of ${appointmentWeekRangeLabel(appointmentWeekDays(visibleWeekStart))}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(
+                            onClick = onTodayClick,
+                            enabled = selectedDate != today,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        ) {
+                            Text("Today")
+                        }
+                        TextButton(
+                            onClick = onClearFilter,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        ) {
+                            Text("Clear")
+                        }
                     }
                 }
+                WeekNavigationButton(
+                    icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Next week",
+                    onClick = onNextWeek,
+                )
             }
-            WeekNavigationButton(
-                icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Next week",
-                onClick = onNextWeek,
-            )
-        }
 
-        AnimatedContent(
-            targetState = visibleWeekStart,
-            modifier = Modifier.fillMaxWidth(),
-            transitionSpec = {
-                val direction = if (targetState > initialState) 1 else -1
-                val enter = slideInHorizontally { width -> direction * width } + fadeIn()
-                val exit = slideOutHorizontally { width -> -direction * width } + fadeOut()
-                enter togetherWith exit using SizeTransform(clip = false)
-            },
-            label = "appointment-week-calendar",
-        ) { weekStart ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    appointmentWeekDays(weekStart).forEach { date ->
-                        val isSelected = date == selectedDate
-                        val appointmentCount = appointmentCounts[date] ?: 0
-                        val dayDescription = buildString {
-                            append(date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.US)))
-                            append(if (isSelected) ", selected" else ", not selected")
-                            append(". ")
-                            append(
-                                when (appointmentCount) {
-                                    0 -> "No appointments or requests"
-                                    1 -> "1 appointment or request"
-                                    else -> "$appointmentCount appointments or requests"
-                                },
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .selectable(
-                                    selected = isSelected,
-                                    role = Role.Button,
-                                    onClick = { onDateSelected(date) },
+            AnimatedContent(
+                targetState = visibleWeekStart,
+                modifier = Modifier.fillMaxWidth(),
+                transitionSpec = {
+                    val direction = if (targetState > initialState) 1 else -1
+                    val enter = slideInHorizontally { width -> direction * width } + fadeIn()
+                    val exit = slideOutHorizontally { width -> -direction * width } + fadeOut()
+                    enter togetherWith exit using SizeTransform(clip = true)
+                },
+                label = "appointment-week-calendar",
+            ) { weekStart ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        appointmentWeekDays(weekStart).forEach { date ->
+                            val isSelected = date == selectedDate
+                            val isToday = date == today
+                            val appointmentCount = appointmentCounts[date] ?: 0
+                            val dayDescription = buildString {
+                                append(date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.US)))
+                                append(if (isSelected) ", selected" else ", not selected")
+                                append(". ")
+                                append(
+                                    when (appointmentCount) {
+                                        0 -> "No appointments or requests"
+                                        1 -> "1 appointment or request"
+                                        else -> "$appointmentCount appointments or requests"
+                                    },
                                 )
-                                .semantics {
-                                    contentDescription = dayDescription
-                                    stateDescription = if (isSelected) "Selected" else "Not selected"
-                                },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(38.dp),
-                                shape = CircleShape,
-                                color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.surface
-                                },
-                                border = if (isSelected) {
-                                    null
-                                } else {
-                                    BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                                },
-                                tonalElevation = if (isSelected) 0.dp else 1.dp,
-                                shadowElevation = if (isSelected) 0.dp else 1.dp,
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .selectable(
+                                        selected = isSelected,
+                                        role = Role.Button,
+                                        onClick = { onDateSelected(date) },
+                                    )
+                                    .semantics {
+                                        contentDescription = dayDescription
+                                        stateDescription = if (isSelected) "Selected" else "Not selected"
+                                    },
+                                contentAlignment = Alignment.Center,
                             ) {
-                                Column(
-                                    modifier = Modifier.padding(vertical = 2.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center,
+                                Surface(
+                                    modifier = Modifier.size(42.dp),
+                                    shape = CircleShape,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.surface
+                                    },
+                                    border = when {
+                                        isSelected -> null
+                                        isToday -> BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                                        else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                    },
+                                    tonalElevation = if (isSelected) 0.dp else 1.dp,
+                                    shadowElevation = if (isSelected) 0.dp else 1.dp,
                                 ) {
-                                    Text(
-                                        text = date.format(DateTimeFormatter.ofPattern("EE", Locale.US)),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isSelected) {
-                                            MaterialTheme.colorScheme.onPrimary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        maxLines = 1,
-                                    )
-                                    Text(
-                                        text = date.dayOfMonth.toString(),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) {
-                                            MaterialTheme.colorScheme.onPrimary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        },
-                                        maxLines = 1,
-                                    )
-                                    Surface(
-                                        modifier = Modifier.size(4.dp),
-                                        shape = CircleShape,
-                                        color = when {
-                                            isSelected && appointmentCount > 0 -> MaterialTheme.colorScheme.onPrimary
-                                            appointmentCount > 0 -> EyecareColors.current.accentText
-                                            else -> Color.Transparent
-                                        },
-                                    ) {}
+                                    Column(
+                                        modifier = Modifier.padding(vertical = 2.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                    ) {
+                                        Text(
+                                            text = date.format(DateTimeFormatter.ofPattern("EE", Locale.US)),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isSelected) {
+                                                MaterialTheme.colorScheme.onPrimary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
+                                            maxLines = 1,
+                                        )
+                                        Text(
+                                            text = date.dayOfMonth.toString(),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSelected) {
+                                                MaterialTheme.colorScheme.onPrimary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            },
+                                            maxLines = 1,
+                                        )
+                                        Surface(
+                                            modifier = Modifier.size(4.dp),
+                                            shape = CircleShape,
+                                            color = when {
+                                                isSelected && appointmentCount > 0 -> MaterialTheme.colorScheme.onPrimary
+                                                appointmentCount > 0 -> EyecareColors.current.accentText
+                                                else -> Color.Transparent
+                                            },
+                                        ) {}
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-            Text(
-                text = "Dots mark appointments or requests.",
+
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    modifier = Modifier.size(6.dp),
+                    shape = CircleShape,
+                    color = EyecareColors.current.accentText,
+                ) {}
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "Dates with appointments or requests",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -482,7 +506,7 @@ private fun EmptyDayCard(selectedDate: LocalDate) {
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                "No confirmed visits or requests on ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d", Locale.US))}.",
+                "No appointments or requests on ${selectedDate.format(DateTimeFormatter.ofPattern("MMM d", Locale.US))}.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1035,37 +1059,43 @@ private fun RequestListErrorRow(
 
 @Composable
 private fun AppointmentRequestLimitNotice(activeRequestCount: Int) {
+    val requestLabel = if (activeRequestCount == 1) {
+        "pending appointment request"
+    } else {
+        "pending appointment requests"
+    }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.Top,
         ) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(20.dp),
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = "Request limit reached",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
-                    text = "You have $activeRequestCount pending appointment requests. " +
-                        "Wait for the clinic to respond or cancel one before starting another.",
+                    text = "$activeRequestCount $requestLabel. " +
+                        "Wait for a clinic response or cancel one to start another.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
         }

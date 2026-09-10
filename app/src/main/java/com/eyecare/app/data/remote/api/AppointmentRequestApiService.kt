@@ -5,8 +5,10 @@ import com.eyecare.app.data.remote.dto.AppointmentRequestListResponse
 import com.eyecare.app.data.remote.dto.AppointmentRequestResponse
 import com.eyecare.app.data.remote.dto.AppointmentTypeListResponse
 import com.eyecare.app.data.remote.dto.CreateAppointmentRequest
+import com.eyecare.app.data.remote.dto.UpdateAppointmentRequestScheduleRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -36,6 +38,12 @@ interface AppointmentRequestApiService {
     @GET("appointment-requests/{id}")
     suspend fun getRequest(
         @Path("id") id: Int,
+    ): AppointmentRequestResponse
+
+    @PATCH("appointment-requests/{id}")
+    suspend fun updateRequestSchedule(
+        @Path("id") id: Int,
+        @Body request: UpdateAppointmentRequestScheduleRequest,
     ): AppointmentRequestResponse
 
     @POST("appointment-requests/{id}/cancel")

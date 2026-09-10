@@ -109,6 +109,12 @@ data class CreateAppointmentRequest(
 )
 
 @Serializable
+data class UpdateAppointmentRequestScheduleRequest(
+    @SerialName("scheduled_at") val scheduledAt: String,
+    @SerialName("alternative_scheduled_times") val alternativeScheduledTimes: List<String>? = null,
+)
+
+@Serializable
 data class AppointmentRequestIdentityDto(
     val phone: String? = null,
     val email: String? = null,

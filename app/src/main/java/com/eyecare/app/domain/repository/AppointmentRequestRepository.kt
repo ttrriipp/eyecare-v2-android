@@ -24,5 +24,10 @@ interface AppointmentRequestRepository {
         reasonForVisit: String? = null,
     ): Result<AppointmentRequest>
     suspend fun getRequest(id: Int): Result<AppointmentRequest>
+    suspend fun updateRequestSchedule(
+        id: Int,
+        scheduledAt: String,
+        alternativeScheduledTimes: List<String>? = null,
+    ): Result<AppointmentRequest>
     suspend fun cancelRequest(id: Int): Result<AppointmentRequest>
 }

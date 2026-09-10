@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.appointments.requests
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,18 +13,28 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -52,7 +63,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
@@ -111,28 +121,33 @@ fun RequestIdentityContent(
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(horizontal = RequestStepMargin),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = "The clinic uses these to match your request to your patient record.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            IdentityIntro()
 
             if (state.errors.isNotEmpty()) {
                 ErrorSummary(count = state.errors.size)
             }
 
-            IdentitySection("Contact") {
+            IdentitySection(
+                title = "Contact",
+                icon = Icons.Outlined.Phone,
+            ) {
                 OutlinedTextField(
                     value = state.phone,
                     onValueChange = {},
-                    label = { Text("Phone number") },
+                    label = { Text("Verified phone number") },
                     readOnly = true,
-                    enabled = false,
+                    leadingIcon = { Icon(Icons.Outlined.Phone, contentDescription = null) },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = "Verified and locked",
+                        )
+                    },
                     isError = state.errors.containsKey("phone"),
                     supportingText = {
-                        Text(state.errors["phone"] ?: "From your verified account. Can't be changed here.")
+                        Text(state.errors["phone"] ?: "From your verified account and can't be changed here.")
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -140,6 +155,7 @@ fun RequestIdentityContent(
                     value = state.email,
                     onValueChange = onEmailChange,
                     label = { Text("Email (optional)") },
+                    leadingIcon = { Icon(Icons.Outlined.Email, contentDescription = null) },
                     singleLine = true,
                     isError = state.errors.containsKey("email"),
                     supportingText = state.errors["email"]?.let { error -> { Text(error) } },
@@ -148,7 +164,10 @@ fun RequestIdentityContent(
                 )
             }
 
-            IdentitySection("Your name") {
+            IdentitySection(
+                title = "Your name",
+                icon = Icons.Outlined.Person,
+            ) {
                 OutlinedTextField(
                     value = state.firstName,
                     onValueChange = onFirstNameChange,
@@ -181,7 +200,10 @@ fun RequestIdentityContent(
                 )
             }
 
-            IdentitySection("About you") {
+            IdentitySection(
+                title = "About you",
+                icon = Icons.Outlined.Info,
+            ) {
                 DateOfBirthField(
                     value = state.dateOfBirth,
                     error = state.errors["dateOfBirth"],
@@ -204,11 +226,15 @@ fun RequestIdentityContent(
                 )
             }
 
-            IdentitySection("Address") {
+            IdentitySection(
+                title = "Address",
+                icon = Icons.Outlined.Home,
+            ) {
                 OutlinedTextField(
                     value = state.address,
                     onValueChange = onAddressChange,
                     label = { Text("Home address") },
+                    leadingIcon = { Icon(Icons.Outlined.Home, contentDescription = null) },
                     minLines = 3,
                     maxLines = 5,
                     isError = state.errors.containsKey("address"),
@@ -218,7 +244,7 @@ fun RequestIdentityContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 
@@ -259,6 +285,47 @@ fun RequestIdentityContent(
 }
 
 @Composable
+private fun IdentityIntro() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Surface(
+                modifier = Modifier.size(32.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Info,
+                    contentDescription = null,
+                    tint = EyecareColors.current.accentText,
+                    modifier = Modifier.padding(7.dp),
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "A few details about you",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "The clinic uses these details to match your request to your patient record.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ErrorSummary(count: Int) {
     Surface(
         modifier = Modifier
@@ -294,16 +361,50 @@ private fun ErrorSummary(count: Int) {
 @Composable
 private fun IdentitySection(
     title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     content: @Composable () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 0.8.sp,
-        )
-        content()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, EyecareColors.current.cardBorder),
+        shadowElevation = 1.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = EyecareColors.current.accentText,
+                        modifier = Modifier.size(17.dp),
+                    )
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            content()
+        }
     }
 }
 
@@ -338,7 +439,7 @@ private fun DateOfBirthField(
             label = { Text("Date of birth") },
             placeholder = { Text("Choose a date") },
             readOnly = true,
-            enabled = false,
+            leadingIcon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null) },
             isError = error != null,
             supportingText = error?.let { message -> { Text(message) } },
             modifier = Modifier.fillMaxWidth().clearAndSetSemantics { },
