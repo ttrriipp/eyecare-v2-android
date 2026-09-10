@@ -7,9 +7,10 @@ import kotlin.math.cos
  * Derives a visible frame scale from the detected face's projected width.
  *
  * MediaPipe's pose matrix is useful for translation and rotation, but its metric scale is not a
- * reliable screen-size signal when the camera moves. This tracker snapshots the first trusted face
- * width and mapped pose scale, then applies only the relative width change to that calibrated
- * baseline. Keeping the baseline scale avoids replacing the asset's published calibration.
+ * reliable screen-size signal when the camera moves. This tracker snapshots the median face width
+ * and mapped pose scale from a short run of trusted samples, then applies only the relative width
+ * change to that calibrated baseline. Keeping the baseline scale avoids replacing the asset's
+ * published calibration.
  *
  * The baseline is accepted only for a centered, near-frontal pose. A small yaw compensation
  * prevents a normal head turn from being interpreted as the face moving
@@ -20,11 +21,14 @@ internal class FaceDistanceScaleTracker(
     private val minMultiplier: Float = DEFAULT_MIN_MULTIPLIER,
     private val maxMultiplier: Float = DEFAULT_MAX_MULTIPLIER,
     private val minimumYawCosine: Float = DEFAULT_MINIMUM_YAW_COSINE,
+    private val minimumTrustedSamples: Int = DEFAULT_MINIMUM_TRUSTED_SAMPLES,
 ) {
 
     private var referenceFaceWidthNorm: Float? = null
     private var referencePoseScale: Float? = null
     private var currentScale: Float? = null
+    private val startupFaceWidths = mutableListOf<Float>()
+    private val startupPoseScales = mutableListOf<Float>()
 
     init {
         require(minMultiplier.isFinite() && minMultiplier > 0f) {
@@ -36,13 +40,17 @@ internal class FaceDistanceScaleTracker(
         require(minimumYawCosine.isFinite() && minimumYawCosine > 0f && minimumYawCosine <= 1f) {
             "Minimum yaw cosine must be in the range (0, 1]"
         }
+        require(minimumTrustedSamples > 0) {
+            "Minimum trusted face samples must be positive"
+        }
     }
 
     /**
      * Returns the calibrated visible scale for this sample.
      *
-     * Before the first trusted pose, null is returned so the renderer can wait for a reliable
-     * baseline. Afterward, invalid or untrusted samples keep the last trusted scale.
+     * Before the first stable baseline, null is returned until enough consecutive trusted samples
+     * arrive for the renderer to wait for a reliable reading. Afterward, invalid or untrusted
+     * samples keep the last trusted scale.
      */
     fun update(
         faceWidthNorm: Float,
@@ -60,12 +68,14 @@ internal class FaceDistanceScaleTracker(
             !faceCenterX.isFinite() || !faceCenterY.isFinite() ||
             !pitchDeg.isFinite() || !rollDeg.isFinite()
         ) {
+            clearStartupSamplesIfNeeded()
             return currentScale
         }
 
         if (!isTrustedPose(faceCenterX, faceCenterY, pitchDeg, yawDeg, rollDeg)) {
             // Do not establish a baseline from an oblique or off-guide face. Once tracking has
             // started, holding the last trusted value avoids a scale jump while the user turns.
+            clearStartupSamplesIfNeeded()
             return currentScale
         }
 
@@ -73,9 +83,15 @@ internal class FaceDistanceScaleTracker(
         val baselineWidth = referenceFaceWidthNorm
         val baselineScale = referencePoseScale
         if (baselineWidth == null || baselineScale == null) {
-            referenceFaceWidthNorm = correctedFaceWidth
-            referencePoseScale = mappedPoseScale
-            currentScale = mappedPoseScale
+            startupFaceWidths += correctedFaceWidth
+            startupPoseScales += mappedPoseScale
+            if (startupFaceWidths.size < minimumTrustedSamples) return null
+
+            referenceFaceWidthNorm = median(startupFaceWidths)
+            referencePoseScale = median(startupPoseScales)
+            currentScale = referencePoseScale
+            startupFaceWidths.clear()
+            startupPoseScales.clear()
             return currentScale
         }
 
@@ -91,6 +107,25 @@ internal class FaceDistanceScaleTracker(
         referenceFaceWidthNorm = null
         referencePoseScale = null
         currentScale = null
+        startupFaceWidths.clear()
+        startupPoseScales.clear()
+    }
+
+    private fun clearStartupSamplesIfNeeded() {
+        if (referenceFaceWidthNorm == null || referencePoseScale == null) {
+            startupFaceWidths.clear()
+            startupPoseScales.clear()
+        }
+    }
+
+    private fun median(values: List<Float>): Float {
+        val sorted = values.sorted()
+        val middle = sorted.size / 2
+        return if (sorted.size % 2 == 1) {
+            sorted[middle]
+        } else {
+            (sorted[middle - 1] + sorted[middle]) / 2f
+        }
     }
 
     private fun isTrustedPose(
@@ -118,15 +153,16 @@ internal class FaceDistanceScaleTracker(
         const val MIN_FACE_WIDTH_NORM = 0.05f
         const val DEFAULT_FACE_CENTER = 0.5f
         // Scale calibration is enabled only while the face remains inside the central guide.
-        const val MAX_CENTER_OFFSET_X = 0.2f
-        const val MAX_CENTER_OFFSET_Y = 0.25f
-        const val MAX_PITCH_DEGREES = 20f
-        const val MAX_YAW_DEGREES = 20f
-        const val MAX_ROLL_DEGREES = 20f
+        const val MAX_CENTER_OFFSET_X = 0.15f
+        const val MAX_CENTER_OFFSET_Y = 0.18f
+        const val MAX_PITCH_DEGREES = 12f
+        const val MAX_YAW_DEGREES = 12f
+        const val MAX_ROLL_DEGREES = 10f
         // Do not let extreme oblique poses amplify detector noise without bound.
         const val DEFAULT_MINIMUM_YAW_COSINE = 0.5f
         // Keep the initial backend/asset calibration as the center of the visual range.
         const val DEFAULT_MIN_MULTIPLIER = 0.8f
         const val DEFAULT_MAX_MULTIPLIER = 1.3f
+        const val DEFAULT_MINIMUM_TRUSTED_SAMPLES = 8
     }
 }

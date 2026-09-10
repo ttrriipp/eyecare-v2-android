@@ -146,7 +146,7 @@ class ArViewModelTest {
         drain()
         viewModel.onPermissionResult(granted = true)
 
-        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 0L)))
+        detectTrustedFace(viewModel)
         val tracking = assertInstanceOf(ArTryOnUiState.Tracking::class.java, viewModel.uiState.value)
         assertNotNull(tracking.pose)
         assertEquals(11, tracking.selectedVariant?.id)
@@ -162,20 +162,17 @@ class ArViewModelTest {
         drain()
         viewModel.onPermissionResult(granted = true)
 
-        viewModel.onFaceResult(
-            ArFaceState.Detected(
-                frame(timestampMs = 0L, faceWidthNorm = 0.4f),
-            ),
-        )
+        detectTrustedFace(viewModel, faceWidthNorm = 0.4f)
         val initialScale = assertInstanceOf(
             ArTryOnUiState.Tracking::class.java,
             viewModel.uiState.value,
         ).pose!!.scale
 
-        viewModel.onFaceResult(
-            ArFaceState.Detected(
-                frame(timestampMs = 100L, faceWidthNorm = 0.6f),
-            ),
+        detectTrustedFace(
+            viewModel,
+            startTimestampMs = 300L,
+            faceWidthNorm = 0.6f,
+            sampleCount = 1,
         )
         val closerScale = assertInstanceOf(
             ArTryOnUiState.Tracking::class.java,
@@ -186,11 +183,7 @@ class ArViewModelTest {
         assertTrue(closerScale < 1.5f)
 
         viewModel.onFaceResult(ArFaceState.NoFace)
-        viewModel.onFaceResult(
-            ArFaceState.Detected(
-                frame(timestampMs = 200L, faceWidthNorm = 0.6f),
-            ),
-        )
+        detectTrustedFace(viewModel, startTimestampMs = 400L, faceWidthNorm = 0.6f)
         val resumedScale = assertInstanceOf(
             ArTryOnUiState.Tracking::class.java,
             viewModel.uiState.value,
@@ -216,11 +209,7 @@ class ArViewModelTest {
         )
         assertNull(untrustedTracking.pose)
 
-        viewModel.onFaceResult(
-            ArFaceState.Detected(
-                frame(timestampMs = 100L),
-            ),
-        )
+        detectTrustedFace(viewModel, startTimestampMs = 100L)
         val trustedTracking = assertInstanceOf(
             ArTryOnUiState.Tracking::class.java,
             viewModel.uiState.value,
@@ -234,7 +223,7 @@ class ArViewModelTest {
         drain()
         viewModel.onPermissionResult(granted = true)
 
-        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 100L)))
+        detectTrustedFace(viewModel, startTimestampMs = 100L)
         val firstPose = assertInstanceOf(
             ArTryOnUiState.Tracking::class.java,
             viewModel.uiState.value,
@@ -242,7 +231,7 @@ class ArViewModelTest {
         assertNotNull(firstPose)
 
         // ArFrameMaskPairer emits the same face again when the asynchronous mask arrives.
-        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 100L)))
+        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 331L)))
 
         val secondPose = assertInstanceOf(
             ArTryOnUiState.Tracking::class.java,
@@ -394,7 +383,7 @@ class ArViewModelTest {
         viewModel.onPermissionResult(granted = true)
         drain()
 
-        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 0L)))
+        detectTrustedFace(viewModel)
         val loadingPose = assertInstanceOf(
             ArTryOnUiState.Tracking::class.java,
             viewModel.uiState.value,
@@ -416,7 +405,7 @@ class ArViewModelTest {
         ).pose
         assertNull(waitingForFreshPose)
 
-        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 100L)))
+        detectTrustedFace(viewModel, startTimestampMs = 400L)
         val freshPose = assertInstanceOf(
             ArTryOnUiState.Tracking::class.java,
             viewModel.uiState.value,
@@ -710,6 +699,25 @@ class ArViewModelTest {
 
     private fun drain() {
         dispatcher.scheduler.advanceUntilIdle()
+    }
+
+    private fun detectTrustedFace(
+        viewModel: ArViewModel,
+        startTimestampMs: Long = 0L,
+        faceWidthNorm: Float = 0.4f,
+        sampleCount: Int = 8,
+    ) {
+        require(sampleCount > 0)
+        repeat(sampleCount) { index ->
+            viewModel.onFaceResult(
+                ArFaceState.Detected(
+                    frame(
+                        timestampMs = startTimestampMs + index * 33L,
+                        faceWidthNorm = faceWidthNorm,
+                    ),
+                ),
+            )
+        }
     }
 
     private fun supportedFacts() = ArDeviceFacts(
