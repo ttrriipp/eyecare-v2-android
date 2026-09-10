@@ -13,9 +13,9 @@ import kotlin.math.cos
  * published calibration.
  *
  * The baseline is accepted only for a centered, near-frontal pose. A small yaw compensation
- * prevents a normal head turn from being interpreted as the face moving
- * farther away. The multiplier is bounded because landmark spans can briefly be noisy during
- * tracking transitions.
+ * prevents a normal head turn from being interpreted as the face moving farther away. The
+ * multiplier is bounded, and a short live median window prevents landmark spikes from briefly
+ * enlarging or shrinking the frame during tracking transitions.
  */
 internal class FaceDistanceScaleTracker(
     private val minMultiplier: Float = DEFAULT_MIN_MULTIPLIER,
@@ -29,6 +29,10 @@ internal class FaceDistanceScaleTracker(
     private var currentScale: Float? = null
     private val startupFaceWidths = mutableListOf<Float>()
     private val startupPoseScales = mutableListOf<Float>()
+    private val recentFaceWidths = FloatArray(LIVE_WIDTH_WINDOW_SIZE)
+    private val sortedFaceWidths = FloatArray(LIVE_WIDTH_WINDOW_SIZE)
+    private var recentFaceWidthCount = 0
+    private var nextRecentFaceWidthIndex = 0
 
     init {
         require(minMultiplier.isFinite() && minMultiplier > 0f) {
@@ -87,15 +91,18 @@ internal class FaceDistanceScaleTracker(
             startupPoseScales += mappedPoseScale
             if (startupFaceWidths.size < minimumTrustedSamples) return null
 
-            referenceFaceWidthNorm = median(startupFaceWidths)
+            val stableBaselineWidth = median(startupFaceWidths)
+            referenceFaceWidthNorm = stableBaselineWidth
             referencePoseScale = median(startupPoseScales)
             currentScale = referencePoseScale
+            seedLiveFaceWidth(stableBaselineWidth)
             startupFaceWidths.clear()
             startupPoseScales.clear()
             return currentScale
         }
 
-        val relativeWidth = (correctedFaceWidth / baselineWidth)
+        val stableFaceWidth = medianLiveFaceWidth(correctedFaceWidth)
+        val relativeWidth = (stableFaceWidth / baselineWidth)
             .coerceIn(minMultiplier, maxMultiplier)
         val scale = baselineScale * relativeWidth
         currentScale = scale.takeIf { it.isFinite() && it > 0f }
@@ -109,6 +116,8 @@ internal class FaceDistanceScaleTracker(
         currentScale = null
         startupFaceWidths.clear()
         startupPoseScales.clear()
+        recentFaceWidthCount = 0
+        nextRecentFaceWidthIndex = 0
     }
 
     private fun clearStartupSamplesIfNeeded() {
@@ -126,6 +135,32 @@ internal class FaceDistanceScaleTracker(
         } else {
             (sorted[middle - 1] + sorted[middle]) / 2f
         }
+    }
+
+    private fun seedLiveFaceWidth(width: Float) {
+        recentFaceWidths.fill(width)
+        recentFaceWidthCount = LIVE_WIDTH_WINDOW_SIZE
+        nextRecentFaceWidthIndex = 0
+    }
+
+    private fun medianLiveFaceWidth(width: Float): Float {
+        recentFaceWidths[nextRecentFaceWidthIndex] = width
+        nextRecentFaceWidthIndex = (nextRecentFaceWidthIndex + 1) % LIVE_WIDTH_WINDOW_SIZE
+        recentFaceWidthCount = (recentFaceWidthCount + 1).coerceAtMost(LIVE_WIDTH_WINDOW_SIZE)
+
+        for (index in 0 until recentFaceWidthCount) {
+            sortedFaceWidths[index] = recentFaceWidths[index]
+        }
+        for (index in 1 until recentFaceWidthCount) {
+            val value = sortedFaceWidths[index]
+            var insertionIndex = index - 1
+            while (insertionIndex >= 0 && sortedFaceWidths[insertionIndex] > value) {
+                sortedFaceWidths[insertionIndex + 1] = sortedFaceWidths[insertionIndex]
+                insertionIndex--
+            }
+            sortedFaceWidths[insertionIndex + 1] = value
+        }
+        return sortedFaceWidths[recentFaceWidthCount / 2]
     }
 
     private fun isTrustedPose(
@@ -164,5 +199,6 @@ internal class FaceDistanceScaleTracker(
         const val DEFAULT_MIN_MULTIPLIER = 0.8f
         const val DEFAULT_MAX_MULTIPLIER = 1.3f
         const val DEFAULT_MINIMUM_TRUSTED_SAMPLES = 8
+        const val LIVE_WIDTH_WINDOW_SIZE = 5
     }
 }

@@ -43,11 +43,11 @@ class FaceDistanceScaleTrackerTest {
             0.001f,
         )
 
-        assertEquals(
-            1.025f,
-            tracker.update(faceWidthNorm = 0.41f, mappedPoseScale = 1f, yawDeg = 0f)!!,
-            0.001f,
-        )
+        var settledScale: Float? = null
+        repeat(5) {
+            settledScale = tracker.update(faceWidthNorm = 0.41f, mappedPoseScale = 1f, yawDeg = 0f)
+        }
+        assertEquals(1.025f, settledScale ?: error("Expected a settled scale"), 0.001f)
     }
 
     @Test
@@ -66,11 +66,14 @@ class FaceDistanceScaleTrackerTest {
         val tracker = FaceDistanceScaleTracker()
         establishBaseline(tracker)
 
-        val closerScale = tracker.update(
-            faceWidthNorm = 0.6f,
-            mappedPoseScale = 1f,
-            yawDeg = 0f,
-        )
+        var closerScale: Float? = null
+        repeat(5) {
+            closerScale = tracker.update(
+                faceWidthNorm = 0.6f,
+                mappedPoseScale = 1f,
+                yawDeg = 0f,
+            )
+        }
 
         assertEquals(1.3f, closerScale)
     }
@@ -80,11 +83,14 @@ class FaceDistanceScaleTrackerTest {
         val tracker = FaceDistanceScaleTracker()
         establishBaseline(tracker)
 
-        val fartherScale = tracker.update(
-            faceWidthNorm = 0.2f,
-            mappedPoseScale = 1f,
-            yawDeg = 0f,
-        )
+        var fartherScale: Float? = null
+        repeat(5) {
+            fartherScale = tracker.update(
+                faceWidthNorm = 0.2f,
+                mappedPoseScale = 1f,
+                yawDeg = 0f,
+            )
+        }
 
         assertEquals(0.8f, fartherScale)
     }
@@ -94,13 +100,30 @@ class FaceDistanceScaleTrackerTest {
         val tracker = FaceDistanceScaleTracker()
         establishBaseline(tracker)
 
-        val closerScale = tracker.update(
-            faceWidthNorm = 0.6f,
-            mappedPoseScale = 1.8f,
+        var closerScale: Float? = null
+        repeat(5) {
+            closerScale = tracker.update(
+                faceWidthNorm = 0.6f,
+                mappedPoseScale = 1.8f,
+                yawDeg = 0f,
+            )
+        }
+
+        assertEquals(1.3f, closerScale)
+    }
+
+    @Test
+    fun one_live_width_spike_does_not_enlarge_the_frame() {
+        val tracker = FaceDistanceScaleTracker()
+        establishBaseline(tracker)
+
+        val spikeScale = tracker.update(
+            faceWidthNorm = 0.8f,
+            mappedPoseScale = 1f,
             yawDeg = 0f,
         )
 
-        assertEquals(1.3f, closerScale)
+        assertEquals(1f, spikeScale)
     }
 
     @Test
@@ -136,7 +159,9 @@ class FaceDistanceScaleTrackerTest {
     fun untrusted_pose_holds_the_last_trusted_scale() {
         val tracker = FaceDistanceScaleTracker()
         establishBaseline(tracker)
-        tracker.update(faceWidthNorm = 0.6f, mappedPoseScale = 1f, yawDeg = 0f)
+        repeat(5) {
+            tracker.update(faceWidthNorm = 0.6f, mappedPoseScale = 1f, yawDeg = 0f)
+        }
 
         val heldScale = tracker.update(
             faceWidthNorm = 0.2f,

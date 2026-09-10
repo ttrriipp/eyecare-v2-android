@@ -172,7 +172,7 @@ class ArViewModelTest {
             viewModel,
             startTimestampMs = 300L,
             faceWidthNorm = 0.6f,
-            sampleCount = 1,
+            sampleCount = 5,
         )
         val closerScale = assertInstanceOf(
             ArTryOnUiState.Tracking::class.java,
