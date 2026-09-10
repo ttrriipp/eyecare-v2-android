@@ -196,8 +196,8 @@ internal class FaceDistanceScaleTracker(
         // Do not let extreme oblique poses amplify detector noise without bound.
         const val DEFAULT_MINIMUM_YAW_COSINE = 0.5f
         // Keep the initial backend/asset calibration as the center of the visual range.
-        const val DEFAULT_MIN_MULTIPLIER = 0.8f
-        const val DEFAULT_MAX_MULTIPLIER = 1.3f
+        const val DEFAULT_MIN_MULTIPLIER = 0.9f
+        const val DEFAULT_MAX_MULTIPLIER = 1.2f
         const val DEFAULT_MINIMUM_TRUSTED_SAMPLES = 8
         const val LIVE_WIDTH_WINDOW_SIZE = 5
     }

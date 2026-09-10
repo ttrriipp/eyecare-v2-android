@@ -75,7 +75,7 @@ class FaceDistanceScaleTrackerTest {
             )
         }
 
-        assertEquals(1.3f, closerScale)
+        assertEquals(1.2f, closerScale)
     }
 
     @Test
@@ -92,7 +92,7 @@ class FaceDistanceScaleTrackerTest {
             )
         }
 
-        assertEquals(0.8f, fartherScale)
+        assertEquals(0.9f, fartherScale)
     }
 
     @Test
@@ -109,7 +109,7 @@ class FaceDistanceScaleTrackerTest {
             )
         }
 
-        assertEquals(1.3f, closerScale)
+        assertEquals(1.2f, closerScale)
     }
 
     @Test
@@ -169,7 +169,7 @@ class FaceDistanceScaleTrackerTest {
             yawDeg = 35f,
         )
 
-        assertEquals(1.3f, heldScale)
+        assertEquals(1.2f, heldScale)
     }
 
     @Test
