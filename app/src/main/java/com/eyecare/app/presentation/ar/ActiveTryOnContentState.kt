@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.ar
 
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.presentation.ar.model.ArAssetState
+import com.eyecare.app.presentation.ar.model.ArTrackingQuality
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FacePose
@@ -19,6 +20,7 @@ internal data class ActiveTryOnContentState(
     val face: FaceFrame?,
     val pose: FacePose?,
     val assetState: ArAssetState,
+    val trackingQuality: ArTrackingQuality = ArTrackingQuality.Stabilizing,
     val hasTrackedBefore: Boolean = false,
     val isSaving: Boolean = false,
     val saveError: String? = null,
@@ -67,6 +69,7 @@ internal fun ArTryOnUiState.toActiveTryOnContentState(): ActiveTryOnContentState
         face = face,
         pose = pose,
         assetState = assetState,
+        trackingQuality = trackingQuality,
         isSaving = isSaving,
         saveError = saveError,
         saveMessage = saveMessage,
@@ -80,9 +83,17 @@ internal fun arFaceGuidanceMessage(
     phase: ActiveTryOnPhase,
     hasTrackedBefore: Boolean,
     assetState: ArAssetState,
+    trackingQuality: ArTrackingQuality = ArTrackingQuality.Stabilizing,
 ): String? = when {
     assetState is ArAssetState.Failed -> null
     phase == ActiveTryOnPhase.Loading -> "Preparing your try-on…"
+    trackingQuality == ArTrackingQuality.Reacquiring ->
+        "Preview paused — hold still while we reacquire your face"
+    trackingQuality == ArTrackingQuality.CenterFace -> "Center your face inside the guide"
+    trackingQuality == ArTrackingQuality.LookStraight -> "Look straight at the camera"
+    trackingQuality == ArTrackingQuality.LevelHead -> "Keep your head level"
+    trackingQuality == ArTrackingQuality.Stabilizing && phase == ActiveTryOnPhase.Tracking ->
+        "Center your face and look straight at the camera"
     hasTrackedBefore -> "We lost you — center your face inside the guide"
     else -> "Center your face inside the guide"
 }

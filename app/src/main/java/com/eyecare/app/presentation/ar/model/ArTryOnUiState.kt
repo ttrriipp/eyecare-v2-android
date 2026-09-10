@@ -51,6 +51,7 @@ sealed interface ArTryOnUiState {
         val face: FaceFrame,
         val pose: FacePose?,
         val assetState: ArAssetState,
+        val trackingQuality: ArTrackingQuality = ArTrackingQuality.Stabilizing,
         val isSaving: Boolean = false,
         val saveError: String? = null,
         val saveMessage: String? = null,

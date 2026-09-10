@@ -21,6 +21,7 @@ import com.eyecare.app.presentation.ar.capability.OpenGlEsVersion
 import com.eyecare.app.presentation.ar.model.ArAssetSource
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArFaceState
+import com.eyecare.app.presentation.ar.model.ArTrackingQuality
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FaceTransformationMatrix
@@ -215,6 +216,60 @@ class ArViewModelTest {
             viewModel.uiState.value,
         )
         assertNotNull(trustedTracking.pose)
+    }
+
+    @Test
+    fun `tracking pauses after sustained bad pose and resumes after stable samples`() {
+        val viewModel = viewModel()
+        drain()
+        viewModel.onPermissionResult(granted = true)
+
+        detectTrustedFace(viewModel)
+        val stable = assertInstanceOf(ArTryOnUiState.Tracking::class.java, viewModel.uiState.value)
+        assertEquals(ArTrackingQuality.Stable, stable.trackingQuality)
+        assertNotNull(stable.pose)
+
+        repeat(2) { index ->
+            viewModel.onFaceResult(
+                ArFaceState.Detected(
+                    frame(
+                        timestampMs = 300L + index * 33L,
+                        noseBridgeX = 0.8f,
+                    ),
+                ),
+            )
+        }
+        val grace = assertInstanceOf(ArTryOnUiState.Tracking::class.java, viewModel.uiState.value)
+        assertEquals(ArTrackingQuality.Stable, grace.trackingQuality)
+        assertNotNull(grace.pose)
+
+        viewModel.onFaceResult(
+            ArFaceState.Detected(
+                frame(timestampMs = 366L, noseBridgeX = 0.8f),
+            ),
+        )
+        val paused = assertInstanceOf(ArTryOnUiState.Tracking::class.java, viewModel.uiState.value)
+        assertEquals(ArTrackingQuality.CenterFace, paused.trackingQuality)
+        assertNull(paused.pose)
+
+        repeat(2) { index ->
+            viewModel.onFaceResult(
+                ArFaceState.Detected(
+                    frame(timestampMs = 400L + index * 33L),
+                ),
+            )
+        }
+        val reacquiring = assertInstanceOf(
+            ArTryOnUiState.Tracking::class.java,
+            viewModel.uiState.value,
+        )
+        assertEquals(ArTrackingQuality.CenterFace, reacquiring.trackingQuality)
+        assertNull(reacquiring.pose)
+
+        viewModel.onFaceResult(ArFaceState.Detected(frame(timestampMs = 466L)))
+        val resumed = assertInstanceOf(ArTryOnUiState.Tracking::class.java, viewModel.uiState.value)
+        assertEquals(ArTrackingQuality.Stable, resumed.trackingQuality)
+        assertNotNull(resumed.pose)
     }
 
     @Test

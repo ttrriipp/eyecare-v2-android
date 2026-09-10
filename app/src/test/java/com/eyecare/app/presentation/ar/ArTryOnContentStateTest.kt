@@ -1,6 +1,7 @@
 package com.eyecare.app.presentation.ar
 
 import com.eyecare.app.presentation.ar.model.ArAssetState
+import com.eyecare.app.presentation.ar.model.ArTrackingQuality
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FacePose
@@ -73,6 +74,37 @@ class ArTryOnContentStateTest {
                 phase = ActiveTryOnPhase.Searching,
                 hasTrackedBefore = false,
                 assetState = ArAssetState.Failed("No 3D asset"),
+            ),
+        )
+    }
+
+    @Test
+    fun `face guidance explains how to recover each unstable pose`() {
+        assertEquals(
+            "Look straight at the camera",
+            arFaceGuidanceMessage(
+                phase = ActiveTryOnPhase.Tracking,
+                hasTrackedBefore = false,
+                assetState = ArAssetState.Ready,
+                trackingQuality = ArTrackingQuality.LookStraight,
+            ),
+        )
+        assertEquals(
+            "Keep your head level",
+            arFaceGuidanceMessage(
+                phase = ActiveTryOnPhase.Tracking,
+                hasTrackedBefore = false,
+                assetState = ArAssetState.Ready,
+                trackingQuality = ArTrackingQuality.LevelHead,
+            ),
+        )
+        assertEquals(
+            "Preview paused — hold still while we reacquire your face",
+            arFaceGuidanceMessage(
+                phase = ActiveTryOnPhase.Tracking,
+                hasTrackedBefore = false,
+                assetState = ArAssetState.Ready,
+                trackingQuality = ArTrackingQuality.Reacquiring,
             ),
         )
     }

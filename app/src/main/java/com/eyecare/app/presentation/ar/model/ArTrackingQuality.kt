@@ -9,6 +9,7 @@ package com.eyecare.app.presentation.ar.model
 enum class ArTrackingQuality {
     Stabilizing,
     Stable,
+    Reacquiring,
     CenterFace,
     LookStraight,
     LevelHead,

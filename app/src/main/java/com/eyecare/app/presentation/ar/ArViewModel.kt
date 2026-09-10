@@ -15,6 +15,7 @@ import com.eyecare.app.presentation.ar.capability.ArCapabilityProvider
 import com.eyecare.app.presentation.ar.model.ArAssetSource
 import com.eyecare.app.presentation.ar.model.ArAssetState
 import com.eyecare.app.presentation.ar.model.ArFaceState
+import com.eyecare.app.presentation.ar.model.ArTrackingQuality
 import com.eyecare.app.presentation.ar.model.ArTryOnUiState
 import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FacePose
@@ -22,6 +23,7 @@ import com.eyecare.app.presentation.ar.model.FacePoseCalibration
 import com.eyecare.app.presentation.ar.model.FrameModelScale
 import com.eyecare.app.presentation.ar.tracking.FaceDistanceScaleTracker
 import com.eyecare.app.presentation.ar.tracking.PoseStabilizer
+import com.eyecare.app.presentation.ar.tracking.classifyFaceTrackingQuality
 import com.eyecare.app.presentation.ar.tracking.mapFacePose
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -37,6 +39,8 @@ import kotlinx.coroutines.launch
 
 private const val AR_PREVIEW_UNAVAILABLE_MESSAGE =
     "This frame's 3D preview is not available. Try the image preview instead."
+private const val QUALITY_LOSS_SAMPLE_COUNT = 3
+private const val QUALITY_RECOVERY_SAMPLE_COUNT = 3
 
 @HiltViewModel(assistedFactory = ArViewModel.Factory::class)
 class ArViewModel @AssistedInject constructor(
@@ -78,6 +82,9 @@ class ArViewModel @AssistedInject constructor(
     private var selectedVariant: FrameVariant? = null
     private var latestFace: FaceFrame? = null
     private var latestPose: FacePose? = null
+    private var trackingQuality = ArTrackingQuality.Stabilizing
+    private var consecutiveStableQualitySamples = 0
+    private var consecutiveUnstableQualitySamples = 0
     private var assetState: ArAssetState = ArAssetState.Checking
     private var hasTrackedThisSession = false
 
@@ -132,10 +139,23 @@ class ArViewModel @AssistedInject constructor(
                                 rollDeg = pose.rollDeg,
                             )?.let { scale -> pose.copy(scale = scale) }
                         }
-                        latestPose = poseStabilizer.update(
+                        val candidateQuality = classifyFaceTrackingQuality(
+                            face = state.frame,
                             pose = distanceAdjustedPose,
-                            timestampMs = state.frame.timestampMs,
                         )
+                        val previousQuality = trackingQuality
+                        val effectiveQuality = updateTrackingQuality(candidateQuality)
+                        latestPose = if (effectiveQuality == ArTrackingQuality.Stable) {
+                            poseStabilizer.update(
+                                pose = distanceAdjustedPose,
+                                timestampMs = state.frame.timestampMs,
+                            )
+                        } else {
+                            if (previousQuality == ArTrackingQuality.Stable) {
+                                poseStabilizer.reset()
+                            }
+                            null
+                        }
                     }
 
                     state.frame.timestampMs == previousFace.timestampMs -> {
@@ -486,6 +506,7 @@ class ArViewModel @AssistedInject constructor(
                     faceDistanceScaleTracker.reset()
                     poseStabilizer.reset()
                     latestPose = null
+                    resetTrackingQuality()
                     poseCalibration = FacePoseCalibration(
                         translationScale = 0.01f,
                         scaleMultiplier = 1f,
@@ -551,6 +572,7 @@ class ArViewModel @AssistedInject constructor(
                 face = face,
                 pose = latestPose,
                 assetState = assetState,
+                trackingQuality = trackingQuality,
                 isSaving = isSaving,
                 saveError = saveError,
                 saveMessage = saveMessage,
@@ -589,6 +611,55 @@ class ArViewModel @AssistedInject constructor(
         faceDistanceScaleTracker.reset()
         latestFace = null
         latestPose = null
+        resetTrackingQuality()
+    }
+
+    private fun updateTrackingQuality(candidate: ArTrackingQuality): ArTrackingQuality {
+        if (candidate == ArTrackingQuality.Stable) {
+            consecutiveUnstableQualitySamples = 0
+            if (trackingQuality == ArTrackingQuality.Stable) {
+                consecutiveStableQualitySamples = 0
+            } else {
+                consecutiveStableQualitySamples++
+                // FaceDistanceScaleTracker already requires a consecutive trusted baseline before
+                // it returns a pose, so the first stable sample can safely start the preview. A
+                // later recovery still needs a short run to prevent reappearing-frame flicker.
+                if (
+                    trackingQuality == ArTrackingQuality.Stabilizing ||
+                    consecutiveStableQualitySamples >= QUALITY_RECOVERY_SAMPLE_COUNT
+                ) {
+                    trackingQuality = ArTrackingQuality.Stable
+                }
+            }
+            return trackingQuality
+        }
+
+        consecutiveStableQualitySamples = 0
+        consecutiveUnstableQualitySamples++
+        if (trackingQuality == ArTrackingQuality.Stable) {
+            if (consecutiveUnstableQualitySamples >= QUALITY_LOSS_SAMPLE_COUNT) {
+                trackingQuality = if (candidate == ArTrackingQuality.Stabilizing) {
+                    ArTrackingQuality.Reacquiring
+                } else {
+                    candidate
+                }
+            }
+        } else if (trackingQuality == ArTrackingQuality.Stabilizing) {
+            // Keep the initial guide generic until a pose has been calibrated. A non-stabilizing
+            // candidate here is still useful if a future tracker supplies one before calibration.
+            if (candidate != ArTrackingQuality.Stabilizing) trackingQuality = candidate
+        } else if (candidate != ArTrackingQuality.Stabilizing) {
+            trackingQuality = candidate
+        } else {
+            trackingQuality = ArTrackingQuality.Reacquiring
+        }
+        return trackingQuality
+    }
+
+    private fun resetTrackingQuality() {
+        trackingQuality = ArTrackingQuality.Stabilizing
+        consecutiveStableQualitySamples = 0
+        consecutiveUnstableQualitySamples = 0
     }
 
     override fun onCleared() {
