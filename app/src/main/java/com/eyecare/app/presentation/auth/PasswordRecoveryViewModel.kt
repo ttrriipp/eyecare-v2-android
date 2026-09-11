@@ -9,7 +9,11 @@ import com.eyecare.app.domain.model.AuthenticatedSession
 import com.eyecare.app.domain.model.toPhilippineE164
 import com.eyecare.app.domain.model.toPhilippineLocalDigits
 import com.eyecare.app.domain.repository.AuthRepository
+import com.eyecare.app.presentation.common.isRateLimited
+import com.eyecare.app.presentation.common.rateLimitCooldownSeconds
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +24,8 @@ sealed interface RecoveryState {
     data class EnterPhone(
         val phoneNumber: String = "",
         val error: String? = null,
+        val isRequesting: Boolean = false,
+        val cooldownRemainingSeconds: Int = 0,
     ) : RecoveryState
 
     data class EnterOtp(
@@ -29,6 +35,7 @@ sealed interface RecoveryState {
         val code: String = "",
         val error: String? = null,
         val isResending: Boolean = false,
+        val resendCooldownSeconds: Int = 0,
     ) : RecoveryState
 
     data class EnterNewPassword(
@@ -51,10 +58,11 @@ class PasswordRecoveryViewModel @Inject constructor(
 
     private val _state = MutableStateFlow<RecoveryState>(RecoveryState.EnterPhone())
     val state: StateFlow<RecoveryState> = _state.asStateFlow()
+    private var phoneOtpCooldownJob: Job? = null
 
     fun updatePhone(value: String) {
         val current = _state.value
-        if (current is RecoveryState.EnterPhone) {
+        if (current is RecoveryState.EnterPhone && !current.isRequesting) {
             _state.value = current.copy(phoneNumber = value, error = null)
         }
     }
@@ -63,28 +71,40 @@ class PasswordRecoveryViewModel @Inject constructor(
         val current = _state.value
         if (
             current !is RecoveryState.EnterPhone ||
-            toPhilippineLocalDigits(current.phoneNumber).length < 10
+            toPhilippineLocalDigits(current.phoneNumber).length < 10 ||
+            current.isRequesting ||
+            current.cooldownRemainingSeconds > 0
         ) return
 
         val fullPhone = toPhilippineE164(current.phoneNumber)
 
+        _state.value = current.copy(error = null, isRequesting = true)
         viewModelScope.launch {
-            _state.value = current.copy(error = null)
             authRepository.requestPasswordRecoveryOtp(fullPhone)
                 .onSuccess { challenge ->
-                    _state.value = RecoveryState.EnterOtp(
-                        challengeId = challenge.challengeId,
-                        expiresAt = challenge.expiresAt,
-                        phoneNumber = current.phoneNumber,
-                    )
+                    val latest = _state.value
+                    if (latest is RecoveryState.EnterPhone && latest.isRequesting) {
+                        _state.value = RecoveryState.EnterOtp(
+                            challengeId = challenge.challengeId,
+                            expiresAt = challenge.expiresAt,
+                            phoneNumber = latest.phoneNumber,
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(
-                        error = authErrorMessage(
-                            error,
-                            "Could not send a verification code. Please try again.",
-                        ),
-                    )
+                    val latest = _state.value
+                    if (latest is RecoveryState.EnterPhone && latest.isRequesting) {
+                        val cooldownSeconds = error.rateLimitCooldownSeconds()
+                        _state.value = latest.copy(
+                            isRequesting = false,
+                            cooldownRemainingSeconds = cooldownSeconds,
+                            error = recoveryCodeErrorMessage(
+                                error,
+                                "Could not send a verification code. Please try again.",
+                            ),
+                        )
+                        if (cooldownSeconds > 0) startPhoneOtpCooldown(cooldownSeconds)
+                    }
                 }
         }
     }
@@ -116,23 +136,31 @@ class PasswordRecoveryViewModel @Inject constructor(
         val current = _state.value
         if (current !is RecoveryState.EnterOtp || current.isResending) return
 
+        _state.value = current.copy(isResending = true, error = null, code = "", resendCooldownSeconds = 0)
         viewModelScope.launch {
-            _state.value = current.copy(isResending = true, error = null, code = "")
             authRepository.requestPasswordRecoveryOtp(toPhilippineE164(current.phoneNumber))
                 .onSuccess { challenge ->
-                    _state.value = current.copy(
-                        challengeId = challenge.challengeId,
-                        expiresAt = challenge.expiresAt,
-                        code = "",
-                        error = null,
-                        isResending = false,
-                    )
+                    val latest = _state.value
+                    if (latest is RecoveryState.EnterOtp && latest.isResending && latest.challengeId == current.challengeId) {
+                        _state.value = latest.copy(
+                            challengeId = challenge.challengeId,
+                            expiresAt = challenge.expiresAt,
+                            code = "",
+                            error = null,
+                            isResending = false,
+                            resendCooldownSeconds = 0,
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(
-                        isResending = false,
-                        error = authErrorMessage(error, "Could not resend the code."),
-                    )
+                    val latest = _state.value
+                    if (latest is RecoveryState.EnterOtp && latest.isResending && latest.challengeId == current.challengeId) {
+                        _state.value = latest.copy(
+                            isResending = false,
+                            resendCooldownSeconds = error.rateLimitCooldownSeconds(),
+                            error = recoveryCodeErrorMessage(error, "Could not resend the code."),
+                        )
+                    }
                 }
         }
     }
@@ -199,6 +227,7 @@ class PasswordRecoveryViewModel @Inject constructor(
     }
 
     fun back() {
+        phoneOtpCooldownJob?.cancel()
         _state.value = when (val current = _state.value) {
             is RecoveryState.EnterOtp -> RecoveryState.EnterPhone(current.phoneNumber)
             is RecoveryState.EnterNewPassword -> RecoveryState.EnterOtp(
@@ -210,4 +239,26 @@ class PasswordRecoveryViewModel @Inject constructor(
             else -> RecoveryState.EnterPhone()
         }
     }
+
+    private fun startPhoneOtpCooldown(seconds: Int) {
+        phoneOtpCooldownJob?.cancel()
+        phoneOtpCooldownJob = viewModelScope.launch {
+            for (remaining in seconds downTo 1) {
+                val current = _state.value as? RecoveryState.EnterPhone ?: return@launch
+                if (!current.isRequesting) {
+                    _state.value = current.copy(cooldownRemainingSeconds = remaining)
+                }
+                delay(1_000)
+            }
+            val current = _state.value as? RecoveryState.EnterPhone ?: return@launch
+            _state.value = current.copy(cooldownRemainingSeconds = 0)
+        }
+    }
+
+    private fun recoveryCodeErrorMessage(error: Throwable, fallback: String): String =
+        if (error.isRateLimited()) {
+            "Too many code requests. Please wait before requesting another code."
+        } else {
+            authErrorMessage(error, fallback)
+        }
 }

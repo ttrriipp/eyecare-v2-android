@@ -61,6 +61,7 @@ import com.eyecare.app.presentation.auth.components.PasswordField
 import com.eyecare.app.presentation.auth.components.PasswordMatchGuidance
 import com.eyecare.app.presentation.auth.components.PasswordRequirements
 import com.eyecare.app.presentation.auth.components.PolicyConsentRow
+import com.eyecare.app.presentation.common.formatRateLimitCooldown
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -107,12 +108,23 @@ private fun RegisterPhoneStep(
             onValueChange = viewModel::updatePhone,
             method = ContactMethod.PHONE,
             error = state.error,
+            enabled = !state.isRequesting,
         )
+        if (state.cooldownRemainingSeconds > 0) {
+            Text(
+                text = "You can request another code in ${formatRateLimitCooldown(state.cooldownRemainingSeconds)}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(modifier = Modifier.height(24.dp))
         AuthPrimaryButton(
             text = "Send code",
             onClick = viewModel::requestPhoneOtp,
-            enabled = state.phoneNumber.isNotBlank(),
+            enabled = state.phoneNumber.isNotBlank() &&
+                !state.isRequesting &&
+                state.cooldownRemainingSeconds == 0,
+            loading = state.isRequesting,
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -185,6 +197,7 @@ private fun RegisterOtpStep(
             expiresAt = state.expiresAt,
             canResend = !state.isResending && !state.isVerifying,
             onResend = viewModel::resendOtp,
+            serverCooldownSeconds = state.resendCooldownSeconds,
         )
         Spacer(modifier = Modifier.height(24.dp))
         AuthPrimaryButton(

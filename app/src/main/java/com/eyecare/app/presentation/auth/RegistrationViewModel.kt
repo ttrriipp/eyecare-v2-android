@@ -7,7 +7,11 @@ import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AuthenticatedSession
 import com.eyecare.app.domain.model.PolicyMetadata
 import com.eyecare.app.domain.repository.AuthRepository
+import com.eyecare.app.presentation.common.isRateLimited
+import com.eyecare.app.presentation.common.rateLimitCooldownSeconds
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +26,8 @@ sealed interface RegistrationState {
     data class EnterPhone(
         val phoneNumber: String = "",
         val error: String? = null,
+        val isRequesting: Boolean = false,
+        val cooldownRemainingSeconds: Int = 0,
     ) : RegistrationState
 
     data class VerifyPhoneOtp(
@@ -32,6 +38,7 @@ sealed interface RegistrationState {
         val error: String? = null,
         val isResending: Boolean = false,
         val isVerifying: Boolean = false,
+        val resendCooldownSeconds: Int = 0,
     ) : RegistrationState
 
     data class EnterDetails(
@@ -61,35 +68,51 @@ class RegistrationViewModel @Inject constructor(
 
     private val _state = MutableStateFlow<RegistrationState>(RegistrationState.EnterPhone())
     val state: StateFlow<RegistrationState> = _state.asStateFlow()
+    private var phoneOtpCooldownJob: Job? = null
 
     fun updatePhone(value: String) {
         val current = _state.value
-        if (current is RegistrationState.EnterPhone) {
+        if (current is RegistrationState.EnterPhone && !current.isRequesting) {
             _state.value = current.copy(phoneNumber = value, error = null)
         }
     }
 
     fun requestPhoneOtp() {
         val current = _state.value
-        if (current !is RegistrationState.EnterPhone || current.phoneNumber.isBlank()) return
+        if (
+            current !is RegistrationState.EnterPhone ||
+            current.phoneNumber.isBlank() ||
+            current.isRequesting ||
+            current.cooldownRemainingSeconds > 0
+        ) return
 
+        _state.value = current.copy(error = null, isRequesting = true)
         viewModelScope.launch {
-            _state.value = current.copy(error = null)
             authRepository.requestRegistrationOtp(current.phoneNumber)
                 .onSuccess { challenge ->
-                    _state.value = RegistrationState.VerifyPhoneOtp(
-                        phoneNumber = current.phoneNumber,
-                        challengeId = challenge.challengeId,
-                        expiresAt = challenge.expiresAt,
-                    )
+                    val latest = _state.value
+                    if (latest is RegistrationState.EnterPhone && latest.isRequesting) {
+                        _state.value = RegistrationState.VerifyPhoneOtp(
+                            phoneNumber = latest.phoneNumber,
+                            challengeId = challenge.challengeId,
+                            expiresAt = challenge.expiresAt,
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(
-                        error = authErrorMessage(
-                            error,
-                            "Could not send a verification code. Please try again.",
-                        ),
-                    )
+                    val latest = _state.value
+                    if (latest is RegistrationState.EnterPhone && latest.isRequesting) {
+                        val cooldownSeconds = error.rateLimitCooldownSeconds()
+                        _state.value = latest.copy(
+                            isRequesting = false,
+                            cooldownRemainingSeconds = cooldownSeconds,
+                            error = registrationCodeErrorMessage(
+                                error,
+                                "Could not send a verification code. Please try again.",
+                            ),
+                        )
+                        if (cooldownSeconds > 0) startPhoneOtpCooldown(cooldownSeconds)
+                    }
                 }
         }
     }
@@ -169,6 +192,7 @@ class RegistrationViewModel @Inject constructor(
                             code = "",
                             error = null,
                             isResending = false,
+                            resendCooldownSeconds = 0,
                         )
                     }
                 }
@@ -181,7 +205,8 @@ class RegistrationViewModel @Inject constructor(
                     ) {
                         _state.value = latest.copy(
                             isResending = false,
-                            error = authErrorMessage(error, "Could not resend the code."),
+                            resendCooldownSeconds = error.rateLimitCooldownSeconds(),
+                            error = registrationCodeErrorMessage(error, "Could not resend the code."),
                         )
                     }
                 }
@@ -282,6 +307,7 @@ class RegistrationViewModel @Inject constructor(
     }
 
     fun back() {
+        phoneOtpCooldownJob?.cancel()
         _state.value = when (val current = _state.value) {
             is RegistrationState.VerifyPhoneOtp -> {
                 if (current.isResending || current.isVerifying) {
@@ -294,6 +320,28 @@ class RegistrationViewModel @Inject constructor(
             else -> current
         }
     }
+
+    private fun startPhoneOtpCooldown(seconds: Int) {
+        phoneOtpCooldownJob?.cancel()
+        phoneOtpCooldownJob = viewModelScope.launch {
+            for (remaining in seconds downTo 1) {
+                val current = _state.value as? RegistrationState.EnterPhone ?: return@launch
+                if (!current.isRequesting) {
+                    _state.value = current.copy(cooldownRemainingSeconds = remaining)
+                }
+                delay(1_000)
+            }
+            val current = _state.value as? RegistrationState.EnterPhone ?: return@launch
+            _state.value = current.copy(cooldownRemainingSeconds = 0)
+        }
+    }
+
+    private fun registrationCodeErrorMessage(error: Throwable, fallback: String): String =
+        if (error.isRateLimited()) {
+            "Too many code requests. Please wait before requesting another code."
+        } else {
+            authErrorMessage(error, fallback)
+        }
 
     private fun loadPoliciesAndShowDetails(registrationToken: String) {
         viewModelScope.launch {

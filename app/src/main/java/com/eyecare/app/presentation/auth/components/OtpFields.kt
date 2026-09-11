@@ -60,12 +60,13 @@ fun OtpExpiryRow(
     expiresAt: String?,
     canResend: Boolean,
     onResend: () -> Unit,
+    serverCooldownSeconds: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val expiry = remember(expiresAt) { parseOtpExpiry(expiresAt) }
     var now by remember(expiresAt) { mutableStateOf(Instant.now()) }
-    var resendAvailableAt by remember(expiresAt) {
-        mutableStateOf(Instant.now().plusSeconds(30))
+    var resendAvailableAt by remember(expiresAt, serverCooldownSeconds) {
+        mutableStateOf(Instant.now().plusSeconds(maxOf(30, serverCooldownSeconds).toLong()))
     }
 
     LaunchedEffect(expiresAt, resendAvailableAt) {

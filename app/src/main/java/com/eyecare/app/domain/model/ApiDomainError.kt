@@ -5,6 +5,7 @@ class ApiDomainError(
     val code: String,
     override val message: String,
     val fieldErrors: Map<String, List<String>> = emptyMap(),
+    val retryAfterSeconds: Long? = null,
 ) : Exception(message) {
     companion object {
         fun unknown(httpStatus: Int, fallbackMessage: String = "Something went wrong. Please try again.") =

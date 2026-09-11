@@ -48,6 +48,7 @@ import com.eyecare.app.presentation.auth.components.FieldError
 import com.eyecare.app.presentation.auth.components.OtpExpiryRow
 import com.eyecare.app.presentation.auth.components.OtpField
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.common.formatRateLimitCooldown
 import com.eyecare.app.ui.theme.EyecareColors
 
 @Composable
@@ -273,11 +274,20 @@ private fun LimitedInviteCodeStep(
             modifier = Modifier.fillMaxWidth(),
         )
         FieldError(state.error)
+        if (state.cooldownRemainingSeconds > 0) {
+            Text(
+                text = "You can try again in ${formatRateLimitCooldown(state.cooldownRemainingSeconds)}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(modifier = Modifier.height(24.dp))
         AuthPrimaryButton(
             text = "Continue",
             onClick = viewModel::requestInvitationOtp,
-            enabled = state.code.isNotBlank() && !state.isRequesting,
+            enabled = state.code.isNotBlank() &&
+                !state.isRequesting &&
+                state.cooldownRemainingSeconds == 0,
             loading = state.isRequesting,
         )
     }
@@ -301,6 +311,7 @@ private fun LimitedInviteOtpStep(
             expiresAt = state.expiresAt,
             canResend = !state.isResending && !state.isVerifying,
             onResend = viewModel::resendInvitationOtp,
+            serverCooldownSeconds = state.resendCooldownSeconds,
         )
         if (state.isResending) {
             Row(

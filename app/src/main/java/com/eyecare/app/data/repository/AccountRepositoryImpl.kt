@@ -161,13 +161,17 @@ class AccountRepositoryImpl @Inject constructor(
 
     private fun mapError(throwable: Throwable): Throwable {
         if (throwable !is HttpException) return throwable
-        val body = throwable.response()?.errorBody()?.string()
+        val response = throwable.response()
+        val body = response?.errorBody()?.string()
         val error = ApiErrorDecoder.decode(throwable.code(), body)
         return ApiDomainError(
             httpStatus = error.httpStatus,
             code = error.code,
             message = error.message,
             fieldErrors = error.fieldErrors,
+            retryAfterSeconds = response?.headers()?.get("Retry-After")
+                ?.toLongOrNull()
+                ?.takeIf { it > 0 },
         )
     }
 

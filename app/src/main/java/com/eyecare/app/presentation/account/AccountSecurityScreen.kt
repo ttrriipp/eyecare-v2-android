@@ -268,6 +268,8 @@ fun AccountSecurityOverviewContent(
                             icon = Icons.Outlined.Lock,
                             label = "Change password",
                             onClick = onChangePassword,
+                            enabled = !state.isSavingAccount && !state.isRequestingStepUp && !state.isEditingAccount,
+                            loading = state.isRequestingStepUp,
                         )
                         AccountSecurityDivider()
                         SettingsNavRow(
@@ -275,12 +277,14 @@ fun AccountSecurityOverviewContent(
                             label = "Sign out this device",
                             onClick = { showLogoutDialog = true },
                             isDestructive = true,
+                            enabled = !state.isSavingAccount && !state.isRequestingStepUp,
                         )
                     }
                 }
 
                 OutlinedButton(
                     onClick = { showLogoutAllDialog = true },
+                    enabled = !state.isSavingAccount && !state.isRequestingStepUp,
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
@@ -810,13 +814,23 @@ fun EnterNewEmailContent(
             onValueChange = onValueChange,
             method = ContactMethod.EMAIL,
             error = state.error,
+            enabled = !state.isRequestingStepUp,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = onContinue,
-            enabled = state.contactValue.isNotBlank(),
+            enabled = state.contactValue.isNotBlank() && !state.isRequestingStepUp,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Continue") }
+        ) {
+            if (state.isRequestingStepUp) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Text("Continue")
+            }
+        }
     }
 }
 
@@ -832,6 +846,7 @@ private fun StepUpOtpContent(
             value = state.code,
             onValueChange = { viewModel.updateStepUpCode(it) },
             error = state.error,
+            enabled = !state.isVerifying,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
@@ -863,13 +878,23 @@ private fun AddContactOtpContent(
             value = state.code,
             onValueChange = { viewModel.updateAddContactOtpCode(it) },
             error = state.error,
+            enabled = !state.isVerifying,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = { viewModel.verifyAddContactOtp() },
-            enabled = state.code.length == 6,
+            enabled = state.code.length == 6 && !state.isVerifying,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Verify") }
+        ) {
+            if (state.isVerifying) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Text("Verify")
+            }
+        }
     }
 }
 
@@ -886,26 +911,41 @@ private fun ChangePasswordContent(
             onValueChange = { viewModel.updateCurrentPassword(it) },
             label = "Current password",
             error = state.errors["current"],
+            enabled = !state.isSubmitting,
         )
         PasswordField(
             value = state.newPassword,
             onValueChange = { viewModel.updateNewPassword(it) },
             label = "New password",
             error = state.errors["new"],
+            enabled = !state.isSubmitting,
         )
         PasswordField(
             value = state.confirmPassword,
             onValueChange = { viewModel.updateConfirmPassword(it) },
             label = "Confirm new password",
             error = state.errors["confirm"],
+            enabled = !state.isSubmitting,
         )
         FieldError(state.errors["_"])
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = { viewModel.submitPasswordChange() },
-            enabled = state.currentPassword.isNotBlank() && state.newPassword.isNotBlank() && state.confirmPassword.isNotBlank(),
+            enabled = state.currentPassword.isNotBlank() &&
+                state.newPassword.isNotBlank() &&
+                state.confirmPassword.isNotBlank() &&
+                !state.isSubmitting,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Change password") }
+        ) {
+            if (state.isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Text("Change password")
+            }
+        }
     }
 }
 
@@ -915,8 +955,14 @@ private fun SettingsNavRow(
     label: String,
     onClick: () -> Unit,
     isDestructive: Boolean = false,
+    enabled: Boolean = true,
+    loading: Boolean = false,
 ) {
-    Surface(onClick = onClick, color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        color = MaterialTheme.colorScheme.surface,
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -948,12 +994,19 @@ private fun SettingsNavRow(
                 else MaterialTheme.colorScheme.onSurface,
             )
 
-            Icon(
-                imageVector = Icons.Outlined.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

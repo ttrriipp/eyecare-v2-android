@@ -21,6 +21,7 @@ import com.eyecare.app.presentation.auth.components.FieldError
 import com.eyecare.app.presentation.auth.components.OtpExpiryRow
 import com.eyecare.app.presentation.auth.components.OtpField
 import com.eyecare.app.presentation.auth.components.PasswordField
+import com.eyecare.app.presentation.common.formatRateLimitCooldown
 
 @Composable
 fun PasswordRecoveryScreen(
@@ -63,12 +64,23 @@ private fun RecoveryPhoneStep(
             onValueChange = viewModel::updatePhone,
             method = ContactMethod.PHONE,
             error = state.error,
+            enabled = !state.isRequesting,
         )
+        if (state.cooldownRemainingSeconds > 0) {
+            Text(
+                text = "You can request another code in ${formatRateLimitCooldown(state.cooldownRemainingSeconds)}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(modifier = Modifier.height(24.dp))
         AuthPrimaryButton(
             text = "Send code",
             onClick = viewModel::requestOtp,
-            enabled = toPhilippineLocalDigits(state.phoneNumber).length >= 10,
+            enabled = toPhilippineLocalDigits(state.phoneNumber).length >= 10 &&
+                !state.isRequesting &&
+                state.cooldownRemainingSeconds == 0,
+            loading = state.isRequesting,
         )
     }
 }
@@ -100,6 +112,7 @@ private fun RecoveryOtpStep(
             expiresAt = state.expiresAt,
             canResend = !state.isResending,
             onResend = viewModel::resendOtp,
+            serverCooldownSeconds = state.resendCooldownSeconds,
         )
         Spacer(modifier = Modifier.height(24.dp))
         AuthPrimaryButton(

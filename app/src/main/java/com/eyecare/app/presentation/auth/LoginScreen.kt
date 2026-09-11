@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -75,12 +76,14 @@ private fun LoginContactStep(
             value = state.phoneNumber,
             onValueChange = { viewModel.updatePhone(it) },
             method = ContactMethod.PHONE,
+            enabled = !state.isSubmitting,
         )
         Spacer(modifier = Modifier.height(12.dp))
         PasswordField(
             value = state.password,
             onValueChange = { viewModel.updatePassword(it) },
             label = "Password",
+            enabled = !state.isSubmitting,
         )
 
         // Forgot password — right-aligned
@@ -97,12 +100,24 @@ private fun LoginContactStep(
         }
 
         FieldError(state.error)
+        if (state.cooldownRemainingSeconds > 0) {
+            Text(
+                text = "You can try again in ${formatCooldown(state.cooldownRemainingSeconds)}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+            )
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         AuthPrimaryButton(
             text = "Sign in",
             onClick = viewModel::signIn,
-            enabled = state.phoneNumber.isNotBlank() && state.password.isNotBlank(),
+            enabled = state.phoneNumber.isNotBlank() &&
+                state.password.isNotBlank() &&
+                !state.isSubmitting &&
+                state.cooldownRemainingSeconds == 0,
+            loading = state.isSubmitting,
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -145,6 +160,19 @@ private fun LoginContactStep(
     }
 }
 
+private fun formatCooldown(seconds: Int): String = when {
+    seconds >= 60 -> {
+        val minutes = seconds / 60
+        val remainingSeconds = seconds % 60
+        if (remainingSeconds == 0) {
+            "$minutes minute${if (minutes == 1) "" else "s"}"
+        } else {
+            "$minutes min $remainingSeconds sec"
+        }
+    }
+    else -> "$seconds second${if (seconds == 1) "" else "s"}"
+}
+
 @Composable
 private fun LoginOtpStep(
     state: SignInState.VerifyOtp,
@@ -176,6 +204,7 @@ private fun LoginOtpStep(
             expiresAt = state.expiresAt,
             canResend = !state.isResending && !state.isVerifying,
             onResend = { viewModel.resendOtp() },
+            serverCooldownSeconds = state.resendCooldownSeconds,
         )
         Spacer(modifier = Modifier.height(24.dp))
         AuthPrimaryButton(

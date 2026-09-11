@@ -10,11 +10,13 @@ import com.eyecare.app.domain.model.PatientLinkRequest
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.domain.repository.AccountRepository
 import com.eyecare.app.domain.repository.AuthRepository
+import com.eyecare.app.presentation.common.rateLimitCooldownSeconds
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,6 +33,7 @@ sealed interface LimitedAccountState {
         val code: String = "",
         val error: String? = null,
         val isRequesting: Boolean = false,
+        val cooldownRemainingSeconds: Int = 0,
     ) : LimitedAccountState
     data class VerifyInvitationOtp(
         val account: PatientAccount,
@@ -41,6 +44,7 @@ sealed interface LimitedAccountState {
         val error: String? = null,
         val isResending: Boolean = false,
         val isVerifying: Boolean = false,
+        val resendCooldownSeconds: Int = 0,
     ) : LimitedAccountState
     data class Linked(val account: PatientAccount) : LimitedAccountState
     data class Error(val message: String) : LimitedAccountState
@@ -64,6 +68,7 @@ class LimitedAccountViewModel @Inject constructor(
     private var linkStateRefreshJob: Job? = null
     private var linkRequestRefreshJob: Job? = null
     private var linkedAccountRefreshJob: Job? = null
+    private var invitationCooldownJob: Job? = null
 
     fun load(account: PatientAccount) {
         // The navigation handoff updates the parent session to LINKED before the
@@ -75,6 +80,7 @@ class LimitedAccountViewModel @Inject constructor(
         }
 
         cancelRefreshJobs()
+        invitationCooldownJob?.cancel()
         _state.value = LimitedAccountState.Overview(account = account)
         refreshLinkState()
         refreshCurrentLinkRequest()
@@ -139,11 +145,12 @@ class LimitedAccountViewModel @Inject constructor(
         if (
             current !is LimitedAccountState.EnterInvitationCode ||
             current.code.isBlank() ||
-            current.isRequesting
+            current.isRequesting ||
+            current.cooldownRemainingSeconds > 0
         ) return
 
+        _state.value = current.copy(error = null, isRequesting = true)
         viewModelScope.launch {
-            _state.value = current.copy(error = null, isRequesting = true)
             val invitationCode = current.code.trim()
             accountRepository.requestInvitationOtp(invitationCode)
                 .onSuccess { challenge ->
@@ -160,13 +167,16 @@ class LimitedAccountViewModel @Inject constructor(
                 .onFailure { error ->
                     val latest = _state.value
                     if (latest is LimitedAccountState.EnterInvitationCode && latest.isRequesting) {
+                        val cooldownSeconds = error.rateLimitCooldownSeconds()
                         _state.value = latest.copy(
                             isRequesting = false,
+                            cooldownRemainingSeconds = cooldownSeconds,
                             error = linkingErrorMessage(
                                 error,
                                 fallback = "Could not check that invitation code.",
                             ),
                         )
+                        if (cooldownSeconds > 0) startInvitationCooldown(cooldownSeconds)
                     }
                 }
         }
@@ -180,8 +190,8 @@ class LimitedAccountViewModel @Inject constructor(
             current.isVerifying
         ) return
 
+        _state.value = current.copy(isResending = true, error = null, code = "", resendCooldownSeconds = 0)
         viewModelScope.launch {
-            _state.value = current.copy(isResending = true, error = null, code = "")
             accountRepository.requestInvitationOtp(current.invitationCode)
                 .onSuccess { challenge ->
                     val latest = _state.value
@@ -192,6 +202,7 @@ class LimitedAccountViewModel @Inject constructor(
                             code = "",
                             error = null,
                             isResending = false,
+                            resendCooldownSeconds = 0,
                         )
                     }
                 }
@@ -200,6 +211,7 @@ class LimitedAccountViewModel @Inject constructor(
                     if (latest is LimitedAccountState.VerifyInvitationOtp && latest.isResending) {
                         _state.value = latest.copy(
                             isResending = false,
+                            resendCooldownSeconds = error.rateLimitCooldownSeconds(),
                             error = linkingErrorMessage(
                                 error,
                                 fallback = "Could not send a new verification code.",
@@ -265,6 +277,7 @@ class LimitedAccountViewModel @Inject constructor(
     }
 
     fun back() {
+        invitationCooldownJob?.cancel()
         when (val current = _state.value) {
             is LimitedAccountState.EnterInvitationCode -> {
                 if (current.isRequesting) return
@@ -341,7 +354,11 @@ class LimitedAccountViewModel @Inject constructor(
 
     private fun linkingErrorMessage(error: Throwable, fallback: String): String {
         val apiError = error as? ApiDomainError
-        if (apiError?.httpStatus == 429 || apiError?.code == AuthApiCodes.OTP_RATE_LIMIT_REACHED) {
+        if (
+            apiError?.httpStatus == 429 &&
+            apiError.code != AuthApiCodes.OTP_RATE_LIMIT_REACHED &&
+            apiError.code != AuthApiCodes.INVITATION_RATE_LIMIT_REACHED
+        ) {
             return "Too many requests. Please wait before trying again."
         }
         return when (apiError?.code) {
@@ -356,6 +373,8 @@ class LimitedAccountViewModel @Inject constructor(
             AuthApiCodes.OTP_ATTEMPT_LIMIT_REACHED ->
                 "Too many incorrect codes. Request a new code and try again."
             AuthApiCodes.OTP_RATE_LIMIT_REACHED ->
+                "Too many code requests. Please wait before requesting another code."
+            AuthApiCodes.INVITATION_RATE_LIMIT_REACHED ->
                 "Too many code requests. Please wait before requesting another code."
             AuthApiCodes.LINK_REQUEST_PENDING ->
                 "A clinic link request is already pending."
@@ -373,5 +392,20 @@ class LimitedAccountViewModel @Inject constructor(
         linkStateRefreshJob?.cancel()
         linkRequestRefreshJob?.cancel()
         linkedAccountRefreshJob?.cancel()
+    }
+
+    private fun startInvitationCooldown(seconds: Int) {
+        invitationCooldownJob?.cancel()
+        invitationCooldownJob = viewModelScope.launch {
+            for (remaining in seconds downTo 1) {
+                val current = _state.value as? LimitedAccountState.EnterInvitationCode ?: return@launch
+                if (!current.isRequesting) {
+                    _state.value = current.copy(cooldownRemainingSeconds = remaining)
+                }
+                delay(1_000)
+            }
+            val current = _state.value as? LimitedAccountState.EnterInvitationCode ?: return@launch
+            _state.value = current.copy(cooldownRemainingSeconds = 0)
+        }
     }
 }

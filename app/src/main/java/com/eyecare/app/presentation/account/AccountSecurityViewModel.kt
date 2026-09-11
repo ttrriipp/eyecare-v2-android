@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AccountContact
 import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.AccountProfilePatch
 import com.eyecare.app.domain.model.ContactType
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.StepUpChallenge
 import com.eyecare.app.domain.repository.AccountRepository
 import com.eyecare.app.domain.repository.AuthRepository
+import com.eyecare.app.presentation.common.isRateLimited
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +40,7 @@ sealed interface AccountSecurityState {
     data class EnterNewContact(
         val contactValue: String = "",
         val error: String? = null,
+        val isRequestingStepUp: Boolean = false,
     ) : AccountSecurityState
     data class StepUpOtp(
         val challenge: StepUpChallenge,
@@ -54,6 +57,7 @@ sealed interface AccountSecurityState {
         val expiresAt: String,
         val code: String = "",
         val error: String? = null,
+        val isVerifying: Boolean = false,
     ) : AccountSecurityState
     data class ChangePassword(
         val stepUpToken: String,
@@ -62,6 +66,7 @@ sealed interface AccountSecurityState {
         val confirmPassword: String = "",
         val errors: Map<String, String> = emptyMap(),
         val successMessage: String? = null,
+        val isSubmitting: Boolean = false,
     ) : AccountSecurityState
     data class Result(
         val message: String,
@@ -284,14 +289,14 @@ class AccountSecurityViewModel @Inject constructor(
 
     fun updateNewContactValue(value: String) {
         val current = _state.value
-        if (current is AccountSecurityState.EnterNewContact) {
+        if (current is AccountSecurityState.EnterNewContact && !current.isRequestingStepUp) {
             _state.value = current.copy(contactValue = value, error = null)
         }
     }
 
     fun submitNewContact() {
         val current = _state.value
-        if (current !is AccountSecurityState.EnterNewContact) return
+        if (current !is AccountSecurityState.EnterNewContact || current.isRequestingStepUp) return
         if (current.contactValue.isBlank()) {
             _state.value = current.copy(error = "Enter a value")
             return
@@ -301,36 +306,40 @@ class AccountSecurityViewModel @Inject constructor(
 
     fun startStepUp(action: StepUpAction) {
         val currentState = _state.value
-        if (currentState is AccountSecurityState.Overview &&
-            (currentState.isSavingAccount ||
-                currentState.isRequestingStepUp ||
-                (currentState.isEditingAccount && action !is StepUpAction.UpdateProfile))
-        ) {
-            return
-        }
-        if (action is StepUpAction.UpdateProfile) {
-            val current = currentState as? AccountSecurityState.Overview ?: return
-            if (!canEditAccount(current)) return
-            _state.value = current.copy(
-                isRequestingStepUp = true,
-                accountSaveError = null,
-                fieldErrors = emptyMap(),
-            )
+        when (currentState) {
+            is AccountSecurityState.Overview -> {
+                if (
+                    currentState.isSavingAccount ||
+                    currentState.isRequestingStepUp ||
+                    (currentState.isEditingAccount && action !is StepUpAction.UpdateProfile)
+                ) return
+                if (action is StepUpAction.UpdateProfile && !canEditAccount(currentState)) return
+                _state.value = currentState.copy(
+                    isRequestingStepUp = true,
+                    accountSaveError = null,
+                    error = null,
+                    fieldErrors = emptyMap(),
+                )
+            }
+            is AccountSecurityState.EnterNewContact -> {
+                if (action !is StepUpAction.AddContact || currentState.isRequestingStepUp) return
+                _state.value = currentState.copy(isRequestingStepUp = true, error = null)
+            }
+            else -> return
         }
 
         stepUpRequestJob?.cancel()
         stepUpRequestJob = viewModelScope.launch {
             accountRepository.requestStepUpOtp()
                 .onSuccess { challenge ->
-                    if (action is StepUpAction.UpdateProfile) {
-                        val current = _state.value as? AccountSecurityState.Overview
-                        if (current?.isRequestingStepUp == true && current.isEditingAccount) {
-                            _state.value = AccountSecurityState.StepUpOtp(
-                                challenge = challenge,
-                                pendingAction = action,
-                            )
-                        }
-                    } else {
+                    val latest = _state.value
+                    val requestStillActive = when (action) {
+                        is StepUpAction.AddContact ->
+                            latest is AccountSecurityState.EnterNewContact && latest.isRequestingStepUp
+                        else ->
+                            latest is AccountSecurityState.Overview && latest.isRequestingStepUp
+                    }
+                    if (requestStillActive) {
                         _state.value = AccountSecurityState.StepUpOtp(
                             challenge = challenge,
                             pendingAction = action,
@@ -338,21 +347,37 @@ class AccountSecurityViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    when (action) {
-                        is StepUpAction.UpdateProfile -> {
-                            val current = _state.value as? AccountSecurityState.Overview
-                            if (current?.isRequestingStepUp == true) {
-                                _state.value = current.copy(
-                                    isRequestingStepUp = false,
-                                    accountSaveError = error.message ?: "Failed to send verification code",
-                                )
-                            }
+                    val latest = _state.value
+                    when {
+                        action is StepUpAction.AddContact &&
+                            latest is AccountSecurityState.EnterNewContact &&
+                            latest.isRequestingStepUp -> {
+                            _state.value = latest.copy(
+                                isRequestingStepUp = false,
+                                error = securityErrorMessage(
+                                    error,
+                                    fallback = "Failed to send verification code.",
+                                    rateLimitMessage = "Too many verification code requests. Please wait before trying again.",
+                                ),
+                            )
                         }
-                        else -> {
-                            _state.value = AccountSecurityState.Overview(
-                                account = latestAccount,
-                                contacts = latestContacts,
-                                error = error.message ?: "Failed to send code",
+                        latest is AccountSecurityState.Overview && latest.isRequestingStepUp -> {
+                            _state.value = latest.copy(
+                                isRequestingStepUp = false,
+                                error = if (action is StepUpAction.UpdateProfile) null else securityErrorMessage(
+                                    error,
+                                    fallback = "Failed to send verification code.",
+                                    rateLimitMessage = "Too many verification code requests. Please wait before trying again.",
+                                ),
+                                accountSaveError = if (action is StepUpAction.UpdateProfile) {
+                                    securityErrorMessage(
+                                        error,
+                                        fallback = "Failed to send verification code.",
+                                        rateLimitMessage = "Too many verification code requests. Please wait before trying again.",
+                                    )
+                                } else {
+                                    latest.accountSaveError
+                                },
                             )
                         }
                     }
@@ -396,7 +421,11 @@ class AccountSecurityViewModel @Inject constructor(
                     ) {
                         _state.value = latest.copy(
                             isVerifying = false,
-                            error = error.message ?: "Invalid code",
+                            error = securityErrorMessage(
+                                error,
+                                fallback = "That verification code is incorrect. Check the 6 digits and try again.",
+                                rateLimitMessage = "Too many verification attempts. Please wait before trying again.",
+                            ),
                         )
                     }
                 }
@@ -405,25 +434,36 @@ class AccountSecurityViewModel @Inject constructor(
 
     fun updateAddContactValue(value: String) {
         val current = _state.value
-        if (current is AccountSecurityState.AddContactOtp) {
+        if (current is AccountSecurityState.AddContactOtp && !current.isVerifying) {
             _state.value = current.copy(contactValue = value, error = null)
         }
     }
 
     fun updateAddContactOtpCode(code: String) {
         val current = _state.value
-        if (current is AccountSecurityState.AddContactOtp) {
+        if (current is AccountSecurityState.AddContactOtp && !current.isVerifying) {
             _state.value = current.copy(code = code, error = null)
         }
     }
 
     fun verifyAddContactOtp() {
         val current = _state.value
-        if (current !is AccountSecurityState.AddContactOtp || current.code.length != 6) return
+        if (
+            current !is AccountSecurityState.AddContactOtp ||
+            current.code.length != 6 ||
+            current.isVerifying
+        ) return
 
+        _state.value = current.copy(isVerifying = true, error = null)
         viewModelScope.launch {
             accountRepository.verifyContactOtp(current.challengeId, current.code)
                 .onSuccess { verifiedContact ->
+                    val latest = _state.value
+                    if (
+                        latest !is AccountSecurityState.AddContactOtp ||
+                        !latest.isVerifying ||
+                        latest.challengeId != current.challengeId
+                    ) return@onSuccess
                     latestContacts = latestContacts
                         .filterNot { it.id == verifiedContact.id || it.type == verifiedContact.type }
                         .plus(verifiedContact)
@@ -434,35 +474,48 @@ class AccountSecurityViewModel @Inject constructor(
                     loadAccount()
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(error = error.message ?: "Verification failed")
+                    val latest = _state.value
+                    if (latest is AccountSecurityState.AddContactOtp &&
+                        latest.isVerifying &&
+                        latest.challengeId == current.challengeId
+                    ) {
+                        _state.value = latest.copy(
+                            isVerifying = false,
+                            error = securityErrorMessage(
+                                error,
+                                fallback = "That verification code is incorrect. Check the 6 digits and try again.",
+                                rateLimitMessage = "Too many verification attempts. Please wait before trying again.",
+                            ),
+                        )
+                    }
                 }
         }
     }
 
     fun updateCurrentPassword(value: String) {
         val current = _state.value
-        if (current is AccountSecurityState.ChangePassword) {
+        if (current is AccountSecurityState.ChangePassword && !current.isSubmitting) {
             _state.value = current.copy(currentPassword = value, errors = current.errors - "current")
         }
     }
 
     fun updateNewPassword(value: String) {
         val current = _state.value
-        if (current is AccountSecurityState.ChangePassword) {
+        if (current is AccountSecurityState.ChangePassword && !current.isSubmitting) {
             _state.value = current.copy(newPassword = value, errors = current.errors - "new")
         }
     }
 
     fun updateConfirmPassword(value: String) {
         val current = _state.value
-        if (current is AccountSecurityState.ChangePassword) {
+        if (current is AccountSecurityState.ChangePassword && !current.isSubmitting) {
             _state.value = current.copy(confirmPassword = value, errors = current.errors - "confirm")
         }
     }
 
     fun submitPasswordChange() {
         val current = _state.value
-        if (current !is AccountSecurityState.ChangePassword) return
+        if (current !is AccountSecurityState.ChangePassword || current.isSubmitting) return
 
         val errors = mutableMapOf<String, String>()
         if (current.currentPassword.isBlank()) errors["current"] = "Current password is required"
@@ -473,6 +526,7 @@ class AccountSecurityViewModel @Inject constructor(
             return
         }
 
+        _state.value = current.copy(errors = emptyMap(), isSubmitting = true)
         viewModelScope.launch {
             accountRepository.changePassword(
                 stepUpToken = current.stepUpToken,
@@ -483,8 +537,19 @@ class AccountSecurityViewModel @Inject constructor(
                 _state.value = AccountSecurityState.Result(message = message, account = latestAccount)
                 loadAccount()
             }.onFailure { error ->
-                val apiError = error as? ApiDomainError
-                _state.value = current.copy(errors = mapOf("_" to (apiError?.message ?: "Password change failed")))
+                val latest = _state.value
+                if (latest is AccountSecurityState.ChangePassword && latest.isSubmitting) {
+                    _state.value = latest.copy(
+                        isSubmitting = false,
+                        errors = mapOf(
+                            "_" to securityErrorMessage(
+                                error,
+                                fallback = "Password change failed. Please try again.",
+                                rateLimitMessage = "Too many requests. Please wait before trying again.",
+                            ),
+                        ),
+                    )
+                }
             }
         }
     }
@@ -510,6 +575,9 @@ class AccountSecurityViewModel @Inject constructor(
     fun back() {
         val current = _state.value
         if (current is AccountSecurityState.Overview && (current.isSavingAccount || current.isRequestingStepUp)) {
+            return
+        }
+        if (current is AccountSecurityState.EnterNewContact && current.isRequestingStepUp) {
             return
         }
         if (current is AccountSecurityState.StepUpOtp && current.pendingAction is StepUpAction.UpdateProfile) {
@@ -556,7 +624,11 @@ class AccountSecurityViewModel @Inject constructor(
                             _state.value = AccountSecurityState.Overview(
                                 account = latestAccount,
                                 contacts = latestContacts,
-                                error = error.message ?: "Failed to send code",
+                                error = securityErrorMessage(
+                                    error,
+                                    fallback = "Failed to send verification code.",
+                                    rateLimitMessage = "Too many verification code requests. Please wait before trying again.",
+                                ),
                             )
                         }
                 }
@@ -576,7 +648,11 @@ class AccountSecurityViewModel @Inject constructor(
                             _state.value = AccountSecurityState.Overview(
                                 account = latestAccount,
                                 contacts = latestContacts,
-                                error = error.message ?: "Failed to update",
+                                error = securityErrorMessage(
+                                    error,
+                                    fallback = "Failed to update the primary contact.",
+                                    rateLimitMessage = "Too many requests. Please wait before trying again.",
+                                ),
                             )
                         }
                 }
@@ -596,7 +672,11 @@ class AccountSecurityViewModel @Inject constructor(
                             _state.value = AccountSecurityState.Overview(
                                 account = latestAccount,
                                 contacts = latestContacts,
-                                error = error.message ?: "Failed to remove",
+                                error = securityErrorMessage(
+                                    error,
+                                    fallback = "Failed to remove the contact.",
+                                    rateLimitMessage = "Too many requests. Please wait before trying again.",
+                                ),
                             )
                         }
                 }
@@ -614,6 +694,25 @@ class AccountSecurityViewModel @Inject constructor(
 
     private fun canEditAccount(state: AccountSecurityState.Overview): Boolean =
         state.isEditingAccount && !state.isSavingAccount && !state.isRequestingStepUp
+
+    private fun securityErrorMessage(
+        error: Throwable,
+        fallback: String,
+        rateLimitMessage: String,
+    ): String {
+        if (error.isRateLimited()) return rateLimitMessage
+
+        val apiError = error as? ApiDomainError
+        return when (apiError?.code) {
+            AuthApiCodes.INVALID_OTP ->
+                "That verification code is incorrect. Check the 6 digits and try again."
+            AuthApiCodes.OTP_ATTEMPT_LIMIT_REACHED ->
+                "Too many incorrect codes. Request a new code and try again."
+            else -> apiError?.message?.takeIf(String::isNotBlank)
+                ?: error.message?.takeIf(String::isNotBlank)
+                ?: fallback
+        }
+    }
 
     private fun isCurrentProfileSave(generation: Long): Boolean {
         val state = _state.value as? AccountSecurityState.Overview ?: return false
