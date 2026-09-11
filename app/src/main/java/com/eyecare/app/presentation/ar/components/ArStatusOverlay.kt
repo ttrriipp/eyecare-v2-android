@@ -166,7 +166,7 @@ fun ArFaceGuideOverlay(
             if (showGuide) {
                 Box(
                     modifier = Modifier
-                        .size(width = 200.dp, height = 260.dp)
+                        .size(width = 224.dp, height = 288.dp)
                         .border(
                             width = 2.dp,
                             color = Color.White.copy(alpha = 0.86f),
