@@ -8,9 +8,9 @@ import kotlin.math.abs
 /** Pose limits used by tracking guidance and its conservative startup calibration. */
 internal object FaceTrackingThresholds {
     const val DEFAULT_FACE_CENTER = 0.5f
-    // Match the enlarged on-screen guide while still keeping the face near the viewport center.
-    const val MAX_CENTER_OFFSET_X = 0.18f
-    const val MAX_CENTER_OFFSET_Y = 0.22f
+    // Match the larger on-screen guide while still keeping the face near the viewport center.
+    const val MAX_CENTER_OFFSET_X = 0.19f
+    const val MAX_CENTER_OFFSET_Y = 0.24f
     const val MAX_PITCH_DEGREES = 12f
     // Allow a side-facing preview while retaining a bounded near-profile guard.
     const val MAX_PREVIEW_YAW_DEGREES = 45f

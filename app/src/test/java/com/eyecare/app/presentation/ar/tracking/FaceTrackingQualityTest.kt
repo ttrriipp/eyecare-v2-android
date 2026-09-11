@@ -37,6 +37,17 @@ class FaceTrackingQualityTest {
     }
 
     @Test
+    fun `face near the edge of the larger guide remains stable`() {
+        assertEquals(
+            ArTrackingQuality.Stable,
+            classifyFaceTrackingQuality(
+                face(noseBridgeX = 0.69f, noseBridgeY = 0.73f),
+                pose(),
+            ),
+        )
+    }
+
+    @Test
     fun `turned face asks user to look straight`() {
         assertEquals(
             ArTrackingQuality.LookStraight,
