@@ -5,14 +5,16 @@ import com.eyecare.app.presentation.ar.model.FaceFrame
 import com.eyecare.app.presentation.ar.model.FacePose
 import kotlin.math.abs
 
-/** Shared pose limits used by distance calibration and the on-screen tracking guidance. */
+/** Pose limits used by tracking guidance and its conservative startup calibration. */
 internal object FaceTrackingThresholds {
     const val DEFAULT_FACE_CENTER = 0.5f
     const val MAX_CENTER_OFFSET_X = 0.15f
     const val MAX_CENTER_OFFSET_Y = 0.18f
     const val MAX_PITCH_DEGREES = 12f
-    // Allow a moderate side turn up to the renderer's far-temple safety boundary.
-    const val MAX_YAW_DEGREES = 24f
+    // Allow a side-facing preview while retaining a bounded near-profile guard.
+    const val MAX_PREVIEW_YAW_DEGREES = 45f
+    // Keep the first scale baseline near-frontal so a side view cannot distort sizing.
+    const val MAX_CALIBRATION_YAW_DEGREES = 24f
     const val MAX_ROLL_DEGREES = 10f
 }
 
@@ -41,7 +43,8 @@ internal fun classifyFaceTrackingQuality(
             abs(face.noseBridgeY - FaceTrackingThresholds.DEFAULT_FACE_CENTER) >
             FaceTrackingThresholds.MAX_CENTER_OFFSET_Y -> ArTrackingQuality.CenterFace
         abs(pose.pitchDeg) > FaceTrackingThresholds.MAX_PITCH_DEGREES ||
-            abs(pose.yawDeg) > FaceTrackingThresholds.MAX_YAW_DEGREES -> ArTrackingQuality.LookStraight
+            abs(pose.yawDeg) > FaceTrackingThresholds.MAX_PREVIEW_YAW_DEGREES ->
+            ArTrackingQuality.LookStraight
         abs(pose.rollDeg) > FaceTrackingThresholds.MAX_ROLL_DEGREES -> ArTrackingQuality.LevelHead
         else -> ArTrackingQuality.Stable
     }
@@ -60,5 +63,5 @@ internal fun isTrustedFacePose(
         abs(faceCenterY - FaceTrackingThresholds.DEFAULT_FACE_CENTER) <=
         FaceTrackingThresholds.MAX_CENTER_OFFSET_Y &&
         abs(pitchDeg) <= FaceTrackingThresholds.MAX_PITCH_DEGREES &&
-        abs(yawDeg) <= FaceTrackingThresholds.MAX_YAW_DEGREES &&
+        abs(yawDeg) <= FaceTrackingThresholds.MAX_CALIBRATION_YAW_DEGREES &&
         abs(rollDeg) <= FaceTrackingThresholds.MAX_ROLL_DEGREES

@@ -156,6 +156,20 @@ class FaceDistanceScaleTrackerTest {
     }
 
     @Test
+    fun untrusted_side_pose_does_not_establish_a_scale_baseline() {
+        val tracker = FaceDistanceScaleTracker()
+
+        val scale = tracker.update(
+            faceWidthNorm = 0.4f,
+            mappedPoseScale = 1f,
+            yawDeg = 35f,
+        )
+
+        assertNull(scale)
+        assertEquals(1f, establishBaseline(tracker)!!)
+    }
+
+    @Test
     fun untrusted_pose_holds_the_last_trusted_scale() {
         val tracker = FaceDistanceScaleTracker()
         establishBaseline(tracker)
