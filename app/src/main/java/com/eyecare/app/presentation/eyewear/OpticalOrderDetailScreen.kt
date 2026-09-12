@@ -393,12 +393,12 @@ private data class OrderStatusGuidanceCopy(val title: String, val message: Strin
 private fun OrderStatusGuidance(status: OpticalOrderStatus) {
     val copy = when (status) {
         OpticalOrderStatus.QUEUED -> OrderStatusGuidanceCopy(
-            title = "Order received",
-            message = "Your eyewear has been added to the queue for preparation.",
+            title = "Order confirmed",
+            message = "Your eyewear order is confirmed and waiting to be prepared.",
             icon = Icons.Outlined.Info,
         )
         OpticalOrderStatus.IN_PROGRESS -> OrderStatusGuidanceCopy(
-            title = "Being prepared",
+            title = "Order processing",
             message = "Your eyewear is currently being prepared by our lab.",
             icon = Icons.Outlined.Info,
         )
@@ -542,7 +542,10 @@ private fun OrderTracker(status: OpticalOrderStatus) {
                     Box(modifier = Modifier.weight(1f)) {
                         Text(
                             text = when (step) {
-                                TrackerStep.PREPARATION -> "Preparing"
+                                TrackerStep.PREPARATION -> when (status) {
+                                    OpticalOrderStatus.QUEUED -> "Confirmed"
+                                    else -> "Processing"
+                                }
                                 TrackerStep.READY -> "Ready for pickup"
                                 TrackerStep.RELEASED -> "Picked up"
                             },

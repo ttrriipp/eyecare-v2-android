@@ -38,8 +38,11 @@ data class TrackerState(
 // ── Order presentation ──────────────────────────────────────────────────
 
 fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
-    OpticalOrderStatus.QUEUED -> "Preparing"
-    OpticalOrderStatus.IN_PROGRESS -> "In preparation"
+    // The API uses queued/in_progress while the clinic workflow calls these
+    // states Confirmed/Processing. Keep the patient-facing copy aligned with
+    // the status names staff see in the admin app.
+    OpticalOrderStatus.QUEUED -> "Confirmed"
+    OpticalOrderStatus.IN_PROGRESS -> "Processing"
     OpticalOrderStatus.READY_FOR_DISPENSING -> "Ready for pickup"
     OpticalOrderStatus.DISPENSED -> "Picked up"
     OpticalOrderStatus.CANCELLED -> "Cancelled"
@@ -48,7 +51,8 @@ fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
 
 @Composable
 fun orderStatusColor(status: OpticalOrderStatus): Color = when (status) {
-    OpticalOrderStatus.QUEUED, OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
+    OpticalOrderStatus.QUEUED -> EyecareColors.current.statusConfirmed
+    OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
     OpticalOrderStatus.READY_FOR_DISPENSING -> EyecareColors.current.statusPending
     OpticalOrderStatus.DISPENSED -> MaterialTheme.colorScheme.tertiary
     OpticalOrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
@@ -63,7 +67,8 @@ fun orderStatusColor(status: OpticalOrderStatus): Color = when (status) {
 // instead of reusing the fill color directly.
 @Composable
 fun orderStatusTextColor(status: OpticalOrderStatus): Color = when (status) {
-    OpticalOrderStatus.QUEUED, OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
+    OpticalOrderStatus.QUEUED -> EyecareColors.current.statusConfirmedText
+    OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
     OpticalOrderStatus.READY_FOR_DISPENSING -> EyecareColors.current.statusPendingText
     OpticalOrderStatus.DISPENSED -> EyecareColors.current.statusConfirmedText
     OpticalOrderStatus.CANCELLED -> EyecareColors.current.statusCancelledText
