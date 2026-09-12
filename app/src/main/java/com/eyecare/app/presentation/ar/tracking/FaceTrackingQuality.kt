@@ -11,7 +11,8 @@ internal object FaceTrackingThresholds {
     // Match the larger on-screen guide while still keeping the face near the viewport center.
     const val MAX_CENTER_OFFSET_X = 0.19f
     const val MAX_CENTER_OFFSET_Y = 0.24f
-    const val MAX_PITCH_DEGREES = 12f
+    // Allow a modest upward or downward tilt without accepting a steep view.
+    const val MAX_PITCH_DEGREES = 16f
     // Allow a side-facing preview while retaining a bounded near-profile guard.
     const val MAX_PREVIEW_YAW_DEGREES = 45f
     // Keep the first scale baseline near-frontal so a side view cannot distort sizing.

@@ -56,6 +56,22 @@ class FaceTrackingQualityTest {
     }
 
     @Test
+    fun `moderate upward or downward tilt remains stable`() {
+        assertEquals(
+            ArTrackingQuality.Stable,
+            classifyFaceTrackingQuality(face(), pose(pitchDeg = 15f)),
+        )
+    }
+
+    @Test
+    fun `steep upward or downward tilt still asks for a level view`() {
+        assertEquals(
+            ArTrackingQuality.LookStraight,
+            classifyFaceTrackingQuality(face(), pose(pitchDeg = 18f)),
+        )
+    }
+
+    @Test
     fun `slight side turn remains stable for a natural preview angle`() {
         assertEquals(
             ArTrackingQuality.Stable,
