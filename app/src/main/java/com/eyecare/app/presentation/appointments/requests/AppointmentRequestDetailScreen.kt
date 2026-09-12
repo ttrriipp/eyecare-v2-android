@@ -65,6 +65,7 @@ fun AppointmentRequestDetailScreen(
     requestId: Int,
     isLinked: Boolean = false,
     onBack: () -> Unit,
+    onAppointmentsChanged: () -> Unit = {},
     onViewConfirmedAppointment: (Int) -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     viewModel: AppointmentRequestDetailViewModel = hiltViewModel(),
@@ -76,6 +77,24 @@ fun AppointmentRequestDetailScreen(
 
     val state by viewModel.state.collectAsState()
     var showCancelDialog by remember { mutableStateOf(false) }
+    var lastListSnapshot by remember(requestId) { mutableStateOf<String?>(null) }
+
+    val requestSnapshot = (state as? RequestDetailState.Data)?.let { detail ->
+        listOf(
+            detail.request.status,
+            detail.request.scheduledAt,
+            detail.request.selectedScheduledAt,
+            detail.request.cancelledAt,
+            detail.request.appointmentId,
+        ).joinToString("|")
+    }
+    LaunchedEffect(requestSnapshot) {
+        if (requestSnapshot == null) return@LaunchedEffect
+        if (lastListSnapshot != null && lastListSnapshot != requestSnapshot) {
+            onAppointmentsChanged()
+        }
+        lastListSnapshot = requestSnapshot
+    }
 
     if (showCancelDialog) {
         AppConfirmationDialog(

@@ -174,10 +174,10 @@ fun EyecareNavGraph(
     }
 
     fun requestAppointmentsRefresh() {
-        navController.previousBackStackEntry?.savedStateHandle?.set(
-            APPOINTMENTS_REFRESH_KEY,
-            System.currentTimeMillis(),
-        )
+        runCatching { navController.getBackStackEntry<Appointments>() }
+            .getOrNull()
+            ?.savedStateHandle
+            ?.set(APPOINTMENTS_REFRESH_KEY, System.currentTimeMillis())
     }
 
     fun navigateMainTab(route: Any) {
@@ -466,6 +466,7 @@ fun EyecareNavGraph(
                     }
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
+                            onAppointmentsChanged = ::requestAppointmentsRefresh,
                             onBack = {
                                 requestAppointmentsRefresh()
                                 navController.popBackStack()
@@ -478,6 +479,7 @@ fun EyecareNavGraph(
                         AppointmentRequestDetailScreen(
                             requestId = route.requestId,
                             isLinked = sessionState is SessionState.Linked,
+                            onAppointmentsChanged = ::requestAppointmentsRefresh,
                             onBack = {
                                 requestAppointmentsRefresh()
                                 navController.popBackStack()
