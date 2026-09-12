@@ -840,7 +840,10 @@ private fun StepUpOtpContent(
     viewModel: AccountSecurityViewModel,
 ) {
     AuthStepScaffold(title = "Verify it's you", onBack = { viewModel.back() }, showGradientBar = false) {
-        Text("A code was sent to ${state.challenge.maskedContact}.")
+        Text(
+            "A code was sent to ${state.challenge.maskedContact}. You can go back and return here " +
+                "without requesting another SMS.",
+        )
         Spacer(modifier = Modifier.height(16.dp))
         OtpField(
             value = state.code,

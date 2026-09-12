@@ -18,6 +18,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import javax.inject.Inject
 
 sealed interface AccountSecurityState {
@@ -94,6 +98,9 @@ class AccountSecurityViewModel @Inject constructor(
     private var latestAccount: PatientAccount? = null
     private var latestContacts: List<AccountContact> = emptyList()
     private var stepUpRequestJob: Job? = null
+    // Keep a sent challenge available when the patient backs out of the OTP screen. Returning to
+    // a protected action can then reuse the challenge instead of sending another SMS.
+    private var activeStepUpChallenge: StepUpChallenge? = null
     private var profileSaveGeneration = 0L
 
     private companion object {
@@ -314,6 +321,7 @@ class AccountSecurityViewModel @Inject constructor(
                     (currentState.isEditingAccount && action !is StepUpAction.UpdateProfile)
                 ) return
                 if (action is StepUpAction.UpdateProfile && !canEditAccount(currentState)) return
+                if (resumeActiveStepUp(action)) return
                 _state.value = currentState.copy(
                     isRequestingStepUp = true,
                     accountSaveError = null,
@@ -323,6 +331,7 @@ class AccountSecurityViewModel @Inject constructor(
             }
             is AccountSecurityState.EnterNewContact -> {
                 if (action !is StepUpAction.AddContact || currentState.isRequestingStepUp) return
+                if (resumeActiveStepUp(action)) return
                 _state.value = currentState.copy(isRequestingStepUp = true, error = null)
             }
             else -> return
@@ -340,6 +349,7 @@ class AccountSecurityViewModel @Inject constructor(
                             latest is AccountSecurityState.Overview && latest.isRequestingStepUp
                     }
                     if (requestStillActive) {
+                        activeStepUpChallenge = challenge
                         _state.value = AccountSecurityState.StepUpOtp(
                             challenge = challenge,
                             pendingAction = action,
@@ -409,6 +419,7 @@ class AccountSecurityViewModel @Inject constructor(
                         latest.pendingAction == pendingAction &&
                         latest.isVerifying
                     ) {
+                        activeStepUpChallenge = null
                         executeProtectedAction(proof.token, pendingAction)
                     }
                 }
@@ -419,6 +430,9 @@ class AccountSecurityViewModel @Inject constructor(
                         latest.pendingAction == pendingAction &&
                         latest.isVerifying
                     ) {
+                        if ((error as? ApiDomainError)?.code == AuthApiCodes.OTP_ATTEMPT_LIMIT_REACHED) {
+                            activeStepUpChallenge = null
+                        }
                         _state.value = latest.copy(
                             isVerifying = false,
                             error = securityErrorMessage(
@@ -694,6 +708,29 @@ class AccountSecurityViewModel @Inject constructor(
 
     private fun canEditAccount(state: AccountSecurityState.Overview): Boolean =
         state.isEditingAccount && !state.isSavingAccount && !state.isRequestingStepUp
+
+    private fun resumeActiveStepUp(action: StepUpAction): Boolean {
+        val challenge = activeStepUpChallenge ?: return false
+        if (!challenge.isActive()) {
+            activeStepUpChallenge = null
+            return false
+        }
+
+        _state.value = AccountSecurityState.StepUpOtp(
+            challenge = challenge,
+            pendingAction = action,
+        )
+        return true
+    }
+
+    private fun StepUpChallenge.isActive(): Boolean {
+        val expiresAt = runCatching { OffsetDateTime.parse(this.expiresAt).toInstant() }.getOrNull()
+            ?: runCatching { Instant.parse(this.expiresAt) }.getOrNull()
+            ?: runCatching {
+                LocalDateTime.parse(this.expiresAt).atZone(ZoneId.systemDefault()).toInstant()
+            }.getOrNull()
+        return expiresAt?.isAfter(Instant.now()) == true
+    }
 
     private fun securityErrorMessage(
         error: Throwable,
