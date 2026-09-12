@@ -18,6 +18,10 @@ internal class ResumeRefreshObserver(
 ) : LifecycleEventObserver {
     private var hasObservedInitialResume = false
 
+    fun markInitialResumeObserved() {
+        hasObservedInitialResume = true
+    }
+
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
         if (event != Lifecycle.Event.ON_RESUME) return
         if (!skipInitialResume || hasObservedInitialResume) {
@@ -41,6 +45,13 @@ fun RefreshOnResumeEffect(
             skipInitialResume = skipInitialResume,
         )
         lifecycleOwner.lifecycle.addObserver(observer)
+        // If the observer is installed after the destination is already RESUMED, the lifecycle
+        // may not dispatch a catch-up ON_RESUME. Mark that state so the next ON_RESUME is treated
+        // as a return. When a catch-up event is dispatched, it is skipped first and this remains
+        // harmless.
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            observer.markInitialResumeObserved()
+        }
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 }

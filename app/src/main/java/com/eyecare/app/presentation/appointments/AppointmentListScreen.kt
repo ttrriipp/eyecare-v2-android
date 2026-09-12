@@ -1198,10 +1198,12 @@ internal fun appointmentRequestsForTab(
     now: LocalDateTime = LocalDateTime.now(),
 ): List<AppointmentRequest> {
     val visible = requests.filter { request ->
-        val isAlreadyListedAsConfirmed = request.status == AppointmentRequestStatus.ACCEPTED &&
-            request.appointmentId != null &&
-            request.appointmentId in confirmedAppointmentIds
-        if (isAlreadyListedAsConfirmed) return@filter false
+        // The request list can refresh a little before the confirmed-appointments list. Once the
+        // API marks a request accepted and provides its appointment reference, omit it here so
+        // the upcoming list never shows a duplicate request while the appointment refreshes.
+        val isConfirmedRequest = request.status == AppointmentRequestStatus.ACCEPTED &&
+            request.appointmentId != null
+        if (isConfirmedRequest) return@filter false
 
         val scheduledAt = parseAppointmentDateTime(request.scheduledAt)
         val isUpcomingDate = scheduledAt == null || !scheduledAt.isBefore(now)

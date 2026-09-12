@@ -6,6 +6,7 @@ import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +36,8 @@ class AppointmentRequestListViewModel @Inject constructor(
     val state: StateFlow<RequestListState> = _state.asStateFlow()
 
     private val seenIds = mutableSetOf<Int>()
+    private var requestJob: Job? = null
+    private var requestGeneration = 0L
 
     init {
         loadInitial()
@@ -49,25 +52,30 @@ class AppointmentRequestListViewModel @Inject constructor(
     }
 
     fun loadInitial() {
-        viewModelScope.launch {
+        val generation = beginRequest()
+        requestJob = viewModelScope.launch {
             _state.value = RequestListState.Loading
             repository.getRequests(page = 1)
                 .onSuccess { paginated ->
-                    seenIds.clear()
-                    seenIds.addAll(paginated.data.map { it.id })
-                    _state.value = RequestListState.Data(
-                        requests = paginated.data,
-                        hasMore = paginated.hasMorePages,
-                        currentPage = 1,
-                    )
+                    if (generation == requestGeneration) {
+                        seenIds.clear()
+                        seenIds.addAll(paginated.data.map { it.id })
+                        _state.value = RequestListState.Data(
+                            requests = paginated.data,
+                            hasMore = paginated.hasMorePages,
+                            currentPage = 1,
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    _state.value = RequestListState.Error(
-                        patientSafeAppointmentRequestError(
-                            error = error,
-                            fallback = "We couldn't load your requests. Please try again.",
-                        ),
-                    )
+                    if (generation == requestGeneration) {
+                        _state.value = RequestListState.Error(
+                            patientSafeAppointmentRequestError(
+                                error = error,
+                                fallback = "We couldn't load your requests. Please try again.",
+                            ),
+                        )
+                    }
                 }
         }
     }
@@ -76,26 +84,31 @@ class AppointmentRequestListViewModel @Inject constructor(
         val current = _state.value
         if (current !is RequestListState.Data || current.isLoadingMore || !current.hasMore) return
 
+        val generation = beginRequest()
         _state.value = current.copy(isLoadingMore = true, appendError = null)
-        viewModelScope.launch {
+        requestJob = viewModelScope.launch {
             repository.getRequests(page = current.currentPage + 1)
                 .onSuccess { paginated ->
-                    val filtered = paginated.data.filter { it.id !in seenIds }
-                    seenIds.addAll(filtered.map { it.id })
-                    _state.value = RequestListState.Data(
-                        requests = current.requests + filtered,
-                        hasMore = paginated.hasMorePages,
-                        currentPage = current.currentPage + 1,
-                    )
+                    if (generation == requestGeneration) {
+                        val filtered = paginated.data.filter { it.id !in seenIds }
+                        seenIds.addAll(filtered.map { it.id })
+                        _state.value = RequestListState.Data(
+                            requests = current.requests + filtered,
+                            hasMore = paginated.hasMorePages,
+                            currentPage = current.currentPage + 1,
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    _state.value = current.copy(
-                        isLoadingMore = false,
-                        appendError = patientSafeAppointmentRequestError(
-                            error = error,
-                            fallback = "We couldn't load more requests. Please try again.",
-                        ),
-                    )
+                    if (generation == requestGeneration) {
+                        _state.value = current.copy(
+                            isLoadingMore = false,
+                            appendError = patientSafeAppointmentRequestError(
+                                error = error,
+                                fallback = "We couldn't load more requests. Please try again.",
+                            ),
+                        )
+                    }
                 }
         }
     }
@@ -114,26 +127,37 @@ class AppointmentRequestListViewModel @Inject constructor(
     }
 
     private fun refreshInternal(current: RequestListState.Data) {
+        val generation = beginRequest()
         _state.value = current.copy(isRefreshing = true, error = null)
-        viewModelScope.launch {
+        requestJob = viewModelScope.launch {
             repository.getRequests(page = 1)
                 .onSuccess { paginated ->
-                    seenIds.clear()
-                    seenIds.addAll(paginated.data.map { it.id })
-                    _state.value = RequestListState.Data(
-                        requests = paginated.data,
-                        hasMore = paginated.hasMorePages,
-                        currentPage = 1,
-                    )
+                    if (generation == requestGeneration) {
+                        seenIds.clear()
+                        seenIds.addAll(paginated.data.map { it.id })
+                        _state.value = RequestListState.Data(
+                            requests = paginated.data,
+                            hasMore = paginated.hasMorePages,
+                            currentPage = 1,
+                        )
+                    }
                 }
                 .onFailure {
-                    // Keep the existing requests visible; a failed background refresh
-                    // shouldn't discard data the patient can already see.
-                    _state.value = current.copy(
-                        isRefreshing = false,
-                        error = "We couldn't refresh your requests. Showing the latest list.",
-                    )
+                    if (generation == requestGeneration) {
+                        // Keep the existing requests visible; a failed background refresh
+                        // shouldn't discard data the patient can already see.
+                        _state.value = current.copy(
+                            isRefreshing = false,
+                            error = "We couldn't refresh your requests. Showing the latest list.",
+                        )
+                    }
                 }
         }
+    }
+
+    private fun beginRequest(): Long {
+        requestJob?.cancel()
+        requestJob = null
+        return ++requestGeneration
     }
 }
