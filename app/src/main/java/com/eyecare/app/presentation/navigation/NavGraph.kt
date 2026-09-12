@@ -70,6 +70,9 @@ import com.eyecare.app.presentation.notifications.NotificationListViewModel
 import com.eyecare.app.presentation.notifications.NotificationListUiState
 import com.eyecare.app.presentation.notifications.NotificationEffect
 import com.eyecare.app.presentation.profile.ProfileScreen
+import kotlinx.coroutines.flow.collect
+
+private const val APPOINTMENTS_REFRESH_KEY = "appointments_refresh_token"
 
 internal fun shouldShowBottomNav(route: String): Boolean =
     !route.contains("Login") && !route.contains("Register") &&
@@ -168,6 +171,13 @@ fun EyecareNavGraph(
                 launchSingleTop = true
             }
         }
+    }
+
+    fun requestAppointmentsRefresh() {
+        navController.previousBackStackEntry?.savedStateHandle?.set(
+            APPOINTMENTS_REFRESH_KEY,
+            System.currentTimeMillis(),
+        )
     }
 
     fun navigateMainTab(route: Any) {
@@ -367,6 +377,10 @@ fun EyecareNavGraph(
                         RequestAppointmentScreen(
                             onBack = { navController.popBackStack() },
                             onRequestCreated = { requestId ->
+                                // The appointments entry is still underneath this flow. Mark it
+                                // before opening the detail so the new request is loaded by the
+                                // time the patient returns to the list.
+                                requestAppointmentsRefresh()
                                 navController.navigate(AppointmentRequestDetail(requestId)) {
                                     popUpTo<RequestAppointment> { inclusive = true }
                                 }
@@ -416,7 +430,7 @@ fun EyecareNavGraph(
                             onBack = { navController.popBackStack() },
                         )
                     }
-                    composable<Appointments> {
+                    composable<Appointments> { appointmentsEntry ->
                         val accountId = sessionState.accountIdOrNull()
                         val accountScopeKey = accountId?.toString() ?: "anonymous"
                         val appointmentViewModel: AppointmentListViewModel = hiltViewModel(
@@ -425,6 +439,19 @@ fun EyecareNavGraph(
                         val requestViewModel: AppointmentRequestListViewModel = hiltViewModel(
                             key = "appointment-requests-$accountScopeKey",
                         )
+                        val refreshToken = appointmentsEntry.savedStateHandle
+                            .getStateFlow<Long?>(APPOINTMENTS_REFRESH_KEY, null)
+                        LaunchedEffect(appointmentsEntry) {
+                            refreshToken.collect { token ->
+                                if (token == null) return@collect
+                                appointmentViewModel.refresh(
+                                    hasActivePatientLink = canAccessPatientFeatures(sessionState),
+                                    accountId = accountId,
+                                )
+                                requestViewModel.refresh()
+                                appointmentsEntry.savedStateHandle[APPOINTMENTS_REFRESH_KEY] = null
+                            }
+                        }
                         AppointmentListScreen(
                             onNavigateToDetail = { id -> navigatePatientFeature(AppointmentDetail(id)) },
                             onNavigateToRequest = { navigatePatientFeature(RequestAppointment) },
@@ -439,7 +466,10 @@ fun EyecareNavGraph(
                     }
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
-                            onBack = { navController.popBackStack() },
+                            onBack = {
+                                requestAppointmentsRefresh()
+                                navController.popBackStack()
+                            },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
                         )
                     }
@@ -448,7 +478,10 @@ fun EyecareNavGraph(
                         AppointmentRequestDetailScreen(
                             requestId = route.requestId,
                             isLinked = sessionState is SessionState.Linked,
-                            onBack = { navController.popBackStack() },
+                            onBack = {
+                                requestAppointmentsRefresh()
+                                navController.popBackStack()
+                            },
                             onViewConfirmedAppointment = { id ->
                                 navigatePatientFeature(AppointmentDetail(id))
                             },
