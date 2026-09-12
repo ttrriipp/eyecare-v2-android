@@ -166,8 +166,8 @@ fun RescheduleBottomSheet(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
-                    // Keep the last slot and any inline error clear of the pinned action bar.
-                    .padding(bottom = 140.dp),
+                    // Leave room for the pinned action bar and its error notice when present.
+                    .padding(bottom = if (errorMessage == null) 140.dp else 200.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
@@ -203,25 +203,6 @@ fun RescheduleBottomSheet(
                     onRetryAvailability = onRetryAvailability,
                 )
 
-                if (errorMessage != null) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .semantics {
-                                liveRegion = LiveRegionMode.Polite
-                            },
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
-                    ) {
-                        Text(
-                            text = errorMessage,
-                            modifier = Modifier.padding(12.dp),
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-
                 if (isCurrentSlot) {
                     Text(
                         text = "That is already your current appointment time. Choose another slot.",
@@ -244,7 +225,27 @@ fun RescheduleBottomSheet(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 12.dp)
                         .navigationBarsPadding(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    if (errorMessage != null) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics {
+                                    liveRegion = LiveRegionMode.Polite
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                        ) {
+                            Text(
+                                text = errorMessage,
+                                modifier = Modifier.padding(12.dp),
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+
                     AppointmentPrimaryButton(
                         text = "Review reschedule",
                         onClick = { showConfirmDialog = true },
