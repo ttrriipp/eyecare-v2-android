@@ -9,10 +9,10 @@ import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentSlot
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
-import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.DayAvailability
 import com.eyecare.app.presentation.appointments.RescheduleAvailabilityState
 import com.eyecare.app.presentation.appointments.availabilityWeekLength
+import com.eyecare.app.presentation.appointments.earliestAppointmentRequestDate
 import com.eyecare.app.presentation.appointments.parseClinicDateTime
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -167,15 +167,16 @@ class AppointmentRequestDetailViewModel @Inject constructor(
         val current = _state.value
         if (current !is RequestDetailState.Data || !current.request.status.isCancellable) return
 
-        val requestedDate = parseClinicDateTime(current.request.scheduledAt)
-            ?.toLocalDate()
-            ?.toString()
-            ?: current.request.scheduledAt.take(10)
-        val today = LocalDate.now(CLINIC_TIME_ZONE)
+        val earliestDate = earliestAppointmentRequestDate()
+        val requestedDate = maxOf(
+            parseClinicDateTime(current.request.scheduledAt)?.toLocalDate()
+                ?: earliestDate,
+            earliestDate,
+        ).toString()
         val requestedWeekStart = runCatching { LocalDate.parse(requestedDate) }
-            .getOrDefault(today)
+            .getOrDefault(earliestDate)
             .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        val currentWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val currentWeekStart = earliestDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val weekStart = maxOf(requestedWeekStart, currentWeekStart).toString()
 
         _state.value = current.copy(
@@ -212,8 +213,8 @@ class AppointmentRequestDetailViewModel @Inject constructor(
 
         scheduleWeekJob?.cancel()
         val generation = ++scheduleWeekGeneration
-        val today = LocalDate.now(CLINIC_TIME_ZONE)
-        val dates = scheduleWeekDates(weekStart).filter { !it.isBefore(today) }
+        val earliestDate = earliestAppointmentRequestDate()
+        val dates = scheduleWeekDates(weekStart).filter { !it.isBefore(earliestDate) }
         val request = current.request
 
         _state.value = current.copy(
@@ -246,6 +247,8 @@ class AppointmentRequestDetailViewModel @Inject constructor(
     fun loadScheduleAvailability(date: String) {
         val current = _state.value
         if (current !is RequestDetailState.Data || !current.showScheduleSheet) return
+        val selectedDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return
+        if (selectedDate.isBefore(earliestAppointmentRequestDate())) return
 
         scheduleAvailabilityJob?.cancel()
         val generation = ++scheduleAvailabilityGeneration
@@ -307,6 +310,8 @@ class AppointmentRequestDetailViewModel @Inject constructor(
     fun updateSchedule(scheduledAt: String) {
         val current = _state.value
         if (current !is RequestDetailState.Data || !current.request.status.isCancellable) return
+        val selectedDate = parseClinicDateTime(scheduledAt)?.toLocalDate() ?: return
+        if (selectedDate.isBefore(earliestAppointmentRequestDate())) return
 
         _state.value = current.copy(
             isUpdatingSchedule = true,
@@ -344,7 +349,7 @@ class AppointmentRequestDetailViewModel @Inject constructor(
 
     private fun scheduleWeekDates(weekStart: String): List<LocalDate> {
         val start = runCatching { LocalDate.parse(weekStart) }
-            .getOrElse { LocalDate.now(CLINIC_TIME_ZONE) }
+            .getOrElse { earliestAppointmentRequestDate() }
         return (0 until availabilityWeekLength).map { start.plusDays(it.toLong()) }
     }
 

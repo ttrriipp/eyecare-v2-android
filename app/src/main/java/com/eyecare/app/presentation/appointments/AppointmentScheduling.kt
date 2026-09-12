@@ -12,6 +12,10 @@ internal val CLINIC_TIME_ZONE: ZoneId = ZoneId.of("Asia/Manila")
 /** Days shown at once in a week-strip date picker (reschedule sheet, appointment requests). */
 internal const val availabilityWeekLength = 7
 
+/** Patient appointment requests must be submitted for tomorrow or a later date. */
+internal fun earliestAppointmentRequestDate(): LocalDate =
+    LocalDate.now(CLINIC_TIME_ZONE).plusDays(1)
+
 /**
  * How a single date in a week strip looks before the patient commits to it. The clinic's
  * availability endpoint answers one date per call, so a week strip fetches its whole week in

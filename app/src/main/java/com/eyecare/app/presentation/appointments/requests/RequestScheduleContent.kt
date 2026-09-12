@@ -66,13 +66,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.domain.model.AvailabilitySlot
-import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.DayAvailability
 import com.eyecare.app.presentation.appointments.availabilityWeekLength
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.appointments.components.RequestStepMargin
 import com.eyecare.app.presentation.appointments.components.RequestStepScaffold
+import com.eyecare.app.presentation.appointments.earliestAppointmentRequestDate
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
 import com.eyecare.app.ui.theme.EyecareColors
@@ -146,6 +146,13 @@ internal fun ScheduleContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Text(
+                text = "Choose a date from tomorrow onward.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = RequestStepMargin),
+            )
+
             WeekStrip(
                 weekStart = state.weekStart,
                 selectedDate = state.date,
@@ -201,10 +208,15 @@ private fun WeekStrip(
     onShowWeek: (String) -> Unit,
     onDateSelected: (String) -> Unit,
 ) {
-    val today = remember { LocalDate.now(CLINIC_TIME_ZONE) }
-    val currentWeekStart = remember { today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
-    val start = runCatching { LocalDate.parse(weekStart) }.getOrDefault(today)
-    val canGoBack = start.isAfter(currentWeekStart)
+    val earliestDate = remember { earliestAppointmentRequestDate() }
+    val minimumWeekStart = remember {
+        earliestDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    }
+    val start = runCatching { LocalDate.parse(weekStart) }
+        .getOrNull()
+        ?.takeUnless { it.isBefore(minimumWeekStart) }
+        ?: minimumWeekStart
+    val canGoBack = start.isAfter(minimumWeekStart)
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -258,7 +270,7 @@ private fun WeekStrip(
                     val date = visibleStart.plusDays(offset.toLong())
                     DayCell(
                         date = date,
-                        isPast = date.isBefore(today),
+                        isBeforeEarliestDate = date.isBefore(earliestDate),
                         isSelected = date.toString() == selectedDate,
                         verdict = dayAvailability[date.toString()] ?: DayAvailability.UNKNOWN,
                         holdsChosenTime = date.toString() in chosenDates,
@@ -298,18 +310,18 @@ private fun WeekStrip(
 @Composable
 private fun DayCell(
     date: LocalDate,
-    isPast: Boolean,
+    isBeforeEarliestDate: Boolean,
     isSelected: Boolean,
     verdict: DayAvailability,
     holdsChosenTime: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val unavailable = isPast ||
+    val unavailable = isBeforeEarliestDate ||
         verdict == DayAvailability.CLOSED ||
         verdict == DayAvailability.FULL
     val baseStatus = when {
-        isPast -> "Past"
+        isBeforeEarliestDate -> "Unavailable for requests"
         verdict == DayAvailability.CLOSED -> "Closed"
         verdict == DayAvailability.FULL -> "Fully booked"
         verdict == DayAvailability.OPEN -> "Times available"
@@ -365,7 +377,7 @@ private fun DayCell(
                 maxLines = 1,
             )
             DayMarker(
-                verdict = if (isPast) DayAvailability.CLOSED else verdict,
+                verdict = if (isBeforeEarliestDate) DayAvailability.CLOSED else verdict,
                 isSelected = isSelected,
                 holdsChosenTime = holdsChosenTime,
             )

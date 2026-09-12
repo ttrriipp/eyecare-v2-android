@@ -13,6 +13,7 @@ import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.presentation.appointments.DayAvailability
 import com.eyecare.app.presentation.appointments.availabilityWeekLength
+import com.eyecare.app.presentation.appointments.earliestAppointmentRequestDate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -317,20 +318,20 @@ class RequestAppointmentViewModel @Inject constructor(
             visitReasonPresetId = (reasonDraft.choice as? VisitReasonChoice.Preset)?.presetId,
             visitReasonOtherSelected = reasonDraft.choice is VisitReasonChoice.Other,
         )
-        val today = LocalDate.now(appointmentRequestZone)
-        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toString()
+        val earliestDate = earliestAppointmentRequestDate()
+        val weekStart = earliestDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toString()
         _step.value = RequestStep.Schedule(
             selectedType = type,
             identityRequired = identityRequired,
             weekStart = weekStart,
-            date = today.toString(),
+            date = earliestDate.toString(),
             reasonDraft = reasonDraft.input,
             reasonChoice = reasonDraft.choice,
             referringSourceDraft = saved.referringSource,
             identityDraft = saved.toIdentityOrNull() ?: initialIdentity,
         )
         loadWeekAvailability(weekStart, type.id)
-        selectDate(today.toString())
+        selectDate(earliestDate.toString())
     }
 
     // ------------------------------------------------------------ schedule step
@@ -338,7 +339,7 @@ class RequestAppointmentViewModel @Inject constructor(
     /** The seven dates the strip currently shows, starting at [weekStart]. */
     fun weekDates(weekStart: String): List<LocalDate> {
         val start = runCatching { LocalDate.parse(weekStart) }
-            .getOrElse { LocalDate.now(appointmentRequestZone) }
+            .getOrElse { earliestAppointmentRequestDate() }
         return (0 until availabilityWeekLength).map { start.plusDays(it.toLong()) }
     }
 
@@ -350,8 +351,8 @@ class RequestAppointmentViewModel @Inject constructor(
     private fun loadWeekAvailability(weekStart: String, appointmentTypeId: Int) {
         weekJob?.cancel()
         val generation = ++weekGeneration
-        val today = LocalDate.now(appointmentRequestZone)
-        val dates = weekDates(weekStart).filter { !it.isBefore(today) }
+        val earliestDate = earliestAppointmentRequestDate()
+        val dates = weekDates(weekStart).filter { !it.isBefore(earliestDate) }
 
         val current = _step.value as? RequestStep.Schedule ?: return
         _step.value = current.copy(
@@ -400,6 +401,8 @@ class RequestAppointmentViewModel @Inject constructor(
 
     fun selectDate(date: String) {
         val current = _step.value as? RequestStep.Schedule ?: return
+        val selectedDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return
+        if (selectedDate.isBefore(earliestAppointmentRequestDate())) return
         availabilityJob?.cancel()
         val generation = ++availabilityGeneration
         _step.value = current.copy(
@@ -1152,24 +1155,28 @@ class RequestAppointmentViewModel @Inject constructor(
         identityDraft: AppointmentRequestIdentity?,
         reasonChoice: VisitReasonChoice = reconcileReasonDraft(selectedType, draft).choice,
     ) {
-        val weekStart = (date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-            ?: LocalDate.now(appointmentRequestZone))
+        val earliestDate = earliestAppointmentRequestDate()
+        val parsedDate = date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val dateIsTooSoon = parsedDate == null || parsedDate.isBefore(earliestDate)
+        val effectiveDate = date.takeUnless { dateIsTooSoon } ?: earliestDate.toString()
+        val weekStart = (effectiveDate.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            ?: earliestDate)
             .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toString()
         _step.value = RequestStep.Schedule(
             selectedType = selectedType,
             identityRequired = identityRequired,
             weekStart = weekStart,
-            date = date,
-            primaryDate = primarySlot?.let { date },
-            primarySlot = primarySlot,
-            alternativeSlots = alternativeSlots,
+            date = effectiveDate,
+            primaryDate = if (dateIsTooSoon) null else primarySlot?.let { effectiveDate },
+            primarySlot = primarySlot.takeUnless { dateIsTooSoon },
+            alternativeSlots = alternativeSlots.takeUnless { dateIsTooSoon }.orEmpty(),
             reasonDraft = reasonDraft,
             reasonChoice = reasonChoice,
             referringSourceDraft = referringSourceDraft,
             identityDraft = identityDraft,
         )
         loadWeekAvailability(weekStart, selectedType.id)
-        if (date != null) selectDate(date)
+        effectiveDate.let(::selectDate)
     }
 
     private fun RequestStep.Identity.toIdentityDraft() = AppointmentRequestIdentity(

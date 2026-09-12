@@ -117,14 +117,15 @@ class AppointmentDetailViewModel @Inject constructor(
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success) return
 
-        val date = parseClinicDateTime(current.appointment.scheduledAt)
-            ?.toLocalDate()
-            ?.toString()
-            ?: current.appointment.scheduledAt.take(10)
-        val today = LocalDate.now(CLINIC_TIME_ZONE)
-        val appointmentWeekStart = runCatching { LocalDate.parse(date) }.getOrDefault(today)
+        val earliestDate = earliestAppointmentRequestDate()
+        val date = maxOf(
+            parseClinicDateTime(current.appointment.scheduledAt)?.toLocalDate()
+                ?: earliestDate,
+            earliestDate,
+        ).toString()
+        val appointmentWeekStart = runCatching { LocalDate.parse(date) }.getOrDefault(earliestDate)
             .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        val currentWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val currentWeekStart = earliestDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val weekStart = maxOf(appointmentWeekStart, currentWeekStart).toString()
 
         _uiState.value = current.copy(
@@ -157,7 +158,7 @@ class AppointmentDetailViewModel @Inject constructor(
     /** The seven dates a reschedule week strip shows, starting at [weekStart]. */
     private fun rescheduleWeekDates(weekStart: String): List<LocalDate> {
         val start = runCatching { LocalDate.parse(weekStart) }
-            .getOrElse { LocalDate.now(CLINIC_TIME_ZONE) }
+            .getOrElse { earliestAppointmentRequestDate() }
         return (0 until availabilityWeekLength).map { start.plusDays(it.toLong()) }
     }
 
@@ -172,8 +173,8 @@ class AppointmentDetailViewModel @Inject constructor(
 
         weekJob?.cancel()
         val generation = ++weekGeneration
-        val today = LocalDate.now(CLINIC_TIME_ZONE)
-        val dates = rescheduleWeekDates(weekStart).filter { !it.isBefore(today) }
+        val earliestDate = earliestAppointmentRequestDate()
+        val dates = rescheduleWeekDates(weekStart).filter { !it.isBefore(earliestDate) }
 
         _uiState.value = current.copy(
             rescheduleWeekStart = weekStart,
@@ -206,6 +207,8 @@ class AppointmentDetailViewModel @Inject constructor(
     fun loadRescheduleAvailability(date: String) {
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success) return
+        val selectedDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return
+        if (selectedDate.isBefore(earliestAppointmentRequestDate())) return
 
         availabilityJob?.cancel()
         val generation = ++availabilityGeneration
@@ -257,6 +260,8 @@ class AppointmentDetailViewModel @Inject constructor(
     fun rescheduleAppointment(scheduledAt: String) {
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success) return
+        val selectedDate = parseClinicDateTime(scheduledAt)?.toLocalDate() ?: return
+        if (selectedDate.isBefore(earliestAppointmentRequestDate())) return
 
         _uiState.value = current.copy(
             isRescheduling = true,

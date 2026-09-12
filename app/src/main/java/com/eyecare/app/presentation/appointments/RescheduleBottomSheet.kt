@@ -99,7 +99,8 @@ fun RescheduleBottomSheet(
     isSubmitting: Boolean,
     errorMessage: String?,
     title: String = "Reschedule appointment",
-    description: String = "Choose a day and a time the clinic has confirmed as available.",
+    description: String =
+        "Choose a date from tomorrow onward and a time the clinic has confirmed as available.",
     confirmationTitle: String = "Request this time change",
     confirmationMessage: (date: String, time: String) -> String = { date, time ->
         "Send a request to move this appointment to $date at $time? The clinic must approve it."
@@ -114,10 +115,10 @@ fun RescheduleBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val currentDate = remember(currentScheduledAt) {
-        parseClinicDateTime(currentScheduledAt)
-            ?.toLocalDate()
-            ?.toString()
-            ?: currentScheduledAt.take(10)
+        val requestedDate = parseClinicDateTime(currentScheduledAt)?.toLocalDate()
+            ?: runCatching { LocalDate.parse(currentScheduledAt.take(10)) }.getOrNull()
+        maxOf(requestedDate ?: earliestAppointmentRequestDate(), earliestAppointmentRequestDate())
+            .toString()
     }
     var selectedDate by remember(currentDate) { mutableStateOf(currentDate) }
     var selectedSlotStartsAt by remember { mutableStateOf<String?>(null) }
@@ -271,12 +272,15 @@ private fun RescheduleWeekStrip(
     onShowWeek: (String) -> Unit,
     onDateSelected: (String) -> Unit,
 ) {
-    val today = remember { LocalDate.now(CLINIC_TIME_ZONE) }
-    val currentWeekStart = remember { today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
+    val earliestDate = remember { earliestAppointmentRequestDate() }
+    val minimumWeekStart = remember {
+        earliestDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    }
     val start = weekStart
         ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-        ?: currentWeekStart
-    val canGoBack = start.isAfter(currentWeekStart)
+        ?.takeUnless { it.isBefore(minimumWeekStart) }
+        ?: minimumWeekStart
+    val canGoBack = start.isAfter(minimumWeekStart)
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -320,7 +324,7 @@ private fun RescheduleWeekStrip(
                     val date = visibleStart.plusDays(offset.toLong())
                     RescheduleDayCell(
                         date = date,
-                        isPast = date.isBefore(today),
+                        isBeforeEarliestDate = date.isBefore(earliestDate),
                         isSelected = date.toString() == selectedDate,
                         verdict = dayAvailability[date.toString()] ?: DayAvailability.UNKNOWN,
                         onClick = { onDateSelected(date.toString()) },
@@ -356,15 +360,17 @@ private fun RescheduleWeekStrip(
 @Composable
 private fun RescheduleDayCell(
     date: LocalDate,
-    isPast: Boolean,
+    isBeforeEarliestDate: Boolean,
     isSelected: Boolean,
     verdict: DayAvailability,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val unavailable = isPast || verdict == DayAvailability.CLOSED || verdict == DayAvailability.FULL
+    val unavailable = isBeforeEarliestDate ||
+        verdict == DayAvailability.CLOSED ||
+        verdict == DayAvailability.FULL
     val status = when {
-        isPast -> "Past"
+        isBeforeEarliestDate -> "Unavailable for requests"
         verdict == DayAvailability.CLOSED -> "Closed"
         verdict == DayAvailability.FULL -> "Fully booked"
         verdict == DayAvailability.OPEN -> "Times available"
@@ -414,7 +420,10 @@ private fun RescheduleDayCell(
                 color = content,
                 maxLines = 1,
             )
-            RescheduleDayMarker(verdict = if (isPast) DayAvailability.CLOSED else verdict, isSelected = isSelected)
+            RescheduleDayMarker(
+                verdict = if (isBeforeEarliestDate) DayAvailability.CLOSED else verdict,
+                isSelected = isSelected,
+            )
         }
     }
 }
