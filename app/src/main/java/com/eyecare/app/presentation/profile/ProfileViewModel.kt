@@ -35,6 +35,7 @@ class ProfileViewModel @Inject constructor(
     val loggedOut: StateFlow<Boolean> = _loggedOut.asStateFlow()
 
     private var loadJob: Job? = null
+    private var loadGeneration = 0L
 
     init { load() }
 
@@ -49,9 +50,10 @@ class ProfileViewModel @Inject constructor(
         if (account.linkStatus != PatientLinkStatus.LINKED) return
 
         val current = _uiState.value
+        loadGeneration++
+        loadJob?.cancel()
         if (current is ProfileUiState.Success && current.account == account) return
 
-        loadJob?.cancel()
         _uiState.value = ProfileUiState.Success(account = account)
     }
 
@@ -64,6 +66,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun load() {
+        val generation = ++loadGeneration
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             // Only show the loading placeholder when there's nothing on screen yet —
@@ -73,9 +76,11 @@ class ProfileViewModel @Inject constructor(
             }
             authRepository.getMe()
                 .onSuccess { account ->
+                    if (generation != loadGeneration) return@onSuccess
                     _uiState.value = ProfileUiState.Success(account = account)
                 }
                 .onFailure { error ->
+                    if (generation != loadGeneration) return@onFailure
                     val current = _uiState.value
                     if (current !is ProfileUiState.Success) {
                         _uiState.value = ProfileUiState.Error(error.message ?: "Failed to load profile")

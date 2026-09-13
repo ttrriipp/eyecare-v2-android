@@ -3,6 +3,8 @@ package com.eyecare.app.presentation.account
 import com.eyecare.app.domain.model.AccountProfilePatch
 import com.eyecare.app.domain.model.PatientAccount
 import com.eyecare.app.domain.model.ProfileFieldChange
+import com.eyecare.app.presentation.common.invalidPersonNameMessage
+import com.eyecare.app.presentation.common.isValidPersonName
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -52,15 +54,18 @@ object AccountProfileEditor {
         val firstNameError = when {
             normalized.firstName.isBlank() -> "First name is required"
             normalized.firstName.length > MAX_NAME_LENGTH -> "First name must be at most $MAX_NAME_LENGTH characters"
+            !isValidPersonName(normalized.firstName) -> invalidPersonNameMessage("First name")
             else -> null
         }
         val middleNameError = when {
             normalized.middleName.length > MAX_NAME_LENGTH -> "Middle name must be at most $MAX_NAME_LENGTH characters"
+            normalized.middleName.isNotBlank() && !isValidPersonName(normalized.middleName) -> invalidPersonNameMessage("Middle name")
             else -> null
         }
         val lastNameError = when {
             normalized.lastName.isBlank() -> "Last name is required"
             normalized.lastName.length > MAX_NAME_LENGTH -> "Last name must be at most $MAX_NAME_LENGTH characters"
+            !isValidPersonName(normalized.lastName) -> invalidPersonNameMessage("Last name")
             else -> null
         }
         val dateOfBirthError = if (normalized.dateOfBirth.isBlank()) {

@@ -14,6 +14,8 @@ import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.presentation.appointments.DayAvailability
 import com.eyecare.app.presentation.appointments.availabilityWeekLength
 import com.eyecare.app.presentation.appointments.earliestAppointmentRequestDate
+import com.eyecare.app.presentation.common.invalidPersonNameMessage
+import com.eyecare.app.presentation.common.isValidPersonName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -798,14 +800,20 @@ class RequestAppointmentViewModel @Inject constructor(
             errors["firstName"] = "Enter your first name."
         } else if (firstName.length > maxIdentityFieldLength) {
             errors["firstName"] = "Please shorten this to $maxIdentityFieldLength characters or fewer."
+        } else if (!isValidPersonName(firstName)) {
+            errors["firstName"] = invalidPersonNameMessage("First name")
         }
         if (middleName.length > maxIdentityFieldLength) {
             errors["middleName"] = "Please shorten this to $maxIdentityFieldLength characters or fewer."
+        } else if (middleName.isNotBlank() && !isValidPersonName(middleName)) {
+            errors["middleName"] = invalidPersonNameMessage("Middle name")
         }
         if (lastName.isBlank()) {
             errors["lastName"] = "Enter your last name."
         } else if (lastName.length > maxIdentityFieldLength) {
             errors["lastName"] = "Please shorten this to $maxIdentityFieldLength characters or fewer."
+        } else if (!isValidPersonName(lastName)) {
+            errors["lastName"] = invalidPersonNameMessage("Last name")
         }
         if (dateOfBirth.isBlank()) {
             errors["dateOfBirth"] = "Choose your date of birth."

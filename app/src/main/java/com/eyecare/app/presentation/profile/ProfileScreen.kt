@@ -81,7 +81,12 @@ fun ProfileScreen(
     val loggedOut by viewModel.loggedOut.collectAsStateWithLifecycle()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    RefreshOnResumeEffect(onRefresh = viewModel::retry)
+    RefreshOnResumeEffect(onRefresh = {
+        // A linked session account is updated immediately after profile edits. Keep that value
+        // visible while returning from Account security instead of replacing it with a second,
+        // potentially stale profile request.
+        if (account?.linkStatus != PatientLinkStatus.LINKED) viewModel.retry()
+    })
 
     LaunchedEffect(account) {
         account?.let(viewModel::adoptAccount)
@@ -336,7 +341,7 @@ private fun ProfileHeader(account: PatientAccount? = null) {
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = account.name.ifBlank { "Account" },
+                text = profileDisplayName(account),
                 style = MaterialTheme.typography.displayLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -350,13 +355,20 @@ private fun profileInitials(account: PatientAccount): String {
     val last = account.lastName?.trim()?.firstOrNull()
     if (first != null && last != null) return "$first$last".uppercase()
 
-    val nameParts = account.name.trim().split(" ").filter { it.isNotBlank() }
+    val nameParts = profileDisplayName(account).split(" ").filter { it.isNotBlank() }
     return when {
         nameParts.size >= 2 -> "${nameParts.first().first()}${nameParts.last().first()}".uppercase()
         nameParts.size == 1 -> nameParts.first().take(1).uppercase()
         else -> "?"
     }
 }
+
+private fun profileDisplayName(account: PatientAccount): String =
+    listOf(account.firstName, account.middleName, account.lastName)
+        .mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
+        .joinToString(" ")
+        .ifBlank { account.name.trim().ifBlank { "Account" } }
+
 @Composable
 private fun ProfileNavRow(
     icon: ImageVector,

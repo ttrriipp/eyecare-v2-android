@@ -7,6 +7,8 @@ import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AuthenticatedSession
 import com.eyecare.app.domain.model.PolicyMetadata
 import com.eyecare.app.domain.repository.AuthRepository
+import com.eyecare.app.presentation.common.invalidPersonNameMessage
+import com.eyecare.app.presentation.common.isValidPersonName
 import com.eyecare.app.presentation.common.isRateLimited
 import com.eyecare.app.presentation.common.rateLimitCooldownSeconds
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -365,8 +367,20 @@ class RegistrationViewModel @Inject constructor(
 
     private fun validateDetails(d: RegistrationState.EnterDetails): Map<String, String> {
         val errors = mutableMapOf<String, String>()
-        if (d.firstName.isBlank()) errors["firstName"] = "First name is required"
-        if (d.lastName.isBlank()) errors["lastName"] = "Last name is required"
+        val firstName = d.firstName.trim()
+        val middleName = d.middleName.trim()
+        val lastName = d.lastName.trim()
+        when {
+            firstName.isBlank() -> errors["firstName"] = "First name is required"
+            !isValidPersonName(firstName) -> errors["firstName"] = invalidPersonNameMessage("First name")
+        }
+        if (middleName.isNotBlank() && !isValidPersonName(middleName)) {
+            errors["middleName"] = invalidPersonNameMessage("Middle name")
+        }
+        when {
+            lastName.isBlank() -> errors["lastName"] = "Last name is required"
+            !isValidPersonName(lastName) -> errors["lastName"] = invalidPersonNameMessage("Last name")
+        }
         if (d.dateOfBirth.isBlank()) {
             errors["dateOfBirth"] = "Date of birth is required"
         } else {
