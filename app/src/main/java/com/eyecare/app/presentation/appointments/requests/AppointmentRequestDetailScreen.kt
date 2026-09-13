@@ -52,6 +52,8 @@ import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.RescheduleBottomSheet
+import com.eyecare.app.presentation.appointments.SAME_DAY_CANCELLATION_MESSAGE
+import com.eyecare.app.presentation.appointments.isSameDayInClinic
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
@@ -191,7 +193,10 @@ private fun RequestDetailDataContent(
     }
     val showMessageAction = state.request.status == AppointmentRequestStatus.PENDING ||
         state.request.status == AppointmentRequestStatus.REJECTED
-    val showCancel = presentation.showCancel && state.request.status.isCancellable
+    val sameDayCancellationBlocked = state.request.status.isCancellable &&
+        isSameDayInClinic(state.request.scheduledAt)
+    val showCancel = presentation.showCancel && state.request.status.isCancellable &&
+        !sameDayCancellationBlocked
     val confirmedAppointmentId = state.request.appointmentId
         .takeIf { presentation.showViewConfirmed && state.isLinked }
     val showScheduleAction = state.request.status.isCancellable
@@ -237,7 +242,11 @@ private fun RequestDetailDataContent(
 
                 // Notice sits above the details card, mirroring AppointmentStatusGuidance on the
                 // confirmed-appointment screen, rather than living inside the card as body text.
-                RequestStatusNotice(state.request.status, presentation)
+                RequestStatusNotice(
+                    status = state.request.status,
+                    presentation = presentation,
+                    sameDayCancellationBlocked = sameDayCancellationBlocked,
+                )
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -487,7 +496,11 @@ private fun RequestDetailNotFoundContent(onBack: () -> Unit) {
 }
 
 @Composable
-private fun RequestStatusNotice(status: AppointmentRequestStatus, presentation: RequestStatusPresentation) {
+private fun RequestStatusNotice(
+    status: AppointmentRequestStatus,
+    presentation: RequestStatusPresentation,
+    sameDayCancellationBlocked: Boolean = false,
+) {
     val icon = when (status) {
         AppointmentRequestStatus.PENDING -> Icons.Outlined.AccessTime
         AppointmentRequestStatus.ACCEPTED -> Icons.Outlined.EventAvailable
@@ -521,6 +534,17 @@ private fun RequestStatusNotice(status: AppointmentRequestStatus, presentation: 
         AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+    val noticeTitle = if (sameDayCancellationBlocked) {
+        "Same-day cancellation unavailable"
+    } else {
+        presentation.label
+    }
+    val noticeMessage = if (sameDayCancellationBlocked) {
+        SAME_DAY_CANCELLATION_MESSAGE
+    } else {
+        presentation.description
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -542,13 +566,13 @@ private fun RequestStatusNotice(status: AppointmentRequestStatus, presentation: 
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = presentation.label,
+                    text = noticeTitle,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = contentColor,
                 )
                 Text(
-                    text = presentation.description,
+                    text = noticeMessage,
                     style = MaterialTheme.typography.bodySmall,
                     color = contentColor,
                 )

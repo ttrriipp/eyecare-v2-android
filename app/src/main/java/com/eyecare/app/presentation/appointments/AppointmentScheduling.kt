@@ -1,5 +1,6 @@
 package com.eyecare.app.presentation.appointments
 
+import com.eyecare.app.domain.model.ApiDomainError
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -15,6 +16,21 @@ internal const val availabilityWeekLength = 7
 /** Patient appointment requests must be submitted for tomorrow or a later date. */
 internal fun earliestAppointmentRequestDate(): LocalDate =
     LocalDate.now(CLINIC_TIME_ZONE).plusDays(1)
+
+/** Patient cancellations are unavailable on the appointment/request's local calendar date. */
+internal const val SAME_DAY_CANCELLATION_MESSAGE =
+    "Same-day cancellations are not allowed. Please contact the clinic for assistance."
+
+internal fun isSameDayInClinic(value: String): Boolean =
+    parseClinicDateTime(value)?.toLocalDate() == LocalDate.now(CLINIC_TIME_ZONE)
+
+/** The backend returns this policy as a Laravel validation message rather than a stable code. */
+internal fun isSameDayCancellationError(error: Throwable): Boolean {
+    val apiError = error as? ApiDomainError ?: return false
+    return (listOf(apiError.message) + apiError.fieldErrors.values.flatten()).any {
+        it.contains("same-day cancellations are not allowed", ignoreCase = true)
+    }
+}
 
 /**
  * How a single date in a week strip looks before the patient commits to it. The clinic's

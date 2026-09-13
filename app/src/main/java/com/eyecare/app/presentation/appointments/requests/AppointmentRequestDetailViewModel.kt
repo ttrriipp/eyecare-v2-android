@@ -11,8 +11,11 @@ import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.presentation.appointments.DayAvailability
 import com.eyecare.app.presentation.appointments.RescheduleAvailabilityState
+import com.eyecare.app.presentation.appointments.SAME_DAY_CANCELLATION_MESSAGE
 import com.eyecare.app.presentation.appointments.availabilityWeekLength
 import com.eyecare.app.presentation.appointments.earliestAppointmentRequestDate
+import com.eyecare.app.presentation.appointments.isSameDayCancellationError
+import com.eyecare.app.presentation.appointments.isSameDayInClinic
 import com.eyecare.app.presentation.appointments.parseClinicDateTime
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -92,6 +95,11 @@ class AppointmentRequestDetailViewModel @Inject constructor(
         val current = _state.value
         if (current !is RequestDetailState.Data || !current.request.status.isCancellable) return
 
+        if (isSameDayInClinic(current.request.scheduledAt)) {
+            _state.value = current.copy(cancelError = SAME_DAY_CANCELLATION_MESSAGE)
+            return
+        }
+
         _state.value = current.copy(isCancelling = true, cancelError = null)
         viewModelScope.launch {
             repository.cancelRequest(current.request.id)
@@ -104,7 +112,12 @@ class AppointmentRequestDetailViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     val apiError = error as? ApiDomainError
-                    if (apiError?.code == "REQUEST_NOT_CANCELLABLE" ||
+                    if (isSameDayCancellationError(error)) {
+                        _state.value = current.copy(
+                            isCancelling = false,
+                            cancelError = SAME_DAY_CANCELLATION_MESSAGE,
+                        )
+                    } else if (apiError?.code == "REQUEST_NOT_CANCELLABLE" ||
                         apiError?.hasAppointmentRequestFieldError("request") == true
                     ) {
                         refresh()

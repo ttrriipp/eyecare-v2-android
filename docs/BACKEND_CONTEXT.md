@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-09-09.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-09-13.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -23,6 +23,14 @@
 > records per source. The admin-only **Reports** cluster now provides
 > aggregate Financial, Appointments, Optical Orders, and Feedback pages with
 > shared clinic-timezone filters and safe CSV exports.
+
+> **Shipped (2026-09-13): patient same-day cancellation cutoff.** Patient API
+> cancellations of confirmed appointments and pending appointment requests
+> return HTTP 422 on the item's scheduled calendar date in `app.timezone`
+> (`Asia/Manila` here); this is a calendar-day rule, not a rolling 24-hour
+> window. For a linked rebooking request, the checked date is that request's
+> primary `scheduled_at` proposal, not the associated appointment's current
+> schedule. Clinic-initiated appointment cancellations are unaffected.
 
 > **Shipped (2026-09-07): patient-action admin database notifications.** Eight
 > operational patient events now create queued, after-commit Filament bell
@@ -396,7 +404,7 @@
 > are `frame`, `contact_lens`, `accessory`. The commerce reconciliation reduced
 > the route count from 55 to 54; subsequent messaging hardening brought the
 > total to 61 before later coordinated mobile cutovers. The current canonical
-> inventory is 59 routes (see the Mobile REST API section). The historical
+> inventory is 58 routes (see the Mobile REST API section). The historical
 > aggregate-only inventory simplification
 > was superseded by the contact-lens lot tracking shipped on 2026-08-28 (see
 > the current inventory note above).
@@ -1064,7 +1072,7 @@ GET    /api/v1/optical-orders/{id}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 41 account-only + 10 active-link = **59 routes total.**
+**Route count:** 8 public + 40 account-only + 10 active-link = **58 routes total.**
 
 Conversation routes (including attachment download) are in the account-only tier —
 no patient link required for read, send, or download. Upload still requires a
@@ -1124,7 +1132,8 @@ orders, billings, checkout records, or purchases.
 | `SearchPatientDuplicates` | `app/Actions/Patients/` | Searches by email hash, phone hash, name+DOB |
 | `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates a new appointment request or an optional linked rebooking request with a server-derived type/duration snapshot, validates all time preferences, persists alternatives and latest-preference expiry, and enforces the actionable active limit; never moves an appointment or creates a capacity hold |
 | `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
-| `CancelAppointmentRequest` | `app/Actions/Appointments/` | Verifies ownership and pending state, persists `cancelled`, audits the mutation, and emits the after-commit admin alert |
+| `CancelAppointment` | `app/Actions/Appointments/` | Cancels scheduled or checked-in appointments; blocks patient-initiated cancellation on the appointment's local scheduled date while allowing same-day clinic cancellation |
+| `CancelAppointmentRequest` | `app/Actions/Appointments/` | Verifies ownership and pending state, blocks patient cancellation on the request's local scheduled date, persists `cancelled`, audits the mutation, and emits the after-commit admin alert |
 | `UpdateAppointmentRequestSchedule` | `app/Actions/Appointments/` | Updates only schedule preferences on an owned pending request under request, linked-appointment, and schedule-date locks; revalidates all slots, recalculates expiry, and audits the change atomically |
 | `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Accepts new requests by creating a scheduled appointment, or accepts linked rebooking requests by moving the existing appointment and appending one immutable history row; all paths lock schedule dates, enforce availability/contact-note rules, deliver outcomes, and remain idempotent |
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |

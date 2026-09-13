@@ -217,7 +217,7 @@ private fun AppointmentDetailContent(
     onMessageClick: () -> Unit = {},
 ) {
     val appointment = state.appointment
-    val canCancel = appointment.status.canCancel
+    val canCancel = appointment.status.canCancel && !isSameDayInClinic(appointment.scheduledAt)
     val canReschedule = appointment.status.canReschedule && state.pendingRescheduleRequest == null
     val canMessage = appointment.status.isActive
     val customerNote = appointment.contactNotes?.takeIf { it.isNotBlank() }
@@ -242,7 +242,12 @@ private fun AppointmentDetailContent(
             state.actionMessage?.let { AppointmentActionMessage(it) }
             state.rescheduleError?.let { AppointmentActionError(it) }
             state.cancelError?.let { AppointmentActionError(it) }
-            AppointmentStatusGuidance(appointment.status, onRetry)
+            AppointmentStatusGuidance(
+                status = appointment.status,
+                onRetry = onRetry,
+                sameDayCancellationBlocked = appointment.status.canCancel &&
+                    isSameDayInClinic(appointment.scheduledAt),
+            )
             state.pendingRescheduleRequest?.let { request ->
                 PendingRescheduleNotice(
                     request = request,
@@ -699,8 +704,15 @@ private data class AppointmentStatusGuidanceCopy(
 private fun AppointmentStatusGuidance(
     status: AppointmentStatus,
     onRetry: () -> Unit,
+    sameDayCancellationBlocked: Boolean = false,
 ) {
-    val copy = when (status) {
+    val copy = if (sameDayCancellationBlocked) {
+        AppointmentStatusGuidanceCopy(
+            title = "Same-day cancellation unavailable",
+            message = SAME_DAY_CANCELLATION_MESSAGE,
+            icon = Icons.Outlined.Info,
+        )
+    } else when (status) {
         AppointmentStatus.SCHEDULED -> AppointmentStatusGuidanceCopy(
             title = "Appointment scheduled",
             message = "Arrive a few minutes early. Bring any details the clinic asked for.",

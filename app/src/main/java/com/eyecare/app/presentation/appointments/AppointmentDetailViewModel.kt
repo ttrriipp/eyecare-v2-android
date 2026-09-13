@@ -89,7 +89,15 @@ class AppointmentDetailViewModel @Inject constructor(
 
     fun cancelAppointment() {
         val current = _uiState.value
-        if (current !is AppointmentDetailUiState.Success) return
+        if (current !is AppointmentDetailUiState.Success || !current.appointment.status.canCancel) return
+
+        if (isSameDayInClinic(current.appointment.scheduledAt)) {
+            _uiState.value = current.copy(
+                cancelError = SAME_DAY_CANCELLATION_MESSAGE,
+                actionMessage = null,
+            )
+            return
+        }
 
         _uiState.value = current.copy(
             isCancelling = true,
@@ -470,8 +478,11 @@ private fun patientSafeAppointmentError(
         "We couldn't load this appointment. Check your connection and try again."
     AppointmentAction.AVAILABILITY ->
         "We couldn't load available times. Try again."
-    AppointmentAction.CANCEL ->
+    AppointmentAction.CANCEL -> if (isSameDayCancellationError(error)) {
+        SAME_DAY_CANCELLATION_MESSAGE
+    } else {
         "We couldn't cancel this appointment. Check your connection and try again."
+    }
     AppointmentAction.RESCHEDULE ->
         patientSafeRescheduleError(error)
     AppointmentAction.RATE -> when (error) {
