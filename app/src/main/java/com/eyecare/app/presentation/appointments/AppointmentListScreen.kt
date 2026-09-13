@@ -589,10 +589,16 @@ private fun AppointmentCard(
                 .padding(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            AppointmentStatusPill(appointment.status)
-
-            if (hasPendingRescheduleRequest) {
-                PendingRescheduleBadge()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AppointmentStatusPill(appointment.status)
+                if (hasPendingRescheduleRequest) {
+                    Spacer(Modifier.weight(1f))
+                    PendingRescheduleBadge()
+                }
             }
 
             Column(
