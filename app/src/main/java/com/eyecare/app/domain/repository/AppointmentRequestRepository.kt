@@ -29,5 +29,5 @@ interface AppointmentRequestRepository {
         scheduledAt: String,
         alternativeScheduledTimes: List<String>? = null,
     ): Result<AppointmentRequest>
-    suspend fun cancelRequest(id: Int): Result<AppointmentRequest>
+    suspend fun cancelRequest(id: Int, reasonDetails: String): Result<AppointmentRequest>
 }

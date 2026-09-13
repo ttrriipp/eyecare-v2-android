@@ -2,13 +2,16 @@ package com.eyecare.app.presentation.appointments.requests
 
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.presentation.appointments.SAME_DAY_CANCELLATION_MESSAGE
+import com.eyecare.app.presentation.appointments.CANCELLATION_REASON_REQUIRED_MESSAGE
 import com.eyecare.app.presentation.appointments.isSameDayCancellationError
+import com.eyecare.app.presentation.appointments.isCancellationReasonValidationError
 
 internal fun patientSafeAppointmentRequestError(
     error: Throwable,
     fallback: String,
 ): String {
     if (isSameDayCancellationError(error)) return SAME_DAY_CANCELLATION_MESSAGE
+    if (isCancellationReasonValidationError(error)) return CANCELLATION_REASON_REQUIRED_MESSAGE
 
     return when ((error as? ApiDomainError)?.code) {
         "SLOT_UNAVAILABLE" -> "That time is no longer available. Please choose another."

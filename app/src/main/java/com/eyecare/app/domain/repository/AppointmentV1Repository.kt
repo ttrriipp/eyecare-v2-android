@@ -11,7 +11,7 @@ interface AppointmentV1Repository {
         date: String,
         appointmentId: Int? = null,
     ): Result<AppointmentAvailability>
-    suspend fun cancelAppointment(id: Int): Result<AppointmentV1>
+    suspend fun cancelAppointment(id: Int, reasonDetails: String): Result<AppointmentV1>
     suspend fun rateAppointment(id: Int, rating: Int, comment: String?): Result<VisitRating>
 }
 

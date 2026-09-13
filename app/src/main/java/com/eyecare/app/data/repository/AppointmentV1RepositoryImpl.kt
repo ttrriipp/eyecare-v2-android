@@ -3,6 +3,7 @@ package com.eyecare.app.data.repository
 import com.eyecare.app.data.remote.api.AppointmentV1ApiService
 import com.eyecare.app.data.remote.dto.ApiErrorBody
 import com.eyecare.app.data.remote.dto.AppointmentV1Dtos
+import com.eyecare.app.data.remote.dto.CancellationReasonRequest
 import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.AppointmentSlot
@@ -42,8 +43,8 @@ class AppointmentV1RepositoryImpl @Inject constructor(
         api.getAppointmentAvailability(date, appointmentId).data.toDomain()
     }
 
-    override suspend fun cancelAppointment(id: Int): Result<AppointmentV1> = runCatching {
-        api.cancelAppointment(id).data.toDomain()
+    override suspend fun cancelAppointment(id: Int, reasonDetails: String): Result<AppointmentV1> = safeApiCall {
+        api.cancelAppointment(id, CancellationReasonRequest(reasonDetails)).data.toDomain()
     }
 
     override suspend fun rateAppointment(id: Int, rating: Int, comment: String?): Result<VisitRating> = runCatching {
@@ -77,6 +78,12 @@ class AppointmentV1RepositoryImpl @Inject constructor(
         assignedOptometrist = assignedOptometrist?.let { AssignedOptometrist(name = it.name) },
         isRateable = isRateable,
         visitRating = rating?.toDomain(),
+        cancellation = cancellation?.let {
+            com.eyecare.app.domain.model.AppointmentCancellation(
+                reasonCategory = it.reasonCategory,
+                reasonDetails = it.reasonDetails,
+            )
+        },
     )
 
     private fun AppointmentV1Dtos.VisitRatingDto.toDomain() = VisitRating(

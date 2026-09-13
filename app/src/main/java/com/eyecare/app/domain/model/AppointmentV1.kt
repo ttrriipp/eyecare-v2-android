@@ -17,6 +17,7 @@ data class AppointmentV1(
     val assignedOptometrist: AssignedOptometrist?,
     val isRateable: Boolean = false,
     val visitRating: VisitRating? = null,
+    val cancellation: AppointmentCancellation? = null,
 )
 
 data class VisitRating(

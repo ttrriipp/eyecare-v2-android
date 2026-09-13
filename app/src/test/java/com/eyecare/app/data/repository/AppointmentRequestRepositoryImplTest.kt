@@ -217,7 +217,7 @@ class AppointmentRequestRepositoryImplTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(
             """{"data":{"id":1,"request_number":"APR-2026-000001","status":"cancelled","scheduled_at":"2026-08-10T10:00:00+08:00","reason_for_visit":"Test","created_at":"2026-08-09T10:00:00+08:00"}}"""
         ))
-        val result = repository.cancelRequest(1)
+        val result = repository.cancelRequest(1, "I need to choose a different appointment date.")
         assertTrue(result.isSuccess)
         assertEquals(AppointmentRequestStatus.CANCELLED, result.getOrThrow().status)
     }

@@ -1,6 +1,7 @@
 package com.eyecare.app.data.remote.api
 
 import com.eyecare.app.data.remote.dto.AppointmentV1Dtos
+import com.eyecare.app.data.remote.dto.CancellationReasonRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -25,7 +26,10 @@ interface AppointmentV1ApiService {
     suspend fun getAppointment(@Path("id") id: Int): AppointmentV1Dtos.AppointmentResponse
 
     @POST("appointments/{id}/cancel")
-    suspend fun cancelAppointment(@Path("id") id: Int): AppointmentV1Dtos.AppointmentResponse
+    suspend fun cancelAppointment(
+        @Path("id") id: Int,
+        @Body request: CancellationReasonRequest,
+    ): AppointmentV1Dtos.AppointmentResponse
 
     @POST("appointments/{id}/rating")
     suspend fun rateAppointment(

@@ -133,9 +133,9 @@ class AppointmentDetailViewModelTest {
     @Test
     fun `cancel uses returned appointment without refetch`() = runTest {
         val cancelled = appointment.copy(status = AppointmentStatus.CANCELLED)
-        coEvery { appointments.cancelAppointment(4) } returns Result.success(cancelled)
+        coEvery { appointments.cancelAppointment(4, any()) } returns Result.success(cancelled)
 
-        viewModel.cancelAppointment()
+        viewModel.cancelAppointment("I can no longer attend this appointment.")
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
@@ -146,10 +146,10 @@ class AppointmentDetailViewModelTest {
 
     @Test
     fun `cancel error preserves current state with error message`() = runTest {
-        coEvery { appointments.cancelAppointment(4) } returns
+        coEvery { appointments.cancelAppointment(4, any()) } returns
             Result.failure(RuntimeException("Cannot cancel"))
 
-        viewModel.cancelAppointment()
+        viewModel.cancelAppointment("I can no longer attend this appointment.")
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
@@ -230,10 +230,10 @@ class AppointmentDetailViewModelTest {
 
     @Test
     fun cancelErrorUsesPatientSafeRecoveryMessage() = runTest {
-        coEvery { appointments.cancelAppointment(4) } returns
+        coEvery { appointments.cancelAppointment(4, any()) } returns
             Result.failure(RuntimeException("connection reset by peer"))
 
-        viewModel.cancelAppointment()
+        viewModel.cancelAppointment("I can no longer attend this appointment.")
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success

@@ -27,6 +27,13 @@ object AppointmentV1Dtos {
         @SerialName("assigned_optometrist") val assignedOptometrist: AssignedOptometristDto? = null,
         @SerialName("is_rateable") val isRateable: Boolean = false,
         val rating: VisitRatingDto? = null,
+        val cancellation: AppointmentCancellationDto? = null,
+    )
+
+    @Serializable
+    data class AppointmentCancellationDto(
+        @SerialName("reason_category") val reasonCategory: String? = null,
+        @SerialName("reason_details") val reasonDetails: String? = null,
     )
 
     @Serializable

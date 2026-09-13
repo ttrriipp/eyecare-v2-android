@@ -6,6 +6,7 @@ import com.eyecare.app.data.remote.dto.AppointmentRequestIdentityDto
 import com.eyecare.app.data.remote.dto.AppointmentRequestTypeSummaryDto
 import com.eyecare.app.data.remote.dto.AvailabilitySlotDto
 import com.eyecare.app.data.remote.dto.CreateAppointmentRequest
+import com.eyecare.app.data.remote.dto.CancellationReasonRequest
 import com.eyecare.app.data.remote.dto.AppointmentRequestAvailabilityData
 import com.eyecare.app.data.remote.dto.AppointmentTypeDto
 import com.eyecare.app.data.remote.dto.UpdateAppointmentRequestScheduleRequest
@@ -99,8 +100,8 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         ).data.toDomain()
     }
 
-    override suspend fun cancelRequest(id: Int): Result<AppointmentRequest> = safeApiCall {
-        api.cancelRequest(id).data.toDomain()
+    override suspend fun cancelRequest(id: Int, reasonDetails: String): Result<AppointmentRequest> = safeApiCall {
+        api.cancelRequest(id, CancellationReasonRequest(reasonDetails)).data.toDomain()
     }
 
     private fun AppointmentTypeDto.toDomain() = AppointmentType(
@@ -135,6 +136,7 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         expiresAt = expiresAt,
         cancelledAt = cancelledAt,
         rejectionReason = rejectionReason,
+        cancellationReason = cancellationReason,
         createdAt = createdAt,
         appointmentId = appointment?.id,
     )

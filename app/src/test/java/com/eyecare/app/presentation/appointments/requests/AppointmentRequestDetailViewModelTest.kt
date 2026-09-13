@@ -107,9 +107,9 @@ class AppointmentRequestDetailViewModelTest {
     @Test
     fun `cancel success updates state`() {
         coEvery { repo.getRequest(1) } returns Result.success(pendingRequest)
-        coEvery { repo.cancelRequest(1) } returns Result.success(cancelledRequest)
+        coEvery { repo.cancelRequest(1, any()) } returns Result.success(cancelledRequest)
         vm.load(1)
-        vm.cancel()
+        vm.cancel("I need to choose a different appointment date.")
         val state = vm.state.value as RequestDetailState.Data
         assertEquals(AppointmentRequestStatus.CANCELLED, state.request.status)
         assertFalse(state.request.status.isCancellable)
@@ -118,11 +118,11 @@ class AppointmentRequestDetailViewModelTest {
     @Test
     fun `cancel success preserves linked context`() {
         coEvery { repo.getRequest(1) } returns Result.success(pendingRequest)
-        coEvery { repo.cancelRequest(1) } returns Result.success(cancelledRequest)
+        coEvery { repo.cancelRequest(1, any()) } returns Result.success(cancelledRequest)
 
         vm.setLinked(true)
         vm.load(1)
-        vm.cancel()
+        vm.cancel("I need to choose a different appointment date.")
 
         val state = vm.state.value as RequestDetailState.Data
         assertTrue(state.isLinked)
@@ -136,7 +136,7 @@ class AppointmentRequestDetailViewModelTest {
             Result.success(pendingRequest),
             Result.success(refreshedRequest),
         )
-        coEvery { repo.cancelRequest(1) } returns Result.failure(
+        coEvery { repo.cancelRequest(1, any()) } returns Result.failure(
             ApiDomainError(
                 httpStatus = 422,
                 code = "VALIDATION",
@@ -145,7 +145,7 @@ class AppointmentRequestDetailViewModelTest {
             ),
         )
         vm.load(1)
-        vm.cancel()
+        vm.cancel("I need to choose a different appointment date.")
         val state = vm.state.value as RequestDetailState.Data
         assertEquals(AppointmentRequestStatus.ACCEPTED, state.request.status)
     }
@@ -153,12 +153,12 @@ class AppointmentRequestDetailViewModelTest {
     @Test
     fun `unknown cancel error uses patient safe copy`() {
         coEvery { repo.getRequest(1) } returns Result.success(pendingRequest)
-        coEvery { repo.cancelRequest(1) } returns Result.failure(
+        coEvery { repo.cancelRequest(1, any()) } returns Result.failure(
             ApiDomainError(500, "INTERNAL_ERROR", "Database stack trace"),
         )
 
         vm.load(1)
-        vm.cancel()
+        vm.cancel("I need to choose a different appointment date.")
 
         val state = vm.state.value as RequestDetailState.Data
         assertEquals("We couldn't cancel this request. Please try again.", state.cancelError)

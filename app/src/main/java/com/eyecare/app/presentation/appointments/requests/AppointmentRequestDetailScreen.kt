@@ -51,11 +51,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
+import com.eyecare.app.presentation.appointments.PATIENT_CANCELLATION_REASON_MAX_LENGTH
 import com.eyecare.app.presentation.appointments.RescheduleBottomSheet
 import com.eyecare.app.presentation.appointments.SAME_DAY_CANCELLATION_MESSAGE
 import com.eyecare.app.presentation.appointments.isSameDayInClinic
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
+import com.eyecare.app.presentation.appointments.components.CancellationReasonChoice
+import com.eyecare.app.presentation.appointments.components.CancellationReasonPicker
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.components.ErrorContent
@@ -79,6 +82,9 @@ fun AppointmentRequestDetailScreen(
 
     val state by viewModel.state.collectAsState()
     var showCancelDialog by remember { mutableStateOf(false) }
+    var cancelReason by remember { mutableStateOf("") }
+    var cancelReasonChoice by remember { mutableStateOf<CancellationReasonChoice>(CancellationReasonChoice.Other) }
+    val isCancelling = (state as? RequestDetailState.Data)?.isCancelling == true
     var lastListSnapshot by remember(requestId) { mutableStateOf<String?>(null) }
 
     val requestSnapshot = (state as? RequestDetailState.Data)?.let { detail ->
@@ -104,12 +110,25 @@ fun AppointmentRequestDetailScreen(
             iconTint = MaterialTheme.colorScheme.error,
             isDestructive = true,
             title = "Cancel this request?",
-            message = "This can't be undone. Your request will be cancelled.",
+            message = "This can't be undone. Please provide a reason for the clinic.",
+            supportingContent = {
+                CancellationReasonPicker(
+                    choice = cancelReasonChoice,
+                    reason = cancelReason,
+                    onChoiceChange = { cancelReasonChoice = it },
+                    onReasonChange = { cancelReason = it },
+                    enabled = !isCancelling,
+                )
+            },
             confirmLabel = "Cancel request",
             dismissLabel = "Keep",
+            confirmEnabled = cancelReason.isNotBlank() &&
+                cancelReason.length <= PATIENT_CANCELLATION_REASON_MAX_LENGTH &&
+                !isCancelling,
             onConfirm = {
+                val reason = cancelReason.trim()
                 showCancelDialog = false
-                viewModel.cancel()
+                if (reason.isNotBlank()) viewModel.cancel(reason)
             },
             onDismissRequest = { showCancelDialog = false },
         )
@@ -120,7 +139,11 @@ fun AppointmentRequestDetailScreen(
         is RequestDetailState.Data -> RequestDetailDataContent(
             state = s,
             onBack = onBack,
-            onCancelClick = { showCancelDialog = true },
+            onCancelClick = {
+                cancelReasonChoice = CancellationReasonChoice.Other
+                cancelReason = ""
+                showCancelDialog = true
+            },
             onViewConfirmed = { onViewConfirmedAppointment(it) },
             onRefresh = viewModel::refresh,
             onMessageClick = onNavigateToMessages,
@@ -349,6 +372,12 @@ private fun RequestDetailDataContent(
                         state.request.cancelledAt?.let {
                             DetailRow(label = "Cancelled", value = formatDetailDateTime(it))
                         }
+
+                        state.request.cancellationReason
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { reason ->
+                                DetailRow(label = "Cancellation reason", value = reason)
+                            }
 
                         if (state.request.status == AppointmentRequestStatus.REJECTED) {
                             state.request.rejectionReason?.takeIf { it.isNotBlank() }?.let { reason ->

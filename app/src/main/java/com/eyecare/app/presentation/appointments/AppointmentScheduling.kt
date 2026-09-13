@@ -20,6 +20,9 @@ internal fun earliestAppointmentRequestDate(): LocalDate =
 /** Patient cancellations are unavailable on the appointment/request's local calendar date. */
 internal const val SAME_DAY_CANCELLATION_MESSAGE =
     "Same-day cancellations are not allowed. Please contact the clinic for assistance."
+internal const val PATIENT_CANCELLATION_REASON_MAX_LENGTH = 1_000
+internal const val CANCELLATION_REASON_REQUIRED_MESSAGE =
+    "Enter a reason for cancelling (up to 1,000 characters)."
 
 internal fun isSameDayInClinic(value: String): Boolean =
     parseClinicDateTime(value)?.toLocalDate() == LocalDate.now(CLINIC_TIME_ZONE)
@@ -29,6 +32,13 @@ internal fun isSameDayCancellationError(error: Throwable): Boolean {
     val apiError = error as? ApiDomainError ?: return false
     return (listOf(apiError.message) + apiError.fieldErrors.values.flatten()).any {
         it.contains("same-day cancellations are not allowed", ignoreCase = true)
+    }
+}
+
+internal fun isCancellationReasonValidationError(error: Throwable): Boolean {
+    val apiError = error as? ApiDomainError ?: return false
+    return apiError.fieldErrors.keys.any {
+        it == "reason_details" || it.endsWith(".reason_details")
     }
 }
 

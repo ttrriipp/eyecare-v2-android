@@ -5,6 +5,7 @@ import com.eyecare.app.data.remote.dto.AppointmentRequestListResponse
 import com.eyecare.app.data.remote.dto.AppointmentRequestResponse
 import com.eyecare.app.data.remote.dto.AppointmentTypeListResponse
 import com.eyecare.app.data.remote.dto.CreateAppointmentRequest
+import com.eyecare.app.data.remote.dto.CancellationReasonRequest
 import com.eyecare.app.data.remote.dto.UpdateAppointmentRequestScheduleRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -49,5 +50,6 @@ interface AppointmentRequestApiService {
     @POST("appointment-requests/{id}/cancel")
     suspend fun cancelRequest(
         @Path("id") id: Int,
+        @Body request: CancellationReasonRequest,
     ): AppointmentRequestResponse
 }

@@ -69,6 +69,8 @@ import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.appointments.components.VisitFeedbackDialog
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
+import com.eyecare.app.presentation.appointments.components.CancellationReasonChoice
+import com.eyecare.app.presentation.appointments.components.CancellationReasonPicker
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentRequest
@@ -86,6 +88,9 @@ fun AppointmentDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showCancelDialog by remember { mutableStateOf(false) }
+    var cancelReason by remember { mutableStateOf("") }
+    var cancelReasonChoice by remember { mutableStateOf<CancellationReasonChoice>(CancellationReasonChoice.Other) }
+    val isCancelling = (uiState as? AppointmentDetailUiState.Success)?.isCancelling == true
 
     val rescheduleRequestSent = (uiState as? AppointmentDetailUiState.Success)
         ?.showRescheduleSuccessDialog == true
@@ -106,12 +111,25 @@ fun AppointmentDetailScreen(
                 "Cancel this ${formatAppointmentTitle(detail.appointmentType)} appointment on " +
                     formatAppointmentDate(detail.scheduledAt) + " at " +
                     formatAppointmentTime(detail.scheduledAt) + "? This can't be undone."
-            } ?: "This can't be undone.",
+            } ?: "This can't be undone. Please provide a reason for the clinic.",
+            supportingContent = {
+                CancellationReasonPicker(
+                    choice = cancelReasonChoice,
+                    reason = cancelReason,
+                    onChoiceChange = { cancelReasonChoice = it },
+                    onReasonChange = { cancelReason = it },
+                    enabled = !isCancelling,
+                )
+            },
             confirmLabel = "Cancel appointment",
             dismissLabel = "Keep appointment",
+            confirmEnabled = cancelReason.isNotBlank() &&
+                cancelReason.length <= PATIENT_CANCELLATION_REASON_MAX_LENGTH &&
+                !isCancelling,
             onConfirm = {
+                val reason = cancelReason.trim()
                 showCancelDialog = false
-                viewModel.cancelAppointment()
+                if (reason.isNotBlank()) viewModel.cancelAppointment(reason)
             },
             onDismissRequest = { showCancelDialog = false },
         )
@@ -196,7 +214,11 @@ fun AppointmentDetailScreen(
                     state = state,
                     onReschedule = viewModel::showRescheduleSheet,
                     onViewRescheduleRequest = onViewRescheduleRequest,
-                    onCancel = { showCancelDialog = true },
+                    onCancel = {
+                        cancelReasonChoice = CancellationReasonChoice.Other
+                        cancelReason = ""
+                        showCancelDialog = true
+                    },
                     onRateVisit = viewModel::showRatingDialog,
                     onRetry = viewModel::refresh,
                     onMessageClick = onNavigateToMessages,
@@ -322,9 +344,19 @@ private fun AppointmentDetailContent(
                                         label = "Reason for visit",
                                         value = reason,
                                     )
-                                }
+                            }
                         }
                     }
+
+                    appointment.cancellation?.reasonDetails
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { reason ->
+                            AppointmentMetadataRow(
+                                icon = Icons.Outlined.EventBusy,
+                                label = "Cancellation reason",
+                                value = reason,
+                            )
+                        }
 
                     appointment.assignedOptometrist?.let { optometrist ->
                         AppointmentMetadataRow(

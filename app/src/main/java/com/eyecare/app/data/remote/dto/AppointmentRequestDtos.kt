@@ -88,6 +88,7 @@ data class AppointmentRequestDto(
     @SerialName("expires_at") val expiresAt: String? = null,
     @SerialName("cancelled_at") val cancelledAt: String? = null,
     @SerialName("rejection_reason") val rejectionReason: String? = null,
+    @SerialName("cancellation_reason") val cancellationReason: String? = null,
     @SerialName("created_at") val createdAt: String,
     val appointment: AppointmentReferenceDto? = null,
 )
@@ -125,4 +126,9 @@ data class AppointmentRequestIdentityDto(
     val gender: String? = null,
     val occupation: String? = null,
     val address: String? = null,
+)
+
+@Serializable
+data class CancellationReasonRequest(
+    @SerialName("reason_details") val reasonDetails: String,
 )

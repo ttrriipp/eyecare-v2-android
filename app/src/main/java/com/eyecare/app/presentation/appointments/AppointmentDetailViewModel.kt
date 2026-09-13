@@ -87,9 +87,18 @@ class AppointmentDetailViewModel @Inject constructor(
 
     fun refresh() = load()
 
-    fun cancelAppointment() {
+    fun cancelAppointment(reasonDetails: String) {
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success || !current.appointment.status.canCancel) return
+
+        val reason = reasonDetails.trim()
+        if (reason.isBlank() || reason.length > PATIENT_CANCELLATION_REASON_MAX_LENGTH) {
+            _uiState.value = current.copy(
+                cancelError = CANCELLATION_REASON_REQUIRED_MESSAGE,
+                actionMessage = null,
+            )
+            return
+        }
 
         if (isSameDayInClinic(current.appointment.scheduledAt)) {
             _uiState.value = current.copy(
@@ -105,7 +114,7 @@ class AppointmentDetailViewModel @Inject constructor(
             actionMessage = null,
         )
         viewModelScope.launch {
-            repository.cancelAppointment(appointmentId).fold(
+            repository.cancelAppointment(appointmentId, reason).fold(
                 onSuccess = { cancelled ->
                     _uiState.value = current.copy(
                         appointment = cancelled,
@@ -478,10 +487,10 @@ private fun patientSafeAppointmentError(
         "We couldn't load this appointment. Check your connection and try again."
     AppointmentAction.AVAILABILITY ->
         "We couldn't load available times. Try again."
-    AppointmentAction.CANCEL -> if (isSameDayCancellationError(error)) {
-        SAME_DAY_CANCELLATION_MESSAGE
-    } else {
-        "We couldn't cancel this appointment. Check your connection and try again."
+    AppointmentAction.CANCEL -> when {
+        isSameDayCancellationError(error) -> SAME_DAY_CANCELLATION_MESSAGE
+        isCancellationReasonValidationError(error) -> CANCELLATION_REASON_REQUIRED_MESSAGE
+        else -> "We couldn't cancel this appointment. Check your connection and try again."
     }
     AppointmentAction.RESCHEDULE ->
         patientSafeRescheduleError(error)

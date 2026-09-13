@@ -11,6 +11,8 @@ import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.presentation.appointments.DayAvailability
 import com.eyecare.app.presentation.appointments.RescheduleAvailabilityState
+import com.eyecare.app.presentation.appointments.CANCELLATION_REASON_REQUIRED_MESSAGE
+import com.eyecare.app.presentation.appointments.PATIENT_CANCELLATION_REASON_MAX_LENGTH
 import com.eyecare.app.presentation.appointments.SAME_DAY_CANCELLATION_MESSAGE
 import com.eyecare.app.presentation.appointments.availabilityWeekLength
 import com.eyecare.app.presentation.appointments.earliestAppointmentRequestDate
@@ -91,9 +93,15 @@ class AppointmentRequestDetailViewModel @Inject constructor(
         }
     }
 
-    fun cancel() {
+    fun cancel(reasonDetails: String) {
         val current = _state.value
         if (current !is RequestDetailState.Data || !current.request.status.isCancellable) return
+
+        val reason = reasonDetails.trim()
+        if (reason.isBlank() || reason.length > PATIENT_CANCELLATION_REASON_MAX_LENGTH) {
+            _state.value = current.copy(cancelError = CANCELLATION_REASON_REQUIRED_MESSAGE)
+            return
+        }
 
         if (isSameDayInClinic(current.request.scheduledAt)) {
             _state.value = current.copy(cancelError = SAME_DAY_CANCELLATION_MESSAGE)
@@ -102,7 +110,7 @@ class AppointmentRequestDetailViewModel @Inject constructor(
 
         _state.value = current.copy(isCancelling = true, cancelError = null)
         viewModelScope.launch {
-            repository.cancelRequest(current.request.id)
+            repository.cancelRequest(current.request.id, reason)
                 .onSuccess { request ->
                     _state.value = current.copy(
                         request = request,

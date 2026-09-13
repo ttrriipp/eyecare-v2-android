@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -55,6 +56,8 @@ fun AppConfirmationDialog(
     dismissLabel: String? = null,
     iconTint: Color = EyecareColors.current.accentText,
     isDestructive: Boolean = false,
+    confirmEnabled: Boolean = true,
+    supportingContent: @Composable ColumnScope.() -> Unit = {},
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
         Surface(
@@ -101,6 +104,8 @@ fun AppConfirmationDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
+                supportingContent()
+
                 Spacer(Modifier.height(20.dp))
 
                 Row(
@@ -127,6 +132,7 @@ fun AppConfirmationDialog(
                     }
                     Button(
                         onClick = onConfirm,
+                        enabled = confirmEnabled,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         shape = RoundedCornerShape(50),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),

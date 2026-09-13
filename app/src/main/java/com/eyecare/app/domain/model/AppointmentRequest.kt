@@ -66,6 +66,7 @@ data class AppointmentRequest(
     val rejectionReason: String?,
     val createdAt: String,
     val appointmentId: Int?,
+    val cancellationReason: String? = null,
 )
 
 enum class AppointmentRequestGender(
