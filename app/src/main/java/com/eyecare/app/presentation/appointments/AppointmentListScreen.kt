@@ -114,6 +114,18 @@ fun AppointmentListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val requestState by requestViewModel.state.collectAsStateWithLifecycle()
+    val acceptedAppointmentIds = (requestState as? RequestListState.Data)
+        ?.requests
+        ?.asSequence()
+        ?.filter { it.status == AppointmentRequestStatus.ACCEPTED }
+        ?.mapNotNull { it.appointmentId }
+        ?.toSet()
+        .orEmpty()
+    val confirmedAppointmentIds = (uiState as? AppointmentListUiState.Success)
+        ?.appointments
+        ?.map { it.id }
+        ?.toSet()
+        .orEmpty()
     val requestLimitReached = (requestState as? RequestListState.Data)
         ?.requests
         ?.let(::hasReachedActiveAppointmentRequestLimit) == true
@@ -134,6 +146,20 @@ fun AppointmentListScreen(
             requestViewModel.onScreenResumed()
         },
     )
+
+    LaunchedEffect(acceptedAppointmentIds) {
+        if (!hasActivePatientLink) return@LaunchedEffect
+        if (acceptedAppointmentIds.any { it !in confirmedAppointmentIds }) {
+            // Acceptance updates the request and creates the appointment together, but the two
+            // list responses can reach the client a moment apart. Give the confirmed list one
+            // follow-up fetch so the scheduled card replaces the accepted request.
+            delay(500)
+            viewModel.refresh(
+                hasActivePatientLink = hasActivePatientLink,
+                accountId = accountId,
+            )
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         PullToRefreshBox(
@@ -1198,12 +1224,14 @@ internal fun appointmentRequestsForTab(
     now: LocalDateTime = LocalDateTime.now(),
 ): List<AppointmentRequest> {
     val visible = requests.filter { request ->
-        // The request list can refresh a little before the confirmed-appointments list. Once the
-        // API marks a request accepted and provides its appointment reference, omit it here so
-        // the upcoming list never shows a duplicate request while the appointment refreshes.
+        // Keep an accepted request visible until its appointment is actually present in the
+        // confirmed list. The two endpoints can briefly return at different times after staff
+        // accepts a request.
         val isConfirmedRequest = request.status == AppointmentRequestStatus.ACCEPTED &&
             request.appointmentId != null
-        if (isConfirmedRequest) return@filter false
+        if (isConfirmedRequest && request.appointmentId in confirmedAppointmentIds) {
+            return@filter false
+        }
 
         val scheduledAt = parseAppointmentDateTime(request.scheduledAt)
         val isUpcomingDate = scheduledAt == null || !scheduledAt.isBefore(now)
