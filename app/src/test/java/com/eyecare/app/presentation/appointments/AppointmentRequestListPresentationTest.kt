@@ -64,7 +64,7 @@ class AppointmentRequestListPresentationTest {
     }
 
     @Test
-    fun `pending rebooking remains visible when its confirmed appointment is already listed`() {
+    fun `pending rebooking is shown from its scheduled appointment detail`() {
         val request = request(
             id = 5,
             status = AppointmentRequestStatus.PENDING,
@@ -74,7 +74,7 @@ class AppointmentRequestListPresentationTest {
         )
 
         assertEquals(
-            listOf(request),
+            emptyList<AppointmentRequest>(),
             appointmentRequestsForTab(
                 requests = listOf(request),
                 tab = AppointmentListTab.UPCOMING,

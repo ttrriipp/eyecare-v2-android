@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentError
+import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.VisitRating
@@ -39,6 +42,7 @@ sealed interface AppointmentDetailUiState {
 
     data class Success(
         val appointment: AppointmentV1,
+        val pendingRescheduleRequest: AppointmentRequest? = null,
         val isCancelling: Boolean = false,
         val cancelError: String? = null,
         val showRescheduleSheet: Boolean = false,
@@ -274,11 +278,16 @@ class AppointmentDetailViewModel @Inject constructor(
                 scheduledAt = scheduledAt,
             ).fold(
                 onSuccess = {
-                    _uiState.value = current.copy(
+                    val latest = _uiState.value as? AppointmentDetailUiState.Success ?: current
+                    _uiState.value = latest.copy(
                         isRescheduling = false,
                         showRescheduleSheet = false,
                         rescheduleAvailability = RescheduleAvailabilityState.Idle,
                         showRescheduleSuccessDialog = true,
+                        pendingRescheduleRequest = it.takeIf { request ->
+                            request.requestType == AppointmentRequestType.RESCHEDULE &&
+                                request.status == AppointmentRequestStatus.PENDING
+                        },
                     )
                 },
                 onFailure = { error ->
@@ -381,10 +390,17 @@ class AppointmentDetailViewModel @Inject constructor(
             val appointmentResult = repository.getAppointment(appointmentId)
             appointmentResult.fold(
                 onSuccess = { appointment ->
+                    val pendingRequestResult = findPendingRescheduleRequest(appointment.id)
+                    val pendingRescheduleRequest = pendingRequestResult.fold(
+                        onSuccess = { it },
+                        onFailure = { previous?.pendingRescheduleRequest },
+                    )
                     _uiState.value = previous?.copy(
                         appointment = appointment,
+                        pendingRescheduleRequest = pendingRescheduleRequest,
                     ) ?: AppointmentDetailUiState.Success(
                         appointment = appointment,
+                        pendingRescheduleRequest = pendingRescheduleRequest,
                     )
                 },
                 onFailure = { error ->
@@ -398,6 +414,23 @@ class AppointmentDetailViewModel @Inject constructor(
                     }
                 },
             )
+        }
+    }
+
+    private suspend fun findPendingRescheduleRequest(appointmentId: Int): Result<AppointmentRequest?> {
+        return try {
+            appointmentRequestRepository.getRequests(page = 1).map { page ->
+                page.data.firstOrNull { request ->
+                    request.requestType == AppointmentRequestType.RESCHEDULE &&
+                        request.status == AppointmentRequestStatus.PENDING &&
+                        request.appointmentId == appointmentId
+                }
+            }
+        } catch (error: Throwable) {
+            // Keep appointment details usable when the secondary request lookup fails. Do not
+            // swallow coroutine cancellation while protecting the primary appointment load.
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            Result.failure(error)
         }
     }
 }

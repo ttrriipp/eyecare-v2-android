@@ -71,6 +71,7 @@ import com.eyecare.app.presentation.appointments.components.VisitFeedbackDialog
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.ui.theme.EyecareColors
 
@@ -79,6 +80,7 @@ import com.eyecare.app.ui.theme.EyecareColors
 fun AppointmentDetailScreen(
     onBack: () -> Unit,
     onNavigateToMessages: () -> Unit = {},
+    onViewRescheduleRequest: (Int) -> Unit = {},
     onAppointmentsChanged: () -> Unit = {},
     viewModel: AppointmentDetailViewModel = hiltViewModel(),
 ) {
@@ -193,6 +195,7 @@ fun AppointmentDetailScreen(
                 AppointmentDetailContent(
                     state = state,
                     onReschedule = viewModel::showRescheduleSheet,
+                    onViewRescheduleRequest = onViewRescheduleRequest,
                     onCancel = { showCancelDialog = true },
                     onRateVisit = viewModel::showRatingDialog,
                     onRetry = viewModel::refresh,
@@ -207,6 +210,7 @@ fun AppointmentDetailScreen(
 private fun AppointmentDetailContent(
     state: AppointmentDetailUiState.Success,
     onReschedule: () -> Unit,
+    onViewRescheduleRequest: (Int) -> Unit = {},
     onCancel: () -> Unit,
     onRateVisit: () -> Unit = {},
     onRetry: () -> Unit = {},
@@ -214,7 +218,7 @@ private fun AppointmentDetailContent(
 ) {
     val appointment = state.appointment
     val canCancel = appointment.status.canCancel
-    val canReschedule = appointment.status.canReschedule
+    val canReschedule = appointment.status.canReschedule && state.pendingRescheduleRequest == null
     val canMessage = appointment.status.isActive
     val customerNote = appointment.contactNotes?.takeIf { it.isNotBlank() }
     val clinicNote: String? = null
@@ -239,6 +243,12 @@ private fun AppointmentDetailContent(
             state.rescheduleError?.let { AppointmentActionError(it) }
             state.cancelError?.let { AppointmentActionError(it) }
             AppointmentStatusGuidance(appointment.status, onRetry)
+            state.pendingRescheduleRequest?.let { request ->
+                PendingRescheduleNotice(
+                    request = request,
+                    onViewRequest = { onViewRescheduleRequest(request.id) },
+                )
+            }
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -407,6 +417,61 @@ private fun AppointmentDetailContent(
                             icon = Icons.AutoMirrored.Outlined.Chat,
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PendingRescheduleNotice(
+    request: AppointmentRequest,
+    onViewRequest: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.EditCalendar,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "Reschedule request pending",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = "The clinic is reviewing your requested time. " +
+                        "Your appointment stays at its current time until approved.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = "Requested time: ${formatAppointmentDate(request.scheduledAt)} at " +
+                        formatAppointmentTime(request.scheduledAt),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                TextButton(
+                    onClick = onViewRequest,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                ) {
+                    Text("View request details")
                 }
             }
         }

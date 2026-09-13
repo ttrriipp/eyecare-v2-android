@@ -472,6 +472,9 @@ fun EyecareNavGraph(
                                 navController.popBackStack()
                             },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
+                            onViewRescheduleRequest = { id ->
+                                navigatePatientFeature(AppointmentRequestDetail(id))
+                            },
                         )
                     }
                     composable<AppointmentRequestDetail> { backStackEntry ->

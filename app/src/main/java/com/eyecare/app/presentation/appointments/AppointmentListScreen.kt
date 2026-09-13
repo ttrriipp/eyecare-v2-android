@@ -1240,10 +1240,14 @@ internal fun appointmentRequestsForTab(
     val visible = requests.filter { request ->
         // The request and confirmed-appointment endpoints can briefly return different snapshots
         // after staff accepts a request. Hide a request once its appointment is actually listed,
-        // including a stale pending NEW row that still has the same scheduled time. Pending
-        // RESCHEDULE rows stay visible because they are still actionable proposals.
+        // including a stale pending NEW row that still has the same scheduled time. A pending
+        // rebooking is also hidden once its existing appointment is listed because its status and
+        // requested time are shown in that appointment's detail screen.
         val requestTime = parseAppointmentDateTime(request.scheduledAt)
         val isListedById = request.appointmentId?.let(confirmedAppointmentIds::contains) == true
+        val isPendingReschedule = request.requestType == AppointmentRequestType.RESCHEDULE &&
+            request.status == AppointmentRequestStatus.PENDING
+        if (isPendingReschedule && isListedById) return@filter false
         val isListedByTime = request.requestType != AppointmentRequestType.RESCHEDULE &&
             requestTime != null && requestTime in confirmedAppointmentTimes
         if (isListedById || isListedByTime) {
