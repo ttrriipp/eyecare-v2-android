@@ -209,6 +209,10 @@ class AppointmentDetailViewModel @Inject constructor(
     }
 
     fun loadRescheduleAvailability(date: String) {
+        loadRescheduleAvailability(date, clearError = true)
+    }
+
+    private fun loadRescheduleAvailability(date: String, clearError: Boolean) {
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success) return
         val selectedDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return
@@ -218,7 +222,7 @@ class AppointmentDetailViewModel @Inject constructor(
         val generation = ++availabilityGeneration
         _uiState.value = current.copy(
             rescheduleAvailability = RescheduleAvailabilityState.Loading(date),
-            rescheduleError = null,
+            rescheduleError = if (clearError) null else current.rescheduleError,
         )
         availabilityJob = viewModelScope.launch {
             repository.getAppointmentAvailability(date, appointmentId).fold(
@@ -229,7 +233,7 @@ class AppointmentDetailViewModel @Inject constructor(
                     ) {
                         _uiState.value = latest.copy(
                             rescheduleAvailability = RescheduleAvailabilityState.Success(availability),
-                            rescheduleError = null,
+                            rescheduleError = if (clearError) null else latest.rescheduleError,
                             rescheduleDayAvailability = latest.rescheduleDayAvailability +
                                 (date to dayAvailabilityVerdict(availability)),
                         )
@@ -291,13 +295,22 @@ class AppointmentDetailViewModel @Inject constructor(
                     )
                 },
                 onFailure = { error ->
-                    _uiState.value = current.copy(
+                    val latest = _uiState.value as? AppointmentDetailUiState.Success ?: current
+                    val slotUnavailable = isSlotUnavailableError(error)
+                    _uiState.value = latest.copy(
                         isRescheduling = false,
-                        rescheduleError = patientSafeAppointmentError(
-                            AppointmentAction.RESCHEDULE,
-                            error,
-                        ),
+                        rescheduleError = if (slotUnavailable) {
+                            "That time became unavailable. We refreshed the list; choose another slot."
+                        } else {
+                            patientSafeAppointmentError(AppointmentAction.RESCHEDULE, error)
+                        },
                     )
+                    if (slotUnavailable) {
+                        loadRescheduleAvailability(
+                            date = selectedDate.toString(),
+                            clearError = false,
+                        )
+                    }
                 },
             )
         }
@@ -469,17 +482,24 @@ private fun patientSafeAppointmentError(
 }
 
 private fun patientSafeRescheduleError(error: Throwable): String {
-    val apiError = error as? ApiDomainError
     return when {
-        apiError?.code == "SLOT_UNAVAILABLE" ||
-            apiError?.fieldErrors?.keys?.any { it == "scheduled_at" || it.endsWith(".scheduled_at") } == true ->
+        isSlotUnavailableError(error) ->
             "That time is no longer available. Choose another time."
-        apiError?.code == "ACTIVE_REQUEST_LIMIT_REACHED" ->
+        (error as? ApiDomainError)?.code == "ACTIVE_REQUEST_LIMIT_REACHED" ->
             "You already have two pending appointment requests. Cancel one or wait for the clinic to respond."
-        apiError?.fieldErrors?.keys?.any { it == "appointment_id" || it.endsWith(".appointment_id") } == true ->
+        (error as? ApiDomainError)?.fieldErrors?.keys?.any {
+            it == "appointment_id" || it.endsWith(".appointment_id")
+        } == true ->
             "This appointment can no longer be rescheduled. Refresh and try again."
-        error is AppointmentError.ValidationError ->
-            "That time is no longer available. Choose another time."
         else -> "We couldn't submit this reschedule request. Try again."
     }
+}
+
+private fun isSlotUnavailableError(error: Throwable): Boolean {
+    val apiError = error as? ApiDomainError
+    return apiError?.code == "SLOT_UNAVAILABLE" ||
+        apiError?.fieldErrors?.keys?.any {
+            it == "scheduled_at" || it.endsWith(".scheduled_at")
+        } == true ||
+        error is AppointmentError.ValidationError
 }
