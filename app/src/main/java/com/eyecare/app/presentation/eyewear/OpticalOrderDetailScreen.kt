@@ -408,7 +408,7 @@ private fun OrderStatusGuidance(status: OpticalOrderStatus) {
             icon = Icons.Outlined.CheckCircle,
         )
         OpticalOrderStatus.DISPENSED -> OrderStatusGuidanceCopy(
-            title = "Order picked up",
+            title = "Order completed",
             message = "This order has been completed and picked up.",
             icon = Icons.Outlined.CheckCircle,
         )
@@ -542,12 +542,10 @@ private fun OrderTracker(status: OpticalOrderStatus) {
                     Box(modifier = Modifier.weight(1f)) {
                         Text(
                             text = when (step) {
-                                TrackerStep.PREPARATION -> when (status) {
-                                    OpticalOrderStatus.QUEUED -> "Confirmed"
-                                    else -> "Processing"
-                                }
+                                TrackerStep.CONFIRMED -> "Confirmed"
+                                TrackerStep.PROCESSING -> "Processing"
                                 TrackerStep.READY -> "Ready for pickup"
-                                TrackerStep.RELEASED -> "Picked up"
+                                TrackerStep.COMPLETED -> "Completed"
                             },
                             modifier = Modifier.fillMaxWidth(),
                             style = MaterialTheme.typography.labelSmall,

@@ -26,8 +26,10 @@ fun formatTimestamp(iso: String): String {
     }
 }
 
-// Tracker step states
-enum class TrackerStep { PREPARATION, READY, RELEASED }
+// Patient-facing order lifecycle stages. The API keeps its machine statuses
+// (queued, in_progress, ready_for_dispensing, dispensed); these are the four
+// stages shown in the Android progress tracker.
+enum class TrackerStep { CONFIRMED, PROCESSING, READY, COMPLETED }
 
 data class TrackerState(
     val steps: List<Pair<TrackerStep, Boolean>>,
@@ -44,7 +46,7 @@ fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
     OpticalOrderStatus.QUEUED -> "Confirmed"
     OpticalOrderStatus.IN_PROGRESS -> "Processing"
     OpticalOrderStatus.READY_FOR_DISPENSING -> "Ready for pickup"
-    OpticalOrderStatus.DISPENSED -> "Picked up"
+    OpticalOrderStatus.DISPENSED -> "Completed"
     OpticalOrderStatus.CANCELLED -> "Cancelled"
     OpticalOrderStatus.UNKNOWN -> "Status unavailable"
 }
@@ -109,12 +111,12 @@ fun orderCardTitle(order: OpticalOrder): String {
 }
 
 // Current stage timestamp for the detail screen's reference box - terminal states (cancelled,
-// released) take priority since the tracker below already shows the full progression.
+// completed) take priority since the tracker below already shows the full progression.
 fun orderDateLabelFull(order: OpticalOrder): Pair<String, String> {
     val ts = order.cancelledAt ?: order.dispensedAt ?: order.readyAt ?: order.startedAt ?: order.createdAt
     val label = when {
         order.cancelledAt != null -> "Cancelled"
-        order.dispensedAt != null -> "Picked up"
+        order.dispensedAt != null -> "Completed"
         order.readyAt != null -> "Ready"
         order.startedAt != null -> "Started"
         else -> "Created"
@@ -126,54 +128,60 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
     return when (status) {
         OpticalOrderStatus.QUEUED -> TrackerState(
             steps = listOf(
-                TrackerStep.PREPARATION to true,
+                TrackerStep.CONFIRMED to true,
+                TrackerStep.PROCESSING to false,
                 TrackerStep.READY to false,
-                TrackerStep.RELEASED to false,
+                TrackerStep.COMPLETED to false,
             ),
-            activeStep = TrackerStep.PREPARATION,
+            activeStep = TrackerStep.CONFIRMED,
             terminalMessage = null,
         )
         OpticalOrderStatus.IN_PROGRESS -> TrackerState(
             steps = listOf(
-                TrackerStep.PREPARATION to true,
+                TrackerStep.CONFIRMED to true,
+                TrackerStep.PROCESSING to true,
                 TrackerStep.READY to false,
-                TrackerStep.RELEASED to false,
+                TrackerStep.COMPLETED to false,
             ),
-            activeStep = TrackerStep.PREPARATION,
+            activeStep = TrackerStep.PROCESSING,
             terminalMessage = null,
         )
         OpticalOrderStatus.READY_FOR_DISPENSING -> TrackerState(
             steps = listOf(
-                TrackerStep.PREPARATION to true,
+                TrackerStep.CONFIRMED to true,
+                TrackerStep.PROCESSING to true,
                 TrackerStep.READY to true,
-                TrackerStep.RELEASED to false,
+                TrackerStep.COMPLETED to false,
             ),
             activeStep = TrackerStep.READY,
             terminalMessage = null,
         )
         OpticalOrderStatus.DISPENSED -> TrackerState(
             steps = listOf(
-                TrackerStep.PREPARATION to true,
+                TrackerStep.CONFIRMED to true,
+                TrackerStep.PROCESSING to true,
                 TrackerStep.READY to true,
-                TrackerStep.RELEASED to true,
+                TrackerStep.COMPLETED to true,
             ),
-            activeStep = null,
-            terminalMessage = "Order picked up",
+            activeStep = TrackerStep.COMPLETED,
+            terminalMessage = "Order completed",
         )
         OpticalOrderStatus.CANCELLED -> TrackerState(
             steps = listOf(
-                TrackerStep.PREPARATION to false,
+                TrackerStep.CONFIRMED to false,
+                TrackerStep.PROCESSING to false,
                 TrackerStep.READY to false,
-                TrackerStep.RELEASED to false,
+                TrackerStep.COMPLETED to false,
             ),
             activeStep = null,
             terminalMessage = "Cancelled",
         )
         OpticalOrderStatus.UNKNOWN -> TrackerState(
             steps = listOf(
-                TrackerStep.PREPARATION to false,
+                TrackerStep.CONFIRMED to false,
+                TrackerStep.PROCESSING to false,
                 TrackerStep.READY to false,
-                TrackerStep.RELEASED to false,
+                TrackerStep.COMPLETED to false,
             ),
             activeStep = null,
             terminalMessage = "Status unavailable",
