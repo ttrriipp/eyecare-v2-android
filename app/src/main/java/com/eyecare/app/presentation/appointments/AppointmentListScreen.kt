@@ -803,8 +803,21 @@ private fun AppointmentListContent(
     val appointmentsForSelectedTab = remember(appointments, selectedTab) {
         appointmentsForTab(appointments, selectedTab)
     }
-    val requestsForSelectedTab = remember(requests, selectedTab, confirmedAppointmentIds) {
-        appointmentRequestsForTab(requests, selectedTab, confirmedAppointmentIds)
+    val confirmedAppointmentTimes = remember(appointments) {
+        appointments.mapNotNull { parseAppointmentDateTime(it.scheduledAt) }.toSet()
+    }
+    val requestsForSelectedTab = remember(
+        requests,
+        selectedTab,
+        confirmedAppointmentIds,
+        confirmedAppointmentTimes,
+    ) {
+        appointmentRequestsForTab(
+            requests = requests,
+            tab = selectedTab,
+            confirmedAppointmentIds = confirmedAppointmentIds,
+            confirmedAppointmentTimes = confirmedAppointmentTimes,
+        )
     }
     val appointmentCounts = remember(appointmentsForSelectedTab, requestsForSelectedTab) {
         (appointmentsForSelectedTab.mapNotNull { parseAppointmentDate(it.scheduledAt) } +
@@ -1221,15 +1234,19 @@ internal fun appointmentRequestsForTab(
     requests: List<AppointmentRequest>,
     tab: AppointmentListTab,
     confirmedAppointmentIds: Set<Int> = emptySet(),
+    confirmedAppointmentTimes: Set<LocalDateTime> = emptySet(),
     now: LocalDateTime = LocalDateTime.now(),
 ): List<AppointmentRequest> {
     val visible = requests.filter { request ->
-        // Keep an accepted request visible until its appointment is actually present in the
-        // confirmed list. The two endpoints can briefly return at different times after staff
-        // accepts a request.
-        val isConfirmedRequest = request.status == AppointmentRequestStatus.ACCEPTED &&
-            request.appointmentId != null
-        if (isConfirmedRequest && request.appointmentId in confirmedAppointmentIds) {
+        // The request and confirmed-appointment endpoints can briefly return different snapshots
+        // after staff accepts a request. Hide a request once its appointment is actually listed,
+        // including a stale pending NEW row that still has the same scheduled time. Pending
+        // RESCHEDULE rows stay visible because they are still actionable proposals.
+        val requestTime = parseAppointmentDateTime(request.scheduledAt)
+        val isListedById = request.appointmentId?.let(confirmedAppointmentIds::contains) == true
+        val isListedByTime = request.requestType != AppointmentRequestType.RESCHEDULE &&
+            requestTime != null && requestTime in confirmedAppointmentTimes
+        if (isListedById || isListedByTime) {
             return@filter false
         }
 
