@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -571,6 +572,7 @@ private fun EmptyAppointmentTab(tab: AppointmentListTab) {
 @Composable
 private fun AppointmentCard(
     appointment: AppointmentV1,
+    hasPendingRescheduleRequest: Boolean = false,
     onClick: () -> Unit,
     onRateClick: (() -> Unit)? = null,
 ) {
@@ -588,6 +590,10 @@ private fun AppointmentCard(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             AppointmentStatusPill(appointment.status)
+
+            if (hasPendingRescheduleRequest) {
+                PendingRescheduleBadge()
+            }
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -800,6 +806,21 @@ private fun AppointmentListContent(
     val requests = (requestState as? RequestListState.Data)?.requests.orEmpty()
     val activeRequestCount = activeAppointmentRequestCount(requests)
     val confirmedAppointmentIds = remember(appointments) { appointments.map { it.id }.toSet() }
+    val pendingRescheduleAppointmentIds = remember(requests) {
+        requests.asSequence()
+            .filter {
+                it.status == AppointmentRequestStatus.PENDING &&
+                    it.requestType == AppointmentRequestType.RESCHEDULE
+            }
+            .mapNotNull { it.appointmentId }
+            .toSet()
+    }
+    val pendingRescheduleCount = remember(requests) {
+        requests.count {
+            it.status == AppointmentRequestStatus.PENDING &&
+                it.requestType == AppointmentRequestType.RESCHEDULE
+        }
+    }
     val appointmentsForSelectedTab = remember(appointments, selectedTab) {
         appointmentsForTab(appointments, selectedTab)
     }
@@ -949,7 +970,10 @@ private fun AppointmentListContent(
             hasReachedActiveAppointmentRequestLimit(requests)
         ) {
             item {
-                AppointmentRequestLimitNotice(activeRequestCount = activeRequestCount)
+                AppointmentRequestLimitNotice(
+                    activeRequestCount = activeRequestCount,
+                    pendingRescheduleCount = pendingRescheduleCount,
+                )
             }
         }
         if (visibleRequests.isNotEmpty()) {
@@ -979,6 +1003,7 @@ private fun AppointmentListContent(
             items(visibleAppointments, key = { "appointment-${it.id}" }) { appointment ->
                 AppointmentCard(
                     appointment = appointment,
+                    hasPendingRescheduleRequest = appointment.id in pendingRescheduleAppointmentIds,
                     onClick = { onNavigateToDetail(appointment.id) },
                     onRateClick = if (appointment.isRateable && appointment.visitRating == null) {
                         { onRateClick(appointment.id) }
@@ -1077,6 +1102,33 @@ private fun AppointmentsLoadingCard() {
 }
 
 @Composable
+private fun PendingRescheduleBadge() {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.EditCalendar,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(15.dp),
+            )
+            Text(
+                text = "Reschedule pending",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
 private fun RequestListErrorRow(
     message: String,
     onRetry: () -> Unit,
@@ -1097,11 +1149,28 @@ private fun RequestListErrorRow(
 }
 
 @Composable
-private fun AppointmentRequestLimitNotice(activeRequestCount: Int) {
+private fun AppointmentRequestLimitNotice(
+    activeRequestCount: Int,
+    pendingRescheduleCount: Int,
+) {
     val requestLabel = if (activeRequestCount == 1) {
-        "pending appointment request"
+        "pending request"
     } else {
-        "pending appointment requests"
+        "pending requests"
+    }
+    val pendingNewCount = (activeRequestCount - pendingRescheduleCount).coerceAtLeast(0)
+    val breakdown = buildList {
+        if (pendingNewCount > 0) {
+            add("$pendingNewCount new")
+        }
+        if (pendingRescheduleCount > 0) {
+            add("$pendingRescheduleCount reschedule")
+        }
+    }.joinToString(" and ")
+    val rescheduleHint = if (pendingRescheduleCount > 0) {
+        " Reschedule requests appear on their scheduled appointment."
+    } else {
+        ""
     }
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -1131,8 +1200,10 @@ private fun AppointmentRequestLimitNotice(activeRequestCount: Int) {
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
-                    text = "$activeRequestCount $requestLabel. " +
-                        "Wait for a clinic response or cancel one to start another.",
+                    text = "$activeRequestCount $requestLabel" +
+                        (if (breakdown.isNotBlank()) " ($breakdown)." else ".") +
+                        rescheduleHint +
+                        " Wait for a clinic response or cancel a request before starting another.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
