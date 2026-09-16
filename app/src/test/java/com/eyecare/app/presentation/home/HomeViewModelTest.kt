@@ -1,14 +1,17 @@
 package com.eyecare.app.presentation.home
 
+import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.ClinicHoursDay
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.model.EyeMeasurement
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.domain.model.PrescriptionMeasurementGroup
 import com.eyecare.app.domain.model.PrescriptionMeasurements
-import com.eyecare.app.domain.repository.AppointmentV1Repository
+import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.ClinicRepository
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.PaginatedResult
@@ -34,7 +37,7 @@ import java.time.LocalDate
 class HomeViewModelTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
-    private lateinit var appointmentRepo: AppointmentV1Repository
+    private lateinit var appointmentRequestRepo: AppointmentRequestRepository
     private lateinit var frameRepo: FrameRepository
     private lateinit var prescriptionRepo: PrescriptionRepository
     private lateinit var clinicRepo: ClinicRepository
@@ -77,11 +80,11 @@ class HomeViewModelTest {
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(dispatcher)
-        appointmentRepo = mockk()
+        appointmentRequestRepo = mockk()
         frameRepo = mockk()
         prescriptionRepo = mockk()
         clinicRepo = mockk()
-        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
+        coEvery { appointmentRequestRepo.getCurrentAppointmentJourney() } returns Result.success(CurrentAppointmentJourney.None)
         coEvery { frameRepo.getFrames(any()) } returns Result.success(emptyList())
         coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { clinicRepo.getClinicHours() } returns Result.success(sampleClinicHours)
@@ -90,11 +93,13 @@ class HomeViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo, clinicRepo).also { it.load() }
+    private fun vm() = HomeViewModel(appointmentRequestRepo, frameRepo, prescriptionRepo, clinicRepo).also { it.load() }
 
     @Test
     fun `nextAppointment is the soonest future scheduled appointment`() = runTest {
-        coEvery { appointmentRepo.getAppointments(any()) } returns Result.success(PaginatedResult(listOf(pastAppt, futureAppt), 1, 1, 2))
+        coEvery { appointmentRequestRepo.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.Appointment(appointment = futureAppt, originalRequest = null, pendingReschedule = null),
+        )
         val state = vm().uiState.value as HomeUiState.Success
         assertEquals(futureAppt, state.nextAppointment)
     }
@@ -129,7 +134,7 @@ class HomeViewModelTest {
 
     @Test
     fun `partial failures do not hide available content`() = runTest {
-        coEvery { appointmentRepo.getAppointments(any()) } returns Result.failure(RuntimeException("offline"))
+        coEvery { appointmentRequestRepo.getCurrentAppointmentJourney() } returns Result.failure(RuntimeException("offline"))
         coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
         val current = createPrescription(1, true, "2026-07-27")
         coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(current), 1, 1, 1))
@@ -141,7 +146,7 @@ class HomeViewModelTest {
 
     @Test
     fun `limited load keeps account-safe home data and loads featured frames`() = runTest {
-        val limitedVm = HomeViewModel(appointmentRepo, frameRepo, prescriptionRepo, clinicRepo)
+        val limitedVm = HomeViewModel(appointmentRequestRepo, frameRepo, prescriptionRepo, clinicRepo)
         coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
 
         limitedVm.load(hasActivePatientLink = false)
@@ -151,7 +156,7 @@ class HomeViewModelTest {
         assertNull(state.currentPrescription)
         assertEquals(listOf(frame(1)), state.featuredFrames)
         assertEquals(sampleClinicHours, state.clinicHours)
-        coVerify(exactly = 0) { appointmentRepo.getAppointments(any()) }
+        coVerify(exactly = 0) { appointmentRequestRepo.getCurrentAppointmentJourney() }
         coVerify(exactly = 1) { frameRepo.getFrames(any()) }
         coVerify(exactly = 0) { prescriptionRepo.getPrescriptions(any()) }
         coVerify(exactly = 1) { clinicRepo.getClinicHours() }

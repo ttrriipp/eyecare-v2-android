@@ -38,8 +38,12 @@ import com.eyecare.app.domain.model.toAppointmentRequestIdentityOrNull
 import com.eyecare.app.domain.model.canAccessPatientFeatures
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
+import com.eyecare.app.presentation.appointments.AppointmentHistoryScreen
+import com.eyecare.app.presentation.appointments.AppointmentHistoryViewModel
 import com.eyecare.app.presentation.appointments.AppointmentListScreen
 import com.eyecare.app.presentation.appointments.AppointmentListViewModel
+import com.eyecare.app.presentation.appointments.MyAppointmentScreen
+import com.eyecare.app.presentation.appointments.MyAppointmentViewModel
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestDetailScreen
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestListViewModel
 import com.eyecare.app.presentation.appointments.requests.RequestAppointmentScreen
@@ -79,7 +83,8 @@ internal fun shouldShowBottomNav(route: String): Boolean =
         !route.contains("SessionGate") && !route.contains("Welcome") &&
         !route.contains("CreateAccount") && !route.contains("RecoverPassword") &&
         !route.contains("LimitedAccount") && !route.contains("AccountSecurity") &&
-        !route.contains("Chat") && !route.contains("Notifications") && !route.contains("AppointmentDetail") &&
+        !route.contains("Chat") && !route.contains("Notifications") &&         !route.contains("AppointmentDetail") &&
+        !route.contains("AppointmentHistory") &&
         !route.contains("RequestAppointment") &&
         !route.contains("AppointmentRequest") &&
         !route.contains("BookAppointment") &&
@@ -431,37 +436,48 @@ fun EyecareNavGraph(
                         )
                     }
                     composable<Appointments> { appointmentsEntry ->
-                        val accountId = sessionState.accountIdOrNull()
-                        val accountScopeKey = accountId?.toString() ?: "anonymous"
-                        val appointmentViewModel: AppointmentListViewModel = hiltViewModel(
-                            key = "appointments-$accountScopeKey",
-                        )
-                        val requestViewModel: AppointmentRequestListViewModel = hiltViewModel(
-                            key = "appointment-requests-$accountScopeKey",
-                        )
-                        val refreshToken = appointmentsEntry.savedStateHandle
-                            .getStateFlow<Long?>(APPOINTMENTS_REFRESH_KEY, null)
+                        val myAppointmentViewModel: MyAppointmentViewModel = hiltViewModel()
+                        val myAppointmentState by myAppointmentViewModel.uiState.collectAsStateWithLifecycle()
+
                         LaunchedEffect(appointmentsEntry) {
-                            refreshToken.collect { token ->
-                                if (token == null) return@collect
-                                appointmentViewModel.refresh(
-                                    hasActivePatientLink = canAccessPatientFeatures(sessionState),
-                                    accountId = accountId,
-                                )
-                                requestViewModel.refresh()
-                                appointmentsEntry.savedStateHandle[APPOINTMENTS_REFRESH_KEY] = null
-                            }
+                            myAppointmentViewModel.load()
                         }
-                        AppointmentListScreen(
-                            onNavigateToDetail = { id -> navigatePatientFeature(AppointmentDetail(id)) },
-                            onNavigateToRequest = { navigatePatientFeature(RequestAppointment) },
+
+                        RefreshOnResumeEffect(onRefresh = myAppointmentViewModel::refresh)
+
+                        MyAppointmentScreen(
+                            uiState = myAppointmentState,
+                            onRetry = myAppointmentViewModel::retry,
+                            onRefresh = myAppointmentViewModel::refresh,
+                            onRequestAppointment = { navigatePatientFeature(RequestAppointment) },
+                            onNavigateToHistory = { navigatePatientFeature(AppointmentHistory) },
                             onNavigateToRequestDetail = { id ->
                                 navigatePatientFeature(AppointmentRequestDetail(id))
                             },
-                            accountId = accountId,
-                            hasActivePatientLink = canAccessPatientFeatures(sessionState),
-                            viewModel = appointmentViewModel,
-                            requestViewModel = requestViewModel,
+                            onNavigateToAppointmentDetail = { id ->
+                                navigatePatientFeature(AppointmentDetail(id))
+                            },
+                            onCancelRequest = myAppointmentViewModel::cancelRequest,
+                            onCancelAppointment = myAppointmentViewModel::cancelAppointment,
+                            onClearMutationError = myAppointmentViewModel::clearMutationError,
+                            onClearMutationSuccess = myAppointmentViewModel::clearMutationSuccess,
+                        )
+                    }
+                    composable<AppointmentHistory> {
+                        val historyViewModel: AppointmentHistoryViewModel = hiltViewModel()
+                        val historyState by historyViewModel.uiState.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(Unit) { historyViewModel.load() }
+
+                        AppointmentHistoryScreen(
+                            uiState = historyState,
+                            onRetry = historyViewModel::retry,
+                            onRefresh = historyViewModel::refresh,
+                            onLoadMore = historyViewModel::loadMore,
+                            onBack = { navController.popBackStack() },
+                            onNavigateToDetail = { id ->
+                                navigatePatientFeature(AppointmentDetail(id))
+                            },
                         )
                     }
                     composable<AppointmentDetail> {

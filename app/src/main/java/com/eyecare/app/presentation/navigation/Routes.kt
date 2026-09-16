@@ -26,6 +26,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class AppointmentDetail(val appointmentId: Int)
 @Serializable data object RequestAppointment
 @Serializable data class AppointmentRequestDetail(val requestId: Int)
+@Serializable data object AppointmentHistory
 
 // Frame sub-destinations
 @Serializable data class ArTryOn(val frameId: Int, val variantId: Int)

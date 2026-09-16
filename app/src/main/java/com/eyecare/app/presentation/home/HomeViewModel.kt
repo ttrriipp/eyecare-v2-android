@@ -5,9 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.ClinicHoursDay
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.Prescription
-import com.eyecare.app.domain.repository.AppointmentV1Repository
+import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.ClinicRepository
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.PrescriptionRepository
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import javax.inject.Inject
 
 sealed interface HomeUiState {
@@ -33,7 +33,7 @@ sealed interface HomeUiState {
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val appointmentRepository: AppointmentV1Repository,
+    private val appointmentRequestRepository: AppointmentRequestRepository,
     private val frameRepository: FrameRepository,
     private val prescriptionRepository: PrescriptionRepository,
     private val clinicRepository: ClinicRepository,
@@ -69,8 +69,8 @@ class HomeViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            val appointmentsDeferred = async {
-                runCatching { appointmentRepository.getAppointments(page = 1).getOrNull()?.data ?: emptyList() }
+            val journeyDeferred = async {
+                runCatching { appointmentRequestRepository.getCurrentAppointmentJourney().getOrNull() }
             }
             val framesDeferred = async {
                 runCatching { frameRepository.getFrames(page = 1).getOrDefault(emptyList()) }
@@ -82,19 +82,13 @@ class HomeViewModel @Inject constructor(
                 runCatching { clinicRepository.getClinicHours().getOrDefault(emptyList()) }
             }
 
-            val appointments = appointmentsDeferred.await().getOrDefault(emptyList())
+            val journeyResult = journeyDeferred.await()
             val frames = framesDeferred.await().getOrDefault(emptyList())
             val prescriptions = prescriptionsDeferred.await().getOrDefault(emptyList())
             val clinicHours = clinicHoursDeferred.await().getOrDefault(emptyList())
 
-            val today = LocalDate.now()
-
-            val nextAppointment = appointments
-                .filter {
-                    it.status in setOf(AppointmentStatus.SCHEDULED, AppointmentStatus.CHECKED_IN) &&
-                        runCatching { !LocalDate.parse(it.scheduledAt.take(10)).isBefore(today) }.getOrElse { false }
-                }
-                .minByOrNull { it.scheduledAt }
+            val journey = journeyResult.getOrNull()
+            val nextAppointment = (journey as? CurrentAppointmentJourney.Appointment)?.appointment
 
             val currentPrescription = prescriptions
                 .filter { it.isCurrent }

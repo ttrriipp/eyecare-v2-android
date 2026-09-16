@@ -38,6 +38,7 @@ fun classifyRouteAccess(route: String): PatientRouteAccess = when {
     route.contains("AppearanceSettings") -> PatientRouteAccess.AccountOnly
     // Active-link required: confirmed appointments, clinical resources
     route.contains("AppointmentDetail") -> PatientRouteAccess.ActiveLinkRequired
+    route.contains("AppointmentHistory") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("PatientProfile") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Prescription") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Eyewear") -> PatientRouteAccess.ActiveLinkRequired
