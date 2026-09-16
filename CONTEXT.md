@@ -405,7 +405,7 @@ and `ProfileViewModel.kt`:
 
 ## Backend API (base: `/api/v1`)
 
-59 approved patient-mobile routes (8 public, 40 account-only, 11 active-link).
+60 approved patient-mobile routes (8 public, 42 account-only, 10 active-link).
 Source of truth: `docs/API_CONTRACT.md`.
 
 **Auth:** V13 two-stage OTP registration, hybrid login (trusted skips OTP), password recovery, Sanctum bearer tokens. Stored via `TokenManager` (SharedPreferences). Installation identity via `DeviceIdentityProvider`. 401 → bearer-aware logout via `AuthEventBus`. Session resolution via `GET /me` before routing.
@@ -479,10 +479,39 @@ Source of truth: `docs/API_CONTRACT.md`.
 
 Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 
-- Home: next appointment, current prescription summary, featured frames preview
+- Home: next appointment (from current-journey), current prescription summary, featured frames preview
 - Frames: searchable/paged catalog, detail, AR, Saved Frames
-- Appointments: list, detail, booking, reschedule, cancel, intake
+- Appointments: My Appointment (current-journey), History, detail, booking, reschedule, cancel
 - Profile: hub for Messages, Prescriptions, Saved Frames, My Orders
+
+## Current Appointment Journey (v22)
+
+`presentation/appointments/MyAppointmentViewModel.kt`, `MyAppointmentScreen.kt`,
+`AppointmentHistoryViewModel.kt`, `AppointmentHistoryScreen.kt`:
+
+- Appointments root renders `MyAppointmentScreen` sourced exclusively from
+  `GET /appointment-requests/current`. Three mutually exclusive states:
+  `none`, `pending_request`, `appointment`.
+- `none`: empty state with "Request an appointment" CTA.
+- `pending_request`: full detail inline (type, times, alternatives, reason),
+  cancel action, view-details link.
+- `appointment`: confirmed details inline (type, date/time, duration, optometrist),
+  cancel action, optional pending reschedule shown beneath with "NOT YET CONFIRMED"
+  badge and all alternative times. Original request accessible via link.
+- After every successful mutation (cancel request, cancel appointment), the
+  ViewModel refetches the current endpoint rather than manufacturing state locally.
+- History is a separate destination (`AppointmentHistory`) opened from the top app
+  bar. Sourced from `GET /appointments?filter=history`. Paginated, with
+  pull-to-refresh and load-more.
+- Home uses `getCurrentAppointmentJourney()` for the next-visit ticket. Only
+  `CurrentAppointmentJourney.Appointment` produces a ticket; `none` and
+  `pending_request` produce no ticket.
+- Unlinked accounts can load My Appointment (account-only endpoint). History and
+  confirmed-appointment actions are active-link-gated.
+- `CurrentAppointmentJourney` sealed interface lives in `domain/model/`.
+  DTO-to-domain mapping at repository boundary via shared mappers
+  (`AppointmentRequestMappers.kt`, `AppointmentV1Mappers.kt`).
+- Route governance: 60 routes (8 public + 42 account-only + 10 active-link).
 
 ## My Orders
 
@@ -565,6 +594,9 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 
 ## Active Specs
 
+- `docs/specs/backend-alignment-v22-current-appointment-journey-2026-09-16-spec.md` — Complete: Unified Current Appointment Journey
+- `docs/specs/backend-alignment-v22-current-appointment-journey-2026-09-16-plan.md` — Complete: implementation plan (7 phases)
+- `docs/specs/backend-alignment-v22-current-appointment-journey-2026-09-16-tasks.md` — Complete: 28 tasks + 7 checkpoints
 - `docs/specs/backend-alignment-v20-2026-08-27-spec.md` — Complete: Saved Frames cutover and
   reservation retirement
 - `docs/specs/backend-alignment-v20-2026-08-27-plan.md` — Complete: implementation plan
