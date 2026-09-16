@@ -122,12 +122,10 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   contact. The form validates the contract-required fields and shows the complete identity in Review
   before sending the encrypted identity snapshot. Linked accounts skip this step, omit client
   identity, and rely on the authoritative clinic Patient record.
-- The Appointments tab combines confirmed appointments with the account's appointment requests for
-  linked and unlinked users. Pending requests appear in Upcoming; rejected, cancelled, expired, and
-  unresolved accepted requests appear in History. Accepted requests already represented by a confirmed
-  appointment are not duplicated. Request cards open account-owned details, where pending requests can
-  be cancelled. The current contract has no request-edit endpoint, so changing a request requires
-  cancelling it and submitting a new request.
+- The Appointments tab renders `MyAppointmentScreen` sourced from `GET /appointment-requests/current`
+  (see Current Appointment Journey section below). Pending requests, confirmed appointments, and the
+  empty state are shown inline without list cards. Appointment History is a separate destination
+  sourced from `GET /appointments?filter=history`.
 - Any patient-only destination requested by a limited user opens `LimitedAccount` as a link hub. The
   hub offers **Enter invitation code** and **Ask clinic to link me**. After successful invitation
   acceptance, the app returns to the original feature; backing out clears that pending destination.
@@ -276,7 +274,7 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - `weekday` follows the backend's Carbon convention (`0 = Sunday` … `6 = Saturday`); Android converts `LocalDate.now().dayOfWeek` (ISO, Monday=1..Sunday=7) via `dayOfWeek.value % 7` to find today's row rather than trusting index order. `day_name` from the response is used directly for display so the conversion is never re-derived for copy.
 - The schema has one continuous `open_time`–`close_time` range per weekday with no lunch-break field, and disabled days return both times as `null`. The card reflects this: a single formatted range (`9:00 AM – 5:00 PM`) or "Closed", never a fabricated morning/afternoon split.
 - Collapsed state shows today's day name and hours inline as the card subtitle; expanding reveals the full seven-day list in the order the API returns it (Sunday-first), with today's row bolded.
-- `GET /clinic-hours` is an account-only route in the 59-route API contract — see `ApprovedApiRoutes.kt`/`ApiRouteAllowlistTest.kt`.
+- `GET /clinic-hours` is an account-only route in the 60-route API contract — see `ApprovedApiRoutes.kt`/`ApiRouteAllowlistTest.kt`.
 
 ## Saved Frames — Account-Owned Preferences (v20)
 
@@ -289,7 +287,7 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   never depends on an appointment, and never promises availability.
 - **Three routes:** `GET /saved-frames` (page-paginated, newest first), `PUT /saved-frames/{productVariant}`
   (idempotent save, no body), `DELETE /saved-frames/{productVariant}` (idempotent remove, returns 204).
-  All three are account-only in the 59-route contract.
+  All three are account-only in the 60-route contract.
 - **Catalog `is_saved`:** Every authenticated frame-catalog variant includes an account-specific
   `isSaved` boolean. Mapped at the Frame repository boundary; never persisted in the shared Room
   catalog cache (forced `false` on cache write to prevent cross-account state leakage).
@@ -311,7 +309,7 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 - **Navigation:** Typed `FrameDetail(frameId, variantId?)` with optional variant ID for exact
   saved-variant navigation. Saved Frames is classified account-only and never opens the
   Limited Account link hub.
-- **Route governance:** 8 public + 40 account-only + 11 active-link = 59 canonical routes.
+- **Route governance:** 8 public + 42 account-only + 10 active-link = 60 canonical routes.
   All five former Frame Reservation routes are rejected. Attachment download is account-only.
 
 ## AR Try-On — Head/Ear Occlusion and Stability
@@ -385,7 +383,7 @@ and `ProfileViewModel.kt`:
 - **No structured contexts:** `contexts[]` is retired and never sent. Legacy server messages with `contexts` fields are safely ignored by `ignoreUnknownKeys`.
 - **Attachment gating:** Upload controls appear only when `access_level == linked_patient` AND `capabilities.can_upload_attachments == true`. Image preview rendering only attempts the protected download route for `linked_patient` conversations. General-inquiry messages show safe metadata without fetching protected images.
 - **Error handling:** All conversation operations use `safeApiCall` to preserve `ApiDomainError` details. Send failures preserve the draft text and show patient-safe copy. Single-flight sends with no automatic retry.
-- **Route governance:** 8 public, 40 account-only, 11 canonical active-link routes. 59 canonical callable routes total. Conversation search/read-mark, attachment download, Saved Frames, and notification routes are account-only.
+- **Route governance:** 8 public, 42 account-only, 10 canonical active-link routes. 60 canonical callable routes total. Conversation search/read-mark, attachment download, Saved Frames, and notification routes are account-only.
 
 ## Notification Inbox (v19)
 
@@ -540,11 +538,11 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
   pass ID directly.
 - `PatientFeatureIntent` preserves typed Order intents through the active-link gate.
 
-## Route Governance — 59 Routes
+## Route Governance — 60 Routes
 
 `test/.../ApprovedApiRoutes.kt`, `test/.../ApiRouteAllowlistTest.kt`:
 
-- 8 public, 40 account-only, 11 active-link = 59 total.
+- 8 public, 42 account-only, 10 active-link = 60 total.
 - Account-only includes `GET /appointment-types`, `GET /appointment-optometrists`, `GET /clinic-hours`, Saved Frames (GET/PUT/DELETE), conversation read/list/send/search/read-mark, attachment download, and notification list/count/mark-one/mark-all.
 - Attachment download (`GET /conversation/attachments/{id}`) is account-only; upload remains capability-gated.
 - Retired routes explicitly rejected: `/eyewear`, `/job-orders`, `/billing-records`,
@@ -629,7 +627,7 @@ Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.color
 - `docs/specs/backend-alignment-v8-plan.md` — Complete: implementation plan
 - `docs/specs/backend-alignment-v8-tasks.md` — Complete: all acceptance criteria met
 - `docs/BACKEND_CONTEXT.md` — Full backend documentation (source of truth for API shapes)
-- `docs/API_CONTRACT.md` — Authoritative mobile API contract (55 routes)
+- `docs/API_CONTRACT.md` — Authoritative mobile API contract (60 routes)
 
 ## Boundaries
 
