@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.VisitRating
 
 interface AppointmentV1Repository {
     suspend fun getAppointments(page: Int = 1): Result<PaginatedResult<AppointmentV1>>
+    suspend fun getAppointmentHistory(page: Int = 1, perPage: Int = 15): Result<PaginatedResult<AppointmentV1>>
     suspend fun getAppointment(id: Int): Result<AppointmentV1>
     suspend fun getAppointmentAvailability(
         date: String,

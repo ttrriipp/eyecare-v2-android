@@ -22,6 +22,13 @@ interface AppointmentV1ApiService {
         @Query("page") page: Int = 1,
     ): AppointmentV1Dtos.AppointmentListResponse
 
+    @GET("appointments")
+    suspend fun getAppointmentHistory(
+        @Query("filter") filter: String = "history",
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 15,
+    ): AppointmentV1Dtos.AppointmentListResponse
+
     @GET("appointments/{id}")
     suspend fun getAppointment(@Path("id") id: Int): AppointmentV1Dtos.AppointmentResponse
 

@@ -1,14 +1,14 @@
 package com.eyecare.app.data.remote
 
 /**
- * V22 route governance — 59-route contract.
+ * V22 route governance — 60-route contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
- * 2. Account-only routes (41) — authenticated, no patient link required
+ * 2. Account-only routes (42) — authenticated, no patient link required
  * 3. Active-link routes (10) — require active patient link
  *
- * Total canonical callable routes: 8 + 41 + 10 = 59.
+ * Total canonical callable routes: 8 + 42 + 10 = 60.
  *
  * Conversation read/list/send/search/read-mark are account-only; attachment download is account-only.
  * Saved Frames (GET/PUT/DELETE) are account-only.
@@ -54,6 +54,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/clinic-hours",
         "GET $BASE/appointment-request-availability",
         "GET $BASE/appointment-requests",
+        "GET $BASE/appointment-requests/current",
         "POST $BASE/appointment-requests",
         "GET $BASE/appointment-requests/{appointmentRequest}",
         "PATCH $BASE/appointment-requests/{appointmentRequest}",

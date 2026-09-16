@@ -4,12 +4,8 @@ import com.eyecare.app.data.remote.api.AppointmentV1ApiService
 import com.eyecare.app.data.remote.dto.ApiErrorBody
 import com.eyecare.app.data.remote.dto.AppointmentV1Dtos
 import com.eyecare.app.data.remote.dto.CancellationReasonRequest
-import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentError
-import com.eyecare.app.domain.model.AppointmentSlot
-import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
-import com.eyecare.app.domain.model.AssignedOptometrist
 import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import com.eyecare.app.domain.repository.PaginatedResult
@@ -32,6 +28,16 @@ class AppointmentV1RepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun getAppointmentHistory(page: Int, perPage: Int): Result<PaginatedResult<AppointmentV1>> = safeApiCall {
+        val response = api.getAppointmentHistory(filter = "history", page = page, perPage = perPage)
+        PaginatedResult(
+            data = response.data.map { it.toDomain() },
+            currentPage = response.meta?.currentPage ?: 1,
+            lastPage = response.meta?.lastPage ?: 1,
+            total = response.meta?.total ?: response.data.size,
+        )
+    }
+
     override suspend fun getAppointment(id: Int): Result<AppointmentV1> = runCatching {
         api.getAppointment(id).data.toDomain()
     }
@@ -39,7 +45,7 @@ class AppointmentV1RepositoryImpl @Inject constructor(
     override suspend fun getAppointmentAvailability(
         date: String,
         appointmentId: Int?,
-    ): Result<AppointmentAvailability> = runCatching {
+    ): Result<com.eyecare.app.domain.model.AppointmentAvailability> = runCatching {
         api.getAppointmentAvailability(date, appointmentId).data.toDomain()
     }
 
@@ -62,55 +68,4 @@ class AppointmentV1RepositoryImpl @Inject constructor(
             else -> throw throwable
         }
     }
-
-    private fun AppointmentV1Dtos.AppointmentDto.toDomain() = AppointmentV1(
-        id = id,
-        appointmentNumber = appointmentNumber,
-        appointmentType = appointmentType,
-        durationMinutes = durationMinutes,
-        referringSource = referringSource,
-        status = AppointmentStatus.from(status),
-        scheduledAt = scheduledAt,
-        contactNotes = contactNotes,
-        reasonForVisit = reasonForVisit,
-        lastRescheduleReason = lastRescheduleReason,
-        source = source,
-        assignedOptometrist = assignedOptometrist?.let { AssignedOptometrist(name = it.name) },
-        isRateable = isRateable,
-        visitRating = rating?.toDomain(),
-        cancellation = cancellation?.let {
-            com.eyecare.app.domain.model.AppointmentCancellation(
-                reasonCategory = it.reasonCategory,
-                reasonDetails = it.reasonDetails,
-            )
-        },
-    )
-
-    private fun AppointmentV1Dtos.VisitRatingDto.toDomain() = VisitRating(
-        rating = rating,
-        comment = comment,
-        createdAt = createdAt,
-        id = id,
-        revisionNumber = revisionNumber,
-    )
-
-    private fun AppointmentV1Dtos.AppointmentAvailabilityDto.toDomain() = AppointmentAvailability(
-        date = date,
-        timezone = timezone,
-        intervalMinutes = intervalMinutes,
-        visitReasonId = appointmentTypeId,
-        visitDurationMinutes = visitDurationMinutes,
-        optometristId = optometristId,
-        appointmentId = appointmentId,
-        dayStatus = dayStatus,
-        generatedAt = generatedAt,
-        slots = slots.map { slot ->
-            AppointmentSlot(
-                startsAt = slot.startsAt,
-                endsAt = slot.endsAt,
-                available = slot.available,
-                reason = slot.reason,
-            )
-        },
-    )
 }

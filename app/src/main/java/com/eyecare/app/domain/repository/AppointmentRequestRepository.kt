@@ -4,11 +4,13 @@ import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentType
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 
 interface AppointmentRequestRepository {
     suspend fun getAppointmentTypes(): Result<List<AppointmentType>>
     suspend fun getAvailability(date: String, appointmentTypeId: Int): Result<AppointmentRequestAvailability>
     suspend fun getRequests(page: Int = 1, perPage: Int = 15): Result<PaginatedResult<AppointmentRequest>>
+    suspend fun getCurrentAppointmentJourney(): Result<CurrentAppointmentJourney>
     suspend fun createRequest(
         appointmentTypeId: Int,
         scheduledAt: String,

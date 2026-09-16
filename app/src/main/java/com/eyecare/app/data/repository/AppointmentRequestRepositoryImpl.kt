@@ -1,28 +1,15 @@
 package com.eyecare.app.data.repository
 
 import com.eyecare.app.data.remote.api.AppointmentRequestApiService
-import com.eyecare.app.data.remote.dto.AppointmentRequestDto
 import com.eyecare.app.data.remote.dto.AppointmentRequestIdentityDto
-import com.eyecare.app.data.remote.dto.AppointmentRequestTypeSummaryDto
-import com.eyecare.app.data.remote.dto.AvailabilitySlotDto
 import com.eyecare.app.data.remote.dto.CreateAppointmentRequest
 import com.eyecare.app.data.remote.dto.CancellationReasonRequest
-import com.eyecare.app.data.remote.dto.AppointmentRequestAvailabilityData
-import com.eyecare.app.data.remote.dto.AppointmentTypeDto
-import com.eyecare.app.data.remote.dto.BookingEligibilityDto
 import com.eyecare.app.data.remote.dto.UpdateAppointmentRequestScheduleRequest
-import com.eyecare.app.data.remote.dto.VisitReasonPresetDto
 import com.eyecare.app.domain.model.AppointmentRequest
-import com.eyecare.app.domain.model.AppointmentBookingBlockingReason
-import com.eyecare.app.domain.model.AppointmentBookingEligibility
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
-import com.eyecare.app.domain.model.AppointmentRequestStatus
-import com.eyecare.app.domain.model.AppointmentRequestType
-import com.eyecare.app.domain.model.AppointmentRequestTypeSummary
 import com.eyecare.app.domain.model.AppointmentType
-import com.eyecare.app.domain.model.AvailabilitySlot
-import com.eyecare.app.domain.model.VisitReasonPreset
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import javax.inject.Inject
@@ -108,76 +95,27 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         api.cancelRequest(id, CancellationReasonRequest(reasonDetails)).data.toDomain()
     }
 
-    private fun AppointmentTypeDto.toDomain() = AppointmentType(
-        id = id,
-        name = name,
-        description = description,
-        durationMinutes = durationMinutes,
-        requiresReferral = requiresReferral,
-        visitReasonPresets = visitReasonPresets.map { it.toDomain() },
-    )
-
-    private fun VisitReasonPresetDto.toDomain() = VisitReasonPreset(
-        id = id,
-        label = label,
-    )
-
-    private fun BookingEligibilityDto.toDomain() =
-        AppointmentBookingEligibility(
-            canSubmitNewRequest = canSubmitNewRequest,
-            blockingReason = AppointmentBookingBlockingReason.fromRaw(blockingReason),
-            activeRequestId = activeRequestId,
-            appointmentId = appointmentId,
-            canRequestRebooking = canRequestRebooking,
-        )
-
-    private fun AppointmentRequestDto.toDomain() = AppointmentRequest(
-        id = id,
-        requestNumber = requestNumber,
-        status = AppointmentRequestStatus.fromRaw(status),
-        requestType = AppointmentRequestType.fromRaw(requestType),
-        patientId = patientId,
-        appointmentType = appointmentType?.toDomain(),
-        scheduledAt = scheduledAt,
-        originalScheduledAt = originalScheduledAt,
-        selectedScheduledAt = selectedScheduledAt,
-        alternativeScheduledTimes = alternativeScheduledTimes ?: emptyList(),
-        provisionalDurationMinutes = provisionalDurationMinutes,
-        reasonForVisit = reasonForVisit,
-        referringSource = referringSource,
-        timePreferencesAreReserved = timePreferencesAreReserved,
-        expiresAt = expiresAt,
-        cancelledAt = cancelledAt,
-        rejectionReason = rejectionReason,
-        cancellationReason = cancellationReason,
-        createdAt = createdAt,
-        appointmentId = appointment?.id,
-    )
-
-    private fun AppointmentRequestTypeSummaryDto.toDomain() = AppointmentRequestTypeSummary(
-        id = id,
-        name = name,
-        durationMinutes = durationMinutes,
-    )
-
-    private fun AppointmentRequestAvailabilityData.toDomain() = AppointmentRequestAvailability(
-        date = date,
-        timezone = timezone,
-        intervalMinutes = intervalMinutes,
-        slotDurationMinutes = slotDurationMinutes,
-        visitDurationMinutes = visitDurationMinutes,
-        appointmentTypeId = appointmentTypeId,
-        dayStatus = dayStatus,
-        generatedAt = generatedAt,
-        slots = slots.map { it.toDomain() },
-    )
-
-    private fun AvailabilitySlotDto.toDomain() = AvailabilitySlot(
-        startsAt = startsAt,
-        endsAt = endsAt,
-        available = available,
-        reason = reason,
-    )
+    override suspend fun getCurrentAppointmentJourney(): Result<CurrentAppointmentJourney> = safeApiCall {
+        val dto = api.getCurrentAppointmentJourney().data
+        when (dto.kind) {
+            "none" -> CurrentAppointmentJourney.None
+            "pending_request" -> {
+                val request = dto.request
+                    ?: throw IllegalStateException("pending_request kind missing required request field")
+                CurrentAppointmentJourney.PendingRequest(request = request.toDomain())
+            }
+            "appointment" -> {
+                val appointment = dto.appointment
+                    ?: throw IllegalStateException("appointment kind missing required appointment field")
+                CurrentAppointmentJourney.Appointment(
+                    appointment = appointment.toDomain(),
+                    originalRequest = dto.originalRequest?.toDomain(),
+                    pendingReschedule = dto.pendingReschedule?.toDomain(),
+                )
+            }
+            else -> throw IllegalStateException("Unknown current journey kind: ${dto.kind}")
+        }
+    }
 
     private fun AppointmentRequestIdentity.toDto() = AppointmentRequestIdentityDto(
         phone = phone,

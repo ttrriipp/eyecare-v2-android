@@ -150,3 +150,17 @@ data class AppointmentRequestIdentityDto(
 data class CancellationReasonRequest(
     @SerialName("reason_details") val reasonDetails: String,
 )
+
+@Serializable
+data class CurrentAppointmentJourneyResponse(
+    val data: CurrentAppointmentJourneyDto,
+)
+
+@Serializable
+data class CurrentAppointmentJourneyDto(
+    val kind: String,
+    val request: AppointmentRequestDto? = null,
+    val appointment: AppointmentV1Dtos.AppointmentDto? = null,
+    @SerialName("original_request") val originalRequest: AppointmentRequestDto? = null,
+    @SerialName("pending_reschedule") val pendingReschedule: AppointmentRequestDto? = null,
+)

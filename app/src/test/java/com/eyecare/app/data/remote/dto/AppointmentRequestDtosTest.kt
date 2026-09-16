@@ -241,4 +241,72 @@ class AppointmentRequestDtosTest {
         val response = json.decodeFromString<AppointmentRequestResponse>(body)
         assertNull(response.data.rejectionReason)
     }
+
+    // --- Current Appointment Journey DTOs ---
+
+    @Test
+    fun `decodes current journey kind none with no variant fields`() {
+        val body = """{"data":{"kind":"none"}}"""
+        val response = json.decodeFromString<CurrentAppointmentJourneyResponse>(body)
+        assertEquals("none", response.data.kind)
+        assertNull(response.data.request)
+        assertNull(response.data.appointment)
+        assertNull(response.data.originalRequest)
+        assertNull(response.data.pendingReschedule)
+    }
+
+    @Test
+    fun `decodes current journey kind pending_request with embedded request`() {
+        val body = """{"data":{"kind":"pending_request","request":{"id":5,"request_number":"APR-2026-000005","status":"pending","scheduled_at":"2026-09-20T10:00:00+08:00","alternative_scheduled_times":["2026-09-20T14:00:00+08:00"],"reason_for_visit":"Checkup","created_at":"2026-09-16T08:00:00+08:00"}}}"""
+        val response = json.decodeFromString<CurrentAppointmentJourneyResponse>(body)
+        val request = requireNotNull(response.data.request)
+        assertEquals("pending_request", response.data.kind)
+        assertEquals(5, request.id)
+        assertEquals("APR-2026-000005", request.requestNumber)
+        assertEquals("pending", request.status)
+        assertEquals(listOf("2026-09-20T14:00:00+08:00"), request.alternativeScheduledTimes)
+        assertNull(response.data.appointment)
+    }
+
+    @Test
+    fun `decodes current journey kind appointment with all nullable fields present`() {
+        val body = """{"data":{"kind":"appointment","appointment":{"id":42,"appointment_number":"APT-2026-000042","appointment_type":"First eye examination","duration_minutes":45,"status":"scheduled","scheduled_at":"2026-09-25T09:00:00+08:00","reason_for_visit":"Annual checkup"},"original_request":{"id":3,"request_number":"APR-2026-000003","status":"accepted","scheduled_at":"2026-09-25T09:00:00+08:00","created_at":"2026-09-10T08:00:00+08:00"},"pending_reschedule":{"id":7,"request_number":"APR-2026-000007","status":"pending","request_type":"reschedule","scheduled_at":"2026-09-26T10:00:00+08:00","alternative_scheduled_times":["2026-09-26T14:00:00+08:00"],"created_at":"2026-09-16T12:00:00+08:00"}}}"""
+        val response = json.decodeFromString<CurrentAppointmentJourneyResponse>(body)
+        val appointment = requireNotNull(response.data.appointment)
+        val originalRequest = requireNotNull(response.data.originalRequest)
+        val pendingReschedule = requireNotNull(response.data.pendingReschedule)
+        assertEquals("appointment", response.data.kind)
+        assertEquals(42, appointment.id)
+        assertEquals("scheduled", appointment.status)
+        assertEquals(3, originalRequest.id)
+        assertEquals("accepted", originalRequest.status)
+        assertEquals(7, pendingReschedule.id)
+        assertEquals("pending", pendingReschedule.status)
+        assertEquals("reschedule", pendingReschedule.requestType)
+        assertEquals(listOf("2026-09-26T14:00:00+08:00"), pendingReschedule.alternativeScheduledTimes)
+    }
+
+    @Test
+    fun `decodes current journey appointment without original request or pending reschedule`() {
+        val body = """{"data":{"kind":"appointment","appointment":{"id":42,"appointment_type":"Follow-up","duration_minutes":30,"status":"scheduled","scheduled_at":"2026-09-25T09:00:00+08:00"},"original_request":null,"pending_reschedule":null}}"""
+        val response = json.decodeFromString<CurrentAppointmentJourneyResponse>(body)
+        assertEquals("appointment", response.data.kind)
+        assertEquals(42, requireNotNull(response.data.appointment).id)
+        assertNull(response.data.originalRequest)
+        assertNull(response.data.pendingReschedule)
+    }
+
+    @Test
+    fun `decodes current journey appointment with checked_in status`() {
+        val body = """{"data":{"kind":"appointment","appointment":{"id":55,"appointment_type":"Eye exam","duration_minutes":45,"status":"checked_in","scheduled_at":"2026-09-16T10:00:00+08:00"}}}"""
+        val response = json.decodeFromString<CurrentAppointmentJourneyResponse>(body)
+        assertEquals("checked_in", requireNotNull(response.data.appointment).status)
+    }
+
+    @Test
+    fun `decodes unknown kind without throwing`() {
+        val body = """{"data":{"kind":"future_state"}}"""
+        val response = json.decodeFromString<CurrentAppointmentJourneyResponse>(body)
+        assertEquals("future_state", response.data.kind)
+    }
 }

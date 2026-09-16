@@ -14,7 +14,7 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `account-only routes match expected count`() {
-        assertEquals(41, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
+        assertEquals(42, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
     }
 
     @Test
@@ -23,9 +23,9 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
-    fun `total approved routes is exactly 59`() {
-        // 8 public + 41 account-only + 10 active-link = 59 canonical callable
-        assertEquals(59, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
+    fun `total approved routes is exactly 60`() {
+        // 8 public + 42 account-only + 10 active-link = 60 canonical callable
+        assertEquals(60, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test

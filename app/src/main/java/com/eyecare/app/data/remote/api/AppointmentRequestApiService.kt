@@ -6,6 +6,7 @@ import com.eyecare.app.data.remote.dto.AppointmentRequestResponse
 import com.eyecare.app.data.remote.dto.AppointmentTypeListResponse
 import com.eyecare.app.data.remote.dto.CreateAppointmentRequest
 import com.eyecare.app.data.remote.dto.CancellationReasonRequest
+import com.eyecare.app.data.remote.dto.CurrentAppointmentJourneyResponse
 import com.eyecare.app.data.remote.dto.UpdateAppointmentRequestScheduleRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -30,6 +31,9 @@ interface AppointmentRequestApiService {
         @Query("page") page: Int = 1,
         @Query("per_page") perPage: Int = 15,
     ): AppointmentRequestListResponse
+
+    @GET("appointment-requests/current")
+    suspend fun getCurrentAppointmentJourney(): CurrentAppointmentJourneyResponse
 
     @POST("appointment-requests")
     suspend fun createRequest(
