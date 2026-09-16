@@ -1,5 +1,6 @@
 package com.eyecare.app.domain.repository
 
+import com.eyecare.app.domain.model.AppointmentBookingEligibility
 import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.VisitRating
@@ -20,6 +21,7 @@ data class PaginatedResult<T>(
     val currentPage: Int,
     val lastPage: Int,
     val total: Int,
+    val bookingEligibility: AppointmentBookingEligibility? = null,
 ) {
     val hasMorePages: Boolean get() = currentPage < lastPage
 }

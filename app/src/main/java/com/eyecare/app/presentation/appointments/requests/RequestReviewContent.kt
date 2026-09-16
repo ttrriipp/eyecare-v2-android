@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.appointments.components.RequestStepMargin
@@ -297,7 +298,14 @@ fun RequestSubmissionErrorContent(
                 AppointmentPrimaryButton(text = "Try again", onClick = onRecover)
                 AppointmentOutlinedButton(text = "Back to review", onClick = onBackToReview)
             } else {
-                AppointmentPrimaryButton(text = "View my requests", onClick = onLeave)
+                AppointmentPrimaryButton(
+                    text = if (state.errorCode == AuthApiCodes.ACTIVE_APPOINTMENT_EXISTS) {
+                        "View my appointments"
+                    } else {
+                        "View my requests"
+                    },
+                    onClick = onLeave,
+                )
                 AppointmentOutlinedButton(text = "Back to review", onClick = onBackToReview)
             }
         },

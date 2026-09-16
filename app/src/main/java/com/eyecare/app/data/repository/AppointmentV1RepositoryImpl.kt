@@ -90,6 +90,8 @@ class AppointmentV1RepositoryImpl @Inject constructor(
         rating = rating,
         comment = comment,
         createdAt = createdAt,
+        id = id,
+        revisionNumber = revisionNumber,
     )
 
     private fun AppointmentV1Dtos.AppointmentAvailabilityDto.toDomain() = AppointmentAvailability(

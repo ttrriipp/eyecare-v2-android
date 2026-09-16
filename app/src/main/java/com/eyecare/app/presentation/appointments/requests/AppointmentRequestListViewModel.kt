@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.appointments.requests
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.AppointmentBookingEligibility
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
@@ -23,6 +24,7 @@ sealed interface RequestListState {
         val error: String? = null,
         val appendError: String? = null,
         val isRefreshing: Boolean = false,
+        val bookingEligibility: AppointmentBookingEligibility? = null,
     ) : RequestListState
     data class Error(val message: String) : RequestListState
 }
@@ -64,6 +66,7 @@ class AppointmentRequestListViewModel @Inject constructor(
                             requests = paginated.data,
                             hasMore = paginated.hasMorePages,
                             currentPage = 1,
+                            bookingEligibility = paginated.bookingEligibility,
                         )
                     }
                 }
@@ -96,6 +99,7 @@ class AppointmentRequestListViewModel @Inject constructor(
                             requests = current.requests + filtered,
                             hasMore = paginated.hasMorePages,
                             currentPage = current.currentPage + 1,
+                            bookingEligibility = paginated.bookingEligibility ?: current.bookingEligibility,
                         )
                     }
                 }
@@ -139,6 +143,7 @@ class AppointmentRequestListViewModel @Inject constructor(
                             requests = paginated.data,
                             hasMore = paginated.hasMorePages,
                             currentPage = 1,
+                            bookingEligibility = paginated.bookingEligibility,
                         )
                     }
                 }

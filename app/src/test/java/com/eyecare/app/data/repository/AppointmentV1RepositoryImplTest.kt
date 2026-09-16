@@ -132,4 +132,20 @@ class AppointmentV1RepositoryImplTest {
         assertEquals("Blurred vision", appt.reasonForVisit)
         assertEquals("Call first", appt.contactNotes)
     }
+
+    @Test
+    fun `getAppointment maps visit rating metadata`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":{"id":1,"appointment_number":"APT-001","appointment_type":"New Patient","duration_minutes":30,"status":"fulfilled","scheduled_at":"2026-07-28T10:00:00+08:00","is_rateable":true,"rating":{"id":9,"rating":4,"comment":"Helpful visit","revision_number":1,"created_at":"2026-08-07T10:00:00+08:00"}}}""",
+            ),
+        )
+
+        val rating = repository.getAppointment(1).getOrThrow().visitRating
+
+        assertEquals(9, rating?.id)
+        assertEquals(4, rating?.rating)
+        assertEquals(1, rating?.revisionNumber)
+        assertEquals("Helpful visit", rating?.comment)
+    }
 }

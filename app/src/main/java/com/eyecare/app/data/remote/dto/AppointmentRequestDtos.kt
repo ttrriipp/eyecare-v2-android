@@ -54,7 +54,25 @@ data class AvailabilitySlotDto(
 data class AppointmentRequestListResponse(
     val data: List<AppointmentRequestDto>,
     val links: PaginationLinks? = null,
-    val meta: PaginationMeta? = null,
+    val meta: AppointmentRequestMetaDto? = null,
+)
+
+@Serializable
+data class AppointmentRequestMetaDto(
+    @SerialName("current_page") val currentPage: Int,
+    @SerialName("last_page") val lastPage: Int,
+    @SerialName("per_page") val perPage: Int,
+    val total: Int,
+    @SerialName("booking_eligibility") val bookingEligibility: BookingEligibilityDto? = null,
+)
+
+@Serializable
+data class BookingEligibilityDto(
+    @SerialName("can_submit_new_request") val canSubmitNewRequest: Boolean,
+    @SerialName("blocking_reason") val blockingReason: String? = null,
+    @SerialName("active_request_id") val activeRequestId: Int? = null,
+    @SerialName("appointment_id") val appointmentId: Int? = null,
+    @SerialName("can_request_rebooking") val canRequestRebooking: Boolean = false,
 )
 
 @Serializable

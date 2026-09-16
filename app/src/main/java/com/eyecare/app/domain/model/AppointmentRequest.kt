@@ -46,6 +46,31 @@ data class AppointmentRequestTypeSummary(
     val durationMinutes: Int,
 )
 
+enum class AppointmentBookingBlockingReason {
+    ACTIVE_REQUEST,
+    SCHEDULED_APPOINTMENT,
+    CHECKED_IN_APPOINTMENT,
+    UNKNOWN;
+
+    companion object {
+        fun fromRaw(value: String?): AppointmentBookingBlockingReason? = when (value?.trim()?.lowercase()) {
+            null, "" -> null
+            "active_request_exists" -> ACTIVE_REQUEST
+            "scheduled_appointment_exists" -> SCHEDULED_APPOINTMENT
+            "checked_in_appointment_exists" -> CHECKED_IN_APPOINTMENT
+            else -> UNKNOWN
+        }
+    }
+}
+
+data class AppointmentBookingEligibility(
+    val canSubmitNewRequest: Boolean,
+    val blockingReason: AppointmentBookingBlockingReason? = null,
+    val activeRequestId: Int? = null,
+    val appointmentId: Int? = null,
+    val canRequestRebooking: Boolean = false,
+)
+
 data class AppointmentRequest(
     val id: Int,
     val requestNumber: String,

@@ -194,4 +194,25 @@ class OpticalOrderRepositoryImplTest {
         assertEquals(1, result.data[1].id)
         assertEquals(2, result.lastPage)
     }
+
+    @Test
+    fun `rateItem unwraps frame rating resource and maps patient safe fields`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(201).setBody(
+                """{"data":{"id":7,"item_id":10,"product_variant_id":5,"rating":5,"comment":"Excellent frame quality","created_at":"2026-08-05T10:00:00+08:00"}}""",
+            ),
+        )
+
+        val result = repository.rateItem(10, 5, "Excellent frame quality").getOrThrow()
+
+        assertEquals(7, result.id)
+        assertEquals(10, result.itemId)
+        assertEquals(5, result.productVariantId)
+        assertEquals(5, result.rating)
+        assertEquals("Excellent frame quality", result.comment)
+        assertEquals("2026-08-05T10:00:00+08:00", result.createdAt)
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/optical-order-items/10/rating", request.path)
+    }
 }

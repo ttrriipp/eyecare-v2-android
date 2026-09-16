@@ -206,6 +206,13 @@ private fun PrescriptionCard(prescription: Prescription, onClick: () -> Unit) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                        prescription.expiresAt?.takeIf(String::isNotBlank)?.let { expiresAt ->
+                            Text(
+                                text = "Expires $expiresAt",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
                 Icon(
@@ -316,6 +323,13 @@ fun PrescriptionDetailScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                p.expiresAt?.takeIf(String::isNotBlank)?.let { expiresAt ->
+                                    Text(
+                                        text = "Expires $expiresAt",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         }
                     }

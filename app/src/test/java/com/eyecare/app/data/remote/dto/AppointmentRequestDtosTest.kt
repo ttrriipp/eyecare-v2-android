@@ -93,6 +93,20 @@ class AppointmentRequestDtosTest {
     }
 
     @Test
+    fun `decodes booking eligibility from request list metadata`() {
+        val body = """{"data":[],"meta":{"current_page":1,"last_page":1,"per_page":15,"total":0,"booking_eligibility":{"can_submit_new_request":false,"blocking_reason":"scheduled_appointment_exists","active_request_id":null,"appointment_id":42,"can_request_rebooking":true}}}"""
+
+        val response = json.decodeFromString<AppointmentRequestListResponse>(body)
+        val eligibility = response.meta!!.bookingEligibility!!
+
+        assertFalse(eligibility.canSubmitNewRequest)
+        assertEquals("scheduled_appointment_exists", eligibility.blockingReason)
+        assertNull(eligibility.activeRequestId)
+        assertEquals(42, eligibility.appointmentId)
+        assertTrue(eligibility.canRequestRebooking)
+    }
+
+    @Test
     fun `decodes legacy request without expanded fields`() {
         val body = """{"data":{"id":1,"request_number":"APR-2026-000001","status":"pending","patient_id":null,"scheduled_at":"2026-08-10T10:00:00+08:00","reason_for_visit":"Blurred vision","expires_at":"2026-08-11T10:00:00+08:00","created_at":"2026-08-09T10:00:00+08:00","appointment":null}}"""
         val response = json.decodeFromString<AppointmentRequestResponse>(body)

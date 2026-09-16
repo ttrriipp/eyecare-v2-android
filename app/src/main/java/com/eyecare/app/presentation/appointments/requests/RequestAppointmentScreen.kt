@@ -75,6 +75,7 @@ fun RequestAppointmentScreen(
         when (val current = step) {
             is RequestStep.CheckingRequestLimit -> onBack()
             is RequestStep.LimitReached -> onBack()
+            is RequestStep.BookingBlocked -> onBack()
             is RequestStep.Type -> onBack()
             is RequestStep.Schedule ->
                 if (current.phase == SchedulePhase.ALTERNATIVES) {
@@ -104,6 +105,12 @@ fun RequestAppointmentScreen(
         is RequestStep.LimitReached -> RequestLimitReachedContent(
             activeRequestCount = s.activeRequestCount,
             onViewRequests = onViewRequests,
+            onBack = onBack,
+        )
+
+        is RequestStep.BookingBlocked -> RequestBookingBlockedContent(
+            eligibility = s.eligibility,
+            onViewAppointments = onViewRequests,
             onBack = onBack,
         )
 

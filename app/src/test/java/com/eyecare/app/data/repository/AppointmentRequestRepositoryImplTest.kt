@@ -5,6 +5,7 @@ import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFact
 import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentBookingBlockingReason
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -104,6 +105,20 @@ class AppointmentRequestRepositoryImplTest {
         assertEquals(listOf("2026-08-10T14:00:00+08:00"), request.alternativeScheduledTimes)
         assertEquals(45, request.provisionalDurationMinutes)
         assertTrue(request.timePreferencesAreReserved.not())
+    }
+
+    @Test
+    fun `getRequests maps booking eligibility metadata`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":[],"meta":{"current_page":1,"last_page":1,"per_page":15,"total":0,"booking_eligibility":{"can_submit_new_request":false,"blocking_reason":"checked_in_appointment_exists","active_request_id":null,"appointment_id":42,"can_request_rebooking":false}}}""",
+        ))
+
+        val eligibility = repository.getRequests().getOrThrow().bookingEligibility
+
+        assertEquals(false, eligibility?.canSubmitNewRequest)
+        assertEquals(AppointmentBookingBlockingReason.CHECKED_IN_APPOINTMENT, eligibility?.blockingReason)
+        assertEquals(42, eligibility?.appointmentId)
+        assertEquals(false, eligibility?.canRequestRebooking)
     }
 
     @Test

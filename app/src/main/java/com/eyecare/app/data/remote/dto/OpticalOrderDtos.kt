@@ -85,4 +85,9 @@ object OpticalOrderDtos {
         val comment: String? = null,
         @SerialName("created_at") val createdAt: String? = null,
     )
+
+    @Serializable
+    data class RatingResultResponse(
+        val data: RatingResultDto,
+    )
 }

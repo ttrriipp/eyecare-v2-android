@@ -85,10 +85,9 @@ class AppointmentRequestListPresentationTest {
     }
 
     @Test
-    fun `active request limit is reached after two pending requests`() {
+    fun `active request limit is reached after one pending request`() {
         val requests = listOf(
             request(1, AppointmentRequestStatus.PENDING, "2026-08-04T10:00:00+08:00"),
-            request(2, AppointmentRequestStatus.PENDING, "2026-08-05T10:00:00+08:00"),
         )
 
         assertTrue(hasReachedActiveAppointmentRequestLimit(requests))
@@ -97,7 +96,6 @@ class AppointmentRequestListPresentationTest {
     @Test
     fun `terminal requests do not count toward active request limit`() {
         val requests = listOf(
-            request(1, AppointmentRequestStatus.PENDING, "2026-08-04T10:00:00+08:00"),
             request(2, AppointmentRequestStatus.CANCELLED, "2026-08-05T10:00:00+08:00"),
             request(3, AppointmentRequestStatus.REJECTED, "2026-08-06T10:00:00+08:00"),
         )

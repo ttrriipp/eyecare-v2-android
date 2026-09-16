@@ -28,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.eyecare.app.domain.model.AppointmentBookingBlockingReason
+import com.eyecare.app.domain.model.AppointmentBookingEligibility
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
 import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
 import com.eyecare.app.presentation.appointments.components.RequestStepMargin
@@ -107,6 +109,91 @@ internal fun RequestLimitReachedContent(
             )
             Text(
                 text = "Please wait for the clinic to respond or cancel one before sending another.",
+                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+internal fun RequestBookingBlockedContent(
+    eligibility: AppointmentBookingEligibility,
+    onViewAppointments: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val title = when (eligibility.blockingReason) {
+        AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT,
+        AppointmentBookingBlockingReason.CHECKED_IN_APPOINTMENT,
+        -> "Active appointment already exists"
+        AppointmentBookingBlockingReason.ACTIVE_REQUEST -> "Active request already exists"
+        AppointmentBookingBlockingReason.UNKNOWN, null -> "Another request can't be started yet"
+    }
+    val message = when (eligibility.blockingReason) {
+        AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT ->
+            if (eligibility.canRequestRebooking) {
+                "You already have a scheduled appointment. You can reschedule it from its appointment details or cancel it before requesting another."
+            } else {
+                "You already have a scheduled appointment. You may reschedule or cancel it before requesting another."
+            }
+        AppointmentBookingBlockingReason.CHECKED_IN_APPOINTMENT ->
+            "You already have a checked-in appointment. You may cancel it before requesting another."
+        AppointmentBookingBlockingReason.ACTIVE_REQUEST ->
+            "You already have an active appointment request. Wait for the clinic to respond or cancel it before sending another."
+        AppointmentBookingBlockingReason.UNKNOWN, null ->
+            "Your account already has an active booking. Review your appointments or requests before starting another."
+    }
+
+    RequestAccessScaffold(
+        title = "Request an appointment",
+        onBack = onBack,
+        bottomBar = {
+            AppointmentPrimaryButton(
+                text = if (eligibility.blockingReason == AppointmentBookingBlockingReason.ACTIVE_REQUEST) {
+                    "View my requests"
+                } else {
+                    "View my appointments"
+                },
+                onClick = onViewAppointments,
+            )
+            AppointmentOutlinedButton(
+                text = "Back",
+                onClick = onBack,
+            )
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = RequestStepMargin),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Surface(
+                modifier = Modifier.size(64.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Outlined.EventBusy,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
+            }
+            Text(
+                text = title,
+                modifier = Modifier.padding(top = 20.dp),
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = message,
                 modifier = Modifier.padding(top = 8.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

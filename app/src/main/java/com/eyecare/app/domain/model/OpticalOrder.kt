@@ -49,6 +49,8 @@ data class RatingResult(
     val itemId: Int?,
     val rating: Int,
     val comment: String?,
+    val productVariantId: Int? = null,
+    val createdAt: String? = null,
 )
 
 enum class OpticalOrderStatus {

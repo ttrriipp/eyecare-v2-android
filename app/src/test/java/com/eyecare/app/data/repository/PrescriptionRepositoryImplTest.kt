@@ -32,6 +32,7 @@ class PrescriptionRepositoryImplTest {
         previousPrescriptionId: Int? = null,
         isCurrent: Boolean = true,
         date: String = "2026-07-27",
+        expiresAt: String? = "2027-01-27",
         remarks: String? = null,
         mainOd: PrescriptionDtos.EyeMeasurementDto = createEyeMeasurement(sphere = "-2.00", cylinder = "-0.50"),
         mainOs: PrescriptionDtos.EyeMeasurementDto = createEyeMeasurement(sphere = "-1.75", cylinder = "-0.25"),
@@ -43,6 +44,7 @@ class PrescriptionRepositoryImplTest {
         previousPrescriptionId = previousPrescriptionId,
         isCurrent = isCurrent,
         date = date,
+        expiresAt = expiresAt,
         measurements = PrescriptionDtos.MeasurementsDto(
             main = PrescriptionDtos.MeasurementGroupDto(mainOd, mainOs),
             add = PrescriptionDtos.MeasurementGroupDto(addOd, addOs),
@@ -72,6 +74,7 @@ class PrescriptionRepositoryImplTest {
         assertNull(prescription.previousPrescriptionId)
         assertTrue(prescription.isCurrent)
         assertEquals("2026-07-27", prescription.date)
+        assertEquals("2027-01-27", prescription.expiresAt)
         assertNull(prescription.remarks)
     }
 

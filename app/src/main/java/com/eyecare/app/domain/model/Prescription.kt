@@ -24,4 +24,5 @@ data class Prescription(
     val date: String,
     val measurements: PrescriptionMeasurements,
     val remarks: String?,
+    val expiresAt: String? = null,
 )

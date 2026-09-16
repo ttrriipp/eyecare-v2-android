@@ -22,5 +22,5 @@ interface OpticalOrderApiService {
     suspend fun rateItem(
         @Path("id") itemId: Int,
         @Body body: OpticalOrderDtos.RatingRequest,
-    ): OpticalOrderDtos.RatingResultDto
+    ): OpticalOrderDtos.RatingResultResponse
 }

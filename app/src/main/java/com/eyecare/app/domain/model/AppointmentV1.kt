@@ -24,6 +24,8 @@ data class VisitRating(
     val rating: Int,
     val comment: String?,
     val createdAt: String?,
+    val id: Int? = null,
+    val revisionNumber: Int? = null,
 )
 
 enum class AppointmentStatus {

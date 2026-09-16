@@ -32,6 +32,7 @@ object PrescriptionDtos {
         @SerialName("previous_prescription_id") val previousPrescriptionId: Int? = null,
         @SerialName("is_current") val isCurrent: Boolean = true,
         val date: String,
+        @SerialName("expires_at") val expiresAt: String? = null,
         val measurements: MeasurementsDto,
         val remarks: String? = null,
     )

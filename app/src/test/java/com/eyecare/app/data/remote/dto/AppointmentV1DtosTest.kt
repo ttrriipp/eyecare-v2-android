@@ -107,4 +107,17 @@ class AppointmentV1DtosTest {
         assertFalse(dto.slots[1].available)
         assertEquals("capacity_reached", dto.slots[1].reason)
     }
+
+    @Test
+    fun `visit rating decodes resource metadata`() {
+        val response = json.decodeFromString<AppointmentV1Dtos.VisitRatingResponse>(
+            """{"data":{"id":9,"rating":4,"comment":"Helpful visit","revision_number":1,"created_at":"2026-08-07T10:00:00+08:00"}}""",
+        )
+
+        assertEquals(9, response.data.id)
+        assertEquals(4, response.data.rating)
+        assertEquals(1, response.data.revisionNumber)
+        assertEquals("Helpful visit", response.data.comment)
+        assertEquals("2026-08-07T10:00:00+08:00", response.data.createdAt)
+    }
 }

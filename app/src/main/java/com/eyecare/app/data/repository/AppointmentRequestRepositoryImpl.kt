@@ -9,9 +9,12 @@ import com.eyecare.app.data.remote.dto.CreateAppointmentRequest
 import com.eyecare.app.data.remote.dto.CancellationReasonRequest
 import com.eyecare.app.data.remote.dto.AppointmentRequestAvailabilityData
 import com.eyecare.app.data.remote.dto.AppointmentTypeDto
+import com.eyecare.app.data.remote.dto.BookingEligibilityDto
 import com.eyecare.app.data.remote.dto.UpdateAppointmentRequestScheduleRequest
 import com.eyecare.app.data.remote.dto.VisitReasonPresetDto
 import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.AppointmentBookingBlockingReason
+import com.eyecare.app.domain.model.AppointmentBookingEligibility
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentRequestStatus
@@ -43,6 +46,7 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
             currentPage = response.meta?.currentPage ?: page,
             lastPage = response.meta?.lastPage ?: page,
             total = response.meta?.total ?: response.data.size,
+            bookingEligibility = response.meta?.bookingEligibility?.toDomain(),
         )
     }
 
@@ -117,6 +121,15 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
         id = id,
         label = label,
     )
+
+    private fun BookingEligibilityDto.toDomain() =
+        AppointmentBookingEligibility(
+            canSubmitNewRequest = canSubmitNewRequest,
+            blockingReason = AppointmentBookingBlockingReason.fromRaw(blockingReason),
+            activeRequestId = activeRequestId,
+            appointmentId = appointmentId,
+            canRequestRebooking = canRequestRebooking,
+        )
 
     private fun AppointmentRequestDto.toDomain() = AppointmentRequest(
         id = id,

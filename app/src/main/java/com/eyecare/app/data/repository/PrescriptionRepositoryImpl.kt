@@ -36,6 +36,7 @@ class PrescriptionRepositoryImpl @Inject constructor(
         date = date,
         measurements = measurements.toDomain(),
         remarks = remarks,
+        expiresAt = expiresAt,
     )
 
     private fun PrescriptionDtos.MeasurementsDto.toDomain() = PrescriptionMeasurements(

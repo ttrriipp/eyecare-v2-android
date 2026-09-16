@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.AuthApiCodes
+import com.eyecare.app.domain.model.AppointmentBookingEligibility
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestGender
@@ -82,6 +84,11 @@ sealed interface RequestStep {
 
     data class LimitReached(
         val activeRequestCount: Int,
+    ) : RequestStep
+
+    data class BookingBlocked(
+        val activeRequestCount: Int,
+        val eligibility: AppointmentBookingEligibility,
     ) : RequestStep
 
     data class Type(
@@ -235,9 +242,16 @@ class RequestAppointmentViewModel @Inject constructor(
      */
     private fun checkRequestLimit() {
         viewModelScope.launch {
-            val requests = repository.getRequests(page = 1).getOrNull()?.data.orEmpty()
+            val page = repository.getRequests(page = 1).getOrNull()
+            val requests = page?.data.orEmpty()
             val activeCount = activeAppointmentRequestCount(requests)
-            if (activeCount >= maxActiveAppointmentRequests) {
+            val eligibility = page?.bookingEligibility
+            if (eligibility != null && !eligibility.canSubmitNewRequest) {
+                _step.value = RequestStep.BookingBlocked(
+                    activeRequestCount = activeCount,
+                    eligibility = eligibility,
+                )
+            } else if (activeCount >= maxActiveAppointmentRequests) {
                 _step.value = RequestStep.LimitReached(activeRequestCount = activeCount)
             } else {
                 loadTypes()
@@ -959,7 +973,8 @@ class RequestAppointmentViewModel @Inject constructor(
                     referralValidationFailure = apiError?.isReferralValidationFailure() == true,
                     // Nothing in this flow can clear an existing-request limit, so retrying here
                     // would loop. The screen offers a way out instead.
-                    canRetry = code != "ACTIVE_REQUEST_LIMIT_REACHED",
+                    canRetry = code != AuthApiCodes.ACTIVE_REQUEST_LIMIT_REACHED &&
+                        code != AuthApiCodes.ACTIVE_APPOINTMENT_EXISTS,
                 )
             }
         }

@@ -73,8 +73,10 @@ object AppointmentV1Dtos {
 
     @Serializable
     data class VisitRatingDto(
+        val id: Int? = null,
         val rating: Int,
         val comment: String? = null,
+        @SerialName("revision_number") val revisionNumber: Int? = null,
         @SerialName("created_at") val createdAt: String? = null,
     )
 

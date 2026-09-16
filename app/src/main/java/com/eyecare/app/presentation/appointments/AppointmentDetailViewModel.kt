@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.AppointmentRequest
@@ -505,8 +506,8 @@ private fun patientSafeRescheduleError(error: Throwable): String {
     return when {
         isSlotUnavailableError(error) ->
             "That time is no longer available. Choose another time."
-        (error as? ApiDomainError)?.code == "ACTIVE_REQUEST_LIMIT_REACHED" ->
-            "You already have two pending appointment requests. Cancel one or wait for the clinic to respond."
+        (error as? ApiDomainError)?.code == AuthApiCodes.ACTIVE_REQUEST_LIMIT_REACHED ->
+            "You already have an active appointment request. Cancel it or wait for the clinic to respond."
         (error as? ApiDomainError)?.fieldErrors?.keys?.any {
             it == "appointment_id" || it.endsWith(".appointment_id")
         } == true ->

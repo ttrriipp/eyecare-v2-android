@@ -1,6 +1,8 @@
 package com.eyecare.app.presentation.appointments.requests
 
 import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.AppointmentBookingBlockingReason
+import com.eyecare.app.domain.model.AppointmentBookingEligibility
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.PaginatedResult
@@ -61,6 +63,30 @@ class AppointmentRequestListViewModelTest {
         vm = AppointmentRequestListViewModel(repo)
         val state = vm.state.value as RequestListState.Data
         assertEquals(1, state.requests.size)
+    }
+
+    @Test
+    fun `initial load exposes server booking eligibility`() {
+        coEvery { repo.getRequests(1, 15) } returns Result.success(
+            PaginatedResult(
+                data = emptyList(),
+                currentPage = 1,
+                lastPage = 1,
+                total = 0,
+                bookingEligibility = AppointmentBookingEligibility(
+                    canSubmitNewRequest = false,
+                    blockingReason = AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT,
+                    appointmentId = 42,
+                    canRequestRebooking = true,
+                ),
+            ),
+        )
+        vm = AppointmentRequestListViewModel(repo)
+
+        val eligibility = (vm.state.value as RequestListState.Data).bookingEligibility
+        assertEquals(AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT, eligibility?.blockingReason)
+        assertEquals(42, eligibility?.appointmentId)
+        assertTrue(eligibility?.canRequestRebooking == true)
     }
 
     @Test

@@ -23,6 +23,7 @@ class PrescriptionDtosTest {
               "previous_prescription_id": null,
               "is_current": true,
               "date": "2026-07-27",
+              "expires_at": "2027-01-27",
               "measurements": {
                 "main": {
                   "od": {"value": null, "sphere": "-2.00", "cylinder": "-0.50"},
@@ -50,6 +51,7 @@ class PrescriptionDtosTest {
         assertNull(prescription.previousPrescriptionId)
         assertTrue(prescription.isCurrent)
         assertEquals("2026-07-27", prescription.date)
+        assertEquals("2027-01-27", prescription.expiresAt)
         assertNull(prescription.remarks)
 
         val mainOd = prescription.measurements.main.od

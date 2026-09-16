@@ -3,6 +3,8 @@ package com.eyecare.app.presentation.appointments.requests
 import androidx.lifecycle.SavedStateHandle
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.AppointmentBookingBlockingReason
+import com.eyecare.app.domain.model.AppointmentBookingEligibility
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
@@ -13,6 +15,7 @@ import com.eyecare.app.domain.model.AvailabilitySlot
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.presentation.appointments.DayAvailability
+import com.eyecare.app.presentation.appointments.earliestAppointmentRequestDate
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -63,38 +66,41 @@ class RequestAppointmentViewModelTest {
         ),
     )
 
+    private val primaryDate = earliestAppointmentRequestDate()
+    private val alternativeDate = primaryDate.plusDays(1)
+
     private val fakeSlot1 = AvailabilitySlot(
-        startsAt = "2026-08-10T09:00:00+08:00",
-        endsAt = "2026-08-10T09:45:00+08:00",
+        startsAt = "${primaryDate}T09:00:00+08:00",
+        endsAt = "${primaryDate}T09:45:00+08:00",
         available = true, reason = null,
     )
 
     private val fakeSlot2 = AvailabilitySlot(
-        startsAt = "2026-08-10T10:00:00+08:00",
-        endsAt = "2026-08-10T10:45:00+08:00",
+        startsAt = "${primaryDate}T10:00:00+08:00",
+        endsAt = "${primaryDate}T10:45:00+08:00",
         available = true, reason = null,
     )
 
     private val fakeSlot3 = AvailabilitySlot(
-        startsAt = "2026-08-10T11:00:00+08:00",
-        endsAt = "2026-08-10T11:45:00+08:00",
+        startsAt = "${primaryDate}T11:00:00+08:00",
+        endsAt = "${primaryDate}T11:45:00+08:00",
         available = true, reason = null,
     )
 
     private val fakeSlotOtherDate = AvailabilitySlot(
-        startsAt = "2026-08-11T09:00:00+08:00",
-        endsAt = "2026-08-11T09:45:00+08:00",
+        startsAt = "${alternativeDate}T09:00:00+08:00",
+        endsAt = "${alternativeDate}T09:45:00+08:00",
         available = true, reason = null,
     )
 
     private val unavailableSlot = AvailabilitySlot(
-        startsAt = "2026-08-10T14:00:00+08:00",
-        endsAt = "2026-08-10T14:45:00+08:00",
+        startsAt = "${primaryDate}T14:00:00+08:00",
+        endsAt = "${primaryDate}T14:45:00+08:00",
         available = false, reason = "capacity_reached",
     )
 
     private fun fakeAvailability(typeId: Int = 1) = AppointmentRequestAvailability(
-        date = "2026-08-10", timezone = "Asia/Manila",
+        date = primaryDate.toString(), timezone = "Asia/Manila",
         intervalMinutes = 15, slotDurationMinutes = 45,
         visitDurationMinutes = 45, appointmentTypeId = typeId,
         dayStatus = "open", generatedAt = "2026-08-09T10:00:00+08:00",
@@ -105,11 +111,11 @@ class RequestAppointmentViewModelTest {
         id = 1, requestNumber = "APR-2026-000001",
         status = AppointmentRequestStatus.PENDING, patientId = null,
         appointmentType = AppointmentRequestTypeSummary(1, "First eye examination", 45),
-        scheduledAt = "2026-08-10T09:00:00+08:00",
+        scheduledAt = "${primaryDate}T09:00:00+08:00",
         alternativeScheduledTimes = emptyList(), provisionalDurationMinutes = 45,
         reasonForVisit = "Test", referringSource = null,
         timePreferencesAreReserved = false,
-        expiresAt = "2026-08-10T09:00:00+08:00", cancelledAt = null, rejectionReason = null,
+        expiresAt = "${primaryDate}T09:00:00+08:00", cancelledAt = null, rejectionReason = null,
         createdAt = "2026-08-09T10:00:00+08:00", appointmentId = null,
     )
 
@@ -143,23 +149,52 @@ class RequestAppointmentViewModelTest {
     }
 
     @Test
-    fun `two pending requests block the flow before appointment types load`() {
-        val secondPendingRequest = fakeRequest.copy(
-            id = 2,
-            requestNumber = "APR-2026-000002",
-        )
+    fun `one pending request blocks the flow before appointment types load`() {
         coEvery { repo.getRequests(any(), any()) } returns Result.success(
             PaginatedResult(
-                data = listOf(fakeRequest, secondPendingRequest),
+                data = listOf(fakeRequest),
                 currentPage = 1,
                 lastPage = 1,
-                total = 2,
+                total = 1,
             ),
         )
 
         vm = newViewModel()
 
-        assertEquals(RequestStep.LimitReached(activeRequestCount = 2), vm.step.value)
+        assertEquals(RequestStep.LimitReached(activeRequestCount = 1), vm.step.value)
+    }
+
+    @Test
+    fun `scheduled appointment eligibility blocks new booking before appointment types load`() {
+        coEvery { repo.getRequests(any(), any()) } returns Result.success(
+            PaginatedResult(
+                data = emptyList(),
+                currentPage = 1,
+                lastPage = 1,
+                total = 0,
+                bookingEligibility = AppointmentBookingEligibility(
+                    canSubmitNewRequest = false,
+                    blockingReason = AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT,
+                    appointmentId = 42,
+                    canRequestRebooking = true,
+                ),
+            ),
+        )
+
+        vm = newViewModel()
+
+        assertEquals(
+            RequestStep.BookingBlocked(
+                activeRequestCount = 0,
+                eligibility = AppointmentBookingEligibility(
+                    canSubmitNewRequest = false,
+                    blockingReason = AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT,
+                    appointmentId = 42,
+                    canRequestRebooking = true,
+                ),
+            ),
+            vm.step.value,
+        )
     }
 
     @Test
@@ -257,16 +292,16 @@ class RequestAppointmentViewModelTest {
     ): RequestStep.Schedule {
         vm.selectType(type)
         vm.confirmType(identityRequired = identityRequired)
-        coEvery { repo.getAvailability("2026-08-10", type.id) } returns
+        coEvery { repo.getAvailability(primaryDate.toString(), type.id) } returns
             Result.success(fakeAvailability(type.id))
-        vm.selectDate("2026-08-10")
+        vm.selectDate(primaryDate.toString())
         return vm.step.value as RequestStep.Schedule
     }
 
     @Test
     fun `selectDate loads type-specific availability`() {
         val schedule = enterSchedule()
-        assertEquals("2026-08-10", schedule.date)
+        assertEquals(primaryDate.toString(), schedule.date)
         assertEquals(4, schedule.availability?.slots?.size)
         assertEquals(1, schedule.availability?.appointmentTypeId)
     }
@@ -274,15 +309,15 @@ class RequestAppointmentViewModelTest {
     @Test
     fun `selectDate sends date and appointment_type_id`() {
         enterSchedule()
-        coVerify { repo.getAvailability("2026-08-10", 1) }
+        coVerify { repo.getAvailability(primaryDate.toString(), 1) }
     }
 
     @Test
     fun `selectDate failure shows error`() {
         vm.selectType(normalType)
         vm.confirmType(identityRequired = false)
-        coEvery { repo.getAvailability("2026-08-10", 1) } returns Result.failure(Exception("Network"))
-        vm.selectDate("2026-08-10")
+        coEvery { repo.getAvailability(primaryDate.toString(), 1) } returns Result.failure(Exception("Network"))
+        vm.selectDate(primaryDate.toString())
         val step = vm.step.value as RequestStep.Schedule
         assertEquals("We couldn't load times for this day. Please try again.", step.availabilityError)
     }
@@ -296,21 +331,21 @@ class RequestAppointmentViewModelTest {
         vm.selectType(normalType)
         vm.confirmType(identityRequired = false)
 
-        coEvery { repo.getAvailability("2026-08-10", 1) } coAnswers {
+        coEvery { repo.getAvailability(primaryDate.toString(), 1) } coAnswers {
             val response = if (requestCount++ == 0) firstResponse else latestResponse
             withContext(NonCancellable) { response.await() }
         }
-        coEvery { repo.getAvailability("2026-08-11", 1) } returns Result.success(
+        coEvery { repo.getAvailability(alternativeDate.toString(), 1) } returns Result.success(
             fakeAvailability().copy(
-                date = "2026-08-11",
+                date = alternativeDate.toString(),
                 generatedAt = "2026-08-09T11:00:00+08:00",
                 slots = listOf(fakeSlotOtherDate),
             ),
         )
 
-        vm.selectDate("2026-08-10")
-        vm.selectDate("2026-08-11")
-        vm.selectDate("2026-08-10")
+        vm.selectDate(primaryDate.toString())
+        vm.selectDate(alternativeDate.toString())
+        vm.selectDate(primaryDate.toString())
 
         latestResponse.complete(Result.success(fakeAvailability().copy(generatedAt = "latest")))
         firstResponse.complete(Result.success(fakeAvailability().copy(generatedAt = "stale")))
@@ -436,8 +471,8 @@ class RequestAppointmentViewModelTest {
         vm.toggleAlternative(fakeSlot2)
         vm.toggleAlternative(fakeSlot3)
         val extraSlot = AvailabilitySlot(
-            startsAt = "2026-08-10T13:00:00+08:00",
-            endsAt = "2026-08-10T13:45:00+08:00",
+            startsAt = "${primaryDate}T13:00:00+08:00",
+            endsAt = "${primaryDate}T13:45:00+08:00",
             available = true, reason = null,
         )
         vm.toggleAlternative(extraSlot)
@@ -448,11 +483,11 @@ class RequestAppointmentViewModelTest {
     fun `changing date preserves primary and allows an alternative from the new date`() {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
-        coEvery { repo.getAvailability("2026-08-11", 1) } returns Result.success(
-            fakeAvailability().copy(date = "2026-08-11", slots = listOf(fakeSlotOtherDate)),
+        coEvery { repo.getAvailability(alternativeDate.toString(), 1) } returns Result.success(
+            fakeAvailability().copy(date = alternativeDate.toString(), slots = listOf(fakeSlotOtherDate)),
         )
 
-        vm.selectDate("2026-08-11")
+        vm.selectDate(alternativeDate.toString())
         vm.toggleAlternative(fakeSlotOtherDate)
 
         val schedule = vm.step.value as RequestStep.Schedule
@@ -518,7 +553,7 @@ class RequestAppointmentViewModelTest {
     @Test
     fun `confirmSchedule moves to Reason`() {
         val reason = enterReason()
-        assertEquals("2026-08-10", reason.date)
+        assertEquals(primaryDate.toString(), reason.date)
         assertEquals(fakeSlot1, reason.primarySlot)
         assertEquals(1, reason.alternativeSlots.size)
     }
@@ -527,15 +562,15 @@ class RequestAppointmentViewModelTest {
     fun `confirmSchedule uses primary date after browsing another date`() {
         enterSchedule()
         vm.selectPrimarySlot(fakeSlot1)
-        coEvery { repo.getAvailability("2026-08-11", 1) } returns Result.success(
-            fakeAvailability().copy(date = "2026-08-11", slots = listOf(fakeSlotOtherDate)),
+        coEvery { repo.getAvailability(alternativeDate.toString(), 1) } returns Result.success(
+            fakeAvailability().copy(date = alternativeDate.toString(), slots = listOf(fakeSlotOtherDate)),
         )
-        vm.selectDate("2026-08-11")
+        vm.selectDate(alternativeDate.toString())
         vm.toggleAlternative(fakeSlotOtherDate)
 
         vm.confirmSchedule()
 
-        assertEquals("2026-08-10", (vm.step.value as RequestStep.Reason).date)
+        assertEquals(primaryDate.toString(), (vm.step.value as RequestStep.Reason).date)
     }
 
     @Test
@@ -754,8 +789,8 @@ class RequestAppointmentViewModelTest {
         vm.backToType()
         vm.selectType(normalType)
         vm.confirmType(identityRequired = false)
-        coEvery { repo.getAvailability("2026-08-10", 1) } returns Result.success(fakeAvailability(1))
-        vm.selectDate("2026-08-10")
+        coEvery { repo.getAvailability(primaryDate.toString(), 1) } returns Result.success(fakeAvailability(1))
+        vm.selectDate(primaryDate.toString())
         vm.selectPrimarySlot(fakeSlot1)
         vm.confirmSchedule()
         assertEquals("", (vm.step.value as RequestStep.Reason).referringSource)
@@ -949,6 +984,23 @@ class RequestAppointmentViewModelTest {
         assertEquals("ACTIVE_REQUEST_LIMIT_REACHED", step.errorCode)
         assertFalse(step.canRetry)
         assertEquals("Blurred vision", step.reason)
+    }
+
+    @Test
+    fun `ACTIVE_APPOINTMENT_EXISTS is not retryable and uses safe copy`() {
+        coEvery { repo.createRequest(any(), any(), any(), any(), any(), any()) } returns
+            Result.failure(ApiDomainError(422, "ACTIVE_APPOINTMENT_EXISTS", "Appointment 42 exists."))
+        enterReview()
+
+        vm.submit()
+
+        val step = vm.step.value as RequestStep.SubmissionError
+        assertEquals("ACTIVE_APPOINTMENT_EXISTS", step.errorCode)
+        assertFalse(step.canRetry)
+        assertEquals(
+            "You already have an active appointment. You may reschedule or cancel it before requesting another.",
+            step.errorMessage,
+        )
     }
 
     @Test

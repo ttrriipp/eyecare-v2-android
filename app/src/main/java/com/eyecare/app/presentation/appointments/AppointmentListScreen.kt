@@ -80,6 +80,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.AppointmentBookingBlockingReason
+import com.eyecare.app.domain.model.AppointmentBookingEligibility
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestType
@@ -130,6 +132,10 @@ fun AppointmentListScreen(
     val requestLimitReached = (requestState as? RequestListState.Data)
         ?.requests
         ?.let(::hasReachedActiveAppointmentRequestLimit) == true
+    val newRequestBlocked = requestLimitReached ||
+        (requestState as? RequestListState.Data)
+            ?.bookingEligibility
+            ?.canSubmitNewRequest == false
 
     LaunchedEffect(hasActivePatientLink, accountId) {
         viewModel.refresh(
@@ -209,7 +215,7 @@ fun AppointmentListScreen(
             )
         }
 
-        if (!requestLimitReached) {
+        if (!newRequestBlocked) {
             ExtendedFloatingActionButton(
                 onClick = onNavigateToRequest,
             modifier = Modifier
@@ -881,6 +887,7 @@ private fun AppointmentListContent(
         }
     }
     val requestData = requestState as? RequestListState.Data
+    val bookingEligibility = requestData?.bookingEligibility
     val requestRefreshError = requestData?.error
     val confirmedRefreshError = confirmedSuccess?.refreshError
     val hasBlockingState = requestState is RequestListState.Loading ||
@@ -973,12 +980,14 @@ private fun AppointmentListContent(
             }
         }
         if (selectedTab == AppointmentListTab.UPCOMING &&
-            hasReachedActiveAppointmentRequestLimit(requests)
+            (hasReachedActiveAppointmentRequestLimit(requests) ||
+                bookingEligibility?.canSubmitNewRequest == false)
         ) {
             item {
                 AppointmentRequestLimitNotice(
                     activeRequestCount = activeRequestCount,
                     pendingRescheduleCount = pendingRescheduleCount,
+                    bookingEligibility = bookingEligibility,
                 )
             }
         }
@@ -1158,8 +1167,15 @@ private fun RequestListErrorRow(
 private fun AppointmentRequestLimitNotice(
     activeRequestCount: Int,
     pendingRescheduleCount: Int,
+    bookingEligibility: AppointmentBookingEligibility? = null,
 ) {
-    val requestLabel = if (activeRequestCount == 1) {
+    val serverBlocksNewRequest = bookingEligibility?.canSubmitNewRequest == false
+    val blockingReason = bookingEligibility?.blockingReason
+    val activeRequestCountForCopy = maxOf(
+        activeRequestCount,
+        if (blockingReason == AppointmentBookingBlockingReason.ACTIVE_REQUEST) 1 else 0,
+    )
+    val requestLabel = if (activeRequestCountForCopy == 1) {
         "pending request"
     } else {
         "pending requests"
@@ -1200,16 +1216,38 @@ private fun AppointmentRequestLimitNotice(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = "Request limit reached",
+                    text = when (blockingReason) {
+                        AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT,
+                        AppointmentBookingBlockingReason.CHECKED_IN_APPOINTMENT,
+                        -> "Active appointment"
+                        AppointmentBookingBlockingReason.UNKNOWN -> "Booking unavailable"
+                        AppointmentBookingBlockingReason.ACTIVE_REQUEST, null -> "Request limit reached"
+                    },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
-                    text = "$activeRequestCount $requestLabel" +
-                        (if (breakdown.isNotBlank()) " ($breakdown)." else ".") +
-                        rescheduleHint +
-                        " Wait for a clinic response or cancel a request before starting another.",
+                    text = when {
+                        serverBlocksNewRequest &&
+                            blockingReason == AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT ->
+                            if (bookingEligibility.canRequestRebooking) {
+                                "You already have a scheduled appointment. You can reschedule it from its appointment details or cancel it before requesting another."
+                            } else {
+                                "You already have a scheduled appointment. You may reschedule or cancel it before requesting another."
+                            }
+                        serverBlocksNewRequest &&
+                            blockingReason == AppointmentBookingBlockingReason.CHECKED_IN_APPOINTMENT ->
+                            "You already have a checked-in appointment. You may cancel it before requesting another."
+                        serverBlocksNewRequest &&
+                            blockingReason != AppointmentBookingBlockingReason.ACTIVE_REQUEST ->
+                            "Your account already has an active booking. Review your appointments or requests before starting another."
+                        else ->
+                            "$activeRequestCountForCopy $requestLabel" +
+                                (if (breakdown.isNotBlank()) " ($breakdown)." else ".") +
+                                rescheduleHint +
+                                " Wait for a clinic response or cancel a request before starting another."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
