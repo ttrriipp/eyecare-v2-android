@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -36,12 +37,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentV1
@@ -66,14 +71,19 @@ fun MyAppointmentScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit,
     onNavigateToAppointmentDetail: (Int) -> Unit,
+    onCancelRequest: (Int, String) -> Unit,
+    onCancelAppointment: (String) -> Unit,
+    onClearMutationError: () -> Unit,
+    onClearMutationSuccess: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState) {
-        if (uiState is MyAppointmentUiState.Content && uiState.refreshError != null) {
-            snackbarHostState.showSnackbar(uiState.refreshError)
-        }
+        val content = uiState as? MyAppointmentUiState.Content ?: return@LaunchedEffect
+        content.refreshError?.let { snackbarHostState.showSnackbar(it) }
+        content.mutationError?.let { snackbarHostState.showSnackbar(it); onClearMutationError() }
+        content.mutationSuccess?.let { snackbarHostState.showSnackbar(it); onClearMutationSuccess() }
     }
 
     Scaffold(
@@ -118,9 +128,12 @@ fun MyAppointmentScreen(
                 ) {
                     JourneyContent(
                         journey = uiState.journey,
+                        isMutating = uiState.isMutating,
                         onRequestAppointment = onRequestAppointment,
                         onNavigateToRequestDetail = onNavigateToRequestDetail,
                         onNavigateToAppointmentDetail = onNavigateToAppointmentDetail,
+                        onCancelRequest = onCancelRequest,
+                        onCancelAppointment = onCancelAppointment,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -132,9 +145,12 @@ fun MyAppointmentScreen(
 @Composable
 private fun JourneyContent(
     journey: CurrentAppointmentJourney,
+    isMutating: Boolean,
     onRequestAppointment: () -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit,
     onNavigateToAppointmentDetail: (Int) -> Unit,
+    onCancelRequest: (Int, String) -> Unit,
+    onCancelAppointment: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -148,7 +164,9 @@ private fun JourneyContent(
             is CurrentAppointmentJourney.PendingRequest -> {
                 PendingRequestContent(
                     request = journey.request,
+                    isMutating = isMutating,
                     onViewDetails = { onNavigateToRequestDetail(journey.request.id) },
+                    onCancel = { reason -> onCancelRequest(journey.request.id, reason) },
                 )
             }
             is CurrentAppointmentJourney.Appointment -> {
@@ -156,8 +174,10 @@ private fun JourneyContent(
                     appointment = journey.appointment,
                     originalRequest = journey.originalRequest,
                     pendingReschedule = journey.pendingReschedule,
+                    isMutating = isMutating,
                     onViewRequestDetail = onNavigateToRequestDetail,
                     onViewAppointmentDetail = { onNavigateToAppointmentDetail(journey.appointment.id) },
+                    onCancel = onCancelAppointment,
                 )
             }
         }
@@ -205,9 +225,13 @@ private fun NoneContent(
 @Composable
 private fun PendingRequestContent(
     request: AppointmentRequest,
+    isMutating: Boolean,
     onViewDetails: () -> Unit,
+    onCancel: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showCancelDialog by remember { mutableStateOf(false) }
+
     Column(modifier = modifier.fillMaxWidth()) {
         StatusHeader(
             statusLabel = "Pending",
@@ -270,6 +294,28 @@ private fun PendingRequestContent(
         ) {
             Text("View request details")
         }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = { showCancelDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isMutating,
+            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.error,
+            ),
+        ) {
+            Text("Cancel request")
+        }
+    }
+
+    if (showCancelDialog) {
+        CancelReasonDialog(
+            title = "Cancel request",
+            onConfirm = { reason ->
+                showCancelDialog = false
+                onCancel(reason)
+            },
+            onDismiss = { showCancelDialog = false },
+        )
     }
 }
 
@@ -278,10 +324,14 @@ private fun ConfirmedAppointmentContent(
     appointment: AppointmentV1,
     originalRequest: AppointmentRequest?,
     pendingReschedule: AppointmentRequest?,
+    isMutating: Boolean,
     onViewRequestDetail: (Int) -> Unit,
     onViewAppointmentDetail: () -> Unit,
+    onCancel: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showCancelDialog by remember { mutableStateOf(false) }
+
     Column(modifier = modifier.fillMaxWidth()) {
         val statusLabel = appointment.status.patientLabel
         val statusColor = when (appointment.status) {
@@ -355,8 +405,23 @@ private fun ConfirmedAppointmentContent(
             )
         }
 
+        Spacer(Modifier.height(12.dp))
+
+        if (appointment.status.canCancel && pendingReschedule == null) {
+            OutlinedButton(
+                onClick = { showCancelDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isMutating,
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                Text("Cancel appointment")
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+
         originalRequest?.let { request ->
-            Spacer(Modifier.height(12.dp))
             TextButton(
                 onClick = { onViewRequestDetail(request.id) },
                 modifier = Modifier.fillMaxWidth(),
@@ -364,6 +429,17 @@ private fun ConfirmedAppointmentContent(
                 Text("View original request")
             }
         }
+    }
+
+    if (showCancelDialog) {
+        CancelReasonDialog(
+            title = "Cancel appointment",
+            onConfirm = { reason ->
+                showCancelDialog = false
+                onCancel(reason)
+            },
+            onDismiss = { showCancelDialog = false },
+        )
     }
 }
 
@@ -548,6 +624,73 @@ private fun ErrorContent(
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRetry) {
             Text("Retry")
+        }
+    }
+}
+
+@Composable
+private fun CancelReasonDialog(
+    title: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var reason by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = modifier,
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it; error = null },
+                    label = { Text("Reason for cancelling") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 5,
+                    isError = error != null,
+                    supportingText = error?.let { e -> { Text(e) } },
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Up to 1,000 characters",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Keep")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (reason.trim().isBlank()) {
+                                error = "Enter a reason for cancelling."
+                            } else if (reason.trim().length > PATIENT_CANCELLATION_REASON_MAX_LENGTH) {
+                                error = "Reason must be 1,000 characters or less."
+                            } else {
+                                onConfirm(reason.trim())
+                            }
+                        },
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            }
         }
     }
 }

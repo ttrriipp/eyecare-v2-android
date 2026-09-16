@@ -8,7 +8,9 @@ import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
+import com.eyecare.app.domain.repository.AppointmentV1Repository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +33,7 @@ class MyAppointmentViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private lateinit var repo: AppointmentRequestRepository
+    private lateinit var appointmentRepo: AppointmentV1Repository
 
     private val fakeRequest = AppointmentRequest(
         id = 5,
@@ -71,6 +74,7 @@ class MyAppointmentViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
+        appointmentRepo = mockk()
     }
 
     @AfterEach
@@ -79,7 +83,7 @@ class MyAppointmentViewModelTest {
     @Test
     fun `initial load emits Loading then Content for none`() = runTest {
         coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(CurrentAppointmentJourney.None)
-        val vm = MyAppointmentViewModel(repo).also { it.load() }
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(MyAppointmentUiState.Loading::class.java, awaitItem())
@@ -97,7 +101,7 @@ class MyAppointmentViewModelTest {
         coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
             CurrentAppointmentJourney.PendingRequest(request = fakeRequest),
         )
-        val vm = MyAppointmentViewModel(repo).also { it.load() }
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(MyAppointmentUiState.Loading::class.java, awaitItem())
@@ -118,7 +122,7 @@ class MyAppointmentViewModelTest {
                 pendingReschedule = null,
             ),
         )
-        val vm = MyAppointmentViewModel(repo).also { it.load() }
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(MyAppointmentUiState.Loading::class.java, awaitItem())
@@ -135,7 +139,7 @@ class MyAppointmentViewModelTest {
     @Test
     fun `initial load error emits Error state`() = runTest {
         coEvery { repo.getCurrentAppointmentJourney() } returns Result.failure(RuntimeException("network error"))
-        val vm = MyAppointmentViewModel(repo).also { it.load() }
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(MyAppointmentUiState.Loading::class.java, awaitItem())
@@ -149,7 +153,7 @@ class MyAppointmentViewModelTest {
     @Test
     fun `retry after error reloads successfully`() = runTest {
         coEvery { repo.getCurrentAppointmentJourney() } returns Result.failure(RuntimeException("fail"))
-        val vm = MyAppointmentViewModel(repo).also { it.load() }
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(MyAppointmentUiState.Loading::class.java, awaitItem())
@@ -169,7 +173,7 @@ class MyAppointmentViewModelTest {
     @Test
     fun `refresh preserves content while loading`() = runTest {
         coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(CurrentAppointmentJourney.None)
-        val vm = MyAppointmentViewModel(repo).also { it.load() }
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(MyAppointmentUiState.Loading::class.java, awaitItem())
@@ -196,7 +200,7 @@ class MyAppointmentViewModelTest {
     @Test
     fun `refresh failure retains content and sets refresh error`() = runTest {
         coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(CurrentAppointmentJourney.None)
-        val vm = MyAppointmentViewModel(repo).also { it.load() }
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(MyAppointmentUiState.Loading::class.java, awaitItem())
@@ -221,7 +225,7 @@ class MyAppointmentViewModelTest {
     @Test
     fun `rapid refresh calls do not produce stale overwrite`() = runTest {
         coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(CurrentAppointmentJourney.None)
-        val vm = MyAppointmentViewModel(repo).also { it.load() }
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
 
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -245,7 +249,7 @@ class MyAppointmentViewModelTest {
                 pendingReschedule = reschedule,
             ),
         )
-        val vm = MyAppointmentViewModel(repo).also { it.load() }
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
 
         vm.uiState.test {
             assertInstanceOf(MyAppointmentUiState.Loading::class.java, awaitItem())
@@ -258,5 +262,70 @@ class MyAppointmentViewModelTest {
             assertEquals(AppointmentRequestType.RESCHEDULE, appt.pendingReschedule?.requestType)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `cancel request refetches current journey on success`() = runTest {
+        coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.PendingRequest(request = fakeRequest),
+        )
+        coEvery { repo.cancelRequest(5, "Changed my mind") } returns Result.success(fakeRequest)
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.cancelRequest(5, "Changed my mind")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val content = vm.uiState.value as MyAppointmentUiState.Content
+        assertEquals("Request cancelled.", content.mutationSuccess)
+        coVerify(exactly = 2) { repo.getCurrentAppointmentJourney() }
+    }
+
+    @Test
+    fun `cancel request shows error on failure`() = runTest {
+        coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.PendingRequest(request = fakeRequest),
+        )
+        coEvery { repo.cancelRequest(5, any()) } returns Result.failure(RuntimeException("server error"))
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.cancelRequest(5, "Changed my mind")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val content = vm.uiState.value as MyAppointmentUiState.Content
+        assertNotNull(content.mutationError)
+    }
+
+    @Test
+    fun `cancel appointment refetches current journey on success`() = runTest {
+        coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.Appointment(appointment = fakeAppointment, originalRequest = null, pendingReschedule = null),
+        )
+        coEvery { appointmentRepo.cancelAppointment(42, "No longer needed") } returns Result.success(fakeAppointment)
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.cancelAppointment("No longer needed")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val content = vm.uiState.value as MyAppointmentUiState.Content
+        assertEquals("Appointment cancelled.", content.mutationSuccess)
+        coVerify(exactly = 2) { repo.getCurrentAppointmentJourney() }
+    }
+
+    @Test
+    fun `blank cancel reason shows validation error`() = runTest {
+        coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.PendingRequest(request = fakeRequest),
+        )
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.cancelRequest(5, "   ")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val content = vm.uiState.value as MyAppointmentUiState.Content
+        assertNotNull(content.mutationError)
     }
 }
