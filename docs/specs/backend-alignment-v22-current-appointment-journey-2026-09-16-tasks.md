@@ -1,6 +1,6 @@
 # Backend Alignment V22 — Current Appointment Journey Tasks
 
-Status: Draft for approval — 2026-09-16
+Status: Implementation complete with verification limitations — 2026-09-17
 
 Related documents:
 
@@ -19,6 +19,13 @@ Related documents:
 - Run `./gradlew assembleDebug` after every production-code task, as required by `AGENTS.md`.
 - Stop at each checkpoint for review before beginning the next phase.
 - Do not commit automatically. Commit only when the user explicitly requests it.
+
+## Implementation note — 2026-09-17
+
+- The current-journey implementation, action-policy hardening, debug build, lint, focused unit tests,
+  and Android-test compilation pass.
+- The complete unit suite still has 12 unrelated pre-existing Account Security fixture failures.
+- Connected Android tests were not run because no device or emulator is attached in this environment.
 
 ## Phase 0 — Establish the baseline
 

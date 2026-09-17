@@ -1,7 +1,5 @@
 package com.eyecare.app.presentation.appointments
 
-import com.eyecare.app.domain.model.AppointmentV1
-import com.eyecare.app.domain.model.AppointmentStatus
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -89,77 +87,4 @@ class AppointmentFormattingTest {
         assertEquals(null, displayableRescheduleReason(null))
     }
 
-    @Test
-    fun `appointmentWeekDays returns monday through saturday for selected week`() {
-        val days = appointmentWeekDays(LocalDate.of(2026, 10, 24))
-
-        assertEquals(LocalDate.of(2026, 10, 19), days.first())
-        assertEquals(LocalDate.of(2026, 10, 24), days.last())
-        assertEquals(6, days.size)
-    }
-
-    @Test
-    fun `appointment week range gives the date strip a visible context`() {
-        assertEquals(
-            "Oct 19 - Oct 24",
-            appointmentWeekRangeLabel(appointmentWeekDays(LocalDate.of(2026, 10, 24))),
-        )
-    }
-
-    @Test
-    fun `appointmentOccursOnDate matches appointment scheduled day`() {
-        val scheduledAt = "2026-10-24T17:00:00Z"
-
-        assertTrue(appointmentOccursOnDate(scheduledAt, LocalDate.of(2026, 10, 25)))
-        assertFalse(appointmentOccursOnDate(scheduledAt, LocalDate.of(2026, 10, 24)))
-    }
-
-    @Test
-    fun `upcoming tab contains future active appointments ordered soonest first`() {
-        val appointments = listOf(
-            appointment(2, AppointmentStatus.SCHEDULED, "2026-10-26T10:00:00Z"),
-            appointment(1, AppointmentStatus.SCHEDULED, "2026-10-25T10:00:00Z"),
-            appointment(3, AppointmentStatus.FULFILLED, "2026-10-27T10:00:00Z"),
-        )
-
-        val result = appointmentsForTab(
-            appointments = appointments,
-            tab = AppointmentListTab.UPCOMING,
-            now = LocalDateTime.of(2026, 10, 24, 10, 0),
-        )
-
-        assertEquals(listOf(1, 2), result.map { it.id })
-    }
-
-    @Test
-    fun `history tab contains terminal and past appointments newest first`() {
-        val appointments = listOf(
-            appointment(1, AppointmentStatus.SCHEDULED, "2026-10-23T10:00:00Z"),
-            appointment(2, AppointmentStatus.CANCELLED, "2026-10-26T10:00:00Z"),
-            appointment(3, AppointmentStatus.NO_SHOW, "2026-10-22T10:00:00Z"),
-        )
-
-        val result = appointmentsForTab(
-            appointments = appointments,
-            tab = AppointmentListTab.HISTORY,
-            now = LocalDateTime.of(2026, 10, 24, 10, 0),
-        )
-
-        assertEquals(listOf(2, 1, 3), result.map { it.id })
-    }
-
-    private fun appointment(id: Int, status: AppointmentStatus, scheduledAt: String) = AppointmentV1(
-        id = id,
-        appointmentNumber = null,
-        appointmentType = "New Patient",
-        durationMinutes = 30,
-        referringSource = null,
-        status = status,
-        scheduledAt = scheduledAt,
-        contactNotes = null,
-        reasonForVisit = null,
-        lastRescheduleReason = null,
-        source = null,
-        assignedOptometrist = null,
-    )
 }

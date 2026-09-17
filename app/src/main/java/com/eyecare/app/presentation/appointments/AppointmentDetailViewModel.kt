@@ -3,8 +3,6 @@ package com.eyecare.app.presentation.appointments
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.eyecare.app.domain.model.ApiDomainError
-import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentError
 import com.eyecare.app.domain.model.AppointmentRequest
@@ -12,6 +10,7 @@ import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.model.VisitRating
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
@@ -216,7 +215,7 @@ class AppointmentDetailViewModel @Inject constructor(
 
             val resolved = results.associate { (date, result) ->
                 date to result.fold(
-                    onSuccess = { availability -> dayAvailabilityVerdict(availability) },
+                    onSuccess = ::appointmentDayAvailabilityVerdict,
                     onFailure = { DayAvailability.UNKNOWN },
                 )
             }
@@ -253,7 +252,7 @@ class AppointmentDetailViewModel @Inject constructor(
                             rescheduleAvailability = RescheduleAvailabilityState.Success(availability),
                             rescheduleError = if (clearError) null else latest.rescheduleError,
                             rescheduleDayAvailability = latest.rescheduleDayAvailability +
-                                (date to dayAvailabilityVerdict(availability)),
+                                (date to appointmentDayAvailabilityVerdict(availability)),
                         )
                     }
                 },
@@ -314,7 +313,7 @@ class AppointmentDetailViewModel @Inject constructor(
                 },
                 onFailure = { error ->
                     val latest = _uiState.value as? AppointmentDetailUiState.Success ?: current
-                    val slotUnavailable = isSlotUnavailableError(error)
+                    val slotUnavailable = isAppointmentSlotUnavailableError(error)
                     _uiState.value = latest.copy(
                         isRescheduling = false,
                         rescheduleError = if (slotUnavailable) {
@@ -450,12 +449,10 @@ class AppointmentDetailViewModel @Inject constructor(
 
     private suspend fun findPendingRescheduleRequest(appointmentId: Int): Result<AppointmentRequest?> {
         return try {
-            appointmentRequestRepository.getRequests(page = 1).map { page ->
-                page.data.firstOrNull { request ->
-                    request.requestType == AppointmentRequestType.RESCHEDULE &&
-                        request.status == AppointmentRequestStatus.PENDING &&
-                        request.appointmentId == appointmentId
-                }
+            appointmentRequestRepository.getCurrentAppointmentJourney().map { journey ->
+                (journey as? CurrentAppointmentJourney.Appointment)
+                    ?.takeIf { it.appointment.id == appointmentId }
+                    ?.pendingReschedule
             }
         } catch (error: Throwable) {
             // Keep appointment details usable when the secondary request lookup fails. Do not
@@ -464,12 +461,6 @@ class AppointmentDetailViewModel @Inject constructor(
             Result.failure(error)
         }
     }
-}
-
-private fun dayAvailabilityVerdict(availability: AppointmentAvailability): DayAvailability = when {
-    !availability.dayStatus.equals("open", ignoreCase = true) -> DayAvailability.CLOSED
-    availability.slots.none { it.available } -> DayAvailability.FULL
-    else -> DayAvailability.OPEN
 }
 
 private enum class AppointmentAction {
@@ -500,27 +491,4 @@ private fun patientSafeAppointmentError(
         is AppointmentError.ValidationError -> "This visit can't be rated yet."
         else -> "We couldn't submit your rating. Try again."
     }
-}
-
-private fun patientSafeRescheduleError(error: Throwable): String {
-    return when {
-        isSlotUnavailableError(error) ->
-            "That time is no longer available. Choose another time."
-        (error as? ApiDomainError)?.code == AuthApiCodes.ACTIVE_REQUEST_LIMIT_REACHED ->
-            "You already have an active appointment request. Cancel it or wait for the clinic to respond."
-        (error as? ApiDomainError)?.fieldErrors?.keys?.any {
-            it == "appointment_id" || it.endsWith(".appointment_id")
-        } == true ->
-            "This appointment can no longer be rescheduled. Refresh and try again."
-        else -> "We couldn't submit this reschedule request. Try again."
-    }
-}
-
-private fun isSlotUnavailableError(error: Throwable): Boolean {
-    val apiError = error as? ApiDomainError
-    return apiError?.code == "SLOT_UNAVAILABLE" ||
-        apiError?.fieldErrors?.keys?.any {
-            it == "scheduled_at" || it.endsWith(".scheduled_at")
-        } == true ||
-        error is AppointmentError.ValidationError
 }

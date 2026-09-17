@@ -39,7 +39,7 @@ class AppointmentV1RepositoryImplTest {
     fun tearDown() = server.shutdown()
 
     @Test
-    fun `getAppointments returns paginated result`() = runTest {
+    fun `getAppointmentHistory returns paginated result`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
                 """
@@ -58,7 +58,7 @@ class AppointmentV1RepositoryImplTest {
             ),
         )
 
-        val result = repository.getAppointments().getOrThrow()
+        val result = repository.getAppointmentHistory().getOrThrow()
         assertEquals(1, result.data.size)
         assertEquals(1, result.currentPage)
         assertEquals(2, result.lastPage)
@@ -76,7 +76,7 @@ class AppointmentV1RepositoryImplTest {
     }
 
     @Test
-    fun `getAppointments single page has no more pages`() = runTest {
+    fun `getAppointmentHistory single page has no more pages`() = runTest {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
                 """
@@ -86,9 +86,25 @@ class AppointmentV1RepositoryImplTest {
             ),
         )
 
-        val result = repository.getAppointments().getOrThrow()
+        val result = repository.getAppointmentHistory().getOrThrow()
         assertFalse(result.hasMorePages)
         assertEquals(0, result.total)
+    }
+
+    @Test
+    fun `getAppointmentHistory always requests the history filter`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":[],"meta":{"current_page":2,"last_page":2,"per_page":5,"total":0}}""",
+            ),
+        )
+
+        repository.getAppointmentHistory(page = 2, perPage = 5).getOrThrow()
+
+        val request = server.takeRequest()
+        assertEquals("history", request.requestUrl?.queryParameter("filter"))
+        assertEquals("2", request.requestUrl?.queryParameter("page"))
+        assertEquals("5", request.requestUrl?.queryParameter("per_page"))
     }
 
     @Test

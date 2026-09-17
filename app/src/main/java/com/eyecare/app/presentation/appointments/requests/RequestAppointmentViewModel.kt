@@ -10,8 +10,10 @@ import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
+import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentType
 import com.eyecare.app.domain.model.AvailabilitySlot
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.presentation.appointments.DayAvailability
 import com.eyecare.app.presentation.appointments.availabilityWeekLength
@@ -235,26 +237,44 @@ class RequestAppointmentViewModel @Inject constructor(
     }
 
     /**
-     * Check the server's active-request view before loading the request form. The list screen
-     * also hides its action when it has this information, but this gate covers the Home shortcut
-     * and stale list data. A failed preflight is treated as unknown so the backend remains the
-     * final authority when the patient submits.
+     * Check the server's current journey before loading the request form. The My Appointment
+     * screen is the normal entry point, but this gate also covers the Home shortcut and restored
+     * navigation. A failed preflight is treated as unknown so the backend remains the final
+     * authority when the patient submits.
      */
     private fun checkRequestLimit() {
         viewModelScope.launch {
-            val page = repository.getRequests(page = 1).getOrNull()
-            val requests = page?.data.orEmpty()
-            val activeCount = activeAppointmentRequestCount(requests)
-            val eligibility = page?.bookingEligibility
-            if (eligibility != null && !eligibility.canSubmitNewRequest) {
-                _step.value = RequestStep.BookingBlocked(
-                    activeRequestCount = activeCount,
-                    eligibility = eligibility,
-                )
-            } else if (activeCount >= maxActiveAppointmentRequests) {
-                _step.value = RequestStep.LimitReached(activeRequestCount = activeCount)
-            } else {
-                loadTypes()
+            when (val journey = repository.getCurrentAppointmentJourney().getOrNull()) {
+                null,
+                CurrentAppointmentJourney.None,
+                -> loadTypes()
+
+                is CurrentAppointmentJourney.PendingRequest -> {
+                    _step.value = RequestStep.BookingBlocked(
+                        activeRequestCount = 1,
+                        eligibility = AppointmentBookingEligibility(
+                            canSubmitNewRequest = false,
+                            blockingReason = com.eyecare.app.domain.model.AppointmentBookingBlockingReason.ACTIVE_REQUEST,
+                            activeRequestId = journey.request.id,
+                        ),
+                    )
+                }
+
+                is CurrentAppointmentJourney.Appointment -> {
+                    val appointment = journey.appointment
+                    _step.value = RequestStep.BookingBlocked(
+                        activeRequestCount = 0,
+                        eligibility = AppointmentBookingEligibility(
+                            canSubmitNewRequest = false,
+                            blockingReason = when (appointment.status) {
+                                AppointmentStatus.CHECKED_IN -> com.eyecare.app.domain.model.AppointmentBookingBlockingReason.CHECKED_IN_APPOINTMENT
+                                else -> com.eyecare.app.domain.model.AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT
+                            },
+                            appointmentId = appointment.id,
+                            canRequestRebooking = appointment.status.canReschedule,
+                        ),
+                    )
+                }
             }
         }
     }

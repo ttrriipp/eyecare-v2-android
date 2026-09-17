@@ -57,6 +57,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.ClinicHoursDay
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.appointments.formatAppointmentDate
@@ -213,9 +214,13 @@ fun HomeContent(
         }
 
         if (hasActivePatientLink) {
-            state.nextAppointment?.let { appointment ->
-                VisitTicket(appointment = appointment, onClick = onNavigateToAppointments)
-            } ?: BookingInvitation(onClick = onNavigateToBooking)
+            when {
+                state.nextAppointment != null -> {
+                    VisitTicket(appointment = state.nextAppointment, onClick = onNavigateToAppointments)
+                }
+                state.currentAppointmentJourney is CurrentAppointmentJourney.PendingRequest -> Unit
+                else -> BookingInvitation(onClick = onNavigateToBooking)
+            }
         } else {
             AccountLinkInvitation(linkStatus = patientLinkStatus, onClick = onNavigateToLinkAccount)
         }
@@ -476,7 +481,9 @@ private fun VisitTicket(
 }
 
 @Composable
-private fun BookingInvitation(onClick: () -> Unit) {
+private fun BookingInvitation(
+    onClick: () -> Unit,
+) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),

@@ -5,6 +5,7 @@ import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFact
 import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentBookingBlockingReason
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -235,5 +236,93 @@ class AppointmentRequestRepositoryImplTest {
         val result = repository.cancelRequest(1, "I need to choose a different appointment date.")
         assertTrue(result.isSuccess)
         assertEquals(AppointmentRequestStatus.CANCELLED, result.getOrThrow().status)
+    }
+
+    @Test
+    fun `getCurrentAppointmentJourney maps none`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":{"kind":"none"}}""",
+        ))
+
+        assertEquals(
+            com.eyecare.app.domain.model.CurrentAppointmentJourney.None,
+            repository.getCurrentAppointmentJourney().getOrThrow(),
+        )
+    }
+
+    @Test
+    fun `getCurrentAppointmentJourney maps pending new request`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":{"kind":"pending_request","request":{"id":5,"request_number":"APR-2026-000005","request_type":"new","status":"pending","scheduled_at":"2026-09-20T10:00:00+08:00","created_at":"2026-09-16T08:00:00+08:00"}}}""",
+        ))
+
+        val journey = repository.getCurrentAppointmentJourney().getOrThrow()
+
+        assertEquals(
+            AppointmentRequestType.NEW,
+            (journey as com.eyecare.app.domain.model.CurrentAppointmentJourney.PendingRequest)
+                .request.requestType,
+        )
+    }
+
+    @Test
+    fun `getCurrentAppointmentJourney maps confirmed appointment with linked supporting requests`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":{"kind":"appointment","appointment":{"id":42,"appointment_type":"Follow-up","duration_minutes":30,"status":"scheduled","scheduled_at":"2026-09-25T09:00:00+08:00"},"original_request":{"id":3,"request_number":"APR-2026-000003","status":"accepted","scheduled_at":"2026-09-25T09:00:00+08:00","created_at":"2026-09-10T08:00:00+08:00","appointment":{"id":42}},"pending_reschedule":{"id":7,"request_number":"APR-2026-000007","request_type":"reschedule","status":"pending","scheduled_at":"2026-09-26T10:00:00+08:00","created_at":"2026-09-16T12:00:00+08:00","appointment":{"id":42}}}}""",
+        ))
+
+        val journey = repository.getCurrentAppointmentJourney().getOrThrow()
+
+        val appointment = journey as com.eyecare.app.domain.model.CurrentAppointmentJourney.Appointment
+        assertEquals(42, appointment.appointment.id)
+        assertEquals(3, appointment.originalRequest?.id)
+        assertEquals(42, appointment.originalRequest?.appointmentId)
+        assertEquals(7, appointment.pendingReschedule?.id)
+        assertEquals(42, appointment.pendingReschedule?.appointmentId)
+    }
+
+    @Test
+    fun `getCurrentAppointmentJourney rejects supporting request without appointment reference`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":{"kind":"appointment","appointment":{"id":42,"appointment_type":"Follow-up","duration_minutes":30,"status":"scheduled","scheduled_at":"2026-09-25T09:00:00+08:00"},"original_request":{"id":3,"request_number":"APR-2026-000003","status":"accepted","scheduled_at":"2026-09-25T09:00:00+08:00","created_at":"2026-09-10T08:00:00+08:00"}}}""",
+        ))
+
+        assertTrue(repository.getCurrentAppointmentJourney().isFailure)
+    }
+
+    @Test
+    fun `getCurrentAppointmentJourney rejects supporting request for another appointment`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":{"kind":"appointment","appointment":{"id":42,"appointment_type":"Follow-up","duration_minutes":30,"status":"scheduled","scheduled_at":"2026-09-25T09:00:00+08:00"},"pending_reschedule":{"id":7,"request_number":"APR-2026-000007","request_type":"reschedule","status":"pending","scheduled_at":"2026-09-26T10:00:00+08:00","created_at":"2026-09-16T12:00:00+08:00","appointment":{"id":99}}}}""",
+        ))
+
+        assertTrue(repository.getCurrentAppointmentJourney().isFailure)
+    }
+
+    @Test
+    fun `getCurrentAppointmentJourney rejects unknown kind`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":{"kind":"future_state"}}""",
+        ))
+
+        assertTrue(repository.getCurrentAppointmentJourney().isFailure)
+    }
+
+    @Test
+    fun `getCurrentAppointmentJourney rejects none with variant data`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":{"kind":"none","request":{"id":5,"request_number":"APR-2026-000005","status":"pending","scheduled_at":"2026-09-20T10:00:00+08:00","created_at":"2026-09-16T08:00:00+08:00"}}}""",
+        ))
+
+        assertTrue(repository.getCurrentAppointmentJourney().isFailure)
+    }
+
+    @Test
+    fun `getCurrentAppointmentJourney rejects appointment with non-pending reschedule`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """{"data":{"kind":"appointment","appointment":{"id":42,"appointment_type":"Follow-up","duration_minutes":30,"status":"scheduled","scheduled_at":"2026-09-25T09:00:00+08:00"},"pending_reschedule":{"id":7,"request_number":"APR-2026-000007","request_type":"reschedule","status":"cancelled","scheduled_at":"2026-09-26T10:00:00+08:00","created_at":"2026-09-16T12:00:00+08:00"}}}""",
+        ))
+
+        assertTrue(repository.getCurrentAppointmentJourney().isFailure)
     }
 }

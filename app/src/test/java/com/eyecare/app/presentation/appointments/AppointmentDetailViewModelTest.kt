@@ -8,6 +8,7 @@ import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentSlot
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
 import io.mockk.coEvery
@@ -38,6 +39,11 @@ class AppointmentDetailViewModelTest {
     private lateinit var appointmentRequests: AppointmentRequestRepository
     private lateinit var viewModel: AppointmentDetailViewModel
 
+    private val appointmentDate = LocalDate.now(CLINIC_TIME_ZONE).plusDays(1)
+    private val requestedRescheduleDate = appointmentDate.plusDays(1)
+    private val appointmentScheduledAt = "${appointmentDate}T09:00:00+08:00"
+    private val requestedRescheduleAt = "${requestedRescheduleDate}T10:00:00+08:00"
+
     private val appointment = AppointmentV1(
         id = 4,
         appointmentNumber = "APT-004",
@@ -45,7 +51,7 @@ class AppointmentDetailViewModelTest {
         durationMinutes = 15,
         referringSource = null,
         status = AppointmentStatus.SCHEDULED,
-        scheduledAt = "2026-07-14T09:00:00+08:00",
+        scheduledAt = appointmentScheduledAt,
         contactNotes = "Original note",
         reasonForVisit = null,
         lastRescheduleReason = "Doctor availability changed",
@@ -54,7 +60,7 @@ class AppointmentDetailViewModelTest {
     )
 
     private fun fakeAvailability(
-        date: String = "2026-07-14",
+        date: String = appointmentDate.toString(),
         dayStatus: String = "open",
         slots: List<AppointmentSlot> = emptyList(),
     ) = AppointmentAvailability(
@@ -77,7 +83,7 @@ class AppointmentDetailViewModelTest {
         requestType = AppointmentRequestType.RESCHEDULE,
         patientId = 1,
         appointmentType = null,
-        scheduledAt = "2026-07-15T10:00:00+08:00",
+        scheduledAt = requestedRescheduleAt,
         originalScheduledAt = appointment.scheduledAt,
         selectedScheduledAt = null,
         alternativeScheduledTimes = emptyList(),
@@ -98,6 +104,7 @@ class AppointmentDetailViewModelTest {
         appointments = mockk()
         appointmentRequests = mockk()
         coEvery { appointments.getAppointment(4) } returns Result.success(appointment)
+        coEvery { appointmentRequests.getCurrentAppointmentJourney() } returns Result.success(CurrentAppointmentJourney.None)
         // Week-strip prefetch fans out to every visible date; a catch-all keeps tests
         // independent of which real-world week "today" falls in.
         coEvery { appointments.getAppointmentAvailability(any(), any()) } returns
@@ -116,10 +123,10 @@ class AppointmentDetailViewModelTest {
     @Test
     fun `customer reschedule submits linked request and keeps current appointment unchanged`() = runTest {
         coEvery {
-            appointmentRequests.createRebookingRequest(4, "2026-07-15T10:00:00+08:00")
+            appointmentRequests.createRebookingRequest(4, requestedRescheduleAt)
         } returns Result.success(pendingRebooking)
 
-        viewModel.rescheduleAppointment("2026-07-15T10:00:00+08:00")
+        viewModel.rescheduleAppointment(requestedRescheduleAt)
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
@@ -127,7 +134,27 @@ class AppointmentDetailViewModelTest {
         assertEquals(appointment.lastRescheduleReason, state.appointment.lastRescheduleReason)
         assertTrue(state.showRescheduleSuccessDialog)
         coVerify(exactly = 1) { appointments.getAppointment(4) }
-        coVerify(exactly = 1) { appointmentRequests.createRebookingRequest(4, "2026-07-15T10:00:00+08:00") }
+        coVerify(exactly = 1) { appointmentRequests.createRebookingRequest(4, requestedRescheduleAt) }
+    }
+
+    @Test
+    fun `load reads pending reschedule from the current journey`() = runTest {
+        coEvery { appointmentRequests.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.Appointment(
+                appointment = appointment,
+                originalRequest = null,
+                pendingReschedule = pendingRebooking,
+            ),
+        )
+        val vm = AppointmentDetailViewModel(
+            repository = appointments,
+            appointmentRequestRepository = appointmentRequests,
+            savedStateHandle = SavedStateHandle(mapOf("appointmentId" to 4)),
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value as AppointmentDetailUiState.Success
+        assertEquals(pendingRebooking.id, state.pendingRescheduleRequest?.id)
     }
 
     @Test
@@ -187,14 +214,14 @@ class AppointmentDetailViewModelTest {
     @Test
     fun `reschedule failure shows error message`() = runTest {
         coEvery {
-            appointments.getAppointmentAvailability("2026-07-14", 4)
+            appointments.getAppointmentAvailability(appointmentDate.toString(), 4)
         } returns Result.success(fakeAvailability())
         coEvery {
             appointmentRequests.createRebookingRequest(4, any())
         } returns Result.failure(RuntimeException("Slot taken"))
 
         viewModel.showRescheduleSheet()
-        viewModel.rescheduleAppointment("2026-07-15T10:00:00+08:00")
+        viewModel.rescheduleAppointment(requestedRescheduleAt)
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.uiState.value as AppointmentDetailUiState.Success
@@ -220,7 +247,7 @@ class AppointmentDetailViewModelTest {
     fun `dismiss reschedule success dialog clears flag`() = runTest {
         coEvery { appointmentRequests.createRebookingRequest(4, any()) } returns Result.success(pendingRebooking)
 
-        viewModel.rescheduleAppointment("2026-07-15T10:00:00+08:00")
+        viewModel.rescheduleAppointment(requestedRescheduleAt)
         dispatcher.scheduler.advanceUntilIdle()
         viewModel.dismissRescheduleSuccessDialog()
 
@@ -248,15 +275,15 @@ class AppointmentDetailViewModelTest {
         val availability = fakeAvailability(
             slots = listOf(
                 AppointmentSlot(
-                    startsAt = "2026-07-14T02:00:00Z",
-                    endsAt = "2026-07-14T02:15:00Z",
+                    startsAt = "${appointmentDate}T02:00:00Z",
+                    endsAt = "${appointmentDate}T02:15:00Z",
                     available = true,
                     reason = null,
                 ),
             ),
         )
         coEvery {
-            appointments.getAppointmentAvailability("2026-07-14", 4)
+            appointments.getAppointmentAvailability(appointmentDate.toString(), 4)
         } returns Result.success(availability)
 
         viewModel.showRescheduleSheet()
@@ -273,7 +300,7 @@ class AppointmentDetailViewModelTest {
     @Test
     fun rescheduleAvailabilityFailureKeepsSheetOpenWithRetryableState() = runTest {
         coEvery {
-            appointments.getAppointmentAvailability("2026-07-14", 4)
+            appointments.getAppointmentAvailability(appointmentDate.toString(), 4)
         } returns Result.failure(RuntimeException("timeout"))
 
         viewModel.showRescheduleSheet()
@@ -283,7 +310,7 @@ class AppointmentDetailViewModelTest {
         assertTrue(state.showRescheduleSheet)
         assertEquals(
             RescheduleAvailabilityState.Error(
-                date = "2026-07-14",
+                date = appointmentDate.toString(),
                 message = "We couldn't load available times. Try again.",
             ),
             state.rescheduleAvailability,
@@ -293,8 +320,8 @@ class AppointmentDetailViewModelTest {
     @Test
     fun openingRescheduleSeedsWeekStripDayVerdicts() = runTest {
         val openSlot = AppointmentSlot(
-            startsAt = "2026-07-14T02:00:00Z",
-            endsAt = "2026-07-14T02:15:00Z",
+            startsAt = "${appointmentDate}T02:00:00Z",
+            endsAt = "${appointmentDate}T02:15:00Z",
             available = true,
             reason = null,
         )
@@ -335,8 +362,8 @@ class AppointmentDetailViewModelTest {
             .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             .toString()
         val bookedSlot = AppointmentSlot(
-            startsAt = "2026-07-14T02:00:00Z",
-            endsAt = "2026-07-14T02:15:00Z",
+            startsAt = "${appointmentDate}T02:00:00Z",
+            endsAt = "${appointmentDate}T02:15:00Z",
             available = false,
             reason = null,
         )

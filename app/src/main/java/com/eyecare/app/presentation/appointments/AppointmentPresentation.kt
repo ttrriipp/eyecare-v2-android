@@ -22,7 +22,7 @@ data class AppointmentStatusPresentation(
 
 /**
  * The single source of truth for how a confirmed appointment's status renders — shared by
- * the appointment list card and the detail screen so status never silently degrades to a
+ * history rows and the detail screen so status never silently degrades to a
  * differently-colored badge on one of the two surfaces that show it. Mirrors
  * requestStatusPresentation()'s fill/text split in AppointmentRequestPresentation.kt.
  *
@@ -64,8 +64,8 @@ fun appointmentStatusPresentation(status: AppointmentStatus): AppointmentStatusP
 }
 
 /**
- * Borderless status pill used by both AppointmentListScreen's card and AppointmentDetailScreen's
- * header — previously two separately-maintained implementations (one bordered, one not; one
+ * Borderless status pill used by history rows and AppointmentDetailScreen's header — previously
+ * two separately-maintained implementations (one bordered, one not; one
  * WCAG-failing, one not) that could and did drift apart.
  */
 @Composable

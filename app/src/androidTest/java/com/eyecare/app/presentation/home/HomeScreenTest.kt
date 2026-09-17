@@ -5,8 +5,12 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AssignedOptometrist
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.model.EyeMeasurement
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.Prescription
@@ -59,6 +63,43 @@ class HomeScreenTest {
         }
 
         composeRule.onNodeWithText("Book an appointment").assertIsDisplayed()
+    }
+
+    @Test
+    fun pendingRequest_doesNotAddAnAppointmentCardToHome() {
+        val state = successState().copy(
+            currentAppointmentJourney = CurrentAppointmentJourney.PendingRequest(
+                request = AppointmentRequest(
+                    id = 5,
+                    requestNumber = "APR-005",
+                    status = AppointmentRequestStatus.PENDING,
+                    requestType = AppointmentRequestType.NEW,
+                    patientId = null,
+                    appointmentType = null,
+                    scheduledAt = "2030-07-16T10:00:00+08:00",
+                    alternativeScheduledTimes = emptyList(),
+                    provisionalDurationMinutes = null,
+                    reasonForVisit = "Checkup",
+                    referringSource = null,
+                    timePreferencesAreReserved = false,
+                    expiresAt = null,
+                    cancelledAt = null,
+                    rejectionReason = null,
+                    createdAt = "2030-07-01T10:00:00+08:00",
+                    appointmentId = null,
+                ),
+            ),
+        )
+
+        composeRule.setContent {
+            EyecareTheme {
+                HomeContent(state = state)
+            }
+        }
+
+        composeRule.onNodeWithText("APPOINTMENT REQUEST PENDING").assertDoesNotExist()
+        composeRule.onNodeWithText("Book an appointment").assertDoesNotExist()
+        composeRule.onNodeWithText("YOUR NEXT VISIT").assertDoesNotExist()
     }
 
     @Test

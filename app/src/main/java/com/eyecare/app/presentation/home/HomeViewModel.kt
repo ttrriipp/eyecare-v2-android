@@ -27,6 +27,7 @@ sealed interface HomeUiState {
         val currentPrescription: Prescription?,
         val featuredFrames: List<Frame>,
         val clinicHours: List<ClinicHoursDay> = emptyList(),
+        val currentAppointmentJourney: CurrentAppointmentJourney? = null,
     ) : HomeUiState
     data class Error(val message: String) : HomeUiState
 }
@@ -60,6 +61,7 @@ class HomeViewModel @Inject constructor(
                 val clinicHours = clinicHoursDeferred.await().getOrDefault(emptyList())
                 _uiState.value = HomeUiState.Success(
                     nextAppointment = null,
+                    currentAppointmentJourney = null,
                     currentPrescription = null,
                     featuredFrames = frames.take(HOME_SHELF_LIMIT),
                     clinicHours = clinicHours,
@@ -96,6 +98,7 @@ class HomeViewModel @Inject constructor(
 
             _uiState.value = HomeUiState.Success(
                 nextAppointment = nextAppointment,
+                currentAppointmentJourney = journey,
                 currentPrescription = currentPrescription,
                 featuredFrames = frames.take(HOME_SHELF_LIMIT),
                 clinicHours = clinicHours,

@@ -48,7 +48,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,7 +82,6 @@ fun AppointmentDetailScreen(
     onBack: () -> Unit,
     onNavigateToMessages: () -> Unit = {},
     onViewRescheduleRequest: (Int) -> Unit = {},
-    onAppointmentsChanged: () -> Unit = {},
     viewModel: AppointmentDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -91,12 +89,6 @@ fun AppointmentDetailScreen(
     var cancelReason by remember { mutableStateOf("") }
     var cancelReasonChoice by remember { mutableStateOf<CancellationReasonChoice>(CancellationReasonChoice.Other) }
     val isCancelling = (uiState as? AppointmentDetailUiState.Success)?.isCancelling == true
-
-    val rescheduleRequestSent = (uiState as? AppointmentDetailUiState.Success)
-        ?.showRescheduleSuccessDialog == true
-    LaunchedEffect(rescheduleRequestSent) {
-        if (rescheduleRequestSent) onAppointmentsChanged()
-    }
 
     RefreshOnResumeEffect(onRefresh = viewModel::refresh)
 
@@ -239,8 +231,12 @@ private fun AppointmentDetailContent(
     onMessageClick: () -> Unit = {},
 ) {
     val appointment = state.appointment
-    val canCancel = appointment.status.canCancel && !isSameDayInClinic(appointment.scheduledAt)
-    val canReschedule = appointment.status.canReschedule && state.pendingRescheduleRequest == null
+    val actionPolicy = appointmentCurrentActionPolicy(
+        appointment = appointment,
+        hasPendingReschedule = state.pendingRescheduleRequest != null,
+    )
+    val canCancel = actionPolicy.canCancel
+    val canReschedule = actionPolicy.canRequestDifferentTime
     val canMessage = appointment.status.isActive
     val customerNote = appointment.contactNotes?.takeIf { it.isNotBlank() }
     val clinicNote: String? = null
@@ -267,8 +263,7 @@ private fun AppointmentDetailContent(
             AppointmentStatusGuidance(
                 status = appointment.status,
                 onRetry = onRetry,
-                sameDayCancellationBlocked = appointment.status.canCancel &&
-                    isSameDayInClinic(appointment.scheduledAt),
+                sameDayCancellationBlocked = actionPolicy.sameDayCancellationBlocked,
             )
             state.pendingRescheduleRequest?.let { request ->
                 PendingRescheduleNotice(

@@ -1,11 +1,13 @@
 package com.eyecare.app.presentation.appointments
 
 import app.cash.turbine.test
+import com.eyecare.app.domain.model.AppointmentAvailability
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.AppointmentSlot
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.AppointmentV1Repository
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MyAppointmentViewModelTest {
@@ -145,7 +148,7 @@ class MyAppointmentViewModelTest {
             assertInstanceOf(MyAppointmentUiState.Loading::class.java, awaitItem())
             dispatcher.scheduler.advanceUntilIdle()
             val error = awaitItem() as MyAppointmentUiState.Error
-            assertTrue(error.message.contains("network error"))
+            assertEquals("Something went wrong. Please try again.", error.message)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -315,6 +318,35 @@ class MyAppointmentViewModelTest {
     }
 
     @Test
+    fun `mutation refresh failure retains the confirmed appointment`() = runTest {
+        coEvery { repo.getCurrentAppointmentJourney() } returnsMany listOf(
+            Result.success(
+                CurrentAppointmentJourney.Appointment(
+                    appointment = fakeAppointment,
+                    originalRequest = null,
+                    pendingReschedule = null,
+                ),
+            ),
+            Result.failure(RuntimeException("refresh failed")),
+        )
+        coEvery { appointmentRepo.cancelAppointment(42, "No longer needed") } returns Result.success(fakeAppointment)
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.cancelAppointment("No longer needed")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val content = vm.uiState.value as MyAppointmentUiState.Content
+        assertFalse(content.isMutating)
+        assertNotNull(content.mutationError)
+        assertInstanceOf(CurrentAppointmentJourney.Appointment::class.java, content.journey)
+        assertEquals(
+            42,
+            (content.journey as CurrentAppointmentJourney.Appointment).appointment.id,
+        )
+    }
+
+    @Test
     fun `blank cancel reason shows validation error`() = runTest {
         coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
             CurrentAppointmentJourney.PendingRequest(request = fakeRequest),
@@ -327,5 +359,111 @@ class MyAppointmentViewModelTest {
 
         val content = vm.uiState.value as MyAppointmentUiState.Content
         assertNotNull(content.mutationError)
+    }
+
+    @Test
+    fun `same day pending request shows cancellation guidance without calling API`() = runTest {
+        val sameDayRequest = fakeRequest.copy(
+            scheduledAt = "${LocalDate.now(CLINIC_TIME_ZONE)}T10:00:00+08:00",
+        )
+        coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.PendingRequest(request = sameDayRequest),
+        )
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.cancelRequest(sameDayRequest.id, "Changed my mind")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val content = vm.uiState.value as MyAppointmentUiState.Content
+        assertEquals(SAME_DAY_CANCELLATION_MESSAGE, content.mutationError)
+        coVerify(exactly = 0) { repo.cancelRequest(any(), any()) }
+    }
+
+    @Test
+    fun `overlong cancellation reason is rejected before calling API`() = runTest {
+        coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.PendingRequest(request = fakeRequest),
+        )
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.cancelRequest(fakeRequest.id, "x".repeat(PATIENT_CANCELLATION_REASON_MAX_LENGTH + 1))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val content = vm.uiState.value as MyAppointmentUiState.Content
+        assertEquals(CANCELLATION_REASON_REQUIRED_MESSAGE, content.mutationError)
+        coVerify(exactly = 0) { repo.cancelRequest(any(), any()) }
+    }
+
+    @Test
+    fun `requesting a different time refetches current journey`() = runTest {
+        val requestedAt = "${LocalDate.now(CLINIC_TIME_ZONE).plusDays(2)}T10:30:00+08:00"
+        val pendingReschedule = fakeRequest.copy(
+            id = 7,
+            requestType = AppointmentRequestType.RESCHEDULE,
+            appointmentId = fakeAppointment.id,
+            scheduledAt = requestedAt,
+        )
+        coEvery { repo.getCurrentAppointmentJourney() } returnsMany listOf(
+            Result.success(
+                CurrentAppointmentJourney.Appointment(
+                    appointment = fakeAppointment,
+                    originalRequest = null,
+                    pendingReschedule = null,
+                ),
+            ),
+            Result.success(
+                CurrentAppointmentJourney.Appointment(
+                    appointment = fakeAppointment,
+                    originalRequest = null,
+                    pendingReschedule = pendingReschedule,
+                ),
+            ),
+        )
+        coEvery {
+            appointmentRepo.getAppointmentAvailability(any(), fakeAppointment.id)
+        } returns Result.success(
+            AppointmentAvailability(
+                date = requestedAt.take(10),
+                timezone = "Asia/Manila",
+                intervalMinutes = 15,
+                visitReasonId = 1,
+                visitDurationMinutes = fakeAppointment.durationMinutes,
+                optometristId = null,
+                appointmentId = fakeAppointment.id,
+                dayStatus = "open",
+                generatedAt = requestedAt,
+                slots = listOf(
+                    AppointmentSlot(
+                        startsAt = requestedAt,
+                        endsAt = "${requestedAt.take(10)}T11:15:00+08:00",
+                        available = true,
+                        reason = null,
+                    ),
+                ),
+            ),
+        )
+        coEvery {
+            repo.createRebookingRequest(fakeAppointment.id, requestedAt, null, null)
+        } returns Result.success(pendingReschedule)
+
+        val vm = MyAppointmentViewModel(repo, appointmentRepo).also { it.load() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.showRescheduleSheet()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue((vm.uiState.value as MyAppointmentUiState.Content).showRescheduleSheet)
+
+        vm.rescheduleAppointment(requestedAt)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val content = vm.uiState.value as MyAppointmentUiState.Content
+        val journey = content.journey as CurrentAppointmentJourney.Appointment
+        assertFalse(content.isMutating)
+        assertEquals("Time-change request sent.", content.mutationSuccess)
+        assertEquals(fakeAppointment.scheduledAt, journey.appointment.scheduledAt)
+        assertEquals(pendingReschedule.id, journey.pendingReschedule?.id)
+        coVerify(exactly = 2) { repo.getCurrentAppointmentJourney() }
     }
 }

@@ -8,7 +8,10 @@ import com.eyecare.app.data.remote.dto.UpdateAppointmentRequestScheduleRequest
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentRequestAvailability
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
+import com.eyecare.app.domain.model.AppointmentRequestStatus
+import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentType
+import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
 import com.eyecare.app.domain.repository.PaginatedResult
@@ -96,24 +99,79 @@ class AppointmentRequestRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getCurrentAppointmentJourney(): Result<CurrentAppointmentJourney> = safeApiCall {
-        val dto = api.getCurrentAppointmentJourney().data
-        when (dto.kind) {
-            "none" -> CurrentAppointmentJourney.None
-            "pending_request" -> {
-                val request = dto.request
-                    ?: throw IllegalStateException("pending_request kind missing required request field")
-                CurrentAppointmentJourney.PendingRequest(request = request.toDomain())
+        api.getCurrentAppointmentJourney().data.toDomain()
+    }
+
+    private fun com.eyecare.app.data.remote.dto.CurrentAppointmentJourneyDto.toDomain(): CurrentAppointmentJourney {
+        return when (kind) {
+            "none" -> {
+                require(request == null && appointment == null && originalRequest == null && pendingReschedule == null) {
+                    "none journey must not contain variant data"
+                }
+                CurrentAppointmentJourney.None
             }
+
+            "pending_request" -> {
+                require(appointment == null && originalRequest == null && pendingReschedule == null) {
+                    "pending_request journey contains appointment variant data"
+                }
+                val pendingRequest = requireNotNull(request) {
+                    "pending_request kind missing required request field"
+                }.toDomain()
+                require(pendingRequest.requestType == AppointmentRequestType.NEW) {
+                    "pending_request must contain a new appointment request"
+                }
+                require(pendingRequest.status == AppointmentRequestStatus.PENDING) {
+                    "pending_request must contain a pending request"
+                }
+                require(pendingRequest.appointmentId == null) {
+                    "pending_request must not reference an appointment"
+                }
+                CurrentAppointmentJourney.PendingRequest(request = pendingRequest)
+            }
+
             "appointment" -> {
-                val appointment = dto.appointment
-                    ?: throw IllegalStateException("appointment kind missing required appointment field")
+                require(request == null) {
+                    "appointment journey must not contain a top-level request"
+                }
+                val confirmedAppointment = requireNotNull(appointment) {
+                    "appointment kind missing required appointment field"
+                }.toDomain()
+                require(confirmedAppointment.status in setOf(AppointmentStatus.SCHEDULED, AppointmentStatus.CHECKED_IN)) {
+                    "appointment journey must contain an active appointment"
+                }
+
+                val original = originalRequest?.toDomain()?.also {
+                    require(it.requestType == AppointmentRequestType.NEW) {
+                        "original_request must be a new appointment request"
+                    }
+                    require(it.status == AppointmentRequestStatus.ACCEPTED) {
+                        "original_request must be accepted"
+                    }
+                    require(it.appointmentId == confirmedAppointment.id) {
+                        "original_request must reference the confirmed appointment"
+                    }
+                }
+                val pendingChange = pendingReschedule?.toDomain()?.also {
+                    require(it.requestType == AppointmentRequestType.RESCHEDULE) {
+                        "pending_reschedule must be a reschedule request"
+                    }
+                    require(it.status == AppointmentRequestStatus.PENDING) {
+                        "pending_reschedule must be pending"
+                    }
+                    require(it.appointmentId == confirmedAppointment.id) {
+                        "pending_reschedule must reference the confirmed appointment"
+                    }
+                }
+
                 CurrentAppointmentJourney.Appointment(
-                    appointment = appointment.toDomain(),
-                    originalRequest = dto.originalRequest?.toDomain(),
-                    pendingReschedule = dto.pendingReschedule?.toDomain(),
+                    appointment = confirmedAppointment,
+                    originalRequest = original,
+                    pendingReschedule = pendingChange,
                 )
             }
-            else -> throw IllegalStateException("Unknown current journey kind: ${dto.kind}")
+
+            else -> throw IllegalStateException("Unknown current journey kind: $kind")
         }
     }
 

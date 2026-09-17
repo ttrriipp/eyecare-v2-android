@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,15 +28,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.presentation.appointments.components.VisitFeedbackDialog
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -62,15 +66,25 @@ fun AppointmentHistoryScreen(
     onLoadMore: () -> Unit,
     onBack: () -> Unit,
     onNavigateToDetail: (Int) -> Unit,
+    onShowRating: (Int) -> Unit = {},
+    onSubmitRating: (Int, String?) -> Unit = { _, _ -> },
+    onDismissRating: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(uiState) {
-        if (uiState is AppointmentHistoryUiState.Content) {
-            uiState.refreshError?.let { snackbarHostState.showSnackbar(it) }
-            uiState.loadMoreError?.let { snackbarHostState.showSnackbar(it) }
-        }
+    val content = uiState as? AppointmentHistoryUiState.Content
+    val ratingAppointment = content?.ratingAppointmentId?.let { id ->
+        content.appointments.find { it.id == id }
+    }
+    if (content != null && ratingAppointment != null) {
+        VisitFeedbackDialog(
+            onSubmit = onSubmitRating,
+            onDismiss = onDismissRating,
+            initialRating = ratingAppointment.visitRating?.rating ?: 0,
+            initialComment = ratingAppointment.visitRating?.comment.orEmpty(),
+            title = if (ratingAppointment.visitRating != null) "Update your rating" else "Rate your visit",
+            isSubmitting = content.isSubmittingRating,
+            errorMessage = content.ratingError,
+        )
     }
 
     Scaffold(
@@ -84,7 +98,6 @@ fun AppointmentHistoryScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
     ) { padding ->
         when (uiState) {
@@ -131,11 +144,13 @@ fun AppointmentHistoryScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "Your completed appointments will appear here.",
+                        text = "Past visits, cancellations, and missed appointments will appear here.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = onRefresh) { Text("Refresh") }
                 }
             }
             is AppointmentHistoryUiState.Content -> {
@@ -144,13 +159,25 @@ fun AppointmentHistoryScreen(
                     onRefresh = onRefresh,
                     modifier = Modifier.fillMaxSize().padding(padding),
                 ) {
-                    HistoryList(
-                        appointments = uiState.appointments,
-                        isLoadingMore = uiState.isLoadingMore,
-                        hasMorePages = uiState.hasMorePages,
-                        onLoadMore = onLoadMore,
-                        onNavigateToDetail = onNavigateToDetail,
-                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        uiState.refreshError?.let { error ->
+                            HistoryErrorBanner(
+                                message = error,
+                                onRetry = onRefresh,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                        HistoryList(
+                            appointments = uiState.appointments,
+                            isLoadingMore = uiState.isLoadingMore,
+                            hasMorePages = uiState.hasMorePages,
+                            loadMoreError = uiState.loadMoreError,
+                            onLoadMore = onLoadMore,
+                            onNavigateToDetail = onNavigateToDetail,
+                            onShowRating = onShowRating,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }
@@ -162,21 +189,31 @@ private fun HistoryList(
     appointments: List<AppointmentV1>,
     isLoadingMore: Boolean,
     hasMorePages: Boolean,
+    loadMoreError: String?,
     onLoadMore: () -> Unit,
     onNavigateToDetail: (Int) -> Unit,
+    onShowRating: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
 
-    val shouldLoadMore = remember {
+    val shouldLoadMore by remember(
+        appointments.size,
+        hasMorePages,
+        isLoadingMore,
+        loadMoreError,
+    ) {
         derivedStateOf {
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            lastVisibleItem >= appointments.size - 3 && hasMorePages && !isLoadingMore
+            lastVisibleItem >= appointments.size - 3 &&
+                hasMorePages &&
+                !isLoadingMore &&
+                loadMoreError == null
         }
     }
 
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value) onLoadMore()
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) onLoadMore()
     }
 
     LazyColumn(
@@ -189,6 +226,7 @@ private fun HistoryList(
             HistoryRow(
                 appointment = appointment,
                 onClick = { onNavigateToDetail(appointment.id) },
+                onRateClick = { onShowRating(appointment.id) },
             )
         }
         if (isLoadingMore) {
@@ -201,6 +239,43 @@ private fun HistoryList(
                 }
             }
         }
+        if (loadMoreError != null) {
+            item {
+                HistoryErrorBanner(
+                    message = loadMoreError,
+                    onRetry = onLoadMore,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryErrorBanner(
+    message: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = message,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            TextButton(onClick = onRetry) {
+                Text("Retry")
+            }
+        }
     }
 }
 
@@ -208,6 +283,7 @@ private fun HistoryList(
 private fun HistoryRow(
     appointment: AppointmentV1,
     onClick: () -> Unit,
+    onRateClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -253,6 +329,42 @@ private fun HistoryRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                 )
+            }
+            when {
+                appointment.isRateable && appointment.visitRating == null -> {
+                    SuggestionChip(
+                        onClick = onRateClick,
+                        label = { Text("Rate this visit") },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                            )
+                        },
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    )
+                }
+                appointment.visitRating != null -> {
+                    SuggestionChip(
+                        onClick = onRateClick,
+                        label = { Text("Update rating") },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                            )
+                        },
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            iconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    )
+                }
             }
         }
     }

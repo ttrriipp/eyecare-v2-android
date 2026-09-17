@@ -22,7 +22,7 @@ data class RequestStatusPresentation(
 
 /**
  * The single source of truth for how a request status renders as a pill — shared by
- * the appointment list card and the request detail screen so status never silently
+ * the request detail screen and current-journey surfaces so status never silently
  * degrades to plain text on one of the two surfaces that show it.
  */
 @Composable

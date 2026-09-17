@@ -18,16 +18,6 @@ class AppointmentV1RepositoryImpl @Inject constructor(
     private val json: Json,
 ) : AppointmentV1Repository {
 
-    override suspend fun getAppointments(page: Int): Result<PaginatedResult<AppointmentV1>> = runCatching {
-        val response = api.getAppointments(page = page)
-        PaginatedResult(
-            data = response.data.map { it.toDomain() },
-            currentPage = response.meta?.currentPage ?: 1,
-            lastPage = response.meta?.lastPage ?: 1,
-            total = response.meta?.total ?: response.data.size,
-        )
-    }
-
     override suspend fun getAppointmentHistory(page: Int, perPage: Int): Result<PaginatedResult<AppointmentV1>> = safeApiCall {
         val response = api.getAppointmentHistory(filter = "history", page = page, perPage = perPage)
         PaginatedResult(

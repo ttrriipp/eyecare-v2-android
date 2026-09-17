@@ -10,10 +10,12 @@ import com.eyecare.app.domain.model.AppointmentRequestGender
 import com.eyecare.app.domain.model.AppointmentRequestIdentity
 import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestTypeSummary
+import com.eyecare.app.domain.model.AppointmentStatus
 import com.eyecare.app.domain.model.AppointmentType
+import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AvailabilitySlot
+import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
-import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.presentation.appointments.DayAvailability
 import com.eyecare.app.presentation.appointments.earliestAppointmentRequestDate
 import io.mockk.coEvery
@@ -119,6 +121,21 @@ class RequestAppointmentViewModelTest {
         createdAt = "2026-08-09T10:00:00+08:00", appointmentId = null,
     )
 
+    private val fakeAppointment = AppointmentV1(
+        id = 42,
+        appointmentNumber = "APT-2026-000042",
+        appointmentType = "First eye examination",
+        durationMinutes = 45,
+        referringSource = null,
+        status = AppointmentStatus.SCHEDULED,
+        scheduledAt = "2026-09-25T09:00:00+08:00",
+        contactNotes = null,
+        reasonForVisit = "Checkup",
+        lastRescheduleReason = null,
+        source = "mobile",
+        assignedOptometrist = null,
+    )
+
     private fun newViewModel(savedStateHandle: SavedStateHandle = SavedStateHandle()) =
         RequestAppointmentViewModel(repo, savedStateHandle)
 
@@ -127,9 +144,7 @@ class RequestAppointmentViewModelTest {
         Dispatchers.setMain(dispatcher)
         repo = mockk()
         coEvery { repo.getAppointmentTypes() } returns Result.success(listOf(normalType, referralType))
-        coEvery { repo.getRequests(any(), any()) } returns Result.success(
-            PaginatedResult(emptyList(), currentPage = 1, lastPage = 1, total = 0),
-        )
+        coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(CurrentAppointmentJourney.None)
         // The schedule step prefetches a whole week around today, so every date must answer.
         // Individual tests override the specific dates they assert on.
         coEvery { repo.getAvailability(any(), any()) } returns Result.success(fakeAvailability())
@@ -150,34 +165,32 @@ class RequestAppointmentViewModelTest {
 
     @Test
     fun `one pending request blocks the flow before appointment types load`() {
-        coEvery { repo.getRequests(any(), any()) } returns Result.success(
-            PaginatedResult(
-                data = listOf(fakeRequest),
-                currentPage = 1,
-                lastPage = 1,
-                total = 1,
-            ),
+        coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.PendingRequest(fakeRequest),
         )
 
         vm = newViewModel()
 
-        assertEquals(RequestStep.LimitReached(activeRequestCount = 1), vm.step.value)
+        assertEquals(
+            RequestStep.BookingBlocked(
+                activeRequestCount = 1,
+                eligibility = AppointmentBookingEligibility(
+                    canSubmitNewRequest = false,
+                    blockingReason = AppointmentBookingBlockingReason.ACTIVE_REQUEST,
+                    activeRequestId = fakeRequest.id,
+                ),
+            ),
+            vm.step.value,
+        )
     }
 
     @Test
     fun `scheduled appointment eligibility blocks new booking before appointment types load`() {
-        coEvery { repo.getRequests(any(), any()) } returns Result.success(
-            PaginatedResult(
-                data = emptyList(),
-                currentPage = 1,
-                lastPage = 1,
-                total = 0,
-                bookingEligibility = AppointmentBookingEligibility(
-                    canSubmitNewRequest = false,
-                    blockingReason = AppointmentBookingBlockingReason.SCHEDULED_APPOINTMENT,
-                    appointmentId = 42,
-                    canRequestRebooking = true,
-                ),
+        coEvery { repo.getCurrentAppointmentJourney() } returns Result.success(
+            CurrentAppointmentJourney.Appointment(
+                appointment = fakeAppointment,
+                originalRequest = null,
+                pendingReschedule = null,
             ),
         )
 

@@ -1,7 +1,6 @@
 package com.eyecare.app.presentation.appointments
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +19,6 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,10 +46,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.eyecare.app.domain.model.AppointmentRequest
-import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
-import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -71,19 +67,50 @@ fun MyAppointmentScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit,
     onNavigateToAppointmentDetail: (Int) -> Unit,
+    onRequestDifferentTime: () -> Unit = {},
     onCancelRequest: (Int, String) -> Unit,
     onCancelAppointment: (String) -> Unit,
     onClearMutationError: () -> Unit,
     onClearMutationSuccess: () -> Unit,
+    hasActivePatientLink: Boolean = true,
+    onNavigateToLinkAccount: () -> Unit = {},
+    onDismissReschedule: () -> Unit = {},
+    onShowRescheduleWeek: (String) -> Unit = {},
+    onRescheduleDateChanged: (String) -> Unit = {},
+    onRetryRescheduleAvailability: () -> Unit = {},
+    onRescheduleAppointment: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState) {
         val content = uiState as? MyAppointmentUiState.Content ?: return@LaunchedEffect
-        content.refreshError?.let { snackbarHostState.showSnackbar(it) }
         content.mutationError?.let { snackbarHostState.showSnackbar(it); onClearMutationError() }
         content.mutationSuccess?.let { snackbarHostState.showSnackbar(it); onClearMutationSuccess() }
+    }
+
+    val rescheduleContent = uiState as? MyAppointmentUiState.Content
+    val rescheduleJourney = rescheduleContent?.journey as? CurrentAppointmentJourney.Appointment
+    if (rescheduleContent?.showRescheduleSheet == true && rescheduleJourney != null) {
+        RescheduleBottomSheet(
+            currentScheduledAt = rescheduleJourney.appointment.scheduledAt,
+            weekStart = rescheduleContent.rescheduleWeekStart,
+            dayAvailability = rescheduleContent.rescheduleDayAvailability,
+            availabilityState = rescheduleContent.rescheduleAvailability,
+            isSubmitting = rescheduleContent.isRescheduling,
+            errorMessage = rescheduleContent.rescheduleError,
+            title = "Request a different time",
+            description = "Choose a new preferred time from tomorrow onward. Your current appointment stays confirmed until the clinic approves the request.",
+            confirmationTitle = "Request this time change",
+            confirmationMessage = { date, time ->
+                "Request a move to $date at $time? Your current appointment remains unchanged until the clinic approves it."
+            },
+            onShowWeek = onShowRescheduleWeek,
+            onDateChanged = onRescheduleDateChanged,
+            onRetryAvailability = onRetryRescheduleAvailability,
+            onDismiss = onDismissReschedule,
+            onConfirm = onRescheduleAppointment,
+        )
     }
 
     Scaffold(
@@ -91,9 +118,7 @@ fun MyAppointmentScreen(
             TopAppBar(
                 title = { Text("My Appointment") },
                 actions = {
-                    if (uiState is MyAppointmentUiState.Content &&
-                        uiState.journey is CurrentAppointmentJourney.Appointment
-                    ) {
+                    if (hasActivePatientLink && uiState is MyAppointmentUiState.Content) {
                         IconButton(onClick = onNavigateToHistory) {
                             Icon(Icons.Default.History, contentDescription = "Appointment history")
                         }
@@ -106,12 +131,7 @@ fun MyAppointmentScreen(
     ) { padding ->
         when (uiState) {
             is MyAppointmentUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
+                MyAppointmentLoadingContent(modifier = Modifier.fillMaxSize().padding(padding))
             }
             is MyAppointmentUiState.Error -> {
                 ErrorContent(
@@ -126,16 +146,28 @@ fun MyAppointmentScreen(
                     onRefresh = onRefresh,
                     modifier = Modifier.fillMaxSize().padding(padding),
                 ) {
-                    JourneyContent(
-                        journey = uiState.journey,
-                        isMutating = uiState.isMutating,
-                        onRequestAppointment = onRequestAppointment,
-                        onNavigateToRequestDetail = onNavigateToRequestDetail,
-                        onNavigateToAppointmentDetail = onNavigateToAppointmentDetail,
-                        onCancelRequest = onCancelRequest,
-                        onCancelAppointment = onCancelAppointment,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        uiState.refreshError?.let { error ->
+                            RefreshErrorBanner(
+                                message = error,
+                                onRetry = onRefresh,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                        JourneyContent(
+                            journey = uiState.journey,
+                            isMutating = uiState.isMutating,
+                            hasActivePatientLink = hasActivePatientLink,
+                            onNavigateToLinkAccount = onNavigateToLinkAccount,
+                            onRequestAppointment = onRequestAppointment,
+                            onNavigateToRequestDetail = onNavigateToRequestDetail,
+                            onNavigateToAppointmentDetail = onNavigateToAppointmentDetail,
+                            onRequestDifferentTime = onRequestDifferentTime,
+                            onCancelRequest = onCancelRequest,
+                            onCancelAppointment = onCancelAppointment,
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                        )
+                    }
                 }
             }
         }
@@ -146,9 +178,12 @@ fun MyAppointmentScreen(
 private fun JourneyContent(
     journey: CurrentAppointmentJourney,
     isMutating: Boolean,
+    hasActivePatientLink: Boolean,
+    onNavigateToLinkAccount: () -> Unit,
     onRequestAppointment: () -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit,
     onNavigateToAppointmentDetail: (Int) -> Unit,
+    onRequestDifferentTime: () -> Unit,
     onCancelRequest: (Int, String) -> Unit,
     onCancelAppointment: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -175,13 +210,135 @@ private fun JourneyContent(
                     originalRequest = journey.originalRequest,
                     pendingReschedule = journey.pendingReschedule,
                     isMutating = isMutating,
+                    hasActivePatientLink = hasActivePatientLink,
+                    onNavigateToLinkAccount = onNavigateToLinkAccount,
                     onViewRequestDetail = onNavigateToRequestDetail,
                     onViewAppointmentDetail = { onNavigateToAppointmentDetail(journey.appointment.id) },
+                    onRequestDifferentTime = onRequestDifferentTime,
                     onCancel = onCancelAppointment,
                 )
             }
         }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun MyAppointmentLoadingContent(
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        PlaceholderBar(widthFraction = 0.32f, height = 24.dp)
+        PlaceholderBar(widthFraction = 0.72f, height = 32.dp)
+        Surface(
+            modifier = Modifier.fillMaxWidth().height(220.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        ) {}
+        PlaceholderBar(widthFraction = 0.9f, height = 18.dp)
+        PlaceholderBar(widthFraction = 0.62f, height = 18.dp)
+    }
+}
+
+@Composable
+private fun PlaceholderBar(
+    widthFraction: Float,
+    height: androidx.compose.ui.unit.Dp,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(widthFraction).height(height),
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    ) {}
+}
+
+@Composable
+private fun RefreshErrorBanner(
+    message: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = message,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            TextButton(onClick = onRetry) {
+                Text("Retry")
+            }
+        }
+    }
+}
+
+@Composable
+private fun LinkRequiredNotice(
+    onLinkAccount: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Connect your clinic record to manage this appointment.",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "You can see the confirmed details here. Linking your account enables history and appointment changes.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(onClick = onLinkAccount) {
+                Text("Link your account")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SameDayCancellationNotice(
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "Same-day cancellation unavailable",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = SAME_DAY_CANCELLATION_MESSAGE,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+        }
     }
 }
 
@@ -231,6 +388,7 @@ private fun PendingRequestContent(
     modifier: Modifier = Modifier,
 ) {
     var showCancelDialog by remember { mutableStateOf(false) }
+    val sameDayCancellationBlocked = isSameDayInClinic(request.scheduledAt)
 
     Column(modifier = modifier.fillMaxWidth()) {
         StatusHeader(
@@ -288,22 +446,29 @@ private fun PendingRequestContent(
             modifier = Modifier.padding(horizontal = 4.dp),
         )
         Spacer(Modifier.height(16.dp))
+        if (sameDayCancellationBlocked) {
+            SameDayCancellationNotice()
+            Spacer(Modifier.height(8.dp))
+        }
         OutlinedButton(
             onClick = onViewDetails,
             modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("View request details")
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = { showCancelDialog = true },
-            modifier = Modifier.fillMaxWidth(),
             enabled = !isMutating,
-            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.error,
-            ),
         ) {
-            Text("Cancel request")
+            Text("Change requested time")
+        }
+        if (!sameDayCancellationBlocked) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { showCancelDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isMutating,
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                Text("Cancel request")
+            }
         }
     }
 
@@ -325,21 +490,26 @@ private fun ConfirmedAppointmentContent(
     originalRequest: AppointmentRequest?,
     pendingReschedule: AppointmentRequest?,
     isMutating: Boolean,
+    hasActivePatientLink: Boolean,
+    onNavigateToLinkAccount: () -> Unit,
     onViewRequestDetail: (Int) -> Unit,
     onViewAppointmentDetail: () -> Unit,
+    onRequestDifferentTime: () -> Unit,
     onCancel: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showCancelDialog by remember { mutableStateOf(false) }
+    val actionPolicy = appointmentCurrentActionPolicy(
+        appointment = appointment,
+        hasPendingReschedule = pendingReschedule != null,
+    )
+    val statusPresentation = appointmentStatusPresentation(appointment.status)
 
     Column(modifier = modifier.fillMaxWidth()) {
-        val statusLabel = appointment.status.patientLabel
-        val statusColor = when (appointment.status) {
-            com.eyecare.app.domain.model.AppointmentStatus.SCHEDULED -> MaterialTheme.colorScheme.primary
-            com.eyecare.app.domain.model.AppointmentStatus.CHECKED_IN -> MaterialTheme.colorScheme.tertiary
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
-        }
-        StatusHeader(statusLabel = statusLabel, statusColor = statusColor)
+        StatusHeader(
+            statusLabel = statusPresentation.label,
+            statusColor = statusPresentation.textColor,
+        )
         Spacer(Modifier.height(16.dp))
         SectionCard {
             Text(
@@ -374,6 +544,10 @@ private fun ConfirmedAppointmentContent(
                 Spacer(Modifier.height(8.dp))
                 DetailRow(label = "Referral", value = ref)
             }
+            appointment.contactNotes?.takeIf { it.isNotBlank() }?.let { notes ->
+                Spacer(Modifier.height(8.dp))
+                DetailRow(label = "Your booking note", value = notes)
+            }
             appointment.lastRescheduleReason?.let { reason ->
                 Spacer(Modifier.height(8.dp))
                 Surface(
@@ -407,7 +581,39 @@ private fun ConfirmedAppointmentContent(
 
         Spacer(Modifier.height(12.dp))
 
-        if (appointment.status.canCancel && pendingReschedule == null) {
+        if (hasActivePatientLink && actionPolicy.canRequestDifferentTime) {
+            Button(
+                onClick = onRequestDifferentTime,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isMutating,
+            ) {
+                Text("Request a different time")
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+
+        if (hasActivePatientLink) {
+            OutlinedButton(
+                onClick = onViewAppointmentDetail,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isMutating,
+            ) {
+                Text("View appointment details")
+            }
+            Spacer(Modifier.height(8.dp))
+        } else {
+            LinkRequiredNotice(
+                onLinkAccount = onNavigateToLinkAccount,
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
+        if (actionPolicy.sameDayCancellationBlocked) {
+            SameDayCancellationNotice()
+            Spacer(Modifier.height(8.dp))
+        }
+
+        if (hasActivePatientLink && actionPolicy.canCancel) {
             OutlinedButton(
                 onClick = { showCancelDialog = true },
                 modifier = Modifier.fillMaxWidth(),

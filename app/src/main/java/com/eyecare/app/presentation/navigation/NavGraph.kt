@@ -40,12 +40,9 @@ import com.eyecare.app.domain.model.PatientLinkStatus
 import com.eyecare.app.presentation.appointments.AppointmentDetailScreen
 import com.eyecare.app.presentation.appointments.AppointmentHistoryScreen
 import com.eyecare.app.presentation.appointments.AppointmentHistoryViewModel
-import com.eyecare.app.presentation.appointments.AppointmentListScreen
-import com.eyecare.app.presentation.appointments.AppointmentListViewModel
 import com.eyecare.app.presentation.appointments.MyAppointmentScreen
 import com.eyecare.app.presentation.appointments.MyAppointmentViewModel
 import com.eyecare.app.presentation.appointments.requests.AppointmentRequestDetailScreen
-import com.eyecare.app.presentation.appointments.requests.AppointmentRequestListViewModel
 import com.eyecare.app.presentation.appointments.requests.RequestAppointmentScreen
 import com.eyecare.app.presentation.auth.LoginScreen
 import com.eyecare.app.presentation.auth.PasswordRecoveryScreen
@@ -75,8 +72,6 @@ import com.eyecare.app.presentation.notifications.NotificationListUiState
 import com.eyecare.app.presentation.notifications.NotificationEffect
 import com.eyecare.app.presentation.profile.ProfileScreen
 import kotlinx.coroutines.flow.collect
-
-private const val APPOINTMENTS_REFRESH_KEY = "appointments_refresh_token"
 
 internal fun shouldShowBottomNav(route: String): Boolean =
     !route.contains("Login") && !route.contains("Register") &&
@@ -176,13 +171,6 @@ fun EyecareNavGraph(
                 launchSingleTop = true
             }
         }
-    }
-
-    fun requestAppointmentsRefresh() {
-        runCatching { navController.getBackStackEntry<Appointments>() }
-            .getOrNull()
-            ?.savedStateHandle
-            ?.set(APPOINTMENTS_REFRESH_KEY, System.currentTimeMillis())
     }
 
     fun navigateMainTab(route: Any) {
@@ -381,13 +369,10 @@ fun EyecareNavGraph(
                             ?.requiresAppointmentRequestIdentity() == true
                         RequestAppointmentScreen(
                             onBack = { navController.popBackStack() },
-                            onRequestCreated = { requestId ->
-                                // The appointments entry is still underneath this flow. Mark it
-                                // before opening the detail so the new request is loaded by the
-                                // time the patient returns to the list.
-                                requestAppointmentsRefresh()
-                                navController.navigate(AppointmentRequestDetail(requestId)) {
+                            onRequestCreated = {
+                                navController.navigate(Appointments) {
                                     popUpTo<RequestAppointment> { inclusive = true }
+                                    launchSingleTop = true
                                 }
                             },
                             onViewRequests = { navigateMainTab(Appointments) },
@@ -457,10 +442,18 @@ fun EyecareNavGraph(
                             onNavigateToAppointmentDetail = { id ->
                                 navigatePatientFeature(AppointmentDetail(id))
                             },
+                            onRequestDifferentTime = myAppointmentViewModel::showRescheduleSheet,
                             onCancelRequest = myAppointmentViewModel::cancelRequest,
                             onCancelAppointment = myAppointmentViewModel::cancelAppointment,
                             onClearMutationError = myAppointmentViewModel::clearMutationError,
                             onClearMutationSuccess = myAppointmentViewModel::clearMutationSuccess,
+                            hasActivePatientLink = canAccessPatientFeatures(sessionState),
+                            onNavigateToLinkAccount = ::openAccountLink,
+                            onDismissReschedule = myAppointmentViewModel::dismissRescheduleSheet,
+                            onShowRescheduleWeek = myAppointmentViewModel::loadRescheduleWeekAvailability,
+                            onRescheduleDateChanged = myAppointmentViewModel::loadRescheduleAvailability,
+                            onRetryRescheduleAvailability = myAppointmentViewModel::retryRescheduleAvailability,
+                            onRescheduleAppointment = myAppointmentViewModel::rescheduleAppointment,
                         )
                     }
                     composable<AppointmentHistory> {
@@ -478,13 +471,14 @@ fun EyecareNavGraph(
                             onNavigateToDetail = { id ->
                                 navigatePatientFeature(AppointmentDetail(id))
                             },
+                            onShowRating = historyViewModel::showRatingDialog,
+                            onSubmitRating = historyViewModel::submitRating,
+                            onDismissRating = historyViewModel::dismissRatingDialog,
                         )
                     }
                     composable<AppointmentDetail> {
                         AppointmentDetailScreen(
-                            onAppointmentsChanged = ::requestAppointmentsRefresh,
                             onBack = {
-                                requestAppointmentsRefresh()
                                 navController.popBackStack()
                             },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
@@ -498,9 +492,7 @@ fun EyecareNavGraph(
                         AppointmentRequestDetailScreen(
                             requestId = route.requestId,
                             isLinked = sessionState is SessionState.Linked,
-                            onAppointmentsChanged = ::requestAppointmentsRefresh,
                             onBack = {
-                                requestAppointmentsRefresh()
                                 navController.popBackStack()
                             },
                             onViewConfirmedAppointment = { id ->

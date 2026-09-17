@@ -17,12 +17,6 @@ interface AppointmentV1ApiService {
     ): AppointmentV1Dtos.AppointmentAvailabilityResponse
 
     @GET("appointments")
-    suspend fun getAppointments(
-        @Query("per_page") perPage: Int = 15,
-        @Query("page") page: Int = 1,
-    ): AppointmentV1Dtos.AppointmentListResponse
-
-    @GET("appointments")
     suspend fun getAppointmentHistory(
         @Query("filter") filter: String = "history",
         @Query("page") page: Int = 1,

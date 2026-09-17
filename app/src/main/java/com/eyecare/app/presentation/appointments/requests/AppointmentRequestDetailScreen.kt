@@ -70,7 +70,6 @@ fun AppointmentRequestDetailScreen(
     requestId: Int,
     isLinked: Boolean = false,
     onBack: () -> Unit,
-    onAppointmentsChanged: () -> Unit = {},
     onViewConfirmedAppointment: (Int) -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     viewModel: AppointmentRequestDetailViewModel = hiltViewModel(),
@@ -85,24 +84,6 @@ fun AppointmentRequestDetailScreen(
     var cancelReason by remember { mutableStateOf("") }
     var cancelReasonChoice by remember { mutableStateOf<CancellationReasonChoice>(CancellationReasonChoice.Other) }
     val isCancelling = (state as? RequestDetailState.Data)?.isCancelling == true
-    var lastListSnapshot by remember(requestId) { mutableStateOf<String?>(null) }
-
-    val requestSnapshot = (state as? RequestDetailState.Data)?.let { detail ->
-        listOf(
-            detail.request.status,
-            detail.request.scheduledAt,
-            detail.request.selectedScheduledAt,
-            detail.request.cancelledAt,
-            detail.request.appointmentId,
-        ).joinToString("|")
-    }
-    LaunchedEffect(requestSnapshot) {
-        if (requestSnapshot == null) return@LaunchedEffect
-        if (lastListSnapshot != null && lastListSnapshot != requestSnapshot) {
-            onAppointmentsChanged()
-        }
-        lastListSnapshot = requestSnapshot
-    }
 
     if (showCancelDialog) {
         AppConfirmationDialog(
@@ -201,8 +182,8 @@ private fun RequestDetailDataContent(
     onUpdateSchedule: (String) -> Unit,
 ) {
     val presentation = requestStatusPresentation(state.request.status)
-    // Mirrors the list card's own type/duration join (AppointmentListScreen.kt) so the same
-    // request reads identically on both surfaces.
+    // Keep the request detail's type/duration presentation consistent with the current-journey
+    // request surface.
     val durationMinutes = state.request.provisionalDurationMinutes
         ?: state.request.appointmentType?.durationMinutes
     val isRebooking = state.request.requestType == AppointmentRequestType.RESCHEDULE

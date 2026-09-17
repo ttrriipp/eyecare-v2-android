@@ -111,10 +111,12 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   and unknown link states enter `MainGraph` with limited access; a missing/invalid session enters
   `Welcome`.
 - Limited users can use account-safe areas, the limited Home shell, Profile, Account & Security, and
-  the normal shell. Clinical data is not loaded or shown until the backend reports an active link.
+  the normal shell. Clinical resources remain hidden until the backend reports an active link,
+  except that the account-only My Appointment journey may show a returned confirmed appointment;
+  unlinked users see its details but not protected controls.
 - Limited users may browse the nonclinical frame catalog (including frame details/AR browse) and submit
-  appointment requests. Confirmed appointments, prescriptions, and eyewear remain
-  active-link-only. Messaging is account-only; attachment download is account-only.
+  appointment requests. Appointment history, confirmed-appointment actions, prescriptions, and eyewear
+  remain active-link-only. Messaging is account-only; attachment download is account-only.
 - The appointment-request wizard adds a requester-identity step after the visit reason for limited
   accounts. It pre-fills the verified account phone, optional email, and structured account identity
   when available. The requester can edit email, first/middle/last name, date of birth, gender,
@@ -173,10 +175,12 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
 
 ### Verification
 
-- Focused auth/linking unit tests cover route intent restoration, linking errors, OTP expiry
-  presentation, single-flight invitation actions, 429 recovery copy, linked-session handoff, and
-  password-recovery normalization.
-- `./gradlew testDebugUnitTest` and `./gradlew assembleDebug` pass for the current implementation.
+- Focused auth/linking and appointment current-journey unit tests cover route intent restoration,
+  linking errors, OTP expiry presentation, single-flight invitation actions, safe appointment
+  errors, current-state reconciliation, history pagination, and password-recovery normalization.
+- `./gradlew assembleDebug`, `./gradlew lintDebug`, and
+  `./gradlew compileDebugAndroidTestKotlin` pass. Focused unit tests pass; the complete unit
+  suite still contains unrelated Account Security fixture failures.
 
 ## Booking Wizard — Date & Time Selection
 
@@ -187,14 +191,14 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   - Selecting an available clock time submits the matching backend `starts_at` value unchanged. Loading, retry, closed-day, fully-booked, and unavailable-time states are handled inline. API response timestamps, including UTC (`Z`) values, are converted to `Asia/Manila` before display and date grouping.
   - Booking mutations remain authoritative. A 422 with `code = SLOT_UNAVAILABLE` returns the wizard to Step3, refreshes availability, and asks the customer to choose another time.
 - **Step1 (visit reason):** compact navigation rows keep the reason name primary, show duration as a trailing clock value, and use a chevron to communicate immediate progression. The four-step indicator uses a primary active fill with a subdued surface track.
-- Android system Back and the app-bar Back button share the same wizard behavior: Steps 2–4 return to the previous step, while Step 1 exits to the appointment list.
+- Android system Back and the app-bar Back button share the same wizard behavior: Steps 2–4 return to the previous step, while Step 1 exits to the Appointments root.
 - All four steps use the same 16dp top and horizontal content grid. Past dates, Sundays, and dates without enough remaining clinic hours for the selected visit duration cannot advance. Backend capacity is loaded after date selection. Review shows clinic-local Date and Time as separate icon rows and uses a compact optional notes field.
 
 ## Appointment Reschedule — Bottom Sheet
 
 `presentation/appointments/RescheduleBottomSheet.kt`, invoked from `AppointmentDetailScreen.kt`:
 
-- Rescheduling an **existing** appointment calls `POST /appointments/{id}/reschedule` — it does NOT create a new appointment. Never route the "Reschedule" action through the booking wizard (`BookAppointmentScreen`).
+- Rescheduling an **existing** appointment from either My Appointment or appointment detail submits a linked `RESCHEDULE` request through `POST /appointment-requests`; it does not move the confirmed appointment during submission. Never route the "Reschedule" action through the new-booking wizard.
 - UI is a `ModalBottomSheet` showing date and time in **one continuous view** — a week strip above a morning/afternoon-grouped slot list — matching the schedule step of the appointment-request flow (`RequestScheduleContent.kt`) rather than the older tabbed calendar-then-list pattern. There is no separate step for a visit reason here, so nothing is lost by collapsing date and time onto one screen. It skips the partially expanded anchor so the strip, slot list, and confirmation controls open at a usable height on compact screens.
 - **Week strip:** seven day cells with prev/next navigation, each showing a backend-resolved verdict (open / closed / fully booked / checking) before the day costs a tap, exactly like the request flow's `WeekStrip`/`DayCell`. `DayAvailability` and `availabilityWeekLength` now live in the shared `AppointmentScheduling.kt` (moved out of the `requests` package) so both scheduling surfaces consume the same primitives instead of duplicating the enum.
   - `AppointmentDetailViewModel.loadRescheduleWeekAvailability(weekStart)` fans out to `GET /appointment-availability` once per visible day (in parallel via `async`/`awaitAll`), the same one-date-per-call fan-out `RequestAppointmentViewModel.loadWeekAvailability` uses — there is no week-range endpoint. Selecting a day still fires the existing single-day `loadRescheduleAvailability(date)` call for the slot list; its response also patches that one day's verdict into `rescheduleDayAvailability` so the strip never flickers back to "checking" for the day already on screen.
@@ -202,11 +206,11 @@ access. Endpoint payloads and machine-readable errors belong in `docs/API_CONTRA
   - **No hardcoded Sunday rule.** Past dates are still excluded locally (never fetched or selectable), but a closed day — Sunday or otherwise — is now server-authoritative via each day's `dayStatus`, matching the appointment-request flow instead of a local weekday check.
 - **Slot list:** available times for the selected day are grouped under **Morning**/**Afternoon** headers, styled as radio-led rows (time range + duration), reusing `formatTimeRange`/`formatSlotDuration`/`parseSlotTime` from `requests/RequestFormatting.kt` rather than re-deriving them.
 - The draft starts at the appointment's current clinic-local date/time. Same-day past times advance to the next 15-minute slot; past and unchanged selections are blocked locally with concise guidance before any API request.
-- Reschedule is available for `scheduled` appointments only. Cancel is available for `scheduled` and `checked_in`. Both the appointment list and detail screen use the canonical capability matrix.
-- The list screen's "Reschedule" button navigates to `AppointmentDetailScreen` (not the booking wizard) — actual reschedule happens via the sheet on the detail screen.
-- **Confirm-before-submit:** tapping "Review reschedule" in the sheet does not submit immediately — it opens the shared `AppConfirmationDialog` ("Confirm reschedule — Move this appointment to [date] at [time]?") with **Reschedule appointment** / **Keep current time** actions. Only the confirm action calls `onConfirm(scheduledAt)`. Uses local `formatRescheduleDate`/`formatRescheduleTime` helpers (operate on a raw `startsAt` instant, not a combined `scheduled_at` string — separate from `formatAppointmentDate`/`formatAppointmentTime` in `AppointmentListScreen.kt`).
-- **On success:** `AppointmentDetailViewModel.rescheduleAppointment` uses the `Appointment` returned directly by the `POST /appointments/{id}/reschedule` response — it does **not** call `load()` to re-fetch. This avoids an extra network round trip and any risk of transiently showing stale data from a second GET. `showRescheduleSheet` is set to `false` and `showRescheduleSuccessDialog` to `true` in the same state update, which dismisses the bottom sheet and immediately shows a confirmation dialog ("Appointment Rescheduled — Your appointment is now set for [date] at [time]"), dismissed via `dismissRescheduleSuccessDialog()`.
-- The detail screen's "Reschedule" button uses the same filled, theme-tinted `Button` style (primary color at 12% alpha background, primary content color, no elevation) as the list screen's card action buttons, rather than the plain `OutlinedButton` used elsewhere.
+- Reschedule is available for `scheduled` appointments only and is hidden while a pending linked request already exists. Cancel is available for `scheduled` and `checked_in`, except same-day cancellation is replaced with clinic-contact guidance. My Appointment and appointment detail use the canonical capability matrix; history remains read-only until a visit is historical.
+- My Appointment's "Request a different time" action and the appointment detail screen's "Reschedule" action open the slot picker and submit a pending linked request; staff approval moves the existing appointment.
+- **Confirm-before-submit:** tapping "Review reschedule" in the sheet does not submit immediately — it opens the shared `AppConfirmationDialog` ("Send a request to move this appointment to [date] at [time]? The clinic must approve it.") with **Send request** / **Keep current time** actions. Only the confirm action calls `onConfirm(scheduledAt)`. Uses local `formatRescheduleDate`/`formatRescheduleTime` helpers (operate on a raw `startsAt` instant, not a combined `scheduled_at` string — separate from `formatAppointmentDate`/`formatAppointmentTime` in `AppointmentFormatting.kt`).
+- **On success:** My Appointment refetches `GET /appointment-requests/current`, so the authoritative aggregate supplies the unchanged confirmed appointment plus its new `pending_reschedule`. Appointment detail uses the `AppointmentRequest` returned directly by `POST /appointment-requests`; it does **not** move or re-fetch the confirmed appointment. Its pending request is attached to the detail state, `showRescheduleSheet` is set to `false`, and `showRescheduleSuccessDialog` to `true` in the same state update. Both confirmation surfaces explain that the current appointment remains in place until clinic approval.
+- The detail screen's "Reschedule" button uses the same filled, theme-tinted `Button` style (primary color at 12% alpha background, primary content color, no elevation) as the appointment action buttons, rather than the plain `OutlinedButton` used elsewhere.
 - **Scheduling timezone:** picker/slot values represent Philippine clinic-local time. Booking and rescheduling submit an ISO-8601 timestamp with the explicit `Asia/Manila` offset; response timestamps are converted by instant to `Asia/Manila` for display, filtering, and date grouping.
 - **Staff reschedule reason:** appointment responses parse the nullable `last_reschedule_reason` into the domain model. A non-blank value appears on appointment detail in a distinct **Schedule changed by clinic** notice rather than being merged with customer or clinic notes. Customer rescheduling uses the returned appointment directly, so the notice disappears immediately when the backend clears the reason.
 - **Customer note editing:** pending and confirmed appointments show the edit action directly beside **Your booking note**. There is no generic Notes heading; the customer and clinic labels provide the complete hierarchy, with the clinic note remaining clearly read-only. The inline editor accepts up to 1000 characters, sends trimmed text through `PATCH /appointments/{id}/contact-note`, and sends `null` when cleared. The returned appointment updates the screen directly; all later statuses hide the edit action.
@@ -413,8 +417,7 @@ Source of truth: `docs/API_CONTRACT.md`.
 ## Appointment Requests — Variable-Duration Scheduling (v16)
 
 `presentation/appointments/requests/RequestAppointmentViewModel.kt`,
-`RequestAppointmentScreen.kt`, `AppointmentRequestDetailViewModel.kt`, and
-`AppointmentRequestListViewModel.kt`:
+`RequestAppointmentScreen.kt`, and `AppointmentRequestDetailViewModel.kt`:
 
 - **4-step wizard:** Type → Schedule → Details → Review. The patient selects an appointment type first, then date/time, then enters reason/referral/identity, then reviews and submits.
 - **Appointment types:** loaded from `GET /appointment-types` on flow entry. Shows patient label, optional description, duration, and referral indicator. No hardcoded types or IDs. The catalog is vertically scrollable so all returned types and Continue remain reachable on small screens. Failure blocks the flow with retry and no fallback. If a submitted type becomes inactive or hidden, the flow returns to Type, refreshes the catalog, clears the invalid selection, and explains what happened.
@@ -492,20 +495,25 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
   `none`, `pending_request`, `appointment`.
 - `none`: empty state with "Request an appointment" CTA.
 - `pending_request`: full detail inline (type, times, alternatives, reason),
-  cancel action, view-details link.
+  cancel action when allowed, same-day clinic-contact guidance when cancellation is unavailable,
+  and a change-requested-time action that opens the editable detail.
 - `appointment`: confirmed details inline (type, date/time, duration, optometrist),
-  cancel action, optional pending reschedule shown beneath with "NOT YET CONFIRMED"
-  badge and all alternative times. Original request accessible via link.
-- After every successful mutation (cancel request, cancel appointment), the
+  patient booking notes when present, a "Request a different time" action when eligible,
+  visible appointment-detail action, cancel action when allowed, and optional pending reschedule
+  shown beneath with "NOT YET CONFIRMED" badge and all alternative times. Original request remains
+  accessible via link. Same-day cancellation shows clinic-contact guidance instead of a cancel action.
+- After every successful mutation (cancel request, cancel appointment, or request a different time), the
   ViewModel refetches the current endpoint rather than manufacturing state locally.
 - History is a separate destination (`AppointmentHistory`) opened from the top app
   bar. Sourced from `GET /appointments?filter=history`. Paginated, with
-  pull-to-refresh and load-more.
+  pull-to-refresh, inline retry for refresh errors, empty state, inline append retry,
+  and an independent rating action/dialog for eligible fulfilled visits.
 - Home uses `getCurrentAppointmentJourney()` for the next-visit ticket. Only
   `CurrentAppointmentJourney.Appointment` produces a ticket; `none` and
   `pending_request` produce no ticket.
-- Unlinked accounts can load My Appointment (account-only endpoint). History and
-  confirmed-appointment actions are active-link-gated.
+- Unlinked accounts can load My Appointment (account-only endpoint) and see confirmed
+  details. History and confirmed-appointment actions are active-link-gated; the current
+  screen shows link guidance instead of protected controls while preserving the appointment details.
 - `CurrentAppointmentJourney` sealed interface lives in `domain/model/`.
   DTO-to-domain mapping at repository boundary via shared mappers
   (`AppointmentRequestMappers.kt`, `AppointmentV1Mappers.kt`).
@@ -552,12 +560,12 @@ Four approved roots: **Home**, **Frames**, **Appointments**, **Profile**.
 ## Visit Feedback
 
 `presentation/appointments/AppointmentDetailScreen.kt`,
-`AppointmentDetailViewModel.kt`, `AppointmentListScreen.kt`,
-`AppointmentListViewModel.kt`, `components/VisitFeedbackDialog.kt`:
+`AppointmentDetailViewModel.kt`, `AppointmentHistoryScreen.kt`,
+`components/VisitFeedbackDialog.kt`:
 
 - `POST /appointments/{id}/rating` — upsert: 201 creates, 200 revises.
 - `AppointmentDto` decodes `is_rateable` (default false) and `rating` (VisitRatingDto?, default null).
-- **List entry point:** compact **Rate this visit** chip on confirmed-appointment rows where `isRateable && visitRating == null`. No persisted dismissal.
+- **History entry point:** a tappable history row opens the appointment detail. No persisted dismissal.
 - **Detail surface:** when rateable and unrated, **Rate your visit** action. When rated, stars + comment + **Update rating**.
 - Gated on `isRateable` only — never inferred from `status == fulfilled`.
 - Client-side validation: rating 1–5, comment ≤ 1000.
