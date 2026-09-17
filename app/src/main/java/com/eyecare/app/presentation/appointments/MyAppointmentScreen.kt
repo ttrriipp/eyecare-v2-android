@@ -2,16 +2,17 @@ package com.eyecare.app.presentation.appointments
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -254,43 +255,46 @@ private fun JourneyContent(
     onCancelAppointment: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-    ) {
-        Spacer(Modifier.height(16.dp))
-        when (journey) {
-            is CurrentAppointmentJourney.None -> {
-                NoneContent(
-                    hasActivePatientLink = hasActivePatientLink,
-                    onRequestAppointment = onRequestAppointment,
-                    onNavigateToHistory = onNavigateToHistory,
-                )
+    if (journey is CurrentAppointmentJourney.None) {
+        NoneContent(
+            hasActivePatientLink = hasActivePatientLink,
+            onRequestAppointment = onRequestAppointment,
+            onNavigateToHistory = onNavigateToHistory,
+            modifier = modifier.padding(horizontal = 16.dp),
+        )
+    } else {
+        Column(
+            modifier = modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        ) {
+            Spacer(Modifier.height(16.dp))
+            when (journey) {
+                is CurrentAppointmentJourney.None -> Unit
+                is CurrentAppointmentJourney.PendingRequest -> {
+                    PendingRequestContent(
+                        request = journey.request,
+                        isMutating = isMutating,
+                        isRescheduling = isRescheduling,
+                        onChangeRequestedTime = onRequestDifferentTime,
+                        onCancel = { reason -> onCancelRequest(journey.request.id, reason) },
+                    )
+                }
+                is CurrentAppointmentJourney.Appointment -> {
+                    ConfirmedAppointmentContent(
+                        appointment = journey.appointment,
+                        originalRequest = journey.originalRequest,
+                        pendingReschedule = journey.pendingReschedule,
+                        isMutating = isMutating,
+                        isRescheduling = isRescheduling,
+                        hasActivePatientLink = hasActivePatientLink,
+                        onNavigateToLinkAccount = onNavigateToLinkAccount,
+                        onViewRequestDetail = onNavigateToRequestDetail,
+                        onRequestDifferentTime = onRequestDifferentTime,
+                        onCancel = onCancelAppointment,
+                    )
+                }
             }
-            is CurrentAppointmentJourney.PendingRequest -> {
-                PendingRequestContent(
-                    request = journey.request,
-                    isMutating = isMutating,
-                    isRescheduling = isRescheduling,
-                    onChangeRequestedTime = onRequestDifferentTime,
-                    onCancel = { reason -> onCancelRequest(journey.request.id, reason) },
-                )
-            }
-            is CurrentAppointmentJourney.Appointment -> {
-                ConfirmedAppointmentContent(
-                    appointment = journey.appointment,
-                    originalRequest = journey.originalRequest,
-                    pendingReschedule = journey.pendingReschedule,
-                    isMutating = isMutating,
-                    isRescheduling = isRescheduling,
-                    hasActivePatientLink = hasActivePatientLink,
-                    onNavigateToLinkAccount = onNavigateToLinkAccount,
-                    onViewRequestDetail = onNavigateToRequestDetail,
-                    onRequestDifferentTime = onRequestDifferentTime,
-                    onCancel = onCancelAppointment,
-                )
-            }
+            Spacer(Modifier.height(24.dp))
         }
-        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -427,39 +431,67 @@ private fun NoneContent(
 ) {
     Column(
         modifier = modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
-            .padding(bottom = 24.dp),
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Spacer(Modifier.height(48.dp))
-        Icon(
-            imageVector = Icons.Default.CalendarMonth,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = "No active appointment",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "You can request an appointment when you're ready.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onRequestAppointment) {
-            Text("Request an appointment")
-        }
-        if (hasActivePatientLink) {
-            TextButton(onClick = onNavigateToHistory) {
-                Text("View appointment history")
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 380.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, EyecareColors.current.cardBorder),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Surface(
+                    modifier = Modifier.size(64.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = EyecareColors.current.accentText,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    text = "No active appointment",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Start a new appointment request when you're ready. The clinic will review your preferred times before confirming.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(24.dp))
+                AppointmentPrimaryButton(
+                    text = "Request an appointment",
+                    onClick = onRequestAppointment,
+                )
+                if (hasActivePatientLink) {
+                    Spacer(Modifier.height(8.dp))
+                    AppointmentOutlinedButton(
+                        text = "View appointment history",
+                        onClick = onNavigateToHistory,
+                        icon = Icons.Default.History,
+                    )
+                }
             }
         }
     }
