@@ -282,7 +282,11 @@ class AppointmentDetailViewModel @Inject constructor(
         _uiState.value = current.copy(rescheduleError = null)
     }
 
-    fun rescheduleAppointment(scheduledAt: String) {
+    fun rescheduleAppointment(
+        scheduledAt: String,
+        alternativeScheduledTimes: List<String> = emptyList(),
+        reasonForVisit: String? = null,
+    ) {
         val current = _uiState.value
         if (current !is AppointmentDetailUiState.Success) return
         val selectedDate = parseClinicDateTime(scheduledAt)?.toLocalDate() ?: return
@@ -297,6 +301,8 @@ class AppointmentDetailViewModel @Inject constructor(
             appointmentRequestRepository.createRebookingRequest(
                 appointmentId = appointmentId,
                 scheduledAt = scheduledAt,
+                alternativeScheduledTimes = alternativeScheduledTimes.ifEmpty { null },
+                reasonForVisit = reasonForVisit,
             ).fold(
                 onSuccess = {
                     val latest = _uiState.value as? AppointmentDetailUiState.Success ?: current

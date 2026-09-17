@@ -137,6 +137,7 @@ fun AppointmentDetailScreen(
                 availabilityState = state.rescheduleAvailability,
                 isSubmitting = state.isRescheduling,
                 errorMessage = state.rescheduleError,
+                showReasonField = true,
                 onShowWeek = viewModel::loadRescheduleWeekAvailability,
                 onDateChanged = viewModel::loadRescheduleAvailability,
                 onRetryAvailability = {
@@ -145,7 +146,9 @@ fun AppointmentDetailScreen(
                         ?.let(viewModel::loadRescheduleAvailability)
                 },
                 onDismiss = viewModel::dismissRescheduleSheet,
-                onConfirm = viewModel::rescheduleAppointment,
+                onConfirm = { scheduledAt, alternatives, reason ->
+                    viewModel.rescheduleAppointment(scheduledAt, alternatives, reason)
+                },
             )
         }
         if (state.showRescheduleSuccessDialog) {
@@ -463,7 +466,7 @@ private fun PendingRescheduleNotice(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
+        color = EyecareColors.current.statusPending.copy(alpha = 0.16f),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -474,7 +477,7 @@ private fun PendingRescheduleNotice(
                 imageVector = Icons.Outlined.EditCalendar,
                 contentDescription = null,
                 modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = EyecareColors.current.statusPendingText,
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -484,20 +487,20 @@ private fun PendingRescheduleNotice(
                     text = "Reschedule request pending",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = EyecareColors.current.statusPendingText,
                 )
                 Text(
                     text = "The clinic is reviewing your requested time. " +
                         "Your appointment stays at its current time until approved.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = EyecareColors.current.statusPendingText,
                 )
                 Text(
                     text = "Requested time: ${formatAppointmentDate(request.scheduledAt)} at " +
                         formatAppointmentTime(request.scheduledAt),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = EyecareColors.current.statusPendingText,
                 )
                 TextButton(
                     onClick = onViewRequest,

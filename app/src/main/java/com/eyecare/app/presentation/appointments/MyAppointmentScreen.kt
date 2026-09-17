@@ -1,9 +1,11 @@
 package com.eyecare.app.presentation.appointments
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,7 +23,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -41,6 +42,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -48,6 +53,9 @@ import androidx.compose.ui.window.Dialog
 import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
+import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
+import com.eyecare.app.presentation.appointments.components.AppointmentPrimaryButton
+import com.eyecare.app.ui.theme.EyecareColors
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -66,7 +74,6 @@ fun MyAppointmentScreen(
     onRequestAppointment: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit,
-    onNavigateToAppointmentDetail: (Int) -> Unit,
     onRequestDifferentTime: () -> Unit = {},
     onCancelRequest: (Int, String) -> Unit,
     onCancelAppointment: (String) -> Unit,
@@ -78,7 +85,7 @@ fun MyAppointmentScreen(
     onShowRescheduleWeek: (String) -> Unit = {},
     onRescheduleDateChanged: (String) -> Unit = {},
     onRetryRescheduleAvailability: () -> Unit = {},
-    onRescheduleAppointment: (String) -> Unit = {},
+    onRescheduleAppointment: (String, List<String>, String?) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -90,21 +97,71 @@ fun MyAppointmentScreen(
     }
 
     val rescheduleContent = uiState as? MyAppointmentUiState.Content
-    val rescheduleJourney = rescheduleContent?.journey as? CurrentAppointmentJourney.Appointment
-    if (rescheduleContent?.showRescheduleSheet == true && rescheduleJourney != null) {
+    val rescheduleJourney = rescheduleContent?.journey
+    val rescheduleCurrentScheduledAt = when (rescheduleJourney) {
+        is CurrentAppointmentJourney.Appointment -> rescheduleJourney.appointment.scheduledAt
+        is CurrentAppointmentJourney.PendingRequest -> rescheduleJourney.request.scheduledAt
+        else -> null
+    }
+    val isPendingRescheduleRequest = rescheduleJourney is CurrentAppointmentJourney.PendingRequest
+    if (rescheduleContent?.showRescheduleSheet == true && rescheduleCurrentScheduledAt != null) {
         RescheduleBottomSheet(
-            currentScheduledAt = rescheduleJourney.appointment.scheduledAt,
+            currentScheduledAt = rescheduleCurrentScheduledAt,
             weekStart = rescheduleContent.rescheduleWeekStart,
             dayAvailability = rescheduleContent.rescheduleDayAvailability,
             availabilityState = rescheduleContent.rescheduleAvailability,
             isSubmitting = rescheduleContent.isRescheduling,
             errorMessage = rescheduleContent.rescheduleError,
-            title = "Request a different time",
-            description = "Choose a new preferred time from tomorrow onward. Your current appointment stays confirmed until the clinic approves the request.",
-            confirmationTitle = "Request this time change",
-            confirmationMessage = { date, time ->
-                "Request a move to $date at $time? Your current appointment remains unchanged until the clinic approves it."
+            title = if (isPendingRescheduleRequest) "Change requested time" else "Request a different time",
+            description = if (isPendingRescheduleRequest) {
+                "Choose a new preferred time from tomorrow onward. Your request stays pending until the clinic reviews it."
+            } else {
+                "Choose a new preferred time from tomorrow onward. Your current appointment stays confirmed until the clinic approves the request."
             },
+            currentTimeLabel = if (isPendingRescheduleRequest) {
+                "Current requested time"
+            } else {
+                "Current appointment"
+            },
+            currentTimeDescription = if (isPendingRescheduleRequest) {
+                "This request stays pending until the clinic reviews the new time."
+            } else {
+                "This appointment stays confirmed until the clinic approves the new request."
+            },
+            confirmationTitle = if (isPendingRescheduleRequest) {
+                "Update requested time"
+            } else {
+                "Request this time change"
+            },
+            confirmationMessage = { date, time, alternatives ->
+                val alternativesText = formatRescheduleAlternativesForConfirmation(alternatives)
+                if (isPendingRescheduleRequest) {
+                    buildString {
+                        append("Preferred time: $date at $time.")
+                        if (alternativesText.isNotEmpty()) {
+                            append("\n")
+                            append(alternativesText)
+                        }
+                        append("\n\nUpdate this request? It will stay pending until the clinic reviews it.")
+                    }
+                } else {
+                    buildString {
+                        append("Preferred time: $date at $time.")
+                        if (alternativesText.isNotEmpty()) {
+                            append("\n")
+                            append(alternativesText)
+                        }
+                        append("\n\nSend this request? Your current appointment remains unchanged until the clinic approves it.")
+                    }
+                }
+            },
+            confirmLabel = if (isPendingRescheduleRequest) "Update request" else "Send request",
+            dismissLabel = if (isPendingRescheduleRequest) {
+                "Keep current requested time"
+            } else {
+                "Keep current appointment"
+            },
+            showReasonField = !isPendingRescheduleRequest,
             onShowWeek = onShowRescheduleWeek,
             onDateChanged = onRescheduleDateChanged,
             onRetryAvailability = onRetryRescheduleAvailability,
@@ -119,8 +176,15 @@ fun MyAppointmentScreen(
                 title = { Text("My Appointment") },
                 actions = {
                     if (hasActivePatientLink && uiState is MyAppointmentUiState.Content) {
-                        IconButton(onClick = onNavigateToHistory) {
-                            Icon(Icons.Default.History, contentDescription = "Appointment history")
+                        TextButton(
+                            onClick = onNavigateToHistory,
+                            modifier = Modifier.semantics {
+                                contentDescription = "Appointment history"
+                            },
+                        ) {
+                            Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("History")
                         }
                     }
                 },
@@ -157,11 +221,12 @@ fun MyAppointmentScreen(
                         JourneyContent(
                             journey = uiState.journey,
                             isMutating = uiState.isMutating,
+                            isRescheduling = uiState.isRescheduling,
                             hasActivePatientLink = hasActivePatientLink,
                             onNavigateToLinkAccount = onNavigateToLinkAccount,
                             onRequestAppointment = onRequestAppointment,
+                            onNavigateToHistory = onNavigateToHistory,
                             onNavigateToRequestDetail = onNavigateToRequestDetail,
-                            onNavigateToAppointmentDetail = onNavigateToAppointmentDetail,
                             onRequestDifferentTime = onRequestDifferentTime,
                             onCancelRequest = onCancelRequest,
                             onCancelAppointment = onCancelAppointment,
@@ -178,11 +243,12 @@ fun MyAppointmentScreen(
 private fun JourneyContent(
     journey: CurrentAppointmentJourney,
     isMutating: Boolean,
+    isRescheduling: Boolean,
     hasActivePatientLink: Boolean,
     onNavigateToLinkAccount: () -> Unit,
     onRequestAppointment: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     onNavigateToRequestDetail: (Int) -> Unit,
-    onNavigateToAppointmentDetail: (Int) -> Unit,
     onRequestDifferentTime: () -> Unit,
     onCancelRequest: (Int, String) -> Unit,
     onCancelAppointment: (String) -> Unit,
@@ -194,13 +260,18 @@ private fun JourneyContent(
         Spacer(Modifier.height(16.dp))
         when (journey) {
             is CurrentAppointmentJourney.None -> {
-                NoneContent(onRequestAppointment = onRequestAppointment)
+                NoneContent(
+                    hasActivePatientLink = hasActivePatientLink,
+                    onRequestAppointment = onRequestAppointment,
+                    onNavigateToHistory = onNavigateToHistory,
+                )
             }
             is CurrentAppointmentJourney.PendingRequest -> {
                 PendingRequestContent(
                     request = journey.request,
                     isMutating = isMutating,
-                    onViewDetails = { onNavigateToRequestDetail(journey.request.id) },
+                    isRescheduling = isRescheduling,
+                    onChangeRequestedTime = onRequestDifferentTime,
                     onCancel = { reason -> onCancelRequest(journey.request.id, reason) },
                 )
             }
@@ -210,10 +281,10 @@ private fun JourneyContent(
                     originalRequest = journey.originalRequest,
                     pendingReschedule = journey.pendingReschedule,
                     isMutating = isMutating,
+                    isRescheduling = isRescheduling,
                     hasActivePatientLink = hasActivePatientLink,
                     onNavigateToLinkAccount = onNavigateToLinkAccount,
                     onViewRequestDetail = onNavigateToRequestDetail,
-                    onViewAppointmentDetail = { onNavigateToAppointmentDetail(journey.appointment.id) },
                     onRequestDifferentTime = onRequestDifferentTime,
                     onCancel = onCancelAppointment,
                 )
@@ -228,7 +299,12 @@ private fun MyAppointmentLoadingContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.padding(16.dp),
+        modifier = modifier
+            .padding(16.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Loading appointment"
+                liveRegion = LiveRegionMode.Polite
+            },
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         PlaceholderBar(widthFraction = 0.32f, height = 24.dp)
@@ -344,11 +420,16 @@ private fun SameDayCancellationNotice(
 
 @Composable
 private fun NoneContent(
+    hasActivePatientLink: Boolean,
     onRequestAppointment: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .padding(bottom = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -376,6 +457,11 @@ private fun NoneContent(
         Button(onClick = onRequestAppointment) {
             Text("Request an appointment")
         }
+        if (hasActivePatientLink) {
+            TextButton(onClick = onNavigateToHistory) {
+                Text("View appointment history")
+            }
+        }
     }
 }
 
@@ -383,7 +469,8 @@ private fun NoneContent(
 private fun PendingRequestContent(
     request: AppointmentRequest,
     isMutating: Boolean,
-    onViewDetails: () -> Unit,
+    isRescheduling: Boolean,
+    onChangeRequestedTime: () -> Unit,
     onCancel: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -392,8 +479,8 @@ private fun PendingRequestContent(
 
     Column(modifier = modifier.fillMaxWidth()) {
         StatusHeader(
-            statusLabel = "Pending",
-            statusColor = MaterialTheme.colorScheme.tertiary,
+            statusLabel = "Awaiting clinic review",
+            statusColor = EyecareColors.current.statusPendingText,
         )
         Spacer(Modifier.height(16.dp))
         SectionCard {
@@ -450,31 +537,28 @@ private fun PendingRequestContent(
             SameDayCancellationNotice()
             Spacer(Modifier.height(8.dp))
         }
-        OutlinedButton(
-            onClick = onViewDetails,
-            modifier = Modifier.fillMaxWidth(),
+        AppointmentOutlinedButton(
+            text = "Change requested time",
+            onClick = onChangeRequestedTime,
             enabled = !isMutating,
-        ) {
-            Text("Change requested time")
-        }
+            loading = isRescheduling,
+        )
         if (!sameDayCancellationBlocked) {
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(
+            AppointmentOutlinedButton(
+                text = "Cancel request",
                 onClick = { showCancelDialog = true },
-                modifier = Modifier.fillMaxWidth(),
                 enabled = !isMutating,
-                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                ),
-            ) {
-                Text("Cancel request")
-            }
+                loading = isMutating && !isRescheduling,
+                isDestructive = true,
+            )
         }
     }
 
     if (showCancelDialog) {
         CancelReasonDialog(
             title = "Cancel request",
+            keepLabel = "Keep request",
             onConfirm = { reason ->
                 showCancelDialog = false
                 onCancel(reason)
@@ -490,10 +574,10 @@ private fun ConfirmedAppointmentContent(
     originalRequest: AppointmentRequest?,
     pendingReschedule: AppointmentRequest?,
     isMutating: Boolean,
+    isRescheduling: Boolean,
     hasActivePatientLink: Boolean,
     onNavigateToLinkAccount: () -> Unit,
     onViewRequestDetail: (Int) -> Unit,
-    onViewAppointmentDetail: () -> Unit,
     onRequestDifferentTime: () -> Unit,
     onCancel: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -582,26 +666,16 @@ private fun ConfirmedAppointmentContent(
         Spacer(Modifier.height(12.dp))
 
         if (hasActivePatientLink && actionPolicy.canRequestDifferentTime) {
-            Button(
+            AppointmentPrimaryButton(
+                text = "Request a different time",
                 onClick = onRequestDifferentTime,
-                modifier = Modifier.fillMaxWidth(),
                 enabled = !isMutating,
-            ) {
-                Text("Request a different time")
-            }
+                loading = isRescheduling,
+            )
             Spacer(Modifier.height(8.dp))
         }
 
-        if (hasActivePatientLink) {
-            OutlinedButton(
-                onClick = onViewAppointmentDetail,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isMutating,
-            ) {
-                Text("View appointment details")
-            }
-            Spacer(Modifier.height(8.dp))
-        } else {
+        if (!hasActivePatientLink) {
             LinkRequiredNotice(
                 onLinkAccount = onNavigateToLinkAccount,
             )
@@ -614,16 +688,13 @@ private fun ConfirmedAppointmentContent(
         }
 
         if (hasActivePatientLink && actionPolicy.canCancel) {
-            OutlinedButton(
+            AppointmentOutlinedButton(
+                text = "Cancel appointment",
                 onClick = { showCancelDialog = true },
-                modifier = Modifier.fillMaxWidth(),
                 enabled = !isMutating,
-                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                ),
-            ) {
-                Text("Cancel appointment")
-            }
+                loading = isMutating && !isRescheduling,
+                isDestructive = true,
+            )
             Spacer(Modifier.height(8.dp))
         }
 
@@ -640,6 +711,7 @@ private fun ConfirmedAppointmentContent(
     if (showCancelDialog) {
         CancelReasonDialog(
             title = "Cancel appointment",
+            keepLabel = "Keep appointment",
             onConfirm = { reason ->
                 showCancelDialog = false
                 onCancel(reason)
@@ -657,7 +729,7 @@ private fun PendingRescheduleSection(
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
+        color = EyecareColors.current.statusPending.copy(alpha = 0.16f),
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -670,14 +742,14 @@ private fun PendingRescheduleSection(
             Spacer(Modifier.height(4.dp))
             Surface(
                 shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
+                color = EyecareColors.current.statusPending.copy(alpha = 0.2f),
             ) {
                 Text(
                     text = "NOT YET CONFIRMED",
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.tertiary,
+                    color = EyecareColors.current.statusPendingText,
                 )
             }
             Spacer(Modifier.height(8.dp))
@@ -740,11 +812,12 @@ private fun SectionCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, EyecareColors.current.cardBorder),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             content()
@@ -837,6 +910,7 @@ private fun ErrorContent(
 @Composable
 private fun CancelReasonDialog(
     title: String,
+    keepLabel: String,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -879,7 +953,7 @@ private fun CancelReasonDialog(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Keep")
+                        Text(keepLabel)
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(

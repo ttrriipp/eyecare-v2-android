@@ -2,6 +2,10 @@ package com.eyecare.app.presentation.appointments
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.AppointmentAvailability
+import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.AppointmentRequestAvailability
+import com.eyecare.app.domain.model.AppointmentSlot
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
@@ -192,15 +196,24 @@ class MyAppointmentViewModel @Inject constructor(
     fun showRescheduleSheet() {
         val current = _uiState.value
         if (current !is MyAppointmentUiState.Content || current.isMutating) return
-        val journey = current.journey as? CurrentAppointmentJourney.Appointment ?: return
-        val policy = appointmentCurrentActionPolicy(
-            appointment = journey.appointment,
-            hasPendingReschedule = journey.pendingReschedule != null,
-        )
-        if (!policy.canRequestDifferentTime) return
+        val scheduledAt = when (val journey = current.journey) {
+            is CurrentAppointmentJourney.Appointment -> {
+                val policy = appointmentCurrentActionPolicy(
+                    appointment = journey.appointment,
+                    hasPendingReschedule = journey.pendingReschedule != null,
+                )
+                if (!policy.canRequestDifferentTime) return
+                journey.appointment.scheduledAt
+            }
+            is CurrentAppointmentJourney.PendingRequest -> {
+                if (!journey.request.status.isCancellable) return
+                journey.request.scheduledAt
+            }
+            is CurrentAppointmentJourney.None -> return
+        }
 
         val earliestDate = earliestAppointmentRequestDate()
-        val appointmentDate = parseClinicDateTime(journey.appointment.scheduledAt)?.toLocalDate()
+        val appointmentDate = parseClinicDateTime(scheduledAt)?.toLocalDate()
             ?: earliestDate
         val selectedDate = maxOf(appointmentDate, earliestDate)
         val appointmentWeekStart = selectedDate.with(
@@ -238,7 +251,10 @@ class MyAppointmentViewModel @Inject constructor(
     fun loadRescheduleWeekAvailability(weekStart: String) {
         val current = _uiState.value
         if (current !is MyAppointmentUiState.Content || !current.showRescheduleSheet) return
-        val journey = current.journey as? CurrentAppointmentJourney.Appointment ?: return
+        val journey = current.journey
+        if (journey !is CurrentAppointmentJourney.Appointment &&
+            journey !is CurrentAppointmentJourney.PendingRequest
+        ) return
 
         weekJob?.cancel()
         val generation = ++weekGeneration
@@ -254,10 +270,7 @@ class MyAppointmentViewModel @Inject constructor(
         weekJob = viewModelScope.launch {
             val results = dates.map { date ->
                 async {
-                    date.toString() to appointmentRepository.getAppointmentAvailability(
-                        date = date.toString(),
-                        appointmentId = journey.appointment.id,
-                    )
+                    date.toString() to getRescheduleAvailability(journey, date.toString())
                 }
             }.awaitAll()
 
@@ -286,15 +299,28 @@ class MyAppointmentViewModel @Inject constructor(
         loadRescheduleAvailability(failedDate)
     }
 
-    fun rescheduleAppointment(scheduledAt: String) {
+    fun rescheduleAppointment(
+        scheduledAt: String,
+        alternativeScheduledTimes: List<String> = emptyList(),
+        reasonForVisit: String? = null,
+    ) {
         val current = _uiState.value
         if (current !is MyAppointmentUiState.Content || current.isMutating) return
-        val journey = current.journey as? CurrentAppointmentJourney.Appointment ?: return
-        val policy = appointmentCurrentActionPolicy(
-            appointment = journey.appointment,
-            hasPendingReschedule = journey.pendingReschedule != null,
-        )
-        if (!policy.canRequestDifferentTime) return
+        val journey = when (val journey = current.journey) {
+            is CurrentAppointmentJourney.Appointment -> {
+                val policy = appointmentCurrentActionPolicy(
+                    appointment = journey.appointment,
+                    hasPendingReschedule = journey.pendingReschedule != null,
+                )
+                if (!policy.canRequestDifferentTime) return
+                journey
+            }
+            is CurrentAppointmentJourney.PendingRequest -> {
+                if (!journey.request.status.isCancellable) return
+                journey
+            }
+            is CurrentAppointmentJourney.None -> return
+        }
 
         val selectedDate = parseClinicDateTime(scheduledAt)?.toLocalDate() ?: return
         if (selectedDate.isBefore(earliestAppointmentRequestDate())) return
@@ -307,12 +333,33 @@ class MyAppointmentViewModel @Inject constructor(
             mutationSuccess = null,
         )
         viewModelScope.launch {
-            appointmentRequestRepository.createRebookingRequest(
-                appointmentId = journey.appointment.id,
-                scheduledAt = scheduledAt,
-            ).fold(
+            val result = when (journey) {
+                is CurrentAppointmentJourney.Appointment -> {
+                    appointmentRequestRepository.createRebookingRequest(
+                        appointmentId = journey.appointment.id,
+                        scheduledAt = scheduledAt,
+                        alternativeScheduledTimes = alternativeScheduledTimes.ifEmpty { null },
+                        reasonForVisit = reasonForVisit,
+                    )
+                }
+                is CurrentAppointmentJourney.PendingRequest -> {
+                    appointmentRequestRepository.updateRequestSchedule(
+                        id = journey.request.id,
+                        scheduledAt = scheduledAt,
+                        alternativeScheduledTimes = alternativeScheduledTimes.ifEmpty { null },
+                    )
+                }
+                is CurrentAppointmentJourney.None -> return@launch
+            }
+            result.fold(
                 onSuccess = {
-                    refetchAfterMutation("Time-change request sent.")
+                    refetchAfterMutation(
+                        if (journey is CurrentAppointmentJourney.PendingRequest) {
+                            "Requested time updated."
+                        } else {
+                            "Time-change request sent."
+                        },
+                    )
                 },
                 onFailure = { error ->
                     val latest = _uiState.value
@@ -368,7 +415,10 @@ class MyAppointmentViewModel @Inject constructor(
     private fun loadRescheduleAvailability(date: String, clearError: Boolean) {
         val current = _uiState.value
         if (current !is MyAppointmentUiState.Content || !current.showRescheduleSheet) return
-        val journey = current.journey as? CurrentAppointmentJourney.Appointment ?: return
+        val journey = current.journey
+        if (journey !is CurrentAppointmentJourney.Appointment &&
+            journey !is CurrentAppointmentJourney.PendingRequest
+        ) return
         val selectedDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return
         if (selectedDate.isBefore(earliestAppointmentRequestDate())) return
 
@@ -379,10 +429,7 @@ class MyAppointmentViewModel @Inject constructor(
             rescheduleError = if (clearError) null else current.rescheduleError,
         )
         availabilityJob = viewModelScope.launch {
-            appointmentRepository.getAppointmentAvailability(
-                date = date,
-                appointmentId = journey.appointment.id,
-            ).fold(
+            getRescheduleAvailability(journey, date).fold(
                 onSuccess = { availability ->
                     val latest = _uiState.value
                     if (latest is MyAppointmentUiState.Content &&
@@ -413,6 +460,52 @@ class MyAppointmentViewModel @Inject constructor(
             )
         }
     }
+
+    private suspend fun getRescheduleAvailability(
+        journey: CurrentAppointmentJourney,
+        date: String,
+    ): Result<AppointmentAvailability> = when (journey) {
+        is CurrentAppointmentJourney.Appointment -> {
+            appointmentRepository.getAppointmentAvailability(
+                date = date,
+                appointmentId = journey.appointment.id,
+            )
+        }
+        is CurrentAppointmentJourney.PendingRequest -> {
+            val appointmentTypeId = journey.request.appointmentType?.id
+            if (appointmentTypeId == null) {
+                Result.failure(IllegalStateException("Missing appointment type"))
+            } else {
+                appointmentRequestRepository.getAvailability(date, appointmentTypeId)
+                    .map { it.toAppointmentAvailability(journey.request) }
+            }
+        }
+        is CurrentAppointmentJourney.None -> {
+            Result.failure(IllegalStateException("No appointment journey to reschedule"))
+        }
+    }
+
+    private fun AppointmentRequestAvailability.toAppointmentAvailability(
+        request: AppointmentRequest,
+    ) = AppointmentAvailability(
+        date = date,
+        timezone = timezone,
+        intervalMinutes = intervalMinutes,
+        visitReasonId = appointmentTypeId ?: request.appointmentType?.id ?: 0,
+        visitDurationMinutes = visitDurationMinutes ?: slotDurationMinutes,
+        optometristId = null,
+        appointmentId = request.appointmentId,
+        dayStatus = dayStatus,
+        generatedAt = generatedAt,
+        slots = slots.map { slot ->
+            AppointmentSlot(
+                startsAt = slot.startsAt,
+                endsAt = slot.endsAt,
+                available = slot.available,
+                reason = slot.reason,
+            )
+        },
+    )
 
     private fun cancelRescheduleJobs() {
         availabilityJob?.cancel()

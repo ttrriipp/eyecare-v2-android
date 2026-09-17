@@ -123,7 +123,7 @@ class AppointmentDetailViewModelTest {
     @Test
     fun `customer reschedule submits linked request and keeps current appointment unchanged`() = runTest {
         coEvery {
-            appointmentRequests.createRebookingRequest(4, requestedRescheduleAt)
+            appointmentRequests.createRebookingRequest(4, requestedRescheduleAt, null, null)
         } returns Result.success(pendingRebooking)
 
         viewModel.rescheduleAppointment(requestedRescheduleAt)
@@ -134,7 +134,9 @@ class AppointmentDetailViewModelTest {
         assertEquals(appointment.lastRescheduleReason, state.appointment.lastRescheduleReason)
         assertTrue(state.showRescheduleSuccessDialog)
         coVerify(exactly = 1) { appointments.getAppointment(4) }
-        coVerify(exactly = 1) { appointmentRequests.createRebookingRequest(4, requestedRescheduleAt) }
+        coVerify(exactly = 1) {
+            appointmentRequests.createRebookingRequest(4, requestedRescheduleAt, null, null)
+        }
     }
 
     @Test
@@ -217,7 +219,7 @@ class AppointmentDetailViewModelTest {
             appointments.getAppointmentAvailability(appointmentDate.toString(), 4)
         } returns Result.success(fakeAvailability())
         coEvery {
-            appointmentRequests.createRebookingRequest(4, any())
+            appointmentRequests.createRebookingRequest(4, any(), null, null)
         } returns Result.failure(RuntimeException("Slot taken"))
 
         viewModel.showRescheduleSheet()
@@ -245,7 +247,9 @@ class AppointmentDetailViewModelTest {
 
     @Test
     fun `dismiss reschedule success dialog clears flag`() = runTest {
-        coEvery { appointmentRequests.createRebookingRequest(4, any()) } returns Result.success(pendingRebooking)
+        coEvery {
+            appointmentRequests.createRebookingRequest(4, any(), null, null)
+        } returns Result.success(pendingRebooking)
 
         viewModel.rescheduleAppointment(requestedRescheduleAt)
         dispatcher.scheduler.advanceUntilIdle()

@@ -328,7 +328,10 @@ class AppointmentRequestDetailViewModel @Inject constructor(
         loadScheduleAvailability(date)
     }
 
-    fun updateSchedule(scheduledAt: String) {
+    fun updateSchedule(
+        scheduledAt: String,
+        alternativeScheduledTimes: List<String> = emptyList(),
+    ) {
         val current = _state.value
         if (current !is RequestDetailState.Data || !current.request.status.isCancellable) return
         val selectedDate = parseClinicDateTime(scheduledAt)?.toLocalDate() ?: return
@@ -342,6 +345,7 @@ class AppointmentRequestDetailViewModel @Inject constructor(
             repository.updateRequestSchedule(
                 id = current.request.id,
                 scheduledAt = scheduledAt,
+                alternativeScheduledTimes = alternativeScheduledTimes,
             ).fold(
                 onSuccess = { request ->
                     scheduleAvailabilityJob?.cancel()

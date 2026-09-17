@@ -9,18 +9,16 @@ import org.junit.jupiter.api.Test
 class AppointmentRequestPresentationTest {
 
     @Test
-    fun `pending shows cancel and not view confirmed`() {
+    fun `pending shows cancel`() {
         val p = requestStatusPresentation(AppointmentRequestStatus.PENDING)
         assertEquals("Awaiting clinic review", p.label)
         assertTrue(p.showCancel)
-        assertFalse(p.showViewConfirmed)
     }
 
     @Test
-    fun `accepted shows view confirmed and not cancel`() {
+    fun `accepted is confirmed and not cancellable`() {
         val p = requestStatusPresentation(AppointmentRequestStatus.ACCEPTED)
         assertEquals("Confirmed", p.label)
-        assertTrue(p.showViewConfirmed)
         assertFalse(p.showCancel)
     }
 
@@ -29,7 +27,6 @@ class AppointmentRequestPresentationTest {
         val p = requestStatusPresentation(AppointmentRequestStatus.REJECTED)
         assertEquals("Not approved", p.label)
         assertFalse(p.showCancel)
-        assertFalse(p.showViewConfirmed)
     }
 
     @Test
@@ -51,6 +48,5 @@ class AppointmentRequestPresentationTest {
         val p = requestStatusPresentation(AppointmentRequestStatus.UNKNOWN)
         assertEquals("Status unavailable", p.label)
         assertFalse(p.showCancel)
-        assertFalse(p.showViewConfirmed)
     }
 }

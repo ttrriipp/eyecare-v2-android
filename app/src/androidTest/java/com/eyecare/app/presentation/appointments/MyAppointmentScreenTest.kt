@@ -20,7 +20,7 @@ class MyAppointmentScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun linkedAppointment_showsFullDetailsHistoryAndDetailAction() {
+    fun linkedAppointment_showsFullDetailsAndHistory() {
         composeRule.setContent {
             EyecareTheme {
                 MyAppointmentScreen(
@@ -30,7 +30,6 @@ class MyAppointmentScreenTest {
                     onRequestAppointment = {},
                     onNavigateToHistory = {},
                     onNavigateToRequestDetail = {},
-                    onNavigateToAppointmentDetail = {},
                     onCancelRequest = { _, _ -> },
                     onCancelAppointment = {},
                     onClearMutationError = {},
@@ -43,7 +42,7 @@ class MyAppointmentScreenTest {
         composeRule.onNodeWithText("Your booking note").assertIsDisplayed()
         composeRule.onNodeWithText("Please call before arrival.").assertIsDisplayed()
         composeRule.onNodeWithText("Request a different time").assertIsDisplayed()
-        composeRule.onNodeWithText("View appointment details").assertIsDisplayed()
+        composeRule.onNodeWithText("View appointment details").assertDoesNotExist()
         composeRule.onNodeWithContentDescription("Appointment history").assertIsDisplayed()
     }
 
@@ -58,7 +57,6 @@ class MyAppointmentScreenTest {
                     onRequestAppointment = {},
                     onNavigateToHistory = {},
                     onNavigateToRequestDetail = {},
-                    onNavigateToAppointmentDetail = {},
                     onCancelRequest = { _, _ -> },
                     onCancelAppointment = {},
                     onClearMutationError = {},
@@ -105,7 +103,6 @@ class MyAppointmentScreenTest {
                     onRequestAppointment = {},
                     onNavigateToHistory = {},
                     onNavigateToRequestDetail = {},
-                    onNavigateToAppointmentDetail = {},
                     onCancelRequest = { _, _ -> },
                     onCancelAppointment = {},
                     onClearMutationError = {},

@@ -8,18 +8,24 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -28,31 +34,36 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -82,6 +93,10 @@ private val rescheduleTimeFormatter = DateTimeFormatter.ofPattern("h:mm a", Loca
 private val rescheduleWeekdayInitialFormat = DateTimeFormatter.ofPattern("EEEEE", Locale.US)
 private val rescheduleFullMonthFormat = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)
 private val rescheduleShortMonthFormat = DateTimeFormatter.ofPattern("MMM", Locale.US)
+private const val RESCHEDULE_NOTE_MAX_LENGTH = 1000
+private const val MAX_ALTERNATIVE_TIMES = 2
+
+private enum class RescheduleSelectionPhase { PREFERRED, ALTERNATIVES }
 
 /**
  * Date and time in one continuous view — a week strip above a morning/afternoon slot list —
@@ -101,17 +116,33 @@ fun RescheduleBottomSheet(
     title: String = "Reschedule appointment",
     description: String =
         "Choose a date from tomorrow onward and a time the clinic has confirmed as available.",
+    currentTimeLabel: String = "Current appointment",
+    currentTimeDescription: String =
+        "This appointment stays confirmed until the clinic approves your requested time.",
     confirmationTitle: String = "Request this time change",
-    confirmationMessage: (date: String, time: String) -> String = { date, time ->
-        "Send a request to move this appointment to $date at $time? The clinic must approve it."
+    confirmationMessage: (date: String, time: String, alternatives: List<String>) -> String = { date, time, alternatives ->
+        val alternativeText = formatRescheduleAlternativesForConfirmation(alternatives)
+        buildString {
+            append("Preferred time: $date at $time.")
+            if (alternativeText.isNotEmpty()) {
+                append("\n")
+                append(alternativeText)
+            }
+            append("\n\nSend this time-change request? The clinic must approve it.")
+        }
     },
     confirmLabel: String = "Send request",
     dismissLabel: String = "Keep current time",
+    showReasonField: Boolean = false,
     onShowWeek: (String) -> Unit,
     onDateChanged: (String) -> Unit,
     onRetryAvailability: () -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: (scheduledAt: String) -> Unit,
+    onConfirm: (
+        scheduledAt: String,
+        alternativeScheduledTimes: List<String>,
+        reasonForVisit: String?,
+    ) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val currentDate = remember(currentScheduledAt) {
@@ -121,32 +152,70 @@ fun RescheduleBottomSheet(
             .toString()
     }
     var selectedDate by remember(currentDate) { mutableStateOf(currentDate) }
-    var selectedSlotStartsAt by remember { mutableStateOf<String?>(null) }
+    var selectionPhaseName by rememberSaveable { mutableStateOf(RescheduleSelectionPhase.PREFERRED.name) }
+    val selectionPhase = RescheduleSelectionPhase.valueOf(selectionPhaseName)
+    val addingAlternatives = selectionPhase == RescheduleSelectionPhase.ALTERNATIVES
+    var selectedPrimarySlotStartsAt by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedAlternativeSlotStartsAt by rememberSaveable {
+        mutableStateOf<List<String>>(emptyList())
+    }
+    var reasonForVisit by rememberSaveable { mutableStateOf("") }
     var showConfirmDialog by remember { mutableStateOf(false) }
 
     val availability = (availabilityState as? RescheduleAvailabilityState.Success)?.availability
     val availableSlots = availability?.slots?.filter { it.available }.orEmpty()
-    val selectedSlot = availableSlots.firstOrNull { it.startsAt == selectedSlotStartsAt }
-    val isCurrentSlot = selectedSlot?.let { sameInstant(it.startsAt, currentScheduledAt) } == true
-    val canConfirm = selectedSlot != null && !isCurrentSlot && !isSubmitting
+    val isCurrentSlot = selectedPrimarySlotStartsAt?.let { sameInstant(it, currentScheduledAt) } == true
+    val canConfirm = selectedPrimarySlotStartsAt != null && !isCurrentSlot && !isSubmitting
 
-    LaunchedEffect(availabilityState) {
-        selectedSlotStartsAt = null
+    fun selectPreferredSlot(startsAt: String) {
+        selectedPrimarySlotStartsAt = startsAt
+        selectedAlternativeSlotStartsAt = selectedAlternativeSlotStartsAt - startsAt
     }
 
-    if (showConfirmDialog && selectedSlot != null) {
+    fun toggleAlternativeSlot(startsAt: String) {
+        if (startsAt == selectedPrimarySlotStartsAt) return
+        selectedAlternativeSlotStartsAt = if (startsAt in selectedAlternativeSlotStartsAt) {
+            selectedAlternativeSlotStartsAt - startsAt
+        } else if (selectedAlternativeSlotStartsAt.size < MAX_ALTERNATIVE_TIMES) {
+            selectedAlternativeSlotStartsAt + startsAt
+        } else {
+            selectedAlternativeSlotStartsAt
+        }
+    }
+
+    fun selectSlot(startsAt: String) {
+        if (addingAlternatives) toggleAlternativeSlot(startsAt) else selectPreferredSlot(startsAt)
+    }
+
+    fun startAddingAlternatives() {
+        if (selectedPrimarySlotStartsAt != null) {
+            selectionPhaseName = RescheduleSelectionPhase.ALTERNATIVES.name
+        }
+    }
+
+    fun finishAddingAlternatives() {
+        selectionPhaseName = RescheduleSelectionPhase.PREFERRED.name
+    }
+
+    val selectedPrimarySlot = selectedPrimarySlotStartsAt
+    if (showConfirmDialog && selectedPrimarySlot != null) {
         AppConfirmationDialog(
             icon = Icons.Outlined.EventAvailable,
             title = confirmationTitle,
             message = confirmationMessage(
-                formatRescheduleDate(selectedSlot.startsAt),
-                formatRescheduleTime(selectedSlot.startsAt),
+                formatRescheduleDate(selectedPrimarySlot),
+                formatRescheduleTime(selectedPrimarySlot),
+                selectedAlternativeSlotStartsAt,
             ),
             confirmLabel = confirmLabel,
             dismissLabel = dismissLabel,
             onConfirm = {
                 showConfirmDialog = false
-                onConfirm(selectedSlot.startsAt)
+                onConfirm(
+                    selectedPrimarySlot,
+                    selectedAlternativeSlotStartsAt,
+                    reasonForVisit.trim().takeIf { it.isNotEmpty() },
+                )
             },
             onDismissRequest = { showConfirmDialog = false },
         )
@@ -181,6 +250,22 @@ fun RescheduleBottomSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
+                RescheduleCurrentTimeCard(
+                    label = currentTimeLabel,
+                    scheduledAt = currentScheduledAt,
+                    description = currentTimeDescription,
+                )
+
+                Text(
+                    text = if (addingAlternatives) {
+                        "Choose up to two alternative times. Your preferred time stays at the top."
+                    } else {
+                        "Choose your preferred time. Alternative times are optional."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
                 RescheduleWeekStrip(
                     weekStart = weekStart,
                     selectedDate = selectedDate,
@@ -194,20 +279,53 @@ fun RescheduleBottomSheet(
                     },
                 )
 
+                selectedPrimarySlot?.let { preferredTime ->
+                    SelectedRescheduleTimesCard(
+                        preferredTime = preferredTime,
+                        alternativeTimes = selectedAlternativeSlotStartsAt,
+                        addingAlternatives = addingAlternatives,
+                        onAddAlternatives = ::startAddingAlternatives,
+                        onChangePreferred = {
+                            selectionPhaseName = RescheduleSelectionPhase.PREFERRED.name
+                        },
+                        onRemoveAlternative = { startsAt ->
+                            selectedAlternativeSlotStartsAt = selectedAlternativeSlotStartsAt - startsAt
+                        },
+                    )
+                }
+
                 RescheduleSlotSection(
                     availabilityState = availabilityState,
                     availableSlots = availableSlots,
-                    selectedSlotStartsAt = selectedSlotStartsAt,
+                    selectionPhase = selectionPhase,
+                    selectedPrimarySlotStartsAt = selectedPrimarySlotStartsAt,
+                    selectedAlternativeSlotStartsAt = selectedAlternativeSlotStartsAt,
                     isSubmitting = isSubmitting,
-                    onSelectSlot = { selectedSlotStartsAt = it },
+                    onSelectSlot = ::selectSlot,
                     onRetryAvailability = onRetryAvailability,
                 )
 
                 if (isCurrentSlot) {
                     Text(
-                        text = "That is already your current appointment time. Choose another slot.",
+                        text = "That is already your current time. Choose another slot.",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+                if (showReasonField) {
+                    OutlinedTextField(
+                        value = reasonForVisit,
+                        onValueChange = { value ->
+                            reasonForVisit = value.take(RESCHEDULE_NOTE_MAX_LENGTH)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Reason for rescheduling (optional)") },
+                        supportingText = {
+                            Text("${reasonForVisit.length}/$RESCHEDULE_NOTE_MAX_LENGTH")
+                        },
+                        minLines = 3,
+                        enabled = !isSubmitting,
                     )
                 }
             }
@@ -215,7 +333,8 @@ fun RescheduleBottomSheet(
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .imePadding(),
                 color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 3.dp,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -246,15 +365,207 @@ fun RescheduleBottomSheet(
                         }
                     }
 
-                    AppointmentPrimaryButton(
-                        text = "Review reschedule",
-                        onClick = { showConfirmDialog = true },
-                        enabled = canConfirm,
-                        loading = isSubmitting,
+                    if (addingAlternatives) {
+                        AppointmentPrimaryButton(
+                            text = when (selectedAlternativeSlotStartsAt.size) {
+                                0 -> "Done"
+                                1 -> "Done · 1 alternative"
+                                else -> "Done · ${selectedAlternativeSlotStartsAt.size} alternatives"
+                            },
+                            onClick = ::finishAddingAlternatives,
+                            enabled = !isSubmitting,
+                            loading = isSubmitting,
+                        )
+                    } else {
+                        AppointmentPrimaryButton(
+                            text = "Review reschedule",
+                            onClick = { showConfirmDialog = true },
+                            enabled = canConfirm,
+                            loading = isSubmitting,
+                            modifier = Modifier.semantics {
+                                if (isSubmitting) {
+                                    contentDescription = "Submitting reschedule request"
+                                    liveRegion = LiveRegionMode.Polite
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RescheduleCurrentTimeCard(
+    label: String,
+    scheduledAt: String,
+    description: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "${formatRescheduleDate(scheduledAt)} · ${formatRescheduleTime(scheduledAt)}",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectedRescheduleTimesCard(
+    preferredTime: String,
+    alternativeTimes: List<String>,
+    addingAlternatives: Boolean,
+    onAddAlternatives: () -> Unit,
+    onChangePreferred: () -> Unit,
+    onRemoveAlternative: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "Your selected times",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "${alternativeTimes.size} of $MAX_ALTERNATIVE_TIMES alternatives",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            SelectedRescheduleTimeRow(
+                rank = "Preferred",
+                startsAt = preferredTime,
+            )
+            alternativeTimes.forEachIndexed { index, startsAt ->
+                SelectedRescheduleTimeRow(
+                    rank = "Alternative ${index + 1}",
+                    startsAt = startsAt,
+                    onRemove = { onRemoveAlternative(startsAt) },
+                )
+            }
+
+            Text(
+                text = if (addingAlternatives) {
+                    "Select up to two other times that could work for you."
+                } else {
+                    "The preferred time is sent first; alternatives give the clinic more ways to find a time that works."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+
+            if (addingAlternatives) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onChangePreferred) {
+                        Text("Change preferred time")
+                    }
+                }
+            } else {
+                TextButton(
+                    onClick = onAddAlternatives,
+                    enabled = alternativeTimes.size < MAX_ALTERNATIVE_TIMES,
+                ) {
+                    Text(
+                        text = if (alternativeTimes.isEmpty()) {
+                            "Add alternative times"
+                        } else {
+                            "Change alternative times"
+                        },
+                        color = EyecareColors.current.accentText,
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SelectedRescheduleTimeRow(
+    rank: String,
+    startsAt: String,
+    onRemove: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = if (rank == "Preferred") {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
+        ) {
+            Text(
+                text = rank,
+                modifier = Modifier
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .clearAndSetSemantics { },
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (rank == "Preferred") {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+        Text(
+            text = "${formatRescheduleDate(startsAt)} · ${formatRescheduleTime(startsAt)}",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        onRemove?.let {
+            IconButton(onClick = it) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "Remove $rank",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } ?: Spacer(Modifier.size(48.dp))
     }
 }
 
@@ -283,13 +594,21 @@ private fun RescheduleWeekStrip(
         ?: minimumWeekStart
     val canGoBack = start.isAfter(minimumWeekStart)
 
+    fun showWeekAndSelectDate(nextStart: LocalDate) {
+        val nextDate = nextStart.toString()
+        onShowWeek(nextDate)
+        onDateSelected(nextDate)
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(
-                onClick = { onShowWeek(start.minusDays(availabilityWeekLength.toLong()).toString()) },
+                onClick = {
+                    showWeekAndSelectDate(start.minusDays(availabilityWeekLength.toLong()))
+                },
                 enabled = canGoBack,
             ) {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous week")
@@ -302,35 +621,42 @@ private fun RescheduleWeekStrip(
                 modifier = Modifier.weight(1f),
             )
             IconButton(
-                onClick = { onShowWeek(start.plusDays(availabilityWeekLength.toLong()).toString()) },
+                onClick = {
+                    showWeekAndSelectDate(start.plusDays(availabilityWeekLength.toLong()))
+                },
             ) {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next week")
             }
         }
 
-        AnimatedContent(
-            targetState = start,
-            transitionSpec = {
-                val direction = if (targetState > initialState) 1 else -1
-                (slideInHorizontally { width -> direction * width } + fadeIn()) togetherWith
-                    (slideOutHorizontally { width -> -direction * width } + fadeOut())
-            },
-            label = "reschedule-week-strip",
-        ) { visibleStart ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                (0 until availabilityWeekLength).forEach { offset ->
-                    val date = visibleStart.plusDays(offset.toLong())
-                    RescheduleDayCell(
-                        date = date,
-                        isBeforeEarliestDate = date.isBefore(earliestDate),
-                        isSelected = date.toString() == selectedDate,
-                        verdict = dayAvailability[date.toString()] ?: DayAvailability.UNKNOWN,
-                        onClick = { onDateSelected(date.toString()) },
-                        modifier = Modifier.weight(1f),
-                    )
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            // Keep every day at least 48dp wide. On compact screens the strip scrolls instead of
+            // shrinking seven controls below the platform touch-target minimum.
+            val cellWidth = maxOf(48.dp, (maxWidth - 12.dp) / availabilityWeekLength)
+            AnimatedContent(
+                targetState = start,
+                transitionSpec = {
+                    val direction = if (targetState > initialState) 1 else -1
+                    (slideInHorizontally { width -> direction * width } + fadeIn()) togetherWith
+                        (slideOutHorizontally { width -> -direction * width } + fadeOut())
+                },
+                label = "reschedule-week-strip",
+            ) { visibleStart ->
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    (0 until availabilityWeekLength).forEach { offset ->
+                        val date = visibleStart.plusDays(offset.toLong())
+                        RescheduleDayCell(
+                            date = date,
+                            isBeforeEarliestDate = date.isBefore(earliestDate),
+                            isSelected = date.toString() == selectedDate,
+                            verdict = dayAvailability[date.toString()] ?: DayAvailability.UNKNOWN,
+                            onClick = { onDateSelected(date.toString()) },
+                            modifier = Modifier.width(cellWidth),
+                        )
+                    }
                 }
             }
         }
@@ -391,6 +717,7 @@ private fun RescheduleDayCell(
 
     Surface(
         modifier = modifier
+            .widthIn(min = 48.dp)
             .sizeIn(minHeight = 60.dp)
             .selectable(selected = isSelected, enabled = !unavailable, onClick = onClick)
             .semantics {
@@ -458,7 +785,9 @@ private fun rescheduleMonthRangeLabel(start: LocalDate): String {
 private fun RescheduleSlotSection(
     availabilityState: RescheduleAvailabilityState,
     availableSlots: List<AppointmentSlot>,
-    selectedSlotStartsAt: String?,
+    selectionPhase: RescheduleSelectionPhase,
+    selectedPrimarySlotStartsAt: String?,
+    selectedAlternativeSlotStartsAt: List<String>,
     isSubmitting: Boolean,
     onSelectSlot: (String) -> Unit,
     onRetryAvailability: () -> Unit,
@@ -474,7 +803,13 @@ private fun RescheduleSlotSection(
 
         is RescheduleAvailabilityState.Loading -> {
             Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp)
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = "Checking available times"
+                        liveRegion = LiveRegionMode.Polite
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Column(
@@ -517,6 +852,24 @@ private fun RescheduleSlotSection(
             } else {
                 val morning = availableSlots.filter { (parseSlotTime(it.startsAt)?.hour ?: 0) < 12 }
                 val afternoon = availableSlots.filter { (parseSlotTime(it.startsAt)?.hour ?: 0) >= 12 }
+                val alternativesFull = selectedAlternativeSlotStartsAt.size >= MAX_ALTERNATIVE_TIMES
+
+                fun labelFor(slot: AppointmentSlot): String? {
+                    return when {
+                        slot.startsAt == selectedPrimarySlotStartsAt -> "Preferred"
+                        selectionPhase == RescheduleSelectionPhase.ALTERNATIVES &&
+                            slot.startsAt in selectedAlternativeSlotStartsAt ->
+                            "Alternative ${selectedAlternativeSlotStartsAt.indexOf(slot.startsAt) + 1}"
+                        else -> null
+                    }
+                }
+
+                fun enabledFor(slot: AppointmentSlot): Boolean {
+                    if (isSubmitting) return false
+                    if (selectionPhase == RescheduleSelectionPhase.PREFERRED) return true
+                    if (slot.startsAt == selectedPrimarySlotStartsAt) return false
+                    return slot.startsAt in selectedAlternativeSlotStartsAt || !alternativesFull
+                }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (morning.isNotEmpty()) {
@@ -524,19 +877,27 @@ private fun RescheduleSlotSection(
                         morning.forEach { slot ->
                             RescheduleSlotRow(
                                 slot = slot,
-                                selected = slot.startsAt == selectedSlotStartsAt,
-                                enabled = !isSubmitting,
+                                selectionPhase = selectionPhase,
+                                selected = slot.startsAt == selectedPrimarySlotStartsAt ||
+                                    (selectionPhase == RescheduleSelectionPhase.ALTERNATIVES &&
+                                        slot.startsAt in selectedAlternativeSlotStartsAt),
+                                selectionLabel = labelFor(slot),
+                                enabled = enabledFor(slot),
                                 onSelect = { onSelectSlot(slot.startsAt) },
                             )
                         }
                     }
                     if (afternoon.isNotEmpty()) {
-                        RescheduleTimePeriodHeader(Icons.Outlined.Bedtime, "Afternoon", afternoon.size)
+                        RescheduleTimePeriodHeader(Icons.Outlined.Schedule, "Afternoon", afternoon.size)
                         afternoon.forEach { slot ->
                             RescheduleSlotRow(
                                 slot = slot,
-                                selected = slot.startsAt == selectedSlotStartsAt,
-                                enabled = !isSubmitting,
+                                selectionPhase = selectionPhase,
+                                selected = slot.startsAt == selectedPrimarySlotStartsAt ||
+                                    (selectionPhase == RescheduleSelectionPhase.ALTERNATIVES &&
+                                        slot.startsAt in selectedAlternativeSlotStartsAt),
+                                selectionLabel = labelFor(slot),
+                                enabled = enabledFor(slot),
                                 onSelect = { onSelectSlot(slot.startsAt) },
                             )
                         }
@@ -577,7 +938,12 @@ private fun RescheduleTimePeriodHeader(icon: ImageVector, label: String, count: 
 @Composable
 private fun RescheduleAvailabilityError(message: String, onRetry: (() -> Unit)?) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Unable to load available times: $message"
+                liveRegion = LiveRegionMode.Polite
+            },
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.errorContainer,
     ) {
@@ -602,14 +968,42 @@ private fun RescheduleAvailabilityError(message: String, onRetry: (() -> Unit)?)
 @Composable
 private fun RescheduleSlotRow(
     slot: AppointmentSlot,
+    selectionPhase: RescheduleSelectionPhase,
     selected: Boolean,
+    selectionLabel: String?,
     enabled: Boolean,
     onSelect: () -> Unit,
 ) {
+    val role = if (selectionPhase == RescheduleSelectionPhase.PREFERRED) {
+        Role.RadioButton
+    } else {
+        Role.Checkbox
+    }
+    val timeLabel = formatTimeRange(slot.startsAt, slot.endsAt)
+    val selectionState = when {
+        selectionLabel != null -> "$selectionLabel selected"
+        selectionPhase == RescheduleSelectionPhase.ALTERNATIVES && !enabled ->
+            "Unavailable. Two alternatives are already selected."
+        else -> "Not selected"
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .selectable(selected = selected, enabled = enabled, onClick = onSelect),
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                role = role,
+                onClick = onSelect,
+            )
+            .semantics(mergeDescendants = true) {
+                contentDescription = buildString {
+                    append(timeLabel)
+                    selectionLabel?.let { append(", $it") }
+                    slot.reason?.takeIf { it.isNotBlank() }?.let { append(", $it") }
+                }
+                stateDescription = selectionState
+            },
         shape = RoundedCornerShape(12.dp),
         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         border = BorderStroke(
@@ -625,10 +1019,24 @@ private fun RescheduleSlotRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            RadioButton(selected = selected, onClick = null, enabled = enabled)
+            if (selectionPhase == RescheduleSelectionPhase.PREFERRED) {
+                RadioButton(
+                    selected = selected,
+                    onClick = null,
+                    enabled = enabled,
+                    modifier = Modifier.clearAndSetSemantics { },
+                )
+            } else {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = null,
+                    enabled = enabled,
+                    modifier = Modifier.clearAndSetSemantics { },
+                )
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = formatTimeRange(slot.startsAt, slot.endsAt),
+                    text = timeLabel,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                 )
@@ -645,17 +1053,31 @@ private fun RescheduleSlotRow(
                     )
                 }
             }
+            selectionLabel?.let { label ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = EyecareColors.current.accentText,
+                    modifier = Modifier.clearAndSetSemantics { },
+                )
+            }
         }
     }
 }
 
-private fun formatRescheduleDate(startsAt: String): String = runCatching {
-    Instant.parse(startsAt).atZone(CLINIC_TIME_ZONE).format(rescheduleDateFormatter)
-}.getOrDefault(startsAt)
+private fun formatRescheduleDate(startsAt: String): String =
+    parseClinicDateTime(startsAt)?.format(rescheduleDateFormatter)
+        ?: runCatching { LocalDate.parse(startsAt.take(10)).format(rescheduleDateFormatter) }
+            .getOrDefault(startsAt)
 
-private fun formatRescheduleTime(startsAt: String): String = runCatching {
-    Instant.parse(startsAt).atZone(CLINIC_TIME_ZONE).format(rescheduleTimeFormatter)
-}.getOrDefault(startsAt)
+private fun formatRescheduleTime(startsAt: String): String =
+    parseClinicDateTime(startsAt)?.format(rescheduleTimeFormatter)
+        ?: startsAt
+
+internal fun formatRescheduleAlternativesForConfirmation(alternatives: List<String>): String =
+    alternatives.mapIndexed { index, startsAt ->
+        "Alternative ${index + 1}: ${formatRescheduleDate(startsAt)} at ${formatRescheduleTime(startsAt)}."
+    }.joinToString(separator = "\n")
 
 private fun sameInstant(first: String, second: String): Boolean = runCatching {
     Instant.parse(first) == Instant.parse(second)

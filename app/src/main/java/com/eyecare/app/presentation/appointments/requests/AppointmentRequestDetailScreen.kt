@@ -53,6 +53,7 @@ import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.PATIENT_CANCELLATION_REASON_MAX_LENGTH
 import com.eyecare.app.presentation.appointments.RescheduleBottomSheet
+import com.eyecare.app.presentation.appointments.formatRescheduleAlternativesForConfirmation
 import com.eyecare.app.presentation.appointments.SAME_DAY_CANCELLATION_MESSAGE
 import com.eyecare.app.presentation.appointments.isSameDayInClinic
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
@@ -70,7 +71,6 @@ fun AppointmentRequestDetailScreen(
     requestId: Int,
     isLinked: Boolean = false,
     onBack: () -> Unit,
-    onViewConfirmedAppointment: (Int) -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     viewModel: AppointmentRequestDetailViewModel = hiltViewModel(),
 ) {
@@ -125,7 +125,6 @@ fun AppointmentRequestDetailScreen(
                 cancelReason = ""
                 showCancelDialog = true
             },
-            onViewConfirmed = { onViewConfirmedAppointment(it) },
             onRefresh = viewModel::refresh,
             onMessageClick = onNavigateToMessages,
             onEditScheduleClick = viewModel::showScheduleSheet,
@@ -171,7 +170,6 @@ private fun RequestDetailDataContent(
     state: RequestDetailState.Data,
     onBack: () -> Unit,
     onCancelClick: () -> Unit,
-    onViewConfirmed: (Int) -> Unit,
     onRefresh: () -> Unit,
     onMessageClick: () -> Unit,
     onEditScheduleClick: () -> Unit,
@@ -179,7 +177,7 @@ private fun RequestDetailDataContent(
     onShowScheduleWeek: (String) -> Unit,
     onScheduleDateChanged: (String) -> Unit,
     onRetryScheduleAvailability: () -> Unit,
-    onUpdateSchedule: (String) -> Unit,
+    onUpdateSchedule: (String, List<String>) -> Unit,
 ) {
     val presentation = requestStatusPresentation(state.request.status)
     // Keep the request detail's type/duration presentation consistent with the current-journey
@@ -201,10 +199,8 @@ private fun RequestDetailDataContent(
         isSameDayInClinic(state.request.scheduledAt)
     val showCancel = presentation.showCancel && state.request.status.isCancellable &&
         !sameDayCancellationBlocked
-    val confirmedAppointmentId = state.request.appointmentId
-        .takeIf { presentation.showViewConfirmed && state.isLinked }
     val showScheduleAction = state.request.status.isCancellable
-    val showBottomBar = showMessageAction || showCancel || confirmedAppointmentId != null || showScheduleAction
+    val showBottomBar = showMessageAction || showCancel || showScheduleAction
 
     Scaffold(
         topBar = {
@@ -216,13 +212,11 @@ private fun RequestDetailDataContent(
         bottomBar = {
             if (showBottomBar) {
                 RequestDetailBottomBar(
-                    confirmedAppointmentId = confirmedAppointmentId,
                     showMessageAction = showMessageAction,
                     showCancel = showCancel,
                     showScheduleAction = showScheduleAction,
                     isCancelling = state.isCancelling,
                     isUpdatingSchedule = state.isUpdatingSchedule,
-                    onViewConfirmed = onViewConfirmed,
                     onMessageClick = onMessageClick,
                     onCancelClick = onCancelClick,
                     onEditScheduleClick = onEditScheduleClick,
@@ -411,30 +405,40 @@ private fun RequestDetailDataContent(
             errorMessage = state.scheduleError,
             title = "Change requested time",
             description = "Choose a new preferred time from tomorrow onward. Your request stays pending until the clinic reviews it.",
+            currentTimeLabel = "Current requested time",
+            currentTimeDescription = "This request stays pending until the clinic reviews the new time.",
             confirmationTitle = "Update requested time",
-            confirmationMessage = { date, time ->
-                "Update this request to $date at $time? The request will stay pending until the clinic reviews it."
+            confirmationMessage = { date, time, alternatives ->
+                val alternativesText = formatRescheduleAlternativesForConfirmation(alternatives)
+                buildString {
+                    append("Preferred time: $date at $time.")
+                    if (alternativesText.isNotEmpty()) {
+                        append("\n")
+                        append(alternativesText)
+                    }
+                    append("\n\nUpdate this request? It will stay pending until the clinic reviews it.")
+                }
             },
             confirmLabel = "Update request",
-            dismissLabel = "Keep current time",
+            dismissLabel = "Keep current requested time",
             onShowWeek = onShowScheduleWeek,
             onDateChanged = onScheduleDateChanged,
             onRetryAvailability = onRetryScheduleAvailability,
             onDismiss = onDismissScheduleSheet,
-            onConfirm = onUpdateSchedule,
+            onConfirm = { scheduledAt, alternatives, _ ->
+                onUpdateSchedule(scheduledAt, alternatives)
+            },
         )
     }
 }
 
 @Composable
 private fun RequestDetailBottomBar(
-    confirmedAppointmentId: Int?,
     showMessageAction: Boolean,
     showCancel: Boolean,
     showScheduleAction: Boolean,
     isCancelling: Boolean,
     isUpdatingSchedule: Boolean,
-    onViewConfirmed: (Int) -> Unit,
     onMessageClick: () -> Unit,
     onCancelClick: () -> Unit,
     onEditScheduleClick: () -> Unit,
@@ -450,13 +454,6 @@ private fun RequestDetailBottomBar(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (confirmedAppointmentId != null) {
-                AppointmentPrimaryButton(
-                    text = "View confirmed appointment",
-                    onClick = { onViewConfirmed(confirmedAppointmentId) },
-                    icon = Icons.Outlined.EventAvailable,
-                )
-            }
             if (showScheduleAction) {
                 AppointmentPrimaryButton(
                     text = "Change requested time",
@@ -520,7 +517,7 @@ private fun RequestStatusNotice(
         AppointmentRequestStatus.UNKNOWN -> Icons.Outlined.EventBusy
     }
     val containerColor = when (status) {
-        AppointmentRequestStatus.PENDING -> MaterialTheme.colorScheme.primaryContainer
+        AppointmentRequestStatus.PENDING -> EyecareColors.current.statusPending.copy(alpha = 0.16f)
         AppointmentRequestStatus.ACCEPTED -> MaterialTheme.colorScheme.tertiaryContainer
         AppointmentRequestStatus.REJECTED,
         AppointmentRequestStatus.CANCELLED,
@@ -528,7 +525,7 @@ private fun RequestStatusNotice(
         AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.surfaceVariant
     }
     val contentColor = when (status) {
-        AppointmentRequestStatus.PENDING -> MaterialTheme.colorScheme.onPrimaryContainer
+        AppointmentRequestStatus.PENDING -> EyecareColors.current.statusPendingText
         AppointmentRequestStatus.ACCEPTED -> MaterialTheme.colorScheme.onTertiaryContainer
         AppointmentRequestStatus.REJECTED,
         AppointmentRequestStatus.CANCELLED,
@@ -536,7 +533,7 @@ private fun RequestStatusNotice(
         AppointmentRequestStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val iconTint = when (status) {
-        AppointmentRequestStatus.PENDING -> EyecareColors.current.accentText
+        AppointmentRequestStatus.PENDING -> EyecareColors.current.statusPendingText
         AppointmentRequestStatus.ACCEPTED -> EyecareColors.current.statusConfirmed
         AppointmentRequestStatus.REJECTED,
         AppointmentRequestStatus.CANCELLED,

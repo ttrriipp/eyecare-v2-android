@@ -17,7 +17,6 @@ data class RequestStatusPresentation(
     val label: String,
     val description: String,
     val showCancel: Boolean = false,
-    val showViewConfirmed: Boolean = false,
 )
 
 /**
@@ -67,7 +66,6 @@ fun requestStatusPresentation(status: AppointmentRequestStatus): RequestStatusPr
     AppointmentRequestStatus.ACCEPTED -> RequestStatusPresentation(
         label = "Confirmed",
         description = "The clinic confirmed this request and booked your appointment.",
-        showViewConfirmed = true,
     )
     AppointmentRequestStatus.REJECTED -> RequestStatusPresentation(
         label = "Not approved",

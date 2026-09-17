@@ -439,9 +439,6 @@ fun EyecareNavGraph(
                             onNavigateToRequestDetail = { id ->
                                 navigatePatientFeature(AppointmentRequestDetail(id))
                             },
-                            onNavigateToAppointmentDetail = { id ->
-                                navigatePatientFeature(AppointmentDetail(id))
-                            },
                             onRequestDifferentTime = myAppointmentViewModel::showRescheduleSheet,
                             onCancelRequest = myAppointmentViewModel::cancelRequest,
                             onCancelAppointment = myAppointmentViewModel::cancelAppointment,
@@ -494,9 +491,6 @@ fun EyecareNavGraph(
                             isLinked = sessionState is SessionState.Linked,
                             onBack = {
                                 navController.popBackStack()
-                            },
-                            onViewConfirmedAppointment = { id ->
-                                navigatePatientFeature(AppointmentDetail(id))
                             },
                             onNavigateToMessages = { navigatePatientFeature(Chat) },
                         )
