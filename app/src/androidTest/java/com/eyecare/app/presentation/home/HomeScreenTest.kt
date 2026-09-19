@@ -66,7 +66,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun pendingRequest_doesNotAddAnAppointmentCardToHome() {
+    fun pendingRequest_isDisplayedOnHome() {
         val state = successState().copy(
             currentAppointmentJourney = CurrentAppointmentJourney.PendingRequest(
                 request = AppointmentRequest(
@@ -97,7 +97,8 @@ class HomeScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("APPOINTMENT REQUEST PENDING").assertDoesNotExist()
+        composeRule.onNodeWithText("APPOINTMENT REQUEST PENDING").assertIsDisplayed()
+        composeRule.onNodeWithText("Your preferred time is awaiting clinic approval.").assertIsDisplayed()
         composeRule.onNodeWithText("Book an appointment").assertDoesNotExist()
         composeRule.onNodeWithText("YOUR NEXT VISIT").assertDoesNotExist()
     }

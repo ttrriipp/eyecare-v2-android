@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentV1
+import com.eyecare.app.domain.model.AppointmentRequest
 import com.eyecare.app.domain.model.ClinicHoursDay
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.model.Frame
@@ -218,7 +219,12 @@ fun HomeContent(
                 state.nextAppointment != null -> {
                     VisitTicket(appointment = state.nextAppointment, onClick = onNavigateToAppointments)
                 }
-                state.currentAppointmentJourney is CurrentAppointmentJourney.PendingRequest -> Unit
+                state.currentAppointmentJourney is CurrentAppointmentJourney.PendingRequest -> {
+                    AppointmentRequestCard(
+                        request = state.currentAppointmentJourney.request,
+                        onClick = onNavigateToAppointments,
+                    )
+                }
                 else -> BookingInvitation(onClick = onNavigateToBooking)
             }
         } else {
@@ -475,6 +481,149 @@ private fun VisitTicket(
                         modifier = Modifier.size(16.dp),
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppointmentRequestCard(
+    request: AppointmentRequest,
+    onClick: () -> Unit,
+) {
+    val pendingColor = EyecareColors.current.statusPending
+    val pendingTextColor = EyecareColors.current.statusPendingText
+    val alternativeCount = request.alternativeScheduledTimes.size
+
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, pendingColor.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        color = pendingColor.copy(alpha = 0.14f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.CalendarMonth,
+                                contentDescription = null,
+                                tint = pendingTextColor,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "APPOINTMENT REQUEST PENDING",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = pendingTextColor,
+                            letterSpacing = 0.8.sp,
+                        )
+                        Text(
+                            text = "Awaiting clinic review",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = null,
+                    tint = pendingTextColor,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = request.appointmentType?.name ?: "Appointment request",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                request.appointmentType?.let { type ->
+                    Text(
+                        text = "${type.durationMinutes} min visit",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = "REQUESTED TIME",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 0.6.sp,
+                    )
+                    Text(
+                        text = formatAppointmentDate(request.scheduledAt),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Text(
+                    text = formatAppointmentTime(request.scheduledAt),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            Text(
+                text = if (alternativeCount > 0) {
+                    "Awaiting approval · $alternativeCount alternative " +
+                        "time${if (alternativeCount == 1) "" else "s"} included"
+                } else {
+                    "Your preferred time is awaiting clinic approval."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "View request",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EyecareColors.current.accentText,
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = null,
+                    tint = EyecareColors.current.accentText,
+                    modifier = Modifier.size(16.dp),
+                )
             }
         }
     }
