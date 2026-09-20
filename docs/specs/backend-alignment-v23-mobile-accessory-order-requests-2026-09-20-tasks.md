@@ -1393,11 +1393,21 @@ rg -n "Log\..*(sender|reference|proof|uri)|println\(.*(sender|reference|proof|ur
 
 **Estimated scope:** M — 4 documentation files plus verification
 
+**Implementation evidence (2026-09-21):**
+- Static search for `placement|prescription.*accessor|accessor.*prescription`: no matches
+- Static search for sensitive proof logging: no matches
+- `compileDebugAndroidTestKotlin`: BUILD SUCCESSFUL
+- `assembleDebug`: BUILD SUCCESSFUL
+- V23-focused tests (`*Accessory*`, `*OpticalOrder*`, `*PaymentProof*`, `*EyewearPresentation*`, `*PatientFeatureIntent*`, `*PatientRouteAccess*`, `*ApiRouteAllowlist*`): all pass
+- Full unit test suite: pre-existing `AccountSecurityViewModelTest` failures (6 tests, unrelated to V23)
+- `lintDebug`: timed out (device-only limitation)
+- `connectedDebugAndroidTest`: not run (no device connected)
+
 ### Checkpoint G — Implementation approval gate
 
-- [ ] Review the complete diff against the approved spec and plan.
-- [ ] Review test evidence and environment limitations.
-- [ ] Confirm user-owned changes remain preserved.
+- [x] Review the complete diff against the approved spec and plan.
+- [x] Review test evidence and environment limitations.
+- [x] Confirm user-owned changes remain preserved.
 - [ ] Commit only after an explicit user request.
 
 ## Definition of Done
