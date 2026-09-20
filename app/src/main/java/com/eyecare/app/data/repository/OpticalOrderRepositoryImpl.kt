@@ -7,14 +7,20 @@ import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderItem
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentInstructions
+import com.eyecare.app.domain.model.PaymentProofResult
 import com.eyecare.app.domain.model.PaymentProofStatus
 import com.eyecare.app.domain.model.PaymentProofSummary
+import com.eyecare.app.domain.model.PaymentProofUpload
 import com.eyecare.app.domain.model.PaymentStatus
 import com.eyecare.app.domain.model.PaymentSummary
 import com.eyecare.app.domain.model.RatingResult
 import com.eyecare.app.domain.model.RatingSummary
 import com.eyecare.app.domain.repository.OpticalOrderRepository
 import com.eyecare.app.domain.repository.PaginatedResult
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 
 class OpticalOrderRepositoryImpl @Inject constructor(
@@ -44,6 +50,26 @@ class OpticalOrderRepositoryImpl @Inject constructor(
             rating = result.rating,
             comment = result.comment,
             productVariantId = result.productVariantId,
+            createdAt = result.createdAt,
+        )
+    }
+
+    override suspend fun uploadPaymentProof(orderId: Int, proof: PaymentProofUpload): Result<PaymentProofResult> = runCatching {
+        val imagePart = MultipartBody.Part.createFormData(
+            name = "proof",
+            filename = proof.imageFile.name,
+            body = proof.imageFile.asRequestBody("image/jpeg".toMediaType()),
+        )
+        val senderNamePart = proof.senderName.trim().toRequestBody("text/plain".toMediaType())
+        val referencePart = proof.referenceNumber.trim().toRequestBody("text/plain".toMediaType())
+
+        val response = api.uploadPaymentProof(orderId, imagePart, senderNamePart, referencePart)
+        val result = response.data
+        PaymentProofResult(
+            id = result.id,
+            status = PaymentProofStatus.from(result.status),
+            senderName = result.senderName,
+            referenceNumber = result.referenceNumber,
             createdAt = result.createdAt,
         )
     }

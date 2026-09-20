@@ -111,6 +111,18 @@ object OpticalOrderDtos {
     )
 
     @Serializable
+    data class PaymentProofResponse(
+        val id: Int,
+        val status: String,
+        @SerialName("sender_name") val senderName: String,
+        @SerialName("reference_number") val referenceNumber: String,
+        @SerialName("created_at") val createdAt: String,
+    )
+
+    @Serializable
+    data class PaymentProofResultResponse(val data: PaymentProofResponse)
+
+    @Serializable
     data class RatingResultResponse(
         val data: RatingResultDto,
     )
