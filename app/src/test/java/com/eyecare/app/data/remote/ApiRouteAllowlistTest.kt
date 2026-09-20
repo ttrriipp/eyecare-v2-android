@@ -19,13 +19,13 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `active-link routes match expected count`() {
-        assertEquals(10, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes")
+        assertEquals(17, ApprovedApiRoutes.activeLinkRoutes.size, "Active-link routes")
     }
 
     @Test
-    fun `total approved routes is exactly 60`() {
-        // 8 public + 42 account-only + 10 active-link = 60 canonical callable
-        assertEquals(60, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
+    fun `total approved routes is exactly 67`() {
+        // 8 public + 42 account-only + 17 active-link = 67 canonical callable
+        assertEquals(67, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test
@@ -241,6 +241,9 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""appointment-requests/\{id\}/cancel"""), "appointment-requests/{appointmentRequest}/cancel")
             .replace(Regex("""notifications/\{id\}"""), "notifications/{notification}")
             .replace(Regex("""notifications/\{id\}/read"""), "notifications/{notification}/read")
+            .replace(Regex("""accessories/\{id\}"""), "accessories/{accessory}")
+            .replace(Regex("""accessory-order-requests/\{id\}"""), "accessory-order-requests/{accessoryOrderRequest}")
+            .replace(Regex("""accessory-order-requests/\{id\}/cancel"""), "accessory-order-requests/{accessoryOrderRequest}/cancel")
     }
 
     private fun normalizeRouteVariables(route: String): String {

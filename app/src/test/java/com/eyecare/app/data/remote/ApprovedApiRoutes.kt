@@ -79,7 +79,7 @@ internal object ApprovedApiRoutes {
         "PATCH $BASE/notifications/read-all",
     )
 
-    /** Active-link routes — require active patient link. (10) */
+    /** Active-link routes — require active patient link. (16) */
     val activeLinkRoutes: Set<String> = setOf(
         "GET $BASE/appointment-availability",
         "GET $BASE/appointments",
@@ -91,6 +91,15 @@ internal object ApprovedApiRoutes {
         "GET $BASE/optical-orders",
         "GET $BASE/optical-orders/{opticalOrder}",
         "POST $BASE/optical-order-items/{item}/rating",
+        // Accessories (V23)
+        "GET $BASE/accessories",
+        "GET $BASE/accessories/{accessory}",
+        "GET $BASE/accessory-order-requests",
+        "POST $BASE/accessory-order-requests",
+        "GET $BASE/accessory-order-requests/{accessoryOrderRequest}",
+        "POST $BASE/accessory-order-requests/{accessoryOrderRequest}/cancel",
+        // Payment proof upload (V23)
+        "POST $BASE/optical-orders/{opticalOrder}/payment-proof",
     )
 
     /** Retired routes — must not appear in any production Retrofit annotation. */
