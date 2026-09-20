@@ -46,12 +46,21 @@ class OpticalOrderDetailViewModel @Inject constructor(
     val uiState: StateFlow<OpticalOrderDetailUiState> = _uiState.asStateFlow()
 
     private var isUploading = false
+    private var lastLoadedOrder: OpticalOrder? = null
 
     init { load() }
 
     fun retry() { load() }
 
     fun refresh() { load() }
+
+    fun onResume() {
+        // Refresh on resume to pick up staff decisions
+        val current = _uiState.value
+        if (current is OpticalOrderDetailUiState.Success) {
+            load()
+        }
+    }
 
     fun updateItemRating(itemId: Int, ratingResult: RatingResult) {
         val current = _uiState.value as? OpticalOrderDetailUiState.Success ?: return
