@@ -6,6 +6,9 @@ import com.eyecare.app.domain.model.FulfillmentMode
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderItem
 import com.eyecare.app.domain.model.OpticalOrderStatus
+import com.eyecare.app.domain.model.PaymentInstructions
+import com.eyecare.app.domain.model.PaymentProofStatus
+import com.eyecare.app.domain.model.PaymentProofSummary
 import com.eyecare.app.domain.model.PaymentStatus
 import com.eyecare.app.domain.model.PaymentSummary
 import com.eyecare.app.domain.model.RatingResult
@@ -65,6 +68,27 @@ class OpticalOrderRepositoryImpl @Inject constructor(
                 balanceDue = it.balanceDue,
                 paymentDueDate = it.paymentDueDate,
                 isOverdue = it.isOverdue,
+            )
+        },
+        paymentExpiresAt = paymentExpiresAt,
+        paymentInstructions = paymentInstructions?.let {
+            PaymentInstructions(
+                method = it.method,
+                clinicAccountName = it.clinicAccountName,
+                clinicAccountNumber = it.clinicAccountNumber,
+                amount = it.amount,
+                orderReference = it.orderReference,
+                paymentExpiresAt = it.paymentExpiresAt,
+            )
+        },
+        paymentProof = paymentProof?.let {
+            PaymentProofSummary(
+                id = it.id,
+                status = PaymentProofStatus.from(it.status),
+                senderName = it.senderName,
+                referenceNumber = it.referenceNumber,
+                rejectionReason = it.rejectionReason,
+                createdAt = it.createdAt,
             )
         },
     )
