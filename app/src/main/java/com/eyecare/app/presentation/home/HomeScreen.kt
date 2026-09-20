@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.HorizontalDivider
@@ -86,6 +87,7 @@ fun HomeScreen(
     onNavigateToBooking: () -> Unit = {},
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
+    onNavigateToAccessories: () -> Unit = {},
     onNavigateToLinkAccount: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     hasActivePatientLink: Boolean = true,
@@ -118,6 +120,7 @@ fun HomeScreen(
                 onNavigateToBooking = onNavigateToBooking,
                 onNavigateToFrames = onNavigateToFrames,
                 onNavigateToFrameDetail = onNavigateToFrameDetail,
+                onNavigateToAccessories = onNavigateToAccessories,
                 onNavigateToLinkAccount = onNavigateToLinkAccount,
                 onNavigateToNotifications = onNavigateToNotifications,
                 hasActivePatientLink = hasActivePatientLink,
@@ -175,6 +178,7 @@ fun HomeContent(
     onNavigateToBooking: () -> Unit = {},
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
+    onNavigateToAccessories: () -> Unit = {},
     onNavigateToLinkAccount: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     hasActivePatientLink: Boolean = true,
@@ -272,6 +276,41 @@ fun HomeContent(
                     HomeFrameShelf(
                         frames = state.featuredFrames,
                         onFrameClick = onNavigateToFrameDetail,
+                    )
+                }
+            }
+        }
+
+        // Accessories entry
+        if (hasActivePatientLink) {
+            Surface(
+                onClick = onNavigateToAccessories,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column {
+                        Text(
+                            text = "Accessories",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "Browse lens care and eyewear accessories",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Outlined.ChevronRight,
+                        contentDescription = "Browse accessories",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

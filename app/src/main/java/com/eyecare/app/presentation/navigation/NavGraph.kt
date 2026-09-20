@@ -90,7 +90,8 @@ internal fun shouldShowBottomNav(route: String): Boolean =
         !route.contains("AppearanceSettings") &&
         !route.contains("PatientIntake") && !route.contains("Quotation") &&
         !route.contains("OpticalOrderDetail") &&
-        !route.contains("JobOrder") && !route.contains("MyOrders")
+        !route.contains("JobOrder") && !route.contains("MyOrders") &&
+        !route.contains("Accessory") && !route.contains("Accessories")
 
 private fun SessionState.accountIdOrNull(): Int? = when (this) {
     is SessionState.Linked -> account.id
@@ -334,6 +335,7 @@ fun EyecareNavGraph(
                                 navigateMainTab(Frames)
                             },
                             onNavigateToFrameDetail = { navigatePatientFeature(FrameDetail(it)) },
+                            onNavigateToAccessories = { navigatePatientFeature(Accessories) },
                             onNavigateToLinkAccount = ::openAccountLink,
                             onNavigateToNotifications = { navController.navigate(Notifications) },
                             hasActivePatientLink = canAccessPatientFeatures(sessionState),
@@ -603,6 +605,56 @@ fun EyecareNavGraph(
                             onRetry = { notificationViewModel.loadInitial() },
                             onDismissMessage = { notificationViewModel.clearInfoMessage() },
                         )
+                    }
+
+                    // Accessories (V23)
+                    composable<Accessories> {
+                        val catalogViewModel: com.eyecare.app.presentation.accessories.AccessoryCatalogViewModel = hiltViewModel()
+                        val catalogState by catalogViewModel.uiState.collectAsStateWithLifecycle()
+                        var searchQuery by remember { mutableStateOf("") }
+                        var currentSort by remember { mutableStateOf<String?>(null) }
+
+                        com.eyecare.app.presentation.accessories.AccessoryCatalogScreen(
+                            uiState = catalogState,
+                            searchQuery = searchQuery,
+                            currentSort = currentSort,
+                            onSearchChange = { query ->
+                                searchQuery = query
+                                catalogViewModel.updateSearch(query)
+                            },
+                            onSortChange = { sort ->
+                                currentSort = sort
+                                catalogViewModel.updateSort(sort)
+                            },
+                            onRefresh = catalogViewModel::refresh,
+                            onRetry = catalogViewModel::retry,
+                            onLoadMore = catalogViewModel::loadMore,
+                            onNavigateToAccessory = { id -> navigatePatientFeature(AccessoryDetail(id)) },
+                            onNavigateToCart = { navigatePatientFeature(AccessoryCart) },
+                            onNavigateToRequests = { navigatePatientFeature(AccessoryOrderRequests) },
+                        )
+                    }
+                    composable<AccessoryDetail> { backStackEntry ->
+                        val route = backStackEntry.toRoute<AccessoryDetail>()
+                        val detailViewModel: com.eyecare.app.presentation.accessories.AccessoryDetailViewModel = hiltViewModel()
+                        val detailState by detailViewModel.uiState.collectAsStateWithLifecycle()
+
+                        com.eyecare.app.presentation.accessories.AccessoryDetailScreen(
+                            uiState = detailState,
+                            onVariantSelect = detailViewModel::selectVariant,
+                            onAddToCart = { /* TODO: Task 13-14 cart integration */ },
+                            onRetry = detailViewModel::retry,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable<AccessoryCart> {
+                        // TODO: Task 14 — Render the cart
+                    }
+                    composable<AccessoryOrderRequests> {
+                        // TODO: Task 22 — Render request list
+                    }
+                    composable<AccessoryOrderRequestDetail> {
+                        // TODO: Task 24 — Render request detail
                     }
                 }
             }
