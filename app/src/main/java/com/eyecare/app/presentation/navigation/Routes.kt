@@ -54,6 +54,13 @@ internal fun arImageFallbackDestination(frameId: Int, variantId: Int): FrameDeta
 // Notifications (sub-destination, not a tab)
 @Serializable object Notifications
 
+// Accessories (V23)
+@Serializable object Accessories
+@Serializable data class AccessoryDetail(val accessoryId: Int)
+@Serializable object AccessoryCart
+@Serializable object AccessoryOrderRequests
+@Serializable data class AccessoryOrderRequestDetail(val requestId: Int)
+
 // Graph tags
 @Serializable object AuthGraph
 @Serializable object AccountAccessGraph

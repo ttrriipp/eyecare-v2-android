@@ -17,6 +17,11 @@ sealed interface PatientFeatureIntent {
     data class ArTryOn(val frameId: Int, val variantId: Int) : PatientFeatureIntent
     data class PrescriptionDetail(val prescriptionId: Int) : PatientFeatureIntent
     data class OpticalOrderDetail(val orderId: Int) : PatientFeatureIntent
+    data object Accessories : PatientFeatureIntent
+    data class AccessoryDetail(val accessoryId: Int) : PatientFeatureIntent
+    data object AccessoryCart : PatientFeatureIntent
+    data object AccessoryOrderRequests : PatientFeatureIntent
+    data class AccessoryOrderRequestDetail(val requestId: Int) : PatientFeatureIntent
 }
 
 fun PatientFeatureIntent.toRoute(): Any = when (this) {
@@ -30,6 +35,11 @@ fun PatientFeatureIntent.toRoute(): Any = when (this) {
     is PatientFeatureIntent.ArTryOn -> ArTryOn(frameId, variantId)
     is PatientFeatureIntent.PrescriptionDetail -> PrescriptionDetail(prescriptionId)
     is PatientFeatureIntent.OpticalOrderDetail -> OpticalOrderDetail(orderId)
+    PatientFeatureIntent.Accessories -> Accessories
+    is PatientFeatureIntent.AccessoryDetail -> AccessoryDetail(accessoryId)
+    PatientFeatureIntent.AccessoryCart -> AccessoryCart
+    PatientFeatureIntent.AccessoryOrderRequests -> AccessoryOrderRequests
+    is PatientFeatureIntent.AccessoryOrderRequestDetail -> AccessoryOrderRequestDetail(requestId)
 }
 
 fun patientFeatureIntentFrom(route: Any): PatientFeatureIntent? = when (route) {
@@ -43,6 +53,11 @@ fun patientFeatureIntentFrom(route: Any): PatientFeatureIntent? = when (route) {
     is ArTryOn -> PatientFeatureIntent.ArTryOn(route.frameId, route.variantId)
     is PrescriptionDetail -> PatientFeatureIntent.PrescriptionDetail(route.prescriptionId)
     is OpticalOrderDetail -> PatientFeatureIntent.OpticalOrderDetail(route.orderId)
+    Accessories -> PatientFeatureIntent.Accessories
+    is AccessoryDetail -> PatientFeatureIntent.AccessoryDetail(route.accessoryId)
+    AccessoryCart -> PatientFeatureIntent.AccessoryCart
+    AccessoryOrderRequests -> PatientFeatureIntent.AccessoryOrderRequests
+    is AccessoryOrderRequestDetail -> PatientFeatureIntent.AccessoryOrderRequestDetail(route.requestId)
     else -> null
 }
 
@@ -58,4 +73,9 @@ val PatientFeatureIntent.label: String
         is PatientFeatureIntent.PrescriptionDetail -> "prescriptions"
         PatientFeatureIntent.MyOrders,
         is PatientFeatureIntent.OpticalOrderDetail -> "eyewear"
+        PatientFeatureIntent.Accessories,
+        is PatientFeatureIntent.AccessoryDetail,
+        PatientFeatureIntent.AccessoryCart,
+        PatientFeatureIntent.AccessoryOrderRequests,
+        is PatientFeatureIntent.AccessoryOrderRequestDetail -> "accessories"
     }
