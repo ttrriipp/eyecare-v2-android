@@ -44,6 +44,27 @@ object OpticalOrderDtos {
     )
 
     @Serializable
+    data class PaymentInstructionsDto(
+        val method: String,
+        @SerialName("clinic_account_name") val clinicAccountName: String,
+        @SerialName("clinic_account_number") val clinicAccountNumber: String,
+        @Serializable(with = MoneyValueSerializer::class)
+        val amount: BigDecimal,
+        @SerialName("order_reference") val orderReference: String,
+        @SerialName("payment_expires_at") val paymentExpiresAt: String? = null,
+    )
+
+    @Serializable
+    data class PaymentProofSummaryDto(
+        val id: Int,
+        val status: String,
+        @SerialName("sender_name") val senderName: String,
+        @SerialName("reference_number") val referenceNumber: String,
+        @SerialName("rejection_reason") val rejectionReason: String? = null,
+        @SerialName("created_at") val createdAt: String,
+    )
+
+    @Serializable
     data class OpticalOrderDto(
         val id: Int,
         @SerialName("order_number") val orderNumber: String,
@@ -58,6 +79,9 @@ object OpticalOrderDtos {
         @SerialName("created_at") val createdAt: String,
         val items: List<OpticalOrderItemDto> = emptyList(),
         @SerialName("payment_summary") val paymentSummary: PaymentSummaryDto? = null,
+        @SerialName("payment_expires_at") val paymentExpiresAt: String? = null,
+        @SerialName("payment_instructions") val paymentInstructions: PaymentInstructionsDto? = null,
+        @SerialName("payment_proof") val paymentProof: PaymentProofSummaryDto? = null,
     )
 
     @Serializable

@@ -392,6 +392,16 @@ private data class OrderStatusGuidanceCopy(val title: String, val message: Strin
 @Composable
 private fun OrderStatusGuidance(status: OpticalOrderStatus) {
     val copy = when (status) {
+        OpticalOrderStatus.PENDING_PAYMENT -> OrderStatusGuidanceCopy(
+            title = "Awaiting payment",
+            message = "Your order has been accepted. Please complete payment to proceed.",
+            icon = Icons.Outlined.Info,
+        )
+        OpticalOrderStatus.PAYMENT_REVIEW -> OrderStatusGuidanceCopy(
+            title = "Payment under review",
+            message = "Your payment proof is being reviewed by the clinic.",
+            icon = Icons.Outlined.Info,
+        )
         OpticalOrderStatus.QUEUED -> OrderStatusGuidanceCopy(
             title = "Order confirmed",
             message = "Your eyewear order is confirmed and waiting to be prepared.",

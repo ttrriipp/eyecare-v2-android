@@ -246,4 +246,128 @@ class OpticalOrderDtosTest {
         val result = json.decodeFromString<OpticalOrderDtos.RatingResultDto>(fixture)
         assertNull(result.productVariantId)
     }
+
+    @Test
+    fun `decodes pending_payment order with payment instructions`() {
+        val fixture = """
+        {
+            "id": 55,
+            "order_number": "ORD-2026-000055",
+            "status": "pending_payment",
+            "fulfillment_mode": "prepared",
+            "total_amount": "700.00",
+            "payment_expires_at": "2026-09-20T10:30:00+08:00",
+            "created_at": "2026-09-20T10:00:00+08:00",
+            "items": [],
+            "payment_instructions": {
+                "method": "gcash",
+                "clinic_account_name": "Padilla Optical Clinic",
+                "clinic_account_number": "09XXXXXXXXX",
+                "amount": "700.00",
+                "order_reference": "ORD-2026-000055",
+                "payment_expires_at": "2026-09-20T10:30:00+08:00"
+            },
+            "payment_proof": null
+        }
+        """.trimIndent()
+
+        val dto = json.decodeFromString<OpticalOrderDtos.OpticalOrderDto>(fixture)
+        assertEquals("pending_payment", dto.status)
+        assertEquals("2026-09-20T10:30:00+08:00", dto.paymentExpiresAt)
+        assertNotNull(dto.paymentInstructions)
+        assertEquals("gcash", dto.paymentInstructions!!.method)
+        assertEquals("Padilla Optical Clinic", dto.paymentInstructions!!.clinicAccountName)
+        assertEquals("09XXXXXXXXX", dto.paymentInstructions!!.clinicAccountNumber)
+        assertEquals(BigDecimal("700.00"), dto.paymentInstructions!!.amount)
+        assertEquals("ORD-2026-000055", dto.paymentInstructions!!.orderReference)
+        assertEquals("2026-09-20T10:30:00+08:00", dto.paymentInstructions!!.paymentExpiresAt)
+        assertNull(dto.paymentProof)
+    }
+
+    @Test
+    fun `decodes payment_review order with proof`() {
+        val fixture = """
+        {
+            "id": 55,
+            "order_number": "ORD-2026-000055",
+            "status": "payment_review",
+            "fulfillment_mode": "prepared",
+            "total_amount": "700.00",
+            "created_at": "2026-09-20T10:00:00+08:00",
+            "items": [],
+            "payment_instructions": null,
+            "payment_proof": {
+                "id": 900,
+                "status": "pending",
+                "sender_name": "Ana Reyes",
+                "reference_number": "GCASH-12345",
+                "created_at": "2026-09-20T10:12:00+08:00"
+            }
+        }
+        """.trimIndent()
+
+        val dto = json.decodeFromString<OpticalOrderDtos.OpticalOrderDto>(fixture)
+        assertEquals("payment_review", dto.status)
+        assertNull(dto.paymentInstructions)
+        assertNotNull(dto.paymentProof)
+        assertEquals(900, dto.paymentProof!!.id)
+        assertEquals("pending", dto.paymentProof!!.status)
+        assertEquals("Ana Reyes", dto.paymentProof!!.senderName)
+        assertEquals("GCASH-12345", dto.paymentProof!!.referenceNumber)
+    }
+
+    @Test
+    fun `decodes all payment proof statuses`() {
+        listOf("pending", "accepted", "rejected").forEach { status ->
+            val fixture = """
+            {"id":1,"order_number":"OO-1","status":"payment_review","fulfillment_mode":"prepared","total_amount":"100.00","created_at":"2026-09-20T10:00:00+08:00","items":[],"payment_proof":{"id":1,"status":"$status","sender_name":"X","reference_number":"Y","created_at":"2026-09-20T10:00:00+08:00"}}
+            """.trimIndent()
+            val dto = json.decodeFromString<OpticalOrderDtos.OpticalOrderDto>(fixture)
+            assertEquals(status, dto.paymentProof!!.status)
+        }
+    }
+
+    @Test
+    fun `decodes accepted proof with rejection reason`() {
+        val fixture = """
+        {
+            "id": 55,
+            "order_number": "ORD-2026-000055",
+            "status": "pending_payment",
+            "fulfillment_mode": "prepared",
+            "total_amount": "700.00",
+            "created_at": "2026-09-20T10:00:00+08:00",
+            "items": [],
+            "payment_proof": {
+                "id": 901,
+                "status": "rejected",
+                "sender_name": "Ana Reyes",
+                "reference_number": "GCASH-12345",
+                "rejection_reason": "Screenshot unclear",
+                "created_at": "2026-09-20T10:12:00+08:00"
+            }
+        }
+        """.trimIndent()
+
+        val dto = json.decodeFromString<OpticalOrderDtos.OpticalOrderDto>(fixture)
+        assertEquals("rejected", dto.paymentProof!!.status)
+        assertEquals("Screenshot unclear", dto.paymentProof!!.rejectionReason)
+    }
+
+    @Test
+    fun `existing order fixtures still decode without new fields`() {
+        val fixture = """
+        {"id":1,"order_number":"OO-001","status":"in_progress","fulfillment_mode":"prepared","total_amount":"5000.00","created_at":"2026-08-01T10:00:00Z","items":[]}
+        """.trimIndent()
+
+        val dto = json.decodeFromString<OpticalOrderDtos.OpticalOrderDto>(fixture)
+        assertEquals("in_progress", dto.status)
+        assertNull(dto.paymentExpiresAt)
+        assertNull(dto.paymentInstructions)
+        assertNull(dto.paymentProof)
+    }
+
+    private fun assertNotNull(value: Any?) {
+        org.junit.jupiter.api.Assertions.assertNotNull(value)
+    }
 }

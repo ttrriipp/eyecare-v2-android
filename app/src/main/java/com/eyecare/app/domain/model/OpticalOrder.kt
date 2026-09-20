@@ -15,6 +15,9 @@ data class OpticalOrder(
     val createdAt: String,
     val items: List<OpticalOrderItem>,
     val paymentSummary: PaymentSummary?,
+    val paymentExpiresAt: String? = null,
+    val paymentInstructions: PaymentInstructions? = null,
+    val paymentProof: PaymentProofSummary? = null,
 )
 
 data class OpticalOrderItem(
@@ -53,11 +56,31 @@ data class RatingResult(
     val createdAt: String? = null,
 )
 
+data class PaymentInstructions(
+    val method: String,
+    val clinicAccountName: String,
+    val clinicAccountNumber: String,
+    val amount: BigDecimal,
+    val orderReference: String,
+    val paymentExpiresAt: String?,
+)
+
+data class PaymentProofSummary(
+    val id: Int,
+    val status: PaymentProofStatus,
+    val senderName: String,
+    val referenceNumber: String,
+    val rejectionReason: String?,
+    val createdAt: String,
+)
+
 enum class OpticalOrderStatus {
-    QUEUED, IN_PROGRESS, READY_FOR_DISPENSING, DISPENSED, CANCELLED, UNKNOWN;
+    PENDING_PAYMENT, PAYMENT_REVIEW, QUEUED, IN_PROGRESS, READY_FOR_DISPENSING, DISPENSED, CANCELLED, UNKNOWN;
 
     companion object {
         fun from(value: String): OpticalOrderStatus = when (value.lowercase()) {
+            "pending_payment" -> PENDING_PAYMENT
+            "payment_review" -> PAYMENT_REVIEW
             "queued" -> QUEUED
             "in_progress" -> IN_PROGRESS
             "ready_for_dispensing" -> READY_FOR_DISPENSING
@@ -89,6 +112,22 @@ enum class PaymentStatus {
             "partially_paid" -> PARTIALLY_PAID
             "paid" -> PAID
             "voided" -> VOIDED
+            else -> UNKNOWN
+        }
+    }
+}
+
+enum class PaymentProofStatus {
+    PENDING,
+    ACCEPTED,
+    REJECTED,
+    UNKNOWN;
+
+    companion object {
+        fun from(value: String): PaymentProofStatus = when (value.lowercase()) {
+            "pending" -> PENDING
+            "accepted" -> ACCEPTED
+            "rejected" -> REJECTED
             else -> UNKNOWN
         }
     }

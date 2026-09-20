@@ -40,9 +40,8 @@ data class TrackerState(
 // ── Order presentation ──────────────────────────────────────────────────
 
 fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
-    // The API uses queued/in_progress while the clinic workflow calls these
-    // states Confirmed/Processing. Keep the patient-facing copy aligned with
-    // the status names staff see in the admin app.
+    OpticalOrderStatus.PENDING_PAYMENT -> "Awaiting payment"
+    OpticalOrderStatus.PAYMENT_REVIEW -> "Payment under review"
     OpticalOrderStatus.QUEUED -> "Confirmed"
     OpticalOrderStatus.IN_PROGRESS -> "Processing"
     OpticalOrderStatus.READY_FOR_DISPENSING -> "Ready for pickup"
@@ -53,13 +52,13 @@ fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
 
 @Composable
 fun orderStatusColor(status: OpticalOrderStatus): Color = when (status) {
+    OpticalOrderStatus.PENDING_PAYMENT -> EyecareColors.current.statusPending
+    OpticalOrderStatus.PAYMENT_REVIEW -> EyecareColors.current.statusInfo
     OpticalOrderStatus.QUEUED -> EyecareColors.current.statusConfirmed
     OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
     OpticalOrderStatus.READY_FOR_DISPENSING -> EyecareColors.current.statusPending
     OpticalOrderStatus.DISPENSED -> MaterialTheme.colorScheme.tertiary
     OpticalOrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
-    // Neutral, not statusCancelled: an unrecognized status isn't a confirmed cancellation
-    // and must not alarm the patient with the identical color (see orderStatusTextColor).
     OpticalOrderStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
@@ -69,6 +68,8 @@ fun orderStatusColor(status: OpticalOrderStatus): Color = when (status) {
 // instead of reusing the fill color directly.
 @Composable
 fun orderStatusTextColor(status: OpticalOrderStatus): Color = when (status) {
+    OpticalOrderStatus.PENDING_PAYMENT -> EyecareColors.current.statusPendingText
+    OpticalOrderStatus.PAYMENT_REVIEW -> EyecareColors.current.statusInfo
     OpticalOrderStatus.QUEUED -> EyecareColors.current.statusConfirmedText
     OpticalOrderStatus.IN_PROGRESS -> EyecareColors.current.statusInfo
     OpticalOrderStatus.READY_FOR_DISPENSING -> EyecareColors.current.statusPendingText
@@ -126,6 +127,26 @@ fun orderDateLabelFull(order: OpticalOrder): Pair<String, String> {
 
 fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
     return when (status) {
+        OpticalOrderStatus.PENDING_PAYMENT -> TrackerState(
+            steps = listOf(
+                TrackerStep.CONFIRMED to true,
+                TrackerStep.PROCESSING to false,
+                TrackerStep.READY to false,
+                TrackerStep.COMPLETED to false,
+            ),
+            activeStep = TrackerStep.CONFIRMED,
+            terminalMessage = "Awaiting payment",
+        )
+        OpticalOrderStatus.PAYMENT_REVIEW -> TrackerState(
+            steps = listOf(
+                TrackerStep.CONFIRMED to true,
+                TrackerStep.PROCESSING to false,
+                TrackerStep.READY to false,
+                TrackerStep.COMPLETED to false,
+            ),
+            activeStep = TrackerStep.CONFIRMED,
+            terminalMessage = "Payment under review",
+        )
         OpticalOrderStatus.QUEUED -> TrackerState(
             steps = listOf(
                 TrackerStep.CONFIRMED to true,
