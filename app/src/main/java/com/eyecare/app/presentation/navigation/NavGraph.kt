@@ -638,17 +638,44 @@ fun EyecareNavGraph(
                         val route = backStackEntry.toRoute<AccessoryDetail>()
                         val detailViewModel: com.eyecare.app.presentation.accessories.AccessoryDetailViewModel = hiltViewModel()
                         val detailState by detailViewModel.uiState.collectAsStateWithLifecycle()
+                        // Cart is shared via the MainGraph entry
+                        val cartViewModel: com.eyecare.app.presentation.accessories.AccessoryCartViewModel =
+                            hiltViewModel(navController.getBackStackEntry<MainGraph>())
 
                         com.eyecare.app.presentation.accessories.AccessoryDetailScreen(
                             uiState = detailState,
                             onVariantSelect = detailViewModel::selectVariant,
-                            onAddToCart = { /* TODO: Task 13-14 cart integration */ },
+                            onAddToCart = { variantId ->
+                                val state = detailState
+                                if (state is com.eyecare.app.presentation.accessories.AccessoryDetailUiState.Success) {
+                                    state.accessory.variants.find { it.id == variantId }?.let { variant ->
+                                        cartViewModel.addToCart(
+                                            variant = variant,
+                                            productName = state.accessory.name,
+                                            variantName = variant.name,
+                                            imagePath = state.accessory.images.firstOrNull() ?: variant.images.firstOrNull(),
+                                        )
+                                    }
+                                }
+                            },
                             onRetry = detailViewModel::retry,
                             onBack = { navController.popBackStack() },
                         )
                     }
                     composable<AccessoryCart> {
-                        // TODO: Task 14 — Render the cart
+                        val cartViewModel: com.eyecare.app.presentation.accessories.AccessoryCartViewModel =
+                            hiltViewModel(navController.getBackStackEntry<MainGraph>())
+                        val cart by cartViewModel.cart.collectAsStateWithLifecycle()
+
+                        com.eyecare.app.presentation.accessories.AccessoryCartScreen(
+                            cart = cart,
+                            onIncrement = cartViewModel::increment,
+                            onDecrement = cartViewModel::decrement,
+                            onRemove = cartViewModel::remove,
+                            onClear = cartViewModel::clear,
+                            onCheckout = { navController.navigate(AccessoryOrderRequests) }, // TODO: Navigate to checkout
+                            onBack = { navController.popBackStack() },
+                        )
                     }
                     composable<AccessoryOrderRequests> {
                         // TODO: Task 22 — Render request list
