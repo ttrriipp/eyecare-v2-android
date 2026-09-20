@@ -44,23 +44,26 @@ class AccessoryCheckoutViewModel @Inject constructor(
         _uiState.value = CheckoutUiState.Submitting
 
         viewModelScope.launch {
-            repository.submitRequest(discountType, items).fold(
-                onSuccess = { request ->
-                    _uiState.value = CheckoutUiState.Success(requestId = request.id)
-                },
-                onFailure = { error ->
-                    val isConflict = error is ApiDomainError && error.code == "ACTIVE_ORDER_REQUEST_EXISTS"
-                    _uiState.value = CheckoutUiState.Error(
-                        message = if (isConflict) {
-                            "You already have a pending order request. View your current requests."
-                        } else {
-                            "We couldn't submit your order request. Please try again."
-                        },
-                        isConflict = isConflict,
-                    )
-                },
-            )
-            isSubmitting = false
+            try {
+                repository.submitRequest(discountType, items).fold(
+                    onSuccess = { request ->
+                        _uiState.value = CheckoutUiState.Success(requestId = request.id)
+                    },
+                    onFailure = { error ->
+                        val isConflict = error is ApiDomainError && error.code == "ACTIVE_ORDER_REQUEST_EXISTS"
+                        _uiState.value = CheckoutUiState.Error(
+                            message = if (isConflict) {
+                                "You already have a pending order request. View your current requests."
+                            } else {
+                                "We couldn't submit your order request. Please try again."
+                            },
+                            isConflict = isConflict,
+                        )
+                    },
+                )
+            } finally {
+                isSubmitting = false
+            }
         }
     }
 

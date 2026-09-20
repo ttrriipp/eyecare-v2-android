@@ -108,10 +108,24 @@ fun AccessoryCheckoutScreen(
                 }
             }
             is CheckoutUiState.Error -> {
-                ErrorContent(
-                    message = state.message,
-                    onRetry = if (state.isConflict) onViewRequests else onSubmit,
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(32.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        state.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = if (state.isConflict) onViewRequests else onSubmit) {
+                        Text(if (state.isConflict) "View my requests" else "Retry")
+                    }
+                }
             }
             is CheckoutUiState.Idle -> {
                 Column(
