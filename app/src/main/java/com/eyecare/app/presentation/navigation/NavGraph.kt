@@ -678,10 +678,35 @@ fun EyecareNavGraph(
                         )
                     }
                     composable<AccessoryOrderRequests> {
-                        // TODO: Task 22 — Render request list
+                        val listViewModel: com.eyecare.app.presentation.accessories.AccessoryOrderRequestListViewModel = hiltViewModel()
+                        val listState by listViewModel.uiState.collectAsStateWithLifecycle()
+
+                        com.eyecare.app.presentation.accessories.AccessoryOrderRequestListScreen(
+                            uiState = listState,
+                            onSelectFilter = listViewModel::selectFilter,
+                            onRefresh = listViewModel::refresh,
+                            onRetry = listViewModel::retry,
+                            onLoadMore = listViewModel::loadMore,
+                            onNavigateToRequest = { id -> navController.navigate(AccessoryOrderRequestDetail(id)) },
+                            onBack = { navController.popBackStack() },
+                        )
                     }
-                    composable<AccessoryOrderRequestDetail> {
-                        // TODO: Task 24 — Render request detail
+                    composable<AccessoryOrderRequestDetail> { backStackEntry ->
+                        val route = backStackEntry.toRoute<AccessoryOrderRequestDetail>()
+                        val detailViewModel: com.eyecare.app.presentation.accessories.AccessoryOrderRequestDetailViewModel = hiltViewModel()
+                        val detailState by detailViewModel.uiState.collectAsStateWithLifecycle()
+                        var showCancelDialog by remember { mutableStateOf(false) }
+
+                        com.eyecare.app.presentation.accessories.AccessoryOrderRequestDetailScreen(
+                            uiState = detailState,
+                            showCancelDialog = showCancelDialog,
+                            onShowCancelDialog = { showCancelDialog = true },
+                            onDismissCancelDialog = { showCancelDialog = false },
+                            onCancel = detailViewModel::cancel,
+                            onNavigateToOrder = { orderId -> navController.navigate(OpticalOrderDetail(orderId)) },
+                            onRetry = detailViewModel::retry,
+                            onBack = { navController.popBackStack() },
+                        )
                     }
                 }
             }
