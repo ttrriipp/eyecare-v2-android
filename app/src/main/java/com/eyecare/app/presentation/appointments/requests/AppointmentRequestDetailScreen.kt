@@ -53,7 +53,6 @@ import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.presentation.appointments.CLINIC_TIME_ZONE
 import com.eyecare.app.presentation.appointments.PATIENT_CANCELLATION_REASON_MAX_LENGTH
 import com.eyecare.app.presentation.appointments.RescheduleBottomSheet
-import com.eyecare.app.presentation.appointments.formatRescheduleAlternativesForConfirmation
 import com.eyecare.app.presentation.appointments.SAME_DAY_CANCELLATION_MESSAGE
 import com.eyecare.app.presentation.appointments.isSameDayInClinic
 import com.eyecare.app.presentation.appointments.components.AppointmentOutlinedButton
@@ -406,21 +405,13 @@ private fun RequestDetailDataContent(
             title = "Change requested time",
             description = "Choose a new preferred time from tomorrow onward. Your request stays pending until the clinic reviews it.",
             currentTimeLabel = "Current requested time",
-            currentTimeDescription = "This request stays pending until the clinic reviews the new time.",
+            currentTimeDescription = "",
             confirmationTitle = "Update requested time",
-            confirmationMessage = { date, time, alternatives ->
-                val alternativesText = formatRescheduleAlternativesForConfirmation(alternatives)
-                buildString {
-                    append("Preferred time: $date at $time.")
-                    if (alternativesText.isNotEmpty()) {
-                        append("\n")
-                        append(alternativesText)
-                    }
-                    append("\n\nUpdate this request? It will stay pending until the clinic reviews it.")
-                }
+            confirmationMessage = { _, _, _ ->
+                "The clinic will review this request before confirming a new time."
             },
             confirmLabel = "Update request",
-            dismissLabel = "Keep current requested time",
+            dismissLabel = "Keep current",
             onShowWeek = onShowScheduleWeek,
             onDateChanged = onScheduleDateChanged,
             onRetryAvailability = onRetryScheduleAvailability,

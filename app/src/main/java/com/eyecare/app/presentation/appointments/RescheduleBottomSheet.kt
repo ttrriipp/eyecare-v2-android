@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -30,6 +31,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -42,6 +44,8 @@ import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -66,9 +70,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -95,6 +101,12 @@ private val rescheduleFullMonthFormat = DateTimeFormatter.ofPattern("MMMM yyyy",
 private val rescheduleShortMonthFormat = DateTimeFormatter.ofPattern("MMM", Locale.US)
 private const val RESCHEDULE_NOTE_MAX_LENGTH = 1000
 private const val MAX_ALTERNATIVE_TIMES = 2
+private const val OTHER_RESCHEDULE_REASON = "Other"
+private val RESCHEDULE_REASON_PRESETS = listOf(
+    "My schedule changed",
+    "I have another commitment",
+    "The current time no longer works",
+)
 
 private enum class RescheduleSelectionPhase { PREFERRED, ALTERNATIVES }
 
@@ -120,16 +132,8 @@ fun RescheduleBottomSheet(
     currentTimeDescription: String =
         "This appointment stays confirmed until the clinic approves your requested time.",
     confirmationTitle: String = "Request this time change",
-    confirmationMessage: (date: String, time: String, alternatives: List<String>) -> String = { date, time, alternatives ->
-        val alternativeText = formatRescheduleAlternativesForConfirmation(alternatives)
-        buildString {
-            append("Preferred time: $date at $time.")
-            if (alternativeText.isNotEmpty()) {
-                append("\n")
-                append(alternativeText)
-            }
-            append("\n\nSend this time-change request? The clinic must approve it.")
-        }
+    confirmationMessage: (date: String, time: String, alternatives: List<String>) -> String = { _, _, _ ->
+        "The clinic must approve this request before a time is confirmed."
     },
     confirmLabel: String = "Send request",
     dismissLabel: String = "Keep current time",
@@ -160,11 +164,28 @@ fun RescheduleBottomSheet(
         mutableStateOf<List<String>>(emptyList())
     }
     var reasonForVisit by rememberSaveable { mutableStateOf("") }
+    var selectedReason by rememberSaveable { mutableStateOf<String?>(null) }
     var showConfirmDialog by remember { mutableStateOf(false) }
 
     val availability = (availabilityState as? RescheduleAvailabilityState.Success)?.availability
     val availableSlots = availability?.slots?.filter { it.available }.orEmpty()
     val isCurrentSlot = selectedPrimarySlotStartsAt?.let { sameInstant(it, currentScheduledAt) } == true
+    val validationMessage = if (isCurrentSlot) {
+        "That is already your current time. Choose another slot."
+    } else {
+        null
+    }
+    val reasonValidationMessage = if (
+        showReasonField &&
+        selectedPrimarySlotStartsAt != null &&
+        !isCurrentSlot &&
+        reasonForVisit.isBlank()
+    ) {
+        "Choose a reason to continue."
+    } else {
+        null
+    }
+    val bottomNotice = errorMessage ?: validationMessage ?: reasonValidationMessage
     val canConfirm = selectedPrimarySlotStartsAt != null && !isCurrentSlot && !isSubmitting
 
     fun selectPreferredSlot(startsAt: String) {
@@ -236,7 +257,7 @@ fun RescheduleBottomSheet(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
                     // Leave room for the pinned action bar and its error notice when present.
-                    .padding(bottom = if (errorMessage == null) 140.dp else 200.dp),
+                    .padding(bottom = if (bottomNotice == null) 140.dp else 200.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
@@ -294,6 +315,21 @@ fun RescheduleBottomSheet(
                     )
                 }
 
+                if (showReasonField) {
+                    RescheduleReasonPicker(
+                        selectedReason = selectedReason,
+                        reason = reasonForVisit,
+                        enabled = !isSubmitting,
+                        onReasonSelected = { choice ->
+                            selectedReason = choice
+                            reasonForVisit = if (choice == OTHER_RESCHEDULE_REASON) "" else choice
+                        },
+                        onReasonChanged = { value ->
+                            reasonForVisit = value.take(RESCHEDULE_NOTE_MAX_LENGTH)
+                        },
+                    )
+                }
+
                 RescheduleSlotSection(
                     availabilityState = availabilityState,
                     availableSlots = availableSlots,
@@ -304,30 +340,6 @@ fun RescheduleBottomSheet(
                     onSelectSlot = ::selectSlot,
                     onRetryAvailability = onRetryAvailability,
                 )
-
-                if (isCurrentSlot) {
-                    Text(
-                        text = "That is already your current time. Choose another slot.",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-
-                if (showReasonField) {
-                    OutlinedTextField(
-                        value = reasonForVisit,
-                        onValueChange = { value ->
-                            reasonForVisit = value.take(RESCHEDULE_NOTE_MAX_LENGTH)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Reason for rescheduling (optional)") },
-                        supportingText = {
-                            Text("${reasonForVisit.length}/$RESCHEDULE_NOTE_MAX_LENGTH")
-                        },
-                        minLines = 3,
-                        enabled = !isSubmitting,
-                    )
-                }
             }
 
             Surface(
@@ -346,7 +358,7 @@ fun RescheduleBottomSheet(
                         .navigationBarsPadding(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    if (errorMessage != null) {
+                    if (bottomNotice != null) {
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -357,7 +369,7 @@ fun RescheduleBottomSheet(
                             color = MaterialTheme.colorScheme.errorContainer,
                         ) {
                             Text(
-                                text = errorMessage,
+                                text = bottomNotice,
                                 modifier = Modifier.padding(12.dp),
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                 style = MaterialTheme.typography.bodySmall,
@@ -380,7 +392,8 @@ fun RescheduleBottomSheet(
                         AppointmentPrimaryButton(
                             text = "Review reschedule",
                             onClick = { showConfirmDialog = true },
-                            enabled = canConfirm,
+                            enabled = canConfirm &&
+                                (!showReasonField || reasonForVisit.isNotBlank()),
                             loading = isSubmitting,
                             modifier = Modifier.semantics {
                                 if (isSubmitting) {
@@ -423,14 +436,91 @@ private fun RescheduleCurrentTimeCard(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (description.isNotBlank()) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RescheduleReasonPicker(
+    selectedReason: String?,
+    reason: String,
+    enabled: Boolean,
+    onReasonSelected: (String) -> Unit,
+    onReasonChanged: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Why are you rescheduling?",
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Text(
+            text = "Required. Choose a reason so the clinic can review your request.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { selectableGroup() },
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            RESCHEDULE_REASON_PRESETS.forEach { preset ->
+                FilterChip(
+                    selected = selectedReason == preset,
+                    onClick = { onReasonSelected(preset) },
+                    enabled = enabled,
+                    label = { Text(preset) },
+                    modifier = Modifier.heightIn(min = 44.dp),
+                    colors = rescheduleReasonChipColors(),
+                )
+            }
+            FilterChip(
+                selected = selectedReason == OTHER_RESCHEDULE_REASON,
+                onClick = { onReasonSelected(OTHER_RESCHEDULE_REASON) },
+                enabled = enabled,
+                label = { Text(OTHER_RESCHEDULE_REASON) },
+                modifier = Modifier.heightIn(min = 44.dp),
+                colors = rescheduleReasonChipColors(),
+            )
+        }
+
+        if (selectedReason == OTHER_RESCHEDULE_REASON) {
+            OutlinedTextField(
+                value = reason,
+                onValueChange = onReasonChanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                enabled = enabled,
+                label = { Text("Reason for rescheduling") },
+                placeholder = { Text("Tell the clinic why you need a different time") },
+                minLines = 2,
+                maxLines = 4,
+                supportingText = {
+                    Text("${reason.length}/$RESCHEDULE_NOTE_MAX_LENGTH")
+                },
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                ),
             )
         }
     }
 }
+
+@Composable
+private fun rescheduleReasonChipColors() = FilterChipDefaults.filterChipColors(
+    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+    selectedLabelColor = EyecareColors.current.accentText,
+    selectedLeadingIconColor = EyecareColors.current.accentText,
+)
 
 @Composable
 private fun SelectedRescheduleTimesCard(
@@ -1073,11 +1163,6 @@ private fun formatRescheduleDate(startsAt: String): String =
 private fun formatRescheduleTime(startsAt: String): String =
     parseClinicDateTime(startsAt)?.format(rescheduleTimeFormatter)
         ?: startsAt
-
-internal fun formatRescheduleAlternativesForConfirmation(alternatives: List<String>): String =
-    alternatives.mapIndexed { index, startsAt ->
-        "Alternative ${index + 1}: ${formatRescheduleDate(startsAt)} at ${formatRescheduleTime(startsAt)}."
-    }.joinToString(separator = "\n")
 
 private fun sameInstant(first: String, second: String): Boolean = runCatching {
     Instant.parse(first) == Instant.parse(second)

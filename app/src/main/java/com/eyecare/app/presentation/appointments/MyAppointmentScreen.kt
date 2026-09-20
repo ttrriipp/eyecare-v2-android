@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -65,6 +66,7 @@ import java.util.Locale
 private val CLINIC_ZONE = ZoneId.of("Asia/Manila")
 private val dateFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.US)
 private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
+private val FLOATING_NAV_CLEARANCE = 84.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,7 +127,7 @@ fun MyAppointmentScreen(
                 "Current appointment"
             },
             currentTimeDescription = if (isPendingRescheduleRequest) {
-                "This request stays pending until the clinic reviews the new time."
+                ""
             } else {
                 "This appointment stays confirmed until the clinic approves the new request."
             },
@@ -134,33 +136,18 @@ fun MyAppointmentScreen(
             } else {
                 "Request this time change"
             },
-            confirmationMessage = { date, time, alternatives ->
-                val alternativesText = formatRescheduleAlternativesForConfirmation(alternatives)
+            confirmationMessage = { _, _, _ ->
                 if (isPendingRescheduleRequest) {
-                    buildString {
-                        append("Preferred time: $date at $time.")
-                        if (alternativesText.isNotEmpty()) {
-                            append("\n")
-                            append(alternativesText)
-                        }
-                        append("\n\nUpdate this request? It will stay pending until the clinic reviews it.")
-                    }
+                    "The clinic will review this request before confirming a new time."
                 } else {
-                    buildString {
-                        append("Preferred time: $date at $time.")
-                        if (alternativesText.isNotEmpty()) {
-                            append("\n")
-                            append(alternativesText)
-                        }
-                        append("\n\nSend this request? Your current appointment remains unchanged until the clinic approves it.")
-                    }
+                    "Your current appointment stays confirmed until the clinic approves this request."
                 }
             },
             confirmLabel = if (isPendingRescheduleRequest) "Update request" else "Send request",
             dismissLabel = if (isPendingRescheduleRequest) {
-                "Keep current requested time"
+                "Keep current"
             } else {
-                "Keep current appointment"
+                "Keep appointment"
             },
             showReasonField = !isPendingRescheduleRequest,
             onShowWeek = onShowRescheduleWeek,
@@ -171,10 +158,16 @@ fun MyAppointmentScreen(
         )
     }
 
+    val topBarTitle = if (rescheduleJourney is CurrentAppointmentJourney.PendingRequest) {
+        "Appointment request"
+    } else {
+        "My Appointment"
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Appointment") },
+                title = { Text(topBarTitle) },
                 actions = {
                     if (hasActivePatientLink && uiState is MyAppointmentUiState.Content) {
                         TextButton(
@@ -191,7 +184,14 @@ fun MyAppointmentScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(bottom = FLOATING_NAV_CLEARANCE),
+            )
+        },
         modifier = modifier,
     ) { padding ->
         when (uiState) {
@@ -510,12 +510,12 @@ private fun PendingRequestContent(
     val sameDayCancellationBlocked = isSameDayInClinic(request.scheduledAt)
 
     Column(modifier = modifier.fillMaxWidth()) {
-        StatusHeader(
-            statusLabel = "Awaiting clinic review",
-            statusColor = EyecareColors.current.statusPendingText,
-        )
-        Spacer(Modifier.height(16.dp))
         SectionCard {
+            StatusHeader(
+                statusLabel = "Awaiting clinic review",
+                statusColor = EyecareColors.current.statusPendingText,
+            )
+            Spacer(Modifier.height(12.dp))
             Text(
                 text = "Request ${request.requestNumber}",
                 style = MaterialTheme.typography.labelMedium,
@@ -548,6 +548,12 @@ private fun PendingRequestContent(
                     isPrimary = false,
                 )
             }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "Not confirmed yet. The clinic will review your preferred times and update this request here.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             if (request.reasonForVisit.isNullOrBlank().not()) {
                 Spacer(Modifier.height(12.dp))
                 DetailRow(label = "Reason", value = request.reasonForVisit.orEmpty())
@@ -557,19 +563,12 @@ private fun PendingRequestContent(
                 DetailRow(label = "Referral", value = ref)
             }
         }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = "Your preferred times are awaiting clinic approval.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
         Spacer(Modifier.height(16.dp))
         if (sameDayCancellationBlocked) {
             SameDayCancellationNotice()
             Spacer(Modifier.height(8.dp))
         }
-        AppointmentOutlinedButton(
+        AppointmentPrimaryButton(
             text = "Change requested time",
             onClick = onChangeRequestedTime,
             enabled = !isMutating,
