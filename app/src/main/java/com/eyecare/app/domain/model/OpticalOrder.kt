@@ -19,6 +19,7 @@ data class OpticalOrder(
     val paymentInstructions: PaymentInstructions? = null,
     val paymentProof: PaymentProofSummary? = null,
     val paymentProofStatus: PaymentProofStatus = PaymentProofStatus.NOT_SUBMITTED,
+    val paymentProofMethod: String? = null,
     val paymentProofRejectionReason: String? = null,
 )
 
@@ -60,16 +61,33 @@ data class RatingResult(
 
 data class PaymentInstructions(
     val method: String,
+    val label: String = "Payment",
     val clinicAccountName: String,
     val clinicAccountNumber: String,
+    val bankName: String? = null,
+    val amount: BigDecimal,
+    val orderReference: String,
+    val paymentExpiresAt: String? = null,
+    val qrImageUrl: String? = null,
+    val availableMethods: List<PaymentMethodInstructions> = emptyList(),
+)
+
+data class PaymentMethodInstructions(
+    val method: String,
+    val label: String,
+    val clinicAccountName: String,
+    val clinicAccountNumber: String,
+    val bankName: String?,
     val amount: BigDecimal,
     val orderReference: String,
     val paymentExpiresAt: String?,
+    val qrImageUrl: String?,
 )
 
 data class PaymentProofSummary(
     val id: Int,
     val status: PaymentProofStatus,
+    val paymentMethod: String? = null,
     val senderName: String,
     val referenceNumber: String,
     val rejectionReason: String?,

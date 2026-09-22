@@ -10,9 +10,13 @@ object AccessoryOrderRequestDtos {
 
     @Serializable
     data class ItemSnapshotDto(
-        @SerialName("product_name") val productName: String,
-        @SerialName("variant_name") val variantName: String,
-        val attributes: JsonObject = JsonObject(emptyMap()),
+        @SerialName("product_variant_id") val productVariantId: Int? = null,
+        val sku: String? = null,
+        @SerialName("product_name") val productName: String? = null,
+        @SerialName("variant_name") val variantName: String? = null,
+        @Serializable(with = MoneyValueSerializer::class)
+        val price: BigDecimal? = null,
+        val attributes: JsonObject? = null,
         val images: List<String> = emptyList(),
     )
 
@@ -28,7 +32,7 @@ object AccessoryOrderRequestDtos {
         @Serializable(with = MoneyValueSerializer::class)
         val amount: BigDecimal,
         @SerialName("item_kind") val itemKind: String,
-        @SerialName("item_snapshot") val itemSnapshot: ItemSnapshotDto,
+        @SerialName("item_snapshot") val itemSnapshot: ItemSnapshotDto? = null,
         @SerialName("image_url") val imageUrl: String? = null,
     )
 
@@ -52,6 +56,8 @@ object AccessoryOrderRequestDtos {
         @Serializable(with = MoneyValueSerializer::class)
         @SerialName("subtotal_amount") val subtotalAmount: BigDecimal,
         @SerialName("requested_discount_type") val requestedDiscountType: String,
+        @SerialName("discount_proof_status") val discountProofStatus: String? = null,
+        @SerialName("discount_proof_rejection_reason") val discountProofRejectionReason: String? = null,
         @SerialName("resolved_by") val resolvedBy: Int? = null,
         @SerialName("resolved_at") val resolvedAt: String? = null,
         val items: List<OrderRequestItemDto> = emptyList(),
@@ -63,6 +69,16 @@ object AccessoryOrderRequestDtos {
 
     @Serializable
     data class OrderRequestResponse(val data: OrderRequestDto)
+
+    @Serializable
+    data class DiscountProofResponse(
+        val id: Int,
+        val status: String,
+        @SerialName("created_at") val createdAt: String,
+    )
+
+    @Serializable
+    data class DiscountProofResultResponse(val data: DiscountProofResponse)
 
     @Serializable
     data class OrderRequestListResponse(

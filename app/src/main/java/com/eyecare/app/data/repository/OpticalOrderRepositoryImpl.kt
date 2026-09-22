@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderItem
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentInstructions
+import com.eyecare.app.domain.model.PaymentMethodInstructions
 import com.eyecare.app.domain.model.PaymentProofResult
 import com.eyecare.app.domain.model.PaymentProofStatus
 import com.eyecare.app.domain.model.PaymentProofSummary
@@ -64,12 +65,21 @@ class OpticalOrderRepositoryImpl @Inject constructor(
             )
             val senderNamePart = proof.senderName.trim().toRequestBody("text/plain".toMediaType())
             val referencePart = proof.referenceNumber.trim().toRequestBody("text/plain".toMediaType())
+            val paymentMethodPart = proof.paymentMethod.trim().ifBlank { "gcash" }
+                .toRequestBody("text/plain".toMediaType())
 
-            val response = api.uploadPaymentProof(orderId, imagePart, senderNamePart, referencePart)
+            val response = api.uploadPaymentProof(
+                orderId,
+                imagePart,
+                senderNamePart,
+                referencePart,
+                paymentMethodPart,
+            )
             val result = response.data
             val paymentProofResult = PaymentProofResult(
                 id = result.id,
                 status = PaymentProofStatus.from(result.status),
+                paymentMethod = result.paymentMethod,
                 senderName = result.senderName,
                 referenceNumber = result.referenceNumber,
                 createdAt = result.createdAt,
@@ -109,17 +119,23 @@ class OpticalOrderRepositoryImpl @Inject constructor(
         paymentInstructions = paymentInstructions?.let {
             PaymentInstructions(
                 method = it.method,
+                label = it.label,
                 clinicAccountName = it.clinicAccountName,
                 clinicAccountNumber = it.clinicAccountNumber,
+                bankName = it.bankName,
                 amount = it.amount,
                 orderReference = it.orderReference,
                 paymentExpiresAt = it.paymentExpiresAt,
+                qrImageUrl = it.qrImageUrl,
+                availableMethods = it.availableMethods.map { method -> method.toDomain() }
+                    .ifEmpty { listOf(it.toDomain()) },
             )
         },
         paymentProof = paymentProof?.let {
             PaymentProofSummary(
                 id = it.id,
                 status = PaymentProofStatus.from(it.status),
+                paymentMethod = it.paymentMethod,
                 senderName = it.senderName,
                 referenceNumber = it.referenceNumber,
                 rejectionReason = it.rejectionReason,
@@ -127,7 +143,32 @@ class OpticalOrderRepositoryImpl @Inject constructor(
             )
         },
         paymentProofStatus = PaymentProofStatus.from(paymentProofStatus ?: paymentProof?.status ?: "not_submitted"),
+        paymentProofMethod = paymentProofMethod ?: paymentProof?.paymentMethod,
         paymentProofRejectionReason = paymentProofRejectionReason ?: paymentProof?.rejectionReason,
+    )
+
+    private fun OpticalOrderDtos.PaymentInstructionsDto.toDomain() = PaymentMethodInstructions(
+        method = method,
+        label = label,
+        clinicAccountName = clinicAccountName,
+        clinicAccountNumber = clinicAccountNumber,
+        bankName = bankName,
+        amount = amount,
+        orderReference = orderReference,
+        paymentExpiresAt = paymentExpiresAt,
+        qrImageUrl = qrImageUrl,
+    )
+
+    private fun OpticalOrderDtos.PaymentMethodInstructionsDto.toDomain() = PaymentMethodInstructions(
+        method = method,
+        label = label,
+        clinicAccountName = clinicAccountName,
+        clinicAccountNumber = clinicAccountNumber,
+        bankName = bankName,
+        amount = amount,
+        orderReference = orderReference,
+        paymentExpiresAt = paymentExpiresAt,
+        qrImageUrl = qrImageUrl,
     )
 
     private fun OpticalOrderDtos.OpticalOrderItemDto.toDomain() = OpticalOrderItem(

@@ -185,33 +185,39 @@ fun AccessoryDetailScreen(
                 )
             }
         },
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 88.dp),
-            )
-        },
         modifier = modifier,
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            when (val state = uiState) {
-                is AccessoryDetailUiState.Loading -> LoadingContent()
-                is AccessoryDetailUiState.Error -> ErrorContent(
-                    message = state.message,
-                    onRetry = if (!state.isNotFound) onRetry else null,
-                )
-                is AccessoryDetailUiState.Success -> {
-                    AccessoryDetailContent(
-                        state = state,
-                        onVariantSelect = onVariantSelect,
-                        onNavigateToSupport = onNavigateToSupport,
+            // Keep the confirmation inside the scaffold's content flow so it
+            // reserves space instead of covering the product details below.
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
+                when (val state = uiState) {
+                    is AccessoryDetailUiState.Loading -> LoadingContent()
+                    is AccessoryDetailUiState.Error -> ErrorContent(
+                        message = state.message,
+                        onRetry = if (!state.isNotFound) onRetry else null,
                     )
+                    is AccessoryDetailUiState.Success -> {
+                        AccessoryDetailContent(
+                            state = state,
+                            onVariantSelect = onVariantSelect,
+                            onNavigateToSupport = onNavigateToSupport,
+                        )
+                    }
                 }
             }
         }

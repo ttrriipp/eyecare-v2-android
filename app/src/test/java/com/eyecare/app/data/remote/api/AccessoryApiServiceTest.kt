@@ -88,6 +88,15 @@ class AccessoryApiServiceTest {
     }
 
     @Test
+    fun `getAccessories sends brand and category IDs`() = runTest {
+        enqueueAccessoryList(1)
+        api.getAccessories(query = AccessoryQuery(brand = 4, category = 9))
+        val request = server.takeRequest()
+        assertTrue(request.path!!.contains("brand=4"))
+        assertTrue(request.path!!.contains("category=9"))
+    }
+
+    @Test
     fun `getAccessories sends page and per_page`() = runTest {
         enqueueAccessoryList(1)
         api.getAccessories(query = AccessoryQuery(page = 2, perPage = 25))

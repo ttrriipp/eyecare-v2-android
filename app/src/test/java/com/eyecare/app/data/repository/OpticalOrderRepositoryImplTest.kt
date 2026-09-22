@@ -203,13 +203,30 @@ class OpticalOrderRepositoryImplTest {
     fun `maps top-level payment proof state`() = runTest {
         enqueueSingle(
             orderJson(status = "payment_review")
-                .dropLast(1) + ",\"payment_proof_status\":\"rejected\",\"payment_proof_rejection_reason\":\"Unreadable proof\"}",
+                .dropLast(1) + ",\"payment_proof_status\":\"rejected\",\"payment_proof_method\":\"bank_transfer\",\"payment_proof_rejection_reason\":\"Unreadable proof\"}",
         )
 
         val order = repository.getOpticalOrder(1).getOrThrow()
 
         assertEquals(PaymentProofStatus.REJECTED, order.paymentProofStatus)
+        assertEquals("bank_transfer", order.paymentProofMethod)
         assertEquals("Unreadable proof", order.paymentProofRejectionReason)
+    }
+
+    @Test
+    fun `maps bank payment instructions and available methods`() = runTest {
+        val instructionsJson = """{"method":"gcash","label":"GCash","clinic_account_name":"EyeCare Clinic","clinic_account_number":"09171234567","bank_name":null,"amount":"5000.00","order_reference":"ORD-2026-000001","payment_expires_at":"2026-09-22T12:30:00+08:00","qr_image_url":"https://api.example.test/qr/gcash","available_methods":[{"method":"gcash","label":"GCash","clinic_account_name":"EyeCare Clinic","clinic_account_number":"09171234567","bank_name":null,"amount":"5000.00","order_reference":"ORD-2026-000001","payment_expires_at":"2026-09-22T12:30:00+08:00","qr_image_url":"https://api.example.test/qr/gcash"},{"method":"bank_transfer","label":"Bank transfer","clinic_account_name":"EyeCare Clinic","clinic_account_number":"1234567890","bank_name":"Demo Bank","amount":"5000.00","order_reference":"ORD-2026-000001","payment_expires_at":"2026-09-22T12:30:00+08:00","qr_image_url":null}]}"""
+        enqueueSingle(
+            orderJson(status = "pending_payment").dropLast(1) +
+                ",\"payment_instructions\":$instructionsJson}",
+        )
+
+        val instructions = repository.getOpticalOrder(1).getOrThrow().paymentInstructions!!
+
+        assertEquals("GCash", instructions.label)
+        assertEquals("https://api.example.test/qr/gcash", instructions.qrImageUrl)
+        assertEquals("Demo Bank", instructions.availableMethods[1].bankName)
+        assertEquals(2, instructions.availableMethods.size)
     }
 
     @Test
@@ -233,7 +250,7 @@ class OpticalOrderRepositoryImplTest {
         proofFile.writeBytes(byteArrayOf(1, 2, 3))
         server.enqueue(
             MockResponse().setResponseCode(201).setBody(
-                """{"data":{"id":9,"status":"pending","sender_name":"Ana","reference_number":"GC-1","created_at":"2026-09-20T10:00:00Z"}}""",
+                """{"data":{"id":9,"status":"pending","payment_method":"bank_transfer","sender_name":"Ana","reference_number":"GC-1","created_at":"2026-09-20T10:00:00Z"}}""",
             ),
         )
 
@@ -243,13 +260,16 @@ class OpticalOrderRepositoryImplTest {
                 imageFile = proofFile,
                 senderName = "Ana",
                 referenceNumber = "GC-1",
+                paymentMethod = "bank_transfer",
                 mimeType = "image/png",
                 deleteAfterUpload = true,
             ),
         ).getOrThrow()
 
         val request = server.takeRequest()
-        assertTrue(request.body.readUtf8().contains("Content-Type: image/png"))
+        val body = request.body.readUtf8()
+        assertTrue(body.contains("Content-Type: image/png"))
+        assertTrue(body.contains("name=\"payment_method\""))
         assertFalse(proofFile.exists())
     }
 

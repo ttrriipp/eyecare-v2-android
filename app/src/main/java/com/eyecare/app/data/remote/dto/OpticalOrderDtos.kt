@@ -44,20 +44,39 @@ object OpticalOrderDtos {
     )
 
     @Serializable
-    data class PaymentInstructionsDto(
+    data class PaymentMethodInstructionsDto(
         val method: String,
+        val label: String = "Payment",
         @SerialName("clinic_account_name") val clinicAccountName: String,
         @SerialName("clinic_account_number") val clinicAccountNumber: String,
+        @SerialName("bank_name") val bankName: String? = null,
         @Serializable(with = MoneyValueSerializer::class)
         val amount: BigDecimal,
         @SerialName("order_reference") val orderReference: String,
         @SerialName("payment_expires_at") val paymentExpiresAt: String? = null,
+        @SerialName("qr_image_url") val qrImageUrl: String? = null,
+    )
+
+    @Serializable
+    data class PaymentInstructionsDto(
+        val method: String,
+        val label: String = "Payment",
+        @SerialName("clinic_account_name") val clinicAccountName: String,
+        @SerialName("clinic_account_number") val clinicAccountNumber: String,
+        @SerialName("bank_name") val bankName: String? = null,
+        @Serializable(with = MoneyValueSerializer::class)
+        val amount: BigDecimal,
+        @SerialName("order_reference") val orderReference: String,
+        @SerialName("payment_expires_at") val paymentExpiresAt: String? = null,
+        @SerialName("qr_image_url") val qrImageUrl: String? = null,
+        @SerialName("available_methods") val availableMethods: List<PaymentMethodInstructionsDto> = emptyList(),
     )
 
     @Serializable
     data class PaymentProofSummaryDto(
         val id: Int,
         val status: String,
+        @SerialName("payment_method") val paymentMethod: String? = null,
         @SerialName("sender_name") val senderName: String,
         @SerialName("reference_number") val referenceNumber: String,
         @SerialName("rejection_reason") val rejectionReason: String? = null,
@@ -83,6 +102,7 @@ object OpticalOrderDtos {
         @SerialName("payment_instructions") val paymentInstructions: PaymentInstructionsDto? = null,
         @SerialName("payment_proof") val paymentProof: PaymentProofSummaryDto? = null,
         @SerialName("payment_proof_status") val paymentProofStatus: String? = null,
+        @SerialName("payment_proof_method") val paymentProofMethod: String? = null,
         @SerialName("payment_proof_rejection_reason") val paymentProofRejectionReason: String? = null,
     )
 
@@ -116,6 +136,7 @@ object OpticalOrderDtos {
     data class PaymentProofResponse(
         val id: Int,
         val status: String,
+        @SerialName("payment_method") val paymentMethod: String? = null,
         @SerialName("sender_name") val senderName: String,
         @SerialName("reference_number") val referenceNumber: String,
         @SerialName("created_at") val createdAt: String,

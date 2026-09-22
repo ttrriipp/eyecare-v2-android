@@ -11,6 +11,8 @@ interface AccessoryApiService {
     @GET("accessories")
     suspend fun getAccessories(
         @Query("search") search: String? = null,
+        @Query("brand") brand: Int? = null,
+        @Query("category") category: Int? = null,
         @Query("sort") sort: String? = null,
         @Query("minimum_rating") minimumRating: Int? = null,
         @Query("rated") rated: String? = null,
@@ -26,6 +28,8 @@ suspend fun AccessoryApiService.getAccessories(
     query: AccessoryQuery = AccessoryQuery(),
 ): AccessoryDtos.AccessoryListResponse = getAccessories(
     search = query.search?.takeIf { it.isNotBlank() },
+    brand = query.brand,
+    category = query.category,
     sort = query.sort,
     minimumRating = query.minimumRating,
     rated = query.rated,

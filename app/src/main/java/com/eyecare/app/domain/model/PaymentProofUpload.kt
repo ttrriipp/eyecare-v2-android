@@ -6,6 +6,7 @@ data class PaymentProofUpload(
     val imageFile: File,
     val senderName: String,
     val referenceNumber: String,
+    val paymentMethod: String = "gcash",
     val mimeType: String = "image/jpeg",
     val width: Int = 1,
     val height: Int = 1,
@@ -15,6 +16,7 @@ data class PaymentProofUpload(
 data class PaymentProofResult(
     val id: Int,
     val status: PaymentProofStatus,
+    val paymentMethod: String? = null,
     val senderName: String,
     val referenceNumber: String,
     val createdAt: String,

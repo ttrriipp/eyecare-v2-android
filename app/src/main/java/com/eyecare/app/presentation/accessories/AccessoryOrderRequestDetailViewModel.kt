@@ -4,8 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.AccessoryOrderRequest
 import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.CommerceApiCodes
+import com.eyecare.app.domain.model.DiscountProofStatus
+import com.eyecare.app.domain.model.DiscountProofUpload
+import com.eyecare.app.domain.model.DiscountType
 import com.eyecare.app.domain.model.OrderRequestStatus
 import com.eyecare.app.domain.repository.AccessoryOrderRequestRepository
+import com.eyecare.app.presentation.eyewear.PaymentProofInspector
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,13 +23,22 @@ sealed interface RequestDetailUiState {
     data class Success(
         val request: AccessoryOrderRequest,
         val isCancelling: Boolean = false,
+        val uploadState: DiscountProofUploadState = DiscountProofUploadState.Idle,
     ) : RequestDetailUiState {
-        val canCancel: Boolean get() = request.status == OrderRequestStatus.PENDING && !isCancelling
+        val canCancel: Boolean
+            get() = request.status == OrderRequestStatus.PENDING &&
+                !isCancelling && uploadState !is DiscountProofUploadState.Uploading
     }
     data class Error(
         val message: String,
         val isNotFound: Boolean = false,
     ) : RequestDetailUiState
+}
+
+sealed interface DiscountProofUploadState {
+    data object Idle : DiscountProofUploadState
+    data object Uploading : DiscountProofUploadState
+    data class Error(val message: String) : DiscountProofUploadState
 }
 
 @HiltViewModel
@@ -39,6 +53,7 @@ class AccessoryOrderRequestDetailViewModel @Inject constructor(
     val uiState: StateFlow<RequestDetailUiState> = _uiState.asStateFlow()
 
     private var isCancelling = false
+    private var isUploading = false
 
     init { load() }
 
@@ -57,7 +72,7 @@ class AccessoryOrderRequestDetailViewModel @Inject constructor(
                         _uiState.value = RequestDetailUiState.Success(request = cancelled)
                     },
                     onFailure = { error ->
-                        if (error is ApiDomainError && error.code == "ORDER_REQUEST_NOT_ACTIONABLE") {
+                        if (error is ApiDomainError && error.code == CommerceApiCodes.ORDER_REQUEST_NOT_ACTIONABLE) {
                             // Refresh to get authoritative state
                             load()
                         } else {
@@ -73,6 +88,90 @@ class AccessoryOrderRequestDetailViewModel @Inject constructor(
 
     fun retry() {
         load()
+    }
+
+    fun uploadDiscountProof(proof: DiscountProofUpload) {
+        if (isUploading) return
+        val current = _uiState.value as? RequestDetailUiState.Success ?: return
+
+        val canUpload = current.request.status == OrderRequestStatus.PENDING &&
+            current.request.requestedDiscountType != DiscountType.NONE &&
+            current.request.discountProofStatus in setOf(
+                DiscountProofStatus.NOT_SUBMITTED,
+                DiscountProofStatus.REJECTED,
+            )
+        if (!canUpload) {
+            if (proof.deleteAfterUpload) proof.imageFile.delete()
+            _uiState.value = current.copy(
+                uploadState = DiscountProofUploadState.Error(
+                    when {
+                        current.request.requestedDiscountType == DiscountType.NONE ->
+                            "This request does not have a discount proof to upload."
+                        current.request.discountProofStatus == DiscountProofStatus.PENDING ->
+                            "Your discount proof is already under review."
+                        current.request.discountProofStatus == DiscountProofStatus.ACCEPTED ->
+                            "Your discount proof has already been accepted."
+                        else -> "This request is no longer accepting discount proof uploads."
+                    },
+                ),
+            )
+            return
+        }
+
+        val validationError = sequenceOf(
+            PaymentProofInspector.validateMimeType(proof.mimeType),
+            PaymentProofInspector.validateFileSize(proof.imageFile.length()),
+            PaymentProofInspector.validateDimensions(proof.width, proof.height),
+        ).filterNotNull().firstOrNull()
+        if (validationError != null) {
+            _uiState.value = current.copy(uploadState = DiscountProofUploadState.Error(validationError))
+            return
+        }
+
+        isUploading = true
+        _uiState.value = current.copy(uploadState = DiscountProofUploadState.Uploading)
+        viewModelScope.launch {
+            try {
+                repository.uploadDiscountProof(requestId, proof).fold(
+                    onSuccess = { load() },
+                    onFailure = { error ->
+                        when (error) {
+                            is ApiDomainError -> when (error.code) {
+                                CommerceApiCodes.DISCOUNT_PROOF_RATE_LIMIT_REACHED -> {
+                                    val message = error.retryAfterSeconds?.let {
+                                        "Too many upload attempts. Try again in $it seconds."
+                                    } ?: "Too many upload attempts. Try again later."
+                                    val fresh = _uiState.value as? RequestDetailUiState.Success
+                                    if (fresh != null) {
+                                        _uiState.value = fresh.copy(uploadState = DiscountProofUploadState.Error(message))
+                                    }
+                                }
+                                CommerceApiCodes.DISCOUNT_PROOF_NOT_REQUESTED -> {
+                                    load()
+                                }
+                                CommerceApiCodes.ORDER_REQUEST_NOT_ACTIONABLE -> {
+                                    load()
+                                }
+                                else -> setUploadError("We couldn't upload your discount proof. Please try again.")
+                            }
+                            else -> setUploadError("We couldn't upload your discount proof. Please try again.")
+                        }
+                    },
+                )
+            } finally {
+                isUploading = false
+            }
+        }
+    }
+
+    fun clearUploadState() {
+        val current = _uiState.value as? RequestDetailUiState.Success ?: return
+        _uiState.value = current.copy(uploadState = DiscountProofUploadState.Idle)
+    }
+
+    private fun setUploadError(message: String) {
+        val current = _uiState.value as? RequestDetailUiState.Success ?: return
+        _uiState.value = current.copy(uploadState = DiscountProofUploadState.Error(message))
     }
 
     private fun load() {

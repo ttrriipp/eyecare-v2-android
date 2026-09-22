@@ -5,7 +5,7 @@ import com.eyecare.app.domain.model.AccessoryAvailability
 import com.eyecare.app.domain.model.AccessoryQuery
 import com.eyecare.app.domain.model.AccessoryVariant
 import com.eyecare.app.domain.model.ApiDomainError
-import com.eyecare.app.domain.model.AuthApiCodes
+import com.eyecare.app.domain.model.CommerceApiCodes
 import com.eyecare.app.domain.repository.AccessoryRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import io.mockk.coEvery
@@ -118,8 +118,8 @@ class AccessoryCatalogViewModelTest {
         coEvery { repository.getAccessories(any()) } returns Result.failure(
             ApiDomainError(
                 httpStatus = 403,
-                code = AuthApiCodes.ACTIVE_PATIENT_LINK_REQUIRED,
-                message = "An active patient link is required.",
+                code = CommerceApiCodes.PATIENT_ROLE_REQUIRED,
+                message = "A patient role is required.",
             ),
         )
         viewModel = AccessoryCatalogViewModel(repository)
@@ -127,7 +127,7 @@ class AccessoryCatalogViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as AccessoryCatalogUiState.Error
-        assertEquals("Link your clinic account to browse accessories.", state.message)
+        assertEquals("Sign in with a patient account to browse accessories.", state.message)
     }
 
     @Test

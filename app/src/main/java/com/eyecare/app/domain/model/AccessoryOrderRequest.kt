@@ -15,6 +15,8 @@ data class AccessoryOrderRequest(
     val cancelledAt: String?,
     val createdAt: String,
     val order: AcceptedOrderSummary?,
+    val discountProofStatus: DiscountProofStatus = DiscountProofStatus.NOT_REQUIRED,
+    val discountProofRejectionReason: String? = null,
 )
 
 data class AccessoryOrderRequestItem(
@@ -29,9 +31,12 @@ data class AccessoryOrderRequestItem(
 )
 
 data class ItemSnapshot(
+    val productVariantId: Int? = null,
+    val sku: String? = null,
     val productName: String,
     val variantName: String,
     val attributes: Map<String, String>,
+    val price: BigDecimal? = null,
     val images: List<String> = emptyList(),
 )
 
@@ -77,6 +82,40 @@ enum class DiscountType {
         }
     }
 }
+
+enum class DiscountProofStatus {
+    NOT_REQUIRED,
+    NOT_SUBMITTED,
+    PENDING,
+    ACCEPTED,
+    REJECTED,
+    UNKNOWN;
+
+    companion object {
+        fun from(value: String?): DiscountProofStatus = when (value?.lowercase()) {
+            "not_required" -> NOT_REQUIRED
+            "not_submitted" -> NOT_SUBMITTED
+            "pending" -> PENDING
+            "accepted" -> ACCEPTED
+            "rejected" -> REJECTED
+            else -> UNKNOWN
+        }
+    }
+}
+
+data class DiscountProofUpload(
+    val imageFile: java.io.File,
+    val mimeType: String = "image/jpeg",
+    val width: Int = 1,
+    val height: Int = 1,
+    val deleteAfterUpload: Boolean = false,
+)
+
+data class DiscountProofResult(
+    val id: Int,
+    val status: DiscountProofStatus,
+    val createdAt: String,
+)
 
 enum class OrderRequestFilter(val apiValue: String, val label: String) {
     CURRENT("current", "Current"),

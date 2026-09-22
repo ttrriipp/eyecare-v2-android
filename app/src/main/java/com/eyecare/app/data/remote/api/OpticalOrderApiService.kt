@@ -35,5 +35,6 @@ interface OpticalOrderApiService {
         @Part proof: MultipartBody.Part,
         @Part("sender_name") senderName: RequestBody,
         @Part("reference_number") referenceNumber: RequestBody,
+        @Part("payment_method") paymentMethod: RequestBody? = null,
     ): OpticalOrderDtos.PaymentProofResultResponse
 }

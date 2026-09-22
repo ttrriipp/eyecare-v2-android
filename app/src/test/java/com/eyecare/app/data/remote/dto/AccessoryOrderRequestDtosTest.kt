@@ -35,8 +35,11 @@ class AccessoryOrderRequestDtosTest {
                         "amount": "700.00",
                         "item_kind": "accessory",
                         "item_snapshot": {
+                            "product_variant_id": 101,
+                            "sku": "KIT-90",
                             "product_name": "Daily Care Kit",
                             "variant_name": "90 mL",
+                            "price": "350.00",
                             "attributes": {"volume_ml": 90, "package_size": "90 mL"}
                         }
                     }
@@ -67,8 +70,11 @@ class AccessoryOrderRequestDtosTest {
         assertEquals(BigDecimal("350.00"), item.unitPrice)
         assertEquals(BigDecimal("700.00"), item.amount)
         assertEquals("accessory", item.itemKind)
-        assertEquals("Daily Care Kit", item.itemSnapshot.productName)
-        assertEquals("90 mL", item.itemSnapshot.variantName)
+        assertEquals("Daily Care Kit", requireNotNull(item.itemSnapshot).productName)
+        assertEquals("90 mL", requireNotNull(item.itemSnapshot).variantName)
+        assertEquals(101, requireNotNull(item.itemSnapshot).productVariantId)
+        assertEquals("KIT-90", requireNotNull(item.itemSnapshot).sku)
+        assertEquals(BigDecimal("350.00"), requireNotNull(item.itemSnapshot).price)
         assertNull(request.rejectionReason)
         assertNull(request.cancelledAt)
         assertEquals("2026-09-20T10:00:00+08:00", request.createdAt)
@@ -124,6 +130,8 @@ class AccessoryOrderRequestDtosTest {
                 "status": "rejected",
                 "subtotal_amount": "700.00",
                 "requested_discount_type": "senior_citizen",
+                "discount_proof_status": "rejected",
+                "discount_proof_rejection_reason": "Please upload a clearer ID photo.",
                 "resolved_by": 5,
                 "resolved_at": "2026-09-20T10:15:00+08:00",
                 "items": [],
@@ -140,6 +148,8 @@ class AccessoryOrderRequestDtosTest {
         assertEquals("rejected", request.status)
         assertEquals("senior_citizen", request.requestedDiscountType)
         assertEquals("Item no longer available", request.rejectionReason)
+        assertEquals("rejected", request.discountProofStatus)
+        assertEquals("Please upload a clearer ID photo.", request.discountProofRejectionReason)
     }
 
     @Test
@@ -201,14 +211,13 @@ class AccessoryOrderRequestDtosTest {
     }
 
     @Test
-    fun `rejects an order item without the required snapshot`() {
+    fun `accepts an order item with a nullable snapshot`() {
         val fixture = """
         {"data":{"id":1,"request_number":"ORQ-001","status":"pending","subtotal_amount":"10.00","requested_discount_type":"none","items":[{"id":1,"product_variant_id":1,"description":"X","quantity":1,"unit_price":"10.00","amount":"10.00","item_kind":"accessory"}],"created_at":"2026-09-20T10:00:00+08:00"}}
         """.trimIndent()
 
-        assertThrows(SerializationException::class.java) {
-            json.decodeFromString<AccessoryOrderRequestDtos.OrderRequestResponse>(fixture)
-        }
+        val response = json.decodeFromString<AccessoryOrderRequestDtos.OrderRequestResponse>(fixture)
+        assertNull(response.data.items.single().itemSnapshot)
     }
 
     @Test

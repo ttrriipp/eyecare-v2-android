@@ -14,7 +14,7 @@ class ApiRouteAllowlistTest {
 
     @Test
     fun `account-only routes match expected count`() {
-        assertEquals(42, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
+        assertEquals(44, ApprovedApiRoutes.accountOnlyRoutes.size, "Account-only routes")
     }
 
     @Test
@@ -23,9 +23,9 @@ class ApiRouteAllowlistTest {
     }
 
     @Test
-    fun `total approved routes is exactly 67`() {
-        // 8 public + 42 account-only + 17 active-link = 67 canonical callable
-        assertEquals(67, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
+    fun `total approved routes is exactly 69`() {
+        // 8 public + 44 account-only + 17 active-link = 69 canonical callable
+        assertEquals(69, ApprovedApiRoutes.allApproved.size, "Total canonical callable routes")
     }
 
     @Test
@@ -244,6 +244,7 @@ class ApiRouteAllowlistTest {
             .replace(Regex("""accessories/\{id\}"""), "accessories/{accessory}")
             .replace(Regex("""accessory-order-requests/\{id\}"""), "accessory-order-requests/{accessoryOrderRequest}")
             .replace(Regex("""accessory-order-requests/\{id\}/cancel"""), "accessory-order-requests/{accessoryOrderRequest}/cancel")
+            .replace(Regex("""accessory-order-requests/\{id\}/discount-proof"""), "accessory-order-requests/{accessoryOrderRequest}/discount-proof")
     }
 
     private fun normalizeRouteVariables(route: String): String {
@@ -259,5 +260,8 @@ class ApiRouteAllowlistTest {
             .replace("{contact}", "{var}")
             .replace("{appointmentRequest}", "{var}")
             .replace("{notification}", "{var}")
+            .replace("{accessory}", "{var}")
+            .replace("{accessoryOrderRequest}", "{var}")
+            .replace("{method}", "{var}")
     }
 }

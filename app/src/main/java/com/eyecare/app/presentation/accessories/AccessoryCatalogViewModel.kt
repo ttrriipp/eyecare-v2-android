@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.Accessory
 import com.eyecare.app.domain.model.AccessoryQuery
 import com.eyecare.app.domain.model.ApiDomainError
-import com.eyecare.app.domain.model.AuthApiCodes
+import com.eyecare.app.domain.model.CommerceApiCodes
 import com.eyecare.app.domain.repository.AccessoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -177,8 +177,10 @@ class AccessoryCatalogViewModel @Inject constructor(
 
     private fun catalogLoadErrorMessage(error: Throwable): String = when (error) {
         is ApiDomainError -> when (error.code) {
-            AuthApiCodes.ACTIVE_PATIENT_LINK_REQUIRED ->
-                "Link your clinic account to browse accessories."
+            CommerceApiCodes.PATIENT_ROLE_REQUIRED ->
+                "Sign in with a patient account to browse accessories."
+            CommerceApiCodes.ACTIVE_PATIENT_LINK_REQUIRED ->
+                "Your patient link is unavailable. Please try again later."
             else -> error.message.takeIf(String::isNotBlank) ?: GENERIC_LOAD_ERROR
         }
         else -> GENERIC_LOAD_ERROR

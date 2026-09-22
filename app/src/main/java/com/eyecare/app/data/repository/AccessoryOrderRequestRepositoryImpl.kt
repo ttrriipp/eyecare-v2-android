@@ -5,6 +5,9 @@ import com.eyecare.app.data.remote.dto.AccessoryOrderRequestDtos
 import com.eyecare.app.domain.model.AccessoryOrderRequest
 import com.eyecare.app.domain.model.AccessoryOrderRequestItem
 import com.eyecare.app.domain.model.AcceptedOrderSummary
+import com.eyecare.app.domain.model.DiscountProofResult
+import com.eyecare.app.domain.model.DiscountProofStatus
+import com.eyecare.app.domain.model.DiscountProofUpload
 import com.eyecare.app.domain.model.DiscountType
 import com.eyecare.app.domain.model.ItemSnapshot
 import com.eyecare.app.domain.model.OrderRequestFilter
@@ -12,6 +15,9 @@ import com.eyecare.app.domain.model.OrderRequestStatus
 import com.eyecare.app.domain.repository.AccessoryOrderRequestRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import kotlinx.serialization.json.JsonPrimitive
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import javax.inject.Inject
 
 class AccessoryOrderRequestRepositoryImpl @Inject constructor(
@@ -46,6 +52,28 @@ class AccessoryOrderRequestRepositoryImpl @Inject constructor(
         api.cancelRequest(id).data.toDomain()
     }
 
+    override suspend fun uploadDiscountProof(id: Int, proof: DiscountProofUpload): Result<DiscountProofResult> = safeApiCall {
+        var uploadSucceeded = false
+        try {
+            val proofPart = MultipartBody.Part.createFormData(
+                name = "proof",
+                filename = proof.imageFile.name,
+                body = proof.imageFile.asRequestBody(proof.mimeType.toMediaType()),
+            )
+            val result = api.uploadDiscountProof(id, proofPart).data
+            uploadSucceeded = true
+            DiscountProofResult(
+                id = result.id,
+                status = DiscountProofStatus.from(result.status),
+                createdAt = result.createdAt,
+            )
+        } finally {
+            if (proof.deleteAfterUpload && uploadSucceeded) {
+                proof.imageFile.delete()
+            }
+        }
+    }
+
     private fun AccessoryOrderRequestDtos.OrderRequestDto.toDomain() = AccessoryOrderRequest(
         id = id,
         requestNumber = requestNumber,
@@ -58,6 +86,10 @@ class AccessoryOrderRequestRepositoryImpl @Inject constructor(
         rejectionReason = rejectionReason,
         cancelledAt = cancelledAt,
         createdAt = createdAt,
+        discountProofStatus = DiscountProofStatus.from(
+            discountProofStatus ?: if (requestedDiscountType.equals("none", ignoreCase = true)) "not_required" else "not_submitted",
+        ),
+        discountProofRejectionReason = discountProofRejectionReason,
         order = order?.let {
             AcceptedOrderSummary(
                 id = it.id,
@@ -78,17 +110,20 @@ class AccessoryOrderRequestRepositoryImpl @Inject constructor(
         unitPrice = unitPrice,
         amount = amount,
         itemKind = itemKind,
-        itemSnapshot = itemSnapshot.let {
+        itemSnapshot = itemSnapshot.let { snapshot ->
             ItemSnapshot(
-                productName = it.productName,
-                variantName = it.variantName,
-                attributes = it.attributes.entries.associate { (key, value) ->
+                productVariantId = snapshot?.productVariantId,
+                sku = snapshot?.sku,
+                productName = snapshot?.productName.orEmpty().ifBlank { description },
+                variantName = snapshot?.variantName.orEmpty(),
+                attributes = snapshot?.attributes.orEmpty().entries.associate { (key, value) ->
                     key to when (value) {
                         is JsonPrimitive -> value.content
                         else -> value.toString()
                     }
                 },
-                images = (it.images + listOfNotNull(imageUrl)).distinct(),
+                price = snapshot?.price,
+                images = (snapshot?.images.orEmpty() + listOfNotNull(imageUrl)).distinct(),
             )
         },
     )

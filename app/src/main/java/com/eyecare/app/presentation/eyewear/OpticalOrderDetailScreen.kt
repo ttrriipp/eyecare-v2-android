@@ -169,12 +169,13 @@ fun OpticalOrderDetailScreen(
                     pickerErrorMessage = null
                     proofPicker.launch(arrayOf("image/jpeg", "image/png"))
                 },
-                onPaymentProofSubmit = { senderName, referenceNumber, proof ->
+                onPaymentProofSubmit = { paymentMethod, senderName, referenceNumber, proof ->
                     viewModel.uploadProof(
                         PaymentProofUpload(
                             imageFile = proof.file,
                             senderName = senderName,
                             referenceNumber = referenceNumber,
+                            paymentMethod = paymentMethod,
                             mimeType = proof.mimeType,
                             width = proof.width,
                             height = proof.height,
@@ -200,13 +201,16 @@ internal fun OrderDetailContent(
     selectedProof: SelectedPaymentProof? = null,
     pickerErrorMessage: String? = null,
     onPickProof: (() -> Unit)? = null,
-    onPaymentProofSubmit: ((String, String, SelectedPaymentProof) -> Unit)? = null,
+    onPaymentProofSubmit: ((String, String, String, SelectedPaymentProof) -> Unit)? = null,
     onPaymentWindowExpired: () -> Unit = {},
     onRefresh: () -> Unit = {},
     onClearPaymentProofError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val balanceDue = order.paymentSummary?.balanceDue?.takeIf { it > BigDecimal.ZERO }
+    var selectedPaymentMethod by remember(order.id, order.paymentInstructions?.method) {
+        mutableStateOf(order.paymentInstructions?.method ?: "gcash")
+    }
 
     Box(modifier.fillMaxSize()) {
         Column(
@@ -398,6 +402,7 @@ internal fun OrderDetailContent(
                 PaymentProofStatusCard(
                     status = order.paymentProofStatus,
                     rejectionReason = order.paymentProofRejectionReason,
+                    paymentMethod = order.paymentProofMethod,
                 )
             }
 
@@ -408,10 +413,12 @@ internal fun OrderDetailContent(
                 if (instructions == null) {
                     PaymentInstructionsUnavailableCard(onRefresh = onRefresh)
                 } else {
-                    PaymentInstructionsCard(instructions = instructions)
-
                     val paymentDeadline = order.paymentExpiresAt ?: instructions.paymentExpiresAt
-                    var paymentWindowExpired by remember(paymentDeadline) { mutableStateOf(false) }
+                    var paymentWindowExpired by remember(paymentDeadline) {
+                        mutableStateOf(
+                            paymentSecondsRemaining(paymentDeadline)?.let { it <= 0L } ?: true,
+                        )
+                    }
                     if (paymentDeadline != null) {
                         PaymentDeadlineCard(
                             expiresAt = paymentDeadline,
@@ -422,16 +429,38 @@ internal fun OrderDetailContent(
                         )
                     }
 
-                    if (onPickProof != null && onPaymentProofSubmit != null) {
-                        PaymentProofForm(
-                            selectedProof = selectedProof,
-                            onPickProof = onPickProof,
-                            onSubmit = onPaymentProofSubmit,
-                            uploadState = uploadState,
-                            onClearError = onClearPaymentProofError,
-                            canSubmit = !paymentWindowExpired,
-                            pickerErrorMessage = pickerErrorMessage,
+                    if (paymentWindowExpired) {
+                        if (paymentDeadline == null) {
+                            PaymentInstructionsUnavailableCard(onRefresh = onRefresh)
+                        }
+                    } else {
+                        val effectivePaymentMethod = instructions.availableMethods
+                            .firstOrNull { it.method == selectedPaymentMethod }
+                            ?.method
+                            ?: instructions.method
+                        PaymentInstructionsCard(
+                            instructions = instructions,
+                            selectedMethod = effectivePaymentMethod,
+                            onMethodSelected = { selectedPaymentMethod = it },
                         )
+
+                        if (onPickProof != null && onPaymentProofSubmit != null) {
+                            val selectedMethodLabel = instructions.availableMethods
+                                .firstOrNull { it.method == effectivePaymentMethod }
+                                ?.label
+                                ?: instructions.label
+                            PaymentProofForm(
+                                selectedProof = selectedProof,
+                                onPickProof = onPickProof,
+                                paymentMethod = effectivePaymentMethod,
+                                paymentMethodLabel = selectedMethodLabel,
+                                onSubmit = onPaymentProofSubmit,
+                                uploadState = uploadState,
+                                onClearError = onClearPaymentProofError,
+                                canSubmit = true,
+                                pickerErrorMessage = pickerErrorMessage,
+                            )
+                        }
                     }
                 }
             }

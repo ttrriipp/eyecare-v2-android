@@ -3,6 +3,7 @@ package com.eyecare.app.data.repository
 import com.eyecare.app.data.remote.api.AccessoryOrderRequestApiService
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.DiscountType
+import com.eyecare.app.domain.model.DiscountProofStatus
 import com.eyecare.app.domain.model.OrderRequestFilter
 import com.eyecare.app.domain.model.OrderRequestStatus
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import retrofit2.Retrofit
 import java.math.BigDecimal
+import java.nio.file.Files
 
 class AccessoryOrderRequestRepositoryImplTest {
 
@@ -118,5 +120,45 @@ class AccessoryOrderRequestRepositoryImplTest {
         val result = repository.getRequest(999)
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is ApiDomainError)
+    }
+
+    @Test
+    fun `uploadDiscountProof sends private proof and maps response`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(201).setBody(
+            """{"data":{"id":17,"status":"pending","created_at":"2026-09-22T12:00:00+08:00"}}""",
+        ))
+        val proofFile = Files.createTempFile("discount-proof-", ".jpg").toFile().apply {
+            writeBytes(byteArrayOf(1, 2, 3))
+        }
+
+        try {
+            val result = repository.uploadDiscountProof(
+                id = 42,
+                proof = com.eyecare.app.domain.model.DiscountProofUpload(
+                    imageFile = proofFile,
+                    mimeType = "image/jpeg",
+                    deleteAfterUpload = false,
+                ),
+            ).getOrThrow()
+
+            assertEquals(17, result.id)
+            assertEquals(DiscountProofStatus.PENDING, result.status)
+            val request = server.takeRequest()
+            assertEquals("POST", request.method)
+            assertEquals("/accessory-order-requests/42/discount-proof", request.path)
+        } finally {
+            proofFile.delete()
+        }
+    }
+
+    @Test
+    fun `maps discount proof fields and nullable item snapshot`() = runTest {
+        enqueueSingle(
+            """{"id":1,"request_number":"ORQ-1","status":"pending","subtotal_amount":"100.00","requested_discount_type":"pwd","discount_proof_status":"rejected","discount_proof_rejection_reason":"Unreadable","items":[{"id":1,"product_variant_id":1,"description":"X","quantity":1,"unit_price":"100.00","amount":"100.00","item_kind":"accessory","item_snapshot":null}],"created_at":"2026-09-20T10:00:00+08:00"}""",
+        )
+        val result = repository.getRequest(1).getOrThrow()
+        assertEquals(DiscountProofStatus.REJECTED, result.discountProofStatus)
+        assertEquals("Unreadable", result.discountProofRejectionReason)
+        assertEquals("X", result.items.single().itemSnapshot.productName)
     }
 }

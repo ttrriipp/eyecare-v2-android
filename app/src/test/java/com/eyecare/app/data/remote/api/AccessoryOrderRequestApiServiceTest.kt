@@ -6,6 +6,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
@@ -82,5 +83,25 @@ class AccessoryOrderRequestApiServiceTest {
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertTrue(request.path!!.contains("accessory-order-requests/10/cancel"))
+    }
+
+    @Test
+    fun `uploadDiscountProof sends multipart proof to discount proof endpoint`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(201).setBody(
+            """{"data":{"id":17,"status":"pending","created_at":"2026-09-22T12:00:00+08:00"}}""",
+        ))
+        val proof = "proof-bytes".toRequestBody("image/jpeg".toMediaType())
+        api.uploadDiscountProof(
+            requestId = 42,
+            proof = okhttp3.MultipartBody.Part.createFormData("proof", "proof.jpg", proof),
+        )
+
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/accessory-order-requests/42/discount-proof", request.path)
+        assertTrue(request.getHeader("Content-Type").orEmpty().startsWith("multipart/form-data"))
+        val body = request.body.readUtf8()
+        assertTrue(body.contains("name=\"proof\""))
+        assertTrue(body.contains("filename=\"proof.jpg\""))
     }
 }

@@ -738,6 +738,11 @@ fun EyecareNavGraph(
                                 }
                             },
                             onBack = { navController.popBackStack() },
+                            onBrowseAccessories = {
+                                navigatePatientFeature(Accessories) {
+                                    popUpTo<AccessoryCheckoutRoute> { inclusive = true }
+                                }
+                            },
                         )
                     }
                     composable<AccessoryOrderRequests> {
@@ -767,6 +772,8 @@ fun EyecareNavGraph(
                             onDismissCancelDialog = { showCancelDialog = false },
                             onCancel = detailViewModel::cancel,
                             onNavigateToOrder = { orderId -> navigatePatientFeature(OpticalOrderDetail(orderId)) },
+                            onUploadDiscountProof = detailViewModel::uploadDiscountProof,
+                            onClearDiscountProofUploadState = detailViewModel::clearUploadState,
                             onRetry = detailViewModel::retry,
                             onBack = { navController.popBackStack() },
                         )

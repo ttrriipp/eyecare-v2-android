@@ -75,7 +75,24 @@ class FaceDistanceScaleTrackerTest {
             )
         }
 
-        assertEquals(1.3f, closerScale)
+        assertEquals(1.35f, closerScale)
+    }
+
+    @Test
+    fun a_very_close_face_can_continue_scaling_beyond_the_previous_ceiling() {
+        val tracker = FaceDistanceScaleTracker()
+        establishBaseline(tracker)
+
+        var closerScale: Float? = null
+        repeat(5) {
+            closerScale = tracker.update(
+                faceWidthNorm = 0.56f,
+                mappedPoseScale = 1f,
+                yawDeg = 0f,
+            )
+        }
+
+        assertEquals(1.35f, closerScale)
     }
 
     @Test
@@ -109,7 +126,7 @@ class FaceDistanceScaleTrackerTest {
             )
         }
 
-        assertEquals(1.3f, closerScale)
+        assertEquals(1.35f, closerScale)
     }
 
     @Test
@@ -183,7 +200,7 @@ class FaceDistanceScaleTrackerTest {
             yawDeg = 35f,
         )
 
-        assertEquals(1.3f, heldScale)
+        assertEquals(1.35f, heldScale)
     }
 
     @Test

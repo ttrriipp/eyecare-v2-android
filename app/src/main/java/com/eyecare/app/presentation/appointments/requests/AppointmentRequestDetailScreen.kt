@@ -403,12 +403,12 @@ private fun RequestDetailDataContent(
             isSubmitting = state.isUpdatingSchedule,
             errorMessage = state.scheduleError,
             title = "Change requested time",
-            description = "Choose a new preferred time from tomorrow onward. Your request stays pending until the clinic reviews it.",
+            description = "Choose a new time from tomorrow onward. Your request stays pending until reviewed.",
             currentTimeLabel = "Current requested time",
             currentTimeDescription = "",
             confirmationTitle = "Update requested time",
             confirmationMessage = { _, _, _ ->
-                "The clinic will review this request before confirming a new time."
+                "The clinic will review this request before confirming."
             },
             confirmLabel = "Update request",
             dismissLabel = "Keep current",

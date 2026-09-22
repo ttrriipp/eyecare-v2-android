@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.CommerceApiCodes
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderItem
 import com.eyecare.app.domain.model.OpticalOrderStatus
@@ -122,15 +123,19 @@ class OpticalOrderDetailViewModel @Inject constructor(
                     },
                     onFailure = { error ->
                         val message = when {
-                            error is ApiDomainError && error.code == "PAYMENT_WINDOW_EXPIRED" -> {
+                            error is ApiDomainError && error.code == CommerceApiCodes.PAYMENT_WINDOW_EXPIRED -> {
                                 load()
                                 "Payment window has expired. The order has been refreshed."
                             }
-                            error is ApiDomainError && error.code == "ORDER_NOT_AWAITING_PAYMENT" -> {
+                            error is ApiDomainError && error.code == CommerceApiCodes.ORDER_NOT_AWAITING_PAYMENT -> {
                                 load()
                                 "This order is no longer awaiting payment."
                             }
-                            error is ApiDomainError && error.code == "PAYMENT_PROOF_RATE_LIMIT_REACHED" -> {
+                            error is ApiDomainError && error.code == CommerceApiCodes.PAYMENT_METHOD_NOT_AVAILABLE -> {
+                                load()
+                                "That payment method is no longer available for this order. Refresh and choose another method."
+                            }
+                            error is ApiDomainError && error.code == CommerceApiCodes.PAYMENT_PROOF_RATE_LIMIT_REACHED -> {
                                 val retryAfter = error.retryAfterSeconds
                                 if (retryAfter != null) {
                                     "Too many attempts. Please try again in ${retryAfter} seconds."

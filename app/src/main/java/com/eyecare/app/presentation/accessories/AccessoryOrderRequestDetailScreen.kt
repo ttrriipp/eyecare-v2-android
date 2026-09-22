@@ -1,5 +1,7 @@
 package com.eyecare.app.presentation.accessories
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,10 +30,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -40,12 +45,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.eyecare.app.domain.model.AccessoryOrderRequest
+import com.eyecare.app.domain.model.DiscountProofStatus
+import com.eyecare.app.domain.model.DiscountProofUpload
+import com.eyecare.app.domain.model.DiscountType
 import com.eyecare.app.domain.model.OrderRequestStatus
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
@@ -67,10 +76,43 @@ fun AccessoryOrderRequestDetailScreen(
     onDismissCancelDialog: () -> Unit,
     onCancel: () -> Unit,
     onNavigateToOrder: (Int) -> Unit,
+    onUploadDiscountProof: (DiscountProofUpload) -> Unit = {},
+    onClearDiscountProofUploadState: () -> Unit = {},
     onRetry: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    var selectedProof by remember { mutableStateOf<SelectedDiscountProof?>(null) }
+    var pickerErrorMessage by remember { mutableStateOf<String?>(null) }
+    val proofPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        selectedProof?.file?.delete()
+        selectedProof = null
+        pickerErrorMessage = null
+        if (uri != null) {
+            val result = prepareDiscountProof(context, uri)
+            pickerErrorMessage = result.errorMessage
+            selectedProof = result.proof
+        }
+    }
+
+    DisposableEffect(selectedProof) {
+        onDispose { selectedProof?.file?.delete() }
+    }
+
+    LaunchedEffect(uiState) {
+        val state = uiState as? RequestDetailUiState.Success ?: return@LaunchedEffect
+        if (state.request.discountProofStatus !in setOf(
+                DiscountProofStatus.NOT_SUBMITTED,
+                DiscountProofStatus.REJECTED,
+            )
+        ) {
+            selectedProof?.file?.delete()
+            selectedProof = null
+            pickerErrorMessage = null
+        }
+    }
+
     if (showCancelDialog) {
         AppConfirmationDialog(
             icon = Icons.Outlined.Cancel,
@@ -152,6 +194,33 @@ fun AccessoryOrderRequestDetailScreen(
 
                     // Status guidance
                     RequestStatusGuidance(request = request)
+
+                    if (request.requestedDiscountType != DiscountType.NONE) {
+                        DiscountProofSection(
+                            request = request,
+                            uploadState = state.uploadState,
+                            selectedProof = selectedProof,
+                            pickerErrorMessage = pickerErrorMessage,
+                            onPickProof = {
+                                pickerErrorMessage = null
+                                proofPicker.launch(arrayOf("image/jpeg", "image/png"))
+                            },
+                            onSubmitProof = {
+                                selectedProof?.let { proof ->
+                                    onUploadDiscountProof(
+                                        DiscountProofUpload(
+                                            imageFile = proof.file,
+                                            mimeType = proof.mimeType,
+                                            width = proof.width,
+                                            height = proof.height,
+                                            deleteAfterUpload = true,
+                                        ),
+                                    )
+                                }
+                            },
+                            onClearUploadState = onClearDiscountProofUploadState,
+                        )
+                    }
 
                     // Items
                     if (request.items.isNotEmpty()) {
@@ -248,6 +317,141 @@ fun AccessoryOrderRequestDetailScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiscountProofSection(
+    request: AccessoryOrderRequest,
+    uploadState: DiscountProofUploadState,
+    selectedProof: SelectedDiscountProof?,
+    pickerErrorMessage: String?,
+    onPickProof: () -> Unit,
+    onSubmitProof: () -> Unit,
+    onClearUploadState: () -> Unit,
+) {
+    val discountLabel = when (request.requestedDiscountType) {
+        DiscountType.SENIOR_CITIZEN -> "Senior citizen"
+        DiscountType.PWD -> "PWD"
+        else -> "Discount"
+    }
+    val canUpload = request.status == OrderRequestStatus.PENDING
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.38f),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                "Discount proof",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "$discountLabel discount requested. The clinic must accept your proof before the request can be accepted.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            when (request.discountProofStatus) {
+                DiscountProofStatus.NOT_SUBMITTED,
+                DiscountProofStatus.REJECTED -> {
+                    if (request.discountProofStatus == DiscountProofStatus.REJECTED) {
+                        Text(
+                            request.discountProofRejectionReason?.takeIf(String::isNotBlank)
+                                ?: "The clinic could not verify the previous proof. Please upload a replacement.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+
+                    if (!canUpload) {
+                        Text(
+                            "This request is no longer accepting discount proof uploads.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else if (selectedProof != null) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    selectedProof.displayName,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                TextButton(onClick = onPickProof) { Text("Choose another") }
+                            }
+                        }
+                        Button(
+                            onClick = onSubmitProof,
+                            enabled = uploadState !is DiscountProofUploadState.Uploading,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            if (uploadState is DiscountProofUploadState.Uploading) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else {
+                                Text(if (request.discountProofStatus == DiscountProofStatus.REJECTED) "Replace proof" else "Submit proof")
+                            }
+                        }
+                    } else {
+                        OutlinedButton(onClick = onPickProof, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (request.discountProofStatus == DiscountProofStatus.REJECTED) "Choose replacement proof" else "Choose proof")
+                        }
+                    }
+                }
+                DiscountProofStatus.PENDING -> {
+                    Text(
+                        "Proof submitted and awaiting clinic review.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                DiscountProofStatus.ACCEPTED -> {
+                    Text(
+                        "Proof accepted. The clinic can now review your request.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+                DiscountProofStatus.NOT_REQUIRED,
+                DiscountProofStatus.UNKNOWN -> {
+                    Text(
+                        "Discount proof status is unavailable. Refresh to try again.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            pickerErrorMessage?.let { message ->
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (uploadState is DiscountProofUploadState.Error) {
+                TextButton(onClick = onClearUploadState) { Text("Dismiss") }
+                Text(
+                    uploadState.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }

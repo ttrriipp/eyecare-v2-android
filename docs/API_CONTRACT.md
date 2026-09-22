@@ -12,16 +12,16 @@
 > eligible candidates, and `patient-links:audit-identity` reconciles existing
 > links in dry-run or explicit `--mark-review` mode.
 
-> **Backend version:** Current repository state (2026-09-19) — patient
+> **Backend version:** Current repository state (2026-09-22) — patient
 > same-day cancellation, appointment-request cancellation, pending-request
 > schedule updates, and active-limit behavior are documented below.
 > Patient-originated Filament bell notifications are documented separately
-> from the mobile notification feed. The normal patient-mobile contract has 67
-> routes (8 public + 42 account-only + 17 active-link). One additive,
-> pilot-only public route is also registered, making 68 routes in the registry;
+> from the mobile notification feed. The normal patient-mobile contract has 69
+> routes (8 public + 44 account-only + 17 active-link). One additive,
+> pilot-only public route is also registered, making 70 routes in the registry;
 > it is disabled by default and excluded from the normal contract count. The
-> seven active-link additions are the accessory catalog, request lifecycle, and
-> payment-proof upload routes documented below.
+> accessory catalog is account-only; the request lifecycle and payment-proof
+> and discount-proof routes remain active-link commerce routes documented below.
 
 > **Shipped 2026-09-13: patient same-day cancellation cutoff.** Patient API
 > cancellation of a confirmed appointment or pending appointment request is
@@ -74,8 +74,8 @@
 > **Pilot-only authentication.** `POST /auth/participant-login` is an additive
 > public route for provisioned capstone participants. It returns `404` unless
 > deployment is in pilot mode, pilot mode is enabled, and the configured pilot
-> expiry is in the future. It is excluded from the normal 67-route contract
-> count; including it, the route registry contains 68 routes.
+> expiry is in the future. It is excluded from the normal 68-route contract
+> count; including it, the route registry contains 69 routes.
 
 > **Shipped 2026-09-07: actionable admin notifications for patient actions.**
 > Eight approved patient events now create queued, after-commit Filament
@@ -2422,11 +2422,13 @@ the patient's.
 
 ## 13b. Accessories and Order Requests
 
-**Active patient link required for every endpoint in this section.** All
-routes use Sanctum, the clinical account throttle, and the active-link gate.
+All endpoints in this section use Sanctum and patient-role authorization.
+Catalog browsing is account-only: it uses the account throttle and does not
+require an active patient link. Order requests, Optical Orders, payment-proof
+uploads, and ratings use the clinical account throttle and the active-link gate.
 Request submission is additionally limited to 10 attempts per account per
-minute. Payment-proof multipart uploads are additionally limited to 5 attempts
-per account per minute.
+minute. Payment-proof and discount-proof multipart uploads are additionally
+limited to 5 attempts per account per minute each.
 
 ### GET `/accessories` and GET `/accessories/{id}`
 
@@ -2456,7 +2458,8 @@ ratings are excluded and an unrated Product has `average_rating: null`.
 Prescription-linked placement is outside this accessory catalog contract. The
 retired `placement` query parameter is prohibited and returns HTTP 422 when
 sent. The catalog does not read prescription measurements, infer compatibility,
-or bind an accessory order request to a Prescription.
+or bind an accessory order request to a Prescription. Catalog reads are
+query-only and never reserve stock; unauthenticated requests return `401`.
 
 ### Order request lifecycle
 
@@ -2465,6 +2468,7 @@ GET  /accessory-order-requests
 POST /accessory-order-requests
 GET  /accessory-order-requests/{id}
 POST /accessory-order-requests/{id}/cancel
+POST /accessory-order-requests/{id}/discount-proof
 ```
 
 Submission accepts a multi-item payload with 1–20 distinct active accessory
@@ -2488,17 +2492,65 @@ inventory movement. One pending request per account is enforced under a row
 lock. A request is an **Order Request**, not a completed purchase.
 
 Request responses contain the request number/status, two-decimal immutable
-subtotal, discount declaration, item snapshots, `resolved_by`, `resolved_at`,
-timestamps, rejection/cancellation fields, and (after acceptance) an `order`
-summary containing the resulting order number/status, confirmed discount,
-final billing total, and `payment_expires_at`. Cost, exact stock, lots,
-internal notes, proof metadata, and audit data are never exposed. `current`
+subtotal, discount declaration, discount-proof review status, item snapshots,
+`resolved_by`, `resolved_at`, timestamps, rejection/cancellation fields, and
+(after acceptance) an `order` summary containing the resulting order
+number/status, confirmed discount, final billing total, and
+`payment_expires_at`. Cost, exact stock, lots, internal notes, proof metadata,
+and audit data are never exposed. `current`
 list filtering includes pending requests and accepted orders not yet dispensed
 or cancelled; `history` includes rejected/cancelled requests and terminal
 accepted orders. Ordering is `created_at DESC, id DESC`.
 
+Each `items[]` entry includes `id`, `description`, `quantity`, two-decimal
+`unit_price` and `amount`, `product_variant_id`, `item_kind`, and the nullable
+`item_snapshot` object. For accessory requests, `item_snapshot` contains the
+immutable `product_variant_id`, `sku`, `variant_name`, `product_name`,
+two-decimal `price`, and nullable `attributes` captured at submission time.
+
 Patients may cancel only a pending request. Cancellation is idempotent and
 creates no commerce or inventory records. Ownership failures return `404`.
+
+#### Discount-proof fields in request responses
+
+| Field | Type | Nullable | Values / meaning |
+|---|---|---:|---|
+| `discount_proof_status` | string | no | `not_required` when `requested_discount_type` is `none`; otherwise `not_submitted`, `pending`, `accepted`, or `rejected` |
+| `discount_proof_rejection_reason` | string | yes | Patient-safe reason only when the status is `rejected`; `null` for every other status |
+
+For a requested discount, the patient may submit one private proof while the
+request is `pending`:
+
+```text
+POST /accessory-order-requests/{id}/discount-proof
+```
+
+The multipart field is `proof` (JPG/JPEG/PNG, at most 10 MB, at most
+8,000 x 8,000 pixels). The endpoint requires the authenticated account's
+active patient link and ownership of the request. The first valid upload
+creates a `pending` proof and returns `201`:
+
+```json
+{
+  "data": {
+    "id": 17,
+    "status": "pending",
+    "created_at": "2026-09-22T12:00:00+08:00"
+  }
+}
+```
+
+A retry while the existing proof is `pending` or `accepted` returns the same
+proof unchanged with `200`. After staff rejects a proof, the patient may
+replace it while the Order Request remains `pending`; the same proof ID is
+reset to `pending` and the previous private object is deleted. A request with
+`requested_discount_type: none` cannot receive a proof. Staff and
+administrators review proofs in the clinic panel; request acceptance is
+blocked until a non-`none` request has an `accepted` proof. Only an
+administrator may apply a positive discount amount when accepting the request.
+The API never returns file paths, URLs, original filenames, MIME types, sizes,
+reviewer identities, or audit metadata. A rejected proof's reason is visible
+only through `discount_proof_rejection_reason`.
 
 ### Payment proof upload
 
@@ -2514,31 +2566,52 @@ Only an owned, accepted accessory request whose resulting Optical Order is in
 | `proof` | JPG/JPEG/PNG, <= 10 MB, <= 8,000 x 8,000 pixels |
 | `sender_name` | Required trimmed string, <= 100 characters |
 | `reference_number` | Required trimmed string, <= 100 characters |
+| `payment_method` | Optional enum: `gcash` or `bank_transfer`; defaults to `gcash` for backwards-compatible clients |
 
 The first valid submission stores one object on the configured private
 `PAYMENT_PROOF_DISK`, creates one proof row, and moves the order to
-`payment_review` (`201`). A retry returns the existing proof unchanged (`200`)
-and never replaces the object or extends the original deadline. The patient
-response includes only proof ID/status, their submitted sender/reference
-values, and creation time; it never includes a file path, URL, reviewer,
-internal note, or storage metadata. Rejected proofs cannot be resubmitted in
-the MVP.
+`payment_review` (`201`). A successful response is:
+
+```json
+{
+  "data": {
+    "id": 17,
+    "status": "pending",
+    "payment_method": "bank_transfer",
+    "sender_name": "Ana Reyes",
+    "reference_number": "BANK-20260922-001",
+    "created_at": "2026-09-22T12:00:00+08:00"
+  }
+}
+```
+
+A retry returns the existing proof unchanged (`200`) and never replaces the
+object or extends the original deadline. The patient response includes only
+proof ID/status, selected method, their submitted sender/reference values, and
+creation time; it never includes a file path, URL, reviewer, internal note, or
+storage metadata. Rejected proofs cannot be resubmitted in the MVP.
 
 ### Payment states and reviewer boundary
 
 Accepted request orders use clinic pickup (`fulfillment_mode=prepared`) and
 start a 30-minute `payment_expires_at` deadline only when staff accepts the
-request. The only patient payment method in this flow is full-balance GCash
-verified manually from the clinic ledger. GCash account name/number are
-deployment configuration (`GCASH_ACCOUNT_NAME` and `GCASH_ACCOUNT_NUMBER`),
-not source-controlled values. Payment instructions appear on the Optical Order
-resource only while status is `pending_payment` and configuration is complete.
+request. The patient may pay the full balance by GCash or bank transfer, then
+upload a proof for the selected method. Administrators configure active clinic
+methods in the Billing panel; legacy deployments may provide GCash and bank
+details through environment fallback values (`GCASH_ACCOUNT_NAME`,
+`GCASH_ACCOUNT_NUMBER`, `BANK_TRANSFER_BANK_NAME`,
+`BANK_TRANSFER_ACCOUNT_NAME`, and `BANK_TRANSFER_ACCOUNT_NUMBER`). At
+acceptance, the backend snapshots the active account details and optional QR
+image path into the order. Payment instructions appear only while status is
+`pending_payment`, the deadline is in the future, and the order has at least
+one configured method.
 
 Only active `staff` or `admin` accounts may accept/reject requests or payment
 proofs. Optometrist-only accounts cannot make commerce decisions. Acceptance
-records exactly one posted full-balance GCash payment and moves the order to
-`queued`; rejection records a bounded reason, cancels the order, reverses its
-exact inventory commitments, and voids the unpaid bill. The every-minute
+records exactly one posted full-balance payment using the proof's selected
+method and moves the order to `queued`; rejection records a bounded reason,
+cancels the order, reverses its exact inventory commitments, and voids the
+unpaid bill. The every-minute
 `accessory-orders:expire-unpaid` schedule cancels only overdue
 `pending_payment` orders with `withoutOverlapping()`; `payment_review` never
 auto-expires.
@@ -2552,6 +2625,9 @@ auto-expires.
 | `ORDER_REQUEST_NOT_ACTIONABLE` | 422 | A request is no longer pending/cancellable |
 | `PAYMENT_WINDOW_EXPIRED` | 422 | The 30-minute payment deadline has passed |
 | `ORDER_NOT_AWAITING_PAYMENT` | 422 | The order is not an accepted pending-payment order |
+| `PAYMENT_METHOD_NOT_AVAILABLE` | 422 | The selected online payment method was not configured for this order |
+| `DISCOUNT_PROOF_NOT_REQUESTED` | 422 | The request did not declare a supported discount |
+| `DISCOUNT_PROOF_RATE_LIMIT_REACHED` | 429 | Discount-proof uploads exceeded the 5-per-minute account limit |
 
 Validation envelopes remain Laravel's normal `422` shape for malformed
 payloads. The existing verified-purchase Product Rating endpoint remains
@@ -2666,8 +2742,9 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `created_at` | string | no | ISO 8601 creation timestamp |
 | `payment_expires_at` | string | yes | ISO 8601 30-minute deadline for `pending_payment` orders |
 | `payment_proof_status` | string | no | `not_submitted`, `pending`, `accepted`, or `rejected` |
+| `payment_proof_method` | string | yes | `gcash` or `bank_transfer` after a proof exists; `null` before submission |
 | `payment_proof_rejection_reason` | string | yes | Patient-visible reason only when proof status is `rejected` |
-| `payment_instructions` | object | yes | GCash method/account/amount/reference/deadline only while awaiting payment |
+| `payment_instructions` | object | yes | Active GCash/bank-transfer account instructions only while awaiting payment and before expiry; `null` otherwise |
 | `items` | array | no | Product items snapshot |
 | `items[].id` | integer | no | Job Order Item ID |
 | `items[].description` | string | no | Item description |
@@ -2685,6 +2762,62 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `payment_summary.balance_due` | string | no | Remaining balance |
 | `payment_summary.payment_due_date` | string | yes | Due date, `Y-m-d` format |
 | `payment_summary.is_overdue` | boolean | no | Whether the unpaid balance is past its due date |
+
+When `payment_instructions` is not `null`, it has this shape:
+
+| Field | Type | Nullable | Default / meaning |
+|---|---|---:|---|
+| `method` | string | no | Primary method shown by the client: `gcash` or `bank_transfer` |
+| `label` | string | no | Clinic-configured display label (`GCash` or `Bank transfer` by default) |
+| `clinic_account_name` | string | no | Receiving account name |
+| `clinic_account_number` | string | no | Receiving account/mobile number |
+| `bank_name` | string | yes | Bank name for `bank_transfer`; `null` for GCash |
+| `amount` | string | no | Full current balance due, two decimal places |
+| `order_reference` | string | no | Immutable `ORD-YYYY-NNNNNN` reference to include with payment |
+| `payment_expires_at` | string | yes | ISO 8601 deadline; normally the same as the top-level field |
+| `qr_image_url` | string | yes | Authenticated private QR image URL; `null` when no QR was configured |
+| `available_methods` | array | no | All methods snapshotted for this order, in clinic configuration order |
+| `available_methods[]` | object | no | Same fields as this object except it does not contain `available_methods` |
+
+Example with both configured methods:
+
+```json
+{
+  "method": "gcash",
+  "label": "GCash",
+  "clinic_account_name": "EyeCare Clinic",
+  "clinic_account_number": "09171234567",
+  "bank_name": null,
+  "amount": "1500.00",
+  "order_reference": "ORD-2026-000001",
+  "payment_expires_at": "2026-09-22T12:30:00+08:00",
+  "qr_image_url": "https://api.example.test/api/v1/optical-orders/1/payment-instructions/gcash/qr",
+  "available_methods": [
+    {
+      "method": "gcash",
+      "label": "GCash",
+      "clinic_account_name": "EyeCare Clinic",
+      "clinic_account_number": "09171234567",
+      "bank_name": null,
+      "amount": "1500.00",
+      "order_reference": "ORD-2026-000001",
+      "payment_expires_at": "2026-09-22T12:30:00+08:00",
+      "qr_image_url": "https://api.example.test/api/v1/optical-orders/1/payment-instructions/gcash/qr"
+    },
+    {
+      "method": "bank_transfer",
+      "label": "Bank transfer",
+      "clinic_account_name": "EyeCare Clinic",
+      "clinic_account_number": "1234567890",
+      "bank_name": "Demo Bank",
+      "amount": "1500.00",
+      "order_reference": "ORD-2026-000001",
+      "payment_expires_at": "2026-09-22T12:30:00+08:00",
+      "qr_image_url": null
+    }
+  ]
+}
+```
 
 When `items[].rating` is not null, it contains `rating`, optional `comment`,
 and `created_at`. Comment text is profanity-masked before persistence. Hidden
@@ -2706,9 +2839,13 @@ from non-dispensed orders have `is_rateable: false`.
 - Items contain only product lines. Service lines are never included.
 - `supplier_invoice_number` and internal notes are excluded.
 - `payment_summary` represents the overall checkout balance for combined bills.
-- `payment_instructions` is omitted (`null`) after proof submission, acceptance,
-  rejection, cancellation, or expiry; it is never returned when the GCash
-  deployment configuration is incomplete.
+- `payment_instructions` is `null` after proof submission, acceptance,
+  rejection, cancellation, or expiry; it is also `null` when no active clinic
+  method is configured. QR URLs require the same authenticated active patient
+  link as the order and never expose a storage path.
+- The account and QR values are an acceptance-time snapshot. Updating a clinic
+  payment method affects newly accepted orders only; an in-flight order keeps
+  its original instructions until the 30-minute window closes.
 - Monetary values are strings with two decimal places.
 
 ---
@@ -3050,7 +3187,7 @@ notification. Check-in, encounter drafts, order `in_progress`
 changes, billing recalculation, reminders, and patient-initiated actions do not
 create patient inbox noise. Accessory request/proof alerts are queued after
 commit and deduplicated by their stable event key. Bodies exclude item details,
-rejection narratives, sender names, GCash account/reference data, proof paths,
+rejection narratives, sender names, clinic account/reference data, proof paths,
 and private notes. Staff/admin bell alerts identify only the request/order
 number and safe workflow status.
 
@@ -3222,6 +3359,7 @@ metadata may appear beside `code` and `message`, as with
 | `API_RATE_LIMIT_REACHED` | 429 | A general authenticated API route limit was exceeded |
 | `ACCESSORY_ORDER_REQUEST_RATE_LIMIT_REACHED` | 429 | Accessory request submissions exceeded the 10-per-minute account limit |
 | `PAYMENT_PROOF_RATE_LIMIT_REACHED` | 429 | Payment-proof uploads exceeded the 5-per-minute account limit |
+| `DISCOUNT_PROOF_RATE_LIMIT_REACHED` | 429 | Discount-proof uploads exceeded the 5-per-minute account limit |
 | `CONTACT_ALREADY_OWNED` | 422 | Contact is already verified by another account |
 | `INVITATION_INVALID` | 422 | Invitation token is invalid, expired, revoked, or consumed |
 | `PATIENT_IDENTITY_MISMATCH` | 422 | Account evidence is incompatible with, or incomplete for, the Patient record being linked; mobile responses disclose no match details |
@@ -3233,6 +3371,7 @@ metadata may appear beside `code` and `message`, as with
 | `PATIENT_RESOLUTION_REQUIRED` | 422 | Unlinked request must be resolved to a patient first |
 | `SLOT_UNAVAILABLE` | 422 | Requested appointment slot is no longer available |
 | `REQUEST_NOT_RESCHEDULABLE` | 422 | Appointment request is expired, terminal, stale, or otherwise no longer pending |
+| `PATIENT_ROLE_REQUIRED` | 403 | Authenticated account does not have the patient role |
 | `ACTIVE_PATIENT_LINK_REQUIRED` | 403 | Route requires an active patient link |
 | `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | The account already has the configured maximum of active, unexpired pending appointment requests |
 | `LAST_CONTACT_REMAINING` | 422 | Cannot remove the last verified login contact |
@@ -3240,8 +3379,21 @@ metadata may appear beside `code` and `message`, as with
 | `ACTIVE_ORDER_REQUEST_EXISTS` | 422 | The account already has a pending accessory Order Request |
 | `ACCESSORY_NOT_ORDERABLE` | 422 | A selected variant is inactive, not an accessory, or has no usable stock |
 | `ORDER_REQUEST_NOT_ACTIONABLE` | 422 | An Order Request is no longer pending/cancellable |
+| `DISCOUNT_PROOF_NOT_REQUESTED` | 422 | The Order Request did not declare a supported discount |
 | `PAYMENT_WINDOW_EXPIRED` | 422 | The accepted order's 30-minute payment window has passed |
 | `ORDER_NOT_AWAITING_PAYMENT` | 422 | The order is not an accepted pending-payment accessory order |
+
+An authenticated patient-role account without an active patient link receives
+HTTP 403 on an ordering or commerce route:
+
+```json
+{
+  "error": {
+    "code": "ACTIVE_PATIENT_LINK_REQUIRED",
+    "message": "An active patient link is required."
+  }
+}
+```
 
 ### Standard HTTP Status Codes
 
@@ -3334,7 +3486,9 @@ authentication path. Current behavior is authoritative in the sections above.
 | `POST /accessory-order-requests` | Submit a multi-item accessory Order Request |
 | `GET /accessory-order-requests/{id}` | Get an owned Order Request |
 | `POST /accessory-order-requests/{id}/cancel` | Idempotently cancel a pending owned request |
-| `POST /optical-orders/{id}/payment-proof` | Upload one private GCash proof for an accepted order |
+| `POST /accessory-order-requests/{id}/discount-proof` | Upload or replace one private discount proof while the request is pending |
+| `POST /optical-orders/{id}/payment-proof` | Upload one private GCash or bank-transfer proof for an accepted order |
+| `GET /optical-orders/{id}/payment-instructions/{method}/qr` | Stream the selected order's private clinic QR image (`method` is `gcash` or `bank_transfer`) |
 | `GET /conversation` | Get the authenticated account's conversation |
 | `GET /conversation/messages` | List conversation messages with cursor pagination |
 | `GET /conversation/messages/search` | Search messages within the authenticated account's conversation |
@@ -3403,9 +3557,10 @@ never signed in by the registration endpoint.
 ### Active patient link boundary
 Patient-specific clinical resources and confirmed appointments require an
 active patient link (`patients.user_id`). Appointment requests, frame catalog
-browsing, and Saved Frames are account-only routes, so an authenticated
-unlinked account may browse frames and save preferences. The `link_status`
-field on `/me` reflects the current state.
+browsing, accessory catalog browsing, and Saved Frames are account-only routes,
+so an authenticated unlinked account may browse catalogs and save preferences.
+The `link_status` field on `/me` reflects the current state. Commerce routes
+remain link-gated.
 
 ### Appointment requests vs confirmed appointments
 Every mobile booking creates an `AppointmentRequest`, not an `Appointment`. Staff accept requests to create confirmed `Appointment` records. Only confirmed appointments appear in the confirmed appointments list and calendar.
@@ -3566,6 +3721,7 @@ budgets together:
 | Other account-only routes | 120 requests/minute/account |
 | Active patient-link routes | 120 requests/minute/account |
 | `POST /accessory-order-requests` | 10 requests/minute/account |
+| `POST /accessory-order-requests/{id}/discount-proof` | 5 requests/minute/account |
 | `POST /optical-orders/{id}/payment-proof` | 5 requests/minute/account |
 | `POST /patient-invitations/acceptance/otp` | 5 requests/minute/account |
 | `POST /patient-invitations/accept` | 120 requests/minute/account |
@@ -3573,6 +3729,17 @@ budgets together:
 Rate-limited responses include `Retry-After` in seconds. Middleware-backed
 limits also include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and
 `X-RateLimit-Reset`.
+
+### Authenticated Patient Account (token + patient role)
+
+```
+GET    /api/v1/accessories                    List accessory catalog
+GET    /api/v1/accessories/{id}               Get accessory detail
+```
+
+These catalog reads allow linked, pending-link, and unlinked patient-role
+accounts. They do not expose exact stock, costs, expiry dates, lots, or storage
+paths and never reserve stock.
 
 ### Active Patient Link Required (token + active link)
 
@@ -3585,19 +3752,19 @@ POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
 GET    /api/v1/prescriptions                  List prescriptions
 GET    /api/v1/prescriptions/{id}             Get prescription
-GET    /api/v1/accessories                    List accessory catalog
-GET    /api/v1/accessories/{id}               Get accessory detail
 GET    /api/v1/accessory-order-requests       List Order Requests
 POST   /api/v1/accessory-order-requests       Submit Order Request
 GET    /api/v1/accessory-order-requests/{id}  Get Order Request
 POST   /api/v1/accessory-order-requests/{id}/cancel  Cancel pending request
+POST   /api/v1/accessory-order-requests/{id}/discount-proof  Upload discount proof
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
-POST   /api/v1/optical-orders/{id}/payment-proof  Upload GCash proof
+POST   /api/v1/optical-orders/{id}/payment-proof  Upload online payment proof
+GET    /api/v1/optical-orders/{id}/payment-instructions/{method}/qr  Stream private clinic QR image
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 42 account-only + 17
-active-link = **68 registered routes total**. The normal patient-mobile
-contract is **67 routes** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 17
+active-link = **70 registered routes total**. The normal patient-mobile
+contract is **69 routes** when the disabled-by-default pilot route is excluded.

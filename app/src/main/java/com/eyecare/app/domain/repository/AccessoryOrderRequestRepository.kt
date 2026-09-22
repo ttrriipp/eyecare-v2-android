@@ -1,6 +1,8 @@
 package com.eyecare.app.domain.repository
 
 import com.eyecare.app.domain.model.AccessoryOrderRequest
+import com.eyecare.app.domain.model.DiscountProofResult
+import com.eyecare.app.domain.model.DiscountProofUpload
 import com.eyecare.app.domain.model.OrderRequestFilter
 
 interface AccessoryOrderRequestRepository {
@@ -8,4 +10,5 @@ interface AccessoryOrderRequestRepository {
     suspend fun getRequest(id: Int): Result<AccessoryOrderRequest>
     suspend fun submitRequest(discountType: String, items: List<Pair<Int, Int>>): Result<AccessoryOrderRequest>
     suspend fun cancelRequest(id: Int): Result<AccessoryOrderRequest>
+    suspend fun uploadDiscountProof(id: Int, proof: DiscountProofUpload): Result<DiscountProofResult>
 }

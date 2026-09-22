@@ -36,7 +36,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -120,9 +119,9 @@ fun MyAppointmentScreen(
             errorMessage = rescheduleContent.rescheduleError,
             title = if (isPendingRescheduleRequest) "Change requested time" else "Request a different time",
             description = if (isPendingRescheduleRequest) {
-                "Choose a new preferred time from tomorrow onward. Your request stays pending until the clinic reviews it."
+                "Choose a new time from tomorrow onward. Your request stays pending until reviewed."
             } else {
-                "Choose a new preferred time from tomorrow onward. Your current appointment stays confirmed until the clinic approves the request."
+                "Choose a new time from tomorrow onward. Your appointment stays confirmed until approved."
             },
             currentTimeLabel = if (isPendingRescheduleRequest) {
                 "Current requested time"
@@ -132,7 +131,7 @@ fun MyAppointmentScreen(
             currentTimeDescription = if (isPendingRescheduleRequest) {
                 ""
             } else {
-                "This appointment stays confirmed until the clinic approves the new request."
+                "Stays confirmed until approved."
             },
             confirmationTitle = if (isPendingRescheduleRequest) {
                 "Update requested time"
@@ -141,9 +140,9 @@ fun MyAppointmentScreen(
             },
             confirmationMessage = { _, _, _ ->
                 if (isPendingRescheduleRequest) {
-                    "The clinic will review this request before confirming a new time."
+                    "The clinic will review this request before confirming."
                 } else {
-                    "Your current appointment stays confirmed until the clinic approves this request."
+                    "Your appointment stays confirmed until approved."
                 }
             },
             confirmLabel = if (isPendingRescheduleRequest) "Update request" else "Send request",
@@ -169,26 +168,34 @@ fun MyAppointmentScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(topBarTitle) },
-                actions = {
-                    if (hasActivePatientLink && uiState is MyAppointmentUiState.Content) {
-                        TextButton(
-                            onClick = onNavigateToHistory,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Appointment history"
-                            },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = EyecareColors.current.accentText,
-                            ),
-                        ) {
-                            Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("History")
-                        }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = topBarTitle,
+                    style = MaterialTheme.typography.displayLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                if (hasActivePatientLink && uiState is MyAppointmentUiState.Content) {
+                    TextButton(
+                        onClick = onNavigateToHistory,
+                        modifier = Modifier.semantics {
+                            contentDescription = "Appointment history"
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = EyecareColors.current.accentText,
+                        ),
+                    ) {
+                        Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("History")
                     }
-                },
-            )
+                }
+            }
         },
         snackbarHost = {
             SnackbarHost(

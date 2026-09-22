@@ -132,13 +132,13 @@ fun RescheduleBottomSheet(
     errorMessage: String?,
     title: String = "Reschedule appointment",
     description: String =
-        "Choose a date from tomorrow onward and a time the clinic has confirmed as available.",
+        "Choose a date from tomorrow onward and an available time.",
     currentTimeLabel: String = "Current appointment",
     currentTimeDescription: String =
-        "This appointment stays confirmed until the clinic approves your requested time.",
+        "Stays confirmed until approved.",
     confirmationTitle: String = "Request this time change",
     confirmationMessage: (date: String, time: String, alternatives: List<String>) -> String = { _, _, _ ->
-        "The clinic must approve this request before a time is confirmed."
+        "The clinic must approve this request before confirming."
     },
     confirmLabel: String = "Send request",
     dismissLabel: String = "Keep current time",
@@ -335,9 +335,9 @@ fun RescheduleBottomSheet(
 
                 Text(
                     text = if (addingAlternatives) {
-                        "Choose up to two alternative times. Your preferred time stays at the top."
+                        "Choose up to two alternative times."
                     } else {
-                        "Choose your preferred time. Alternative times are optional."
+                        "Choose a preferred time. Alternatives are optional."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -569,7 +569,7 @@ private fun RescheduleReasonPicker(
             style = MaterialTheme.typography.labelLarge,
         )
         Text(
-            text = "Required. Choose a reason so the clinic can review your request.",
+            text = "Required for clinic review.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -680,9 +680,9 @@ private fun SelectedRescheduleTimesCard(
 
             Text(
                 text = if (addingAlternatives) {
-                    "Select up to two other times that could work for you."
+                    "Choose up to two alternative times."
                 } else {
-                    "The preferred time is sent first; alternatives give the clinic more ways to find a time that works."
+                    "Preferred time is sent first."
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -870,7 +870,7 @@ private fun RescheduleWeekStrip(
         ) {
             RescheduleAvailabilityLegendItem(
                 color = EyecareColors.current.statusConfirmed,
-                label = "Times available",
+                label = "Available",
             )
             RescheduleAvailabilityLegendItem(
                 color = MaterialTheme.colorScheme.outlineVariant,

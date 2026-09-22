@@ -1,14 +1,14 @@
 package com.eyecare.app.data.remote
 
 /**
- * V22 route governance — 60-route contract.
+ * V24 route governance — 70-route registry / 69-route patient contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
- * 2. Account-only routes (42) — authenticated, no patient link required
- * 3. Active-link routes (10) — require active patient link
+ * 2. Account-only routes (44) — authenticated, no patient link required
+ * 3. Active-link routes (17) — require active patient link
  *
- * Total canonical callable routes: 8 + 42 + 10 = 60.
+ * Total canonical callable routes: 8 + 44 + 17 = 69.
  *
  * Conversation read/list/send/search/read-mark are account-only; attachment download is account-only.
  * Saved Frames (GET/PUT/DELETE) are account-only.
@@ -30,7 +30,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/auth/policies",
     )
 
-    /** Account-only routes — authenticated, no patient link required. (41) */
+    /** Account-only routes — authenticated, no patient link required. (44) */
     val accountOnlyRoutes: Set<String> = setOf(
         "POST $BASE/logout",
         "POST $BASE/logout-all",
@@ -61,6 +61,9 @@ internal object ApprovedApiRoutes {
         "POST $BASE/appointment-requests/{appointmentRequest}/cancel",
         "GET $BASE/frames",
         "GET $BASE/frames/{frame}",
+        // Accessories catalog — account-owned browsing, no active link required
+        "GET $BASE/accessories",
+        "GET $BASE/accessories/{accessory}",
         // Saved Frames — account-owned preferences
         "GET $BASE/saved-frames",
         "PUT $BASE/saved-frames/{productVariant}",
@@ -79,7 +82,7 @@ internal object ApprovedApiRoutes {
         "PATCH $BASE/notifications/read-all",
     )
 
-    /** Active-link routes — require active patient link. (16) */
+    /** Active-link routes — require active patient link. (17) */
     val activeLinkRoutes: Set<String> = setOf(
         "GET $BASE/appointment-availability",
         "GET $BASE/appointments",
@@ -91,15 +94,14 @@ internal object ApprovedApiRoutes {
         "GET $BASE/optical-orders",
         "GET $BASE/optical-orders/{opticalOrder}",
         "POST $BASE/optical-order-items/{item}/rating",
-        // Accessories (V23)
-        "GET $BASE/accessories",
-        "GET $BASE/accessories/{accessory}",
         "GET $BASE/accessory-order-requests",
         "POST $BASE/accessory-order-requests",
         "GET $BASE/accessory-order-requests/{accessoryOrderRequest}",
         "POST $BASE/accessory-order-requests/{accessoryOrderRequest}/cancel",
-        // Payment proof upload (V23)
+        "POST $BASE/accessory-order-requests/{accessoryOrderRequest}/discount-proof",
+        // Payment proof and instructions (V24)
         "POST $BASE/optical-orders/{opticalOrder}/payment-proof",
+        "GET $BASE/optical-orders/{opticalOrder}/payment-instructions/{method}/qr",
     )
 
     /** Retired routes — must not appear in any production Retrofit annotation. */

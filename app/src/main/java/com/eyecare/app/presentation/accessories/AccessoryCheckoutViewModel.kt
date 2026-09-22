@@ -3,6 +3,7 @@ package com.eyecare.app.presentation.accessories
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.CommerceApiCodes
 import com.eyecare.app.domain.repository.AccessoryOrderRequestRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +51,7 @@ class AccessoryCheckoutViewModel @Inject constructor(
                         _uiState.value = CheckoutUiState.Success(requestId = request.id)
                     },
                     onFailure = { error ->
-                        val isConflict = error is ApiDomainError && error.code == "ACTIVE_ORDER_REQUEST_EXISTS"
+                        val isConflict = error is ApiDomainError && error.code == CommerceApiCodes.ACTIVE_ORDER_REQUEST_EXISTS
                         _uiState.value = CheckoutUiState.Error(
                             message = if (isConflict) {
                                 "You already have a pending order request. View your current requests."

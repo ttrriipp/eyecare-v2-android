@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -15,6 +18,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +39,12 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.PaymentInstructions
+import com.eyecare.app.domain.model.PaymentMethodInstructions
 import com.eyecare.app.domain.model.PaymentProofSummary
 import com.eyecare.app.domain.model.PaymentProofStatus
+import com.eyecare.app.presentation.common.buildImageUrl
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
@@ -47,9 +54,27 @@ private val pesoFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH"))
 @Composable
 fun PaymentInstructionsCard(
     instructions: PaymentInstructions,
+    selectedMethod: String = instructions.method,
+    onMethodSelected: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val clipboardManager = LocalClipboardManager.current
+    val availableMethods = instructions.availableMethods.ifEmpty {
+        listOf(
+            PaymentMethodInstructions(
+                method = instructions.method,
+                label = instructions.label,
+                clinicAccountName = instructions.clinicAccountName,
+                clinicAccountNumber = instructions.clinicAccountNumber,
+                bankName = instructions.bankName,
+                amount = instructions.amount,
+                orderReference = instructions.orderReference,
+                paymentExpiresAt = instructions.paymentExpiresAt,
+                qrImageUrl = instructions.qrImageUrl,
+            ),
+        )
+    }
+    val selected = availableMethods.firstOrNull { it.method == selectedMethod } ?: availableMethods.first()
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -66,11 +91,34 @@ fun PaymentInstructionsCard(
                 fontWeight = FontWeight.SemiBold,
             )
 
-            // Method
-            InfoRow(label = "Method", value = instructions.method.uppercase())
+            if (availableMethods.size > 1) {
+                Text(
+                    "Payment method",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    availableMethods.forEach { method ->
+                        FilterChip(
+                            selected = method.method == selected.method,
+                            onClick = { onMethodSelected(method.method) },
+                            label = { Text(method.label) },
+                        )
+                    }
+                }
+            }
+
+            InfoRow(label = "Method", value = selected.label)
+
+            selected.bankName?.takeIf(String::isNotBlank)?.let {
+                InfoRow(label = "Bank", value = it)
+            }
 
             // Account name
-            InfoRow(label = "Account name", value = instructions.clinicAccountName)
+            InfoRow(label = "Account name", value = selected.clinicAccountName)
 
             // Account number with copy
             Row(
@@ -85,25 +133,40 @@ fun PaymentInstructionsCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        instructions.clinicAccountNumber,
+                        selected.clinicAccountNumber,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
                     )
                 }
                 IconButton(onClick = {
-                    clipboardManager.setText(AnnotatedString(instructions.clinicAccountNumber))
+                    clipboardManager.setText(AnnotatedString(selected.clinicAccountNumber))
                 }) {
                     Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy account number")
                 }
             }
 
             // Amount
-            InfoRow(label = "Amount to pay", value = pesoFormat.format(instructions.amount))
+            InfoRow(label = "Amount to pay", value = pesoFormat.format(selected.amount))
 
             // Order reference
-            InfoRow(label = "Order reference", value = instructions.orderReference)
+            InfoRow(label = "Order reference", value = selected.orderReference)
 
-            instructions.paymentExpiresAt?.let {
+            selected.qrImageUrl?.takeIf(String::isNotBlank)?.let { qrImageUrl ->
+                Text(
+                    "Scan to pay",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                AsyncImage(
+                    model = buildImageUrl(qrImageUrl),
+                    contentDescription = "${selected.label} QR code",
+                    modifier = Modifier
+                        .size(180.dp)
+                        .align(Alignment.CenterHorizontally),
+                )
+            }
+
+            selected.paymentExpiresAt?.let {
                 InfoRow(label = "Payment deadline", value = formatPaymentDeadline(it) ?: it)
             }
         }
@@ -130,7 +193,7 @@ fun PaymentInstructionsUnavailableCard(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                "Refresh the order to try again. Do not upload payment proof until the clinic provides its GCash details.",
+                "Refresh the order to try again. Do not upload payment proof until the clinic provides payment details.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -216,11 +279,17 @@ fun PaymentDeadlineCard(
 fun PaymentProofStatusCard(
     status: PaymentProofStatus,
     rejectionReason: String?,
+    paymentMethod: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val (title, message, color) = when (status) {
         PaymentProofStatus.NOT_SUBMITTED -> Triple("Payment proof", "No payment proof has been submitted.", MaterialTheme.colorScheme.onSurfaceVariant)
-        PaymentProofStatus.PENDING -> Triple("Payment proof under review", "The clinic is reviewing your GCash payment.", MaterialTheme.colorScheme.primary)
+        PaymentProofStatus.PENDING -> Triple(
+            "Payment proof under review",
+            paymentMethod?.let { "The clinic is reviewing your ${displayPaymentMethodLabel(it)} payment." }
+                ?: "The clinic is reviewing your payment.",
+            MaterialTheme.colorScheme.primary,
+        )
         PaymentProofStatus.ACCEPTED -> Triple("Payment proof accepted", "Your payment has been verified by the clinic.", MaterialTheme.colorScheme.tertiary)
         PaymentProofStatus.REJECTED -> Triple("Payment proof rejected", rejectionReason ?: "The clinic could not verify this payment proof.", MaterialTheme.colorScheme.error)
         PaymentProofStatus.UNKNOWN -> Triple("Payment proof status unavailable", "Refresh the order to see the latest payment status.", MaterialTheme.colorScheme.onSurfaceVariant)
@@ -291,6 +360,9 @@ fun ExistingProofCard(
             }
 
             InfoRow(label = "Sender", value = proof.senderName)
+            proof.paymentMethod?.takeIf(String::isNotBlank)?.let {
+                InfoRow(label = "Payment method", value = displayPaymentMethodLabel(it))
+            }
             InfoRow(label = "Reference", value = proof.referenceNumber)
 
             if (proof.status == PaymentProofStatus.REJECTED && !proof.rejectionReason.isNullOrBlank()) {
@@ -322,7 +394,9 @@ fun ExistingProofCard(
 fun PaymentProofForm(
     selectedProof: SelectedPaymentProof?,
     onPickProof: () -> Unit,
-    onSubmit: (senderName: String, referenceNumber: String, proof: SelectedPaymentProof) -> Unit,
+    paymentMethod: String = "gcash",
+    paymentMethodLabel: String = displayPaymentMethodLabel(paymentMethod),
+    onSubmit: (paymentMethod: String, senderName: String, referenceNumber: String, proof: SelectedPaymentProof) -> Unit,
     uploadState: ProofUploadState,
     onClearError: () -> Unit,
     canSubmit: Boolean = true,
@@ -350,7 +424,7 @@ fun PaymentProofForm(
             )
 
             Text(
-                "Take a screenshot of your GCash payment confirmation and enter the details below.",
+                "Take a screenshot of your $paymentMethodLabel payment confirmation and enter the details below.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -382,7 +456,7 @@ fun PaymentProofForm(
                     onClearError()
                 },
                 label = { Text("Sender name") },
-                placeholder = { Text("Name on GCash account") },
+                placeholder = { Text("Name on $paymentMethodLabel account") },
                 isError = senderError != null,
                 supportingText = senderError?.let { { Text(it) } },
                 singleLine = true,
@@ -398,7 +472,7 @@ fun PaymentProofForm(
                     onClearError()
                 },
                 label = { Text("Reference number") },
-                placeholder = { Text("GCash reference number") },
+                placeholder = { Text("$paymentMethodLabel reference number") },
                 isError = refError != null,
                 supportingText = refError?.let { { Text(it) } },
                 singleLine = true,
@@ -435,7 +509,7 @@ fun PaymentProofForm(
                     refError = PaymentProofInspector.validateReferenceNumber(referenceNumber)
                     if (senderError == null && refError == null) {
                         selectedProof?.let { proof ->
-                            onSubmit(senderName.trim(), referenceNumber.trim(), proof)
+                            onSubmit(paymentMethod, senderName.trim(), referenceNumber.trim(), proof)
                         }
                     }
                 },
@@ -463,4 +537,10 @@ private fun InfoRow(label: String, value: String) {
             fontWeight = FontWeight.Medium,
         )
     }
+}
+
+private fun displayPaymentMethodLabel(method: String?): String = when (method?.lowercase()) {
+    "bank_transfer" -> "Bank transfer"
+    "gcash" -> "GCash"
+    else -> "payment"
 }

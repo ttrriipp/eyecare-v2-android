@@ -57,7 +57,7 @@ class OpticalOrderDetailScreenTest {
                         displayName = "proof.png",
                     ),
                     onPickProof = {},
-                    onPaymentProofSubmit = { _, _, _ -> },
+                    onPaymentProofSubmit = { _, _, _, _ -> },
                 )
             }
         }
