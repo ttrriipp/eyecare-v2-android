@@ -20,6 +20,7 @@ sealed interface PatientFeatureIntent {
     data object Accessories : PatientFeatureIntent
     data class AccessoryDetail(val accessoryId: Int) : PatientFeatureIntent
     data object AccessoryCart : PatientFeatureIntent
+    data object AccessoryCheckout : PatientFeatureIntent
     data object AccessoryOrderRequests : PatientFeatureIntent
     data class AccessoryOrderRequestDetail(val requestId: Int) : PatientFeatureIntent
 }
@@ -38,6 +39,7 @@ fun PatientFeatureIntent.toRoute(): Any = when (this) {
     PatientFeatureIntent.Accessories -> Accessories
     is PatientFeatureIntent.AccessoryDetail -> AccessoryDetail(accessoryId)
     PatientFeatureIntent.AccessoryCart -> AccessoryCart
+    PatientFeatureIntent.AccessoryCheckout -> AccessoryCheckoutRoute
     PatientFeatureIntent.AccessoryOrderRequests -> AccessoryOrderRequests
     is PatientFeatureIntent.AccessoryOrderRequestDetail -> AccessoryOrderRequestDetail(requestId)
 }
@@ -56,6 +58,7 @@ fun patientFeatureIntentFrom(route: Any): PatientFeatureIntent? = when (route) {
     Accessories -> PatientFeatureIntent.Accessories
     is AccessoryDetail -> PatientFeatureIntent.AccessoryDetail(route.accessoryId)
     AccessoryCart -> PatientFeatureIntent.AccessoryCart
+    AccessoryCheckoutRoute -> PatientFeatureIntent.AccessoryCheckout
     AccessoryOrderRequests -> PatientFeatureIntent.AccessoryOrderRequests
     is AccessoryOrderRequestDetail -> PatientFeatureIntent.AccessoryOrderRequestDetail(route.requestId)
     else -> null
@@ -76,6 +79,7 @@ val PatientFeatureIntent.label: String
         PatientFeatureIntent.Accessories,
         is PatientFeatureIntent.AccessoryDetail,
         PatientFeatureIntent.AccessoryCart,
+        PatientFeatureIntent.AccessoryCheckout,
         PatientFeatureIntent.AccessoryOrderRequests,
         is PatientFeatureIntent.AccessoryOrderRequestDetail -> "accessories"
     }

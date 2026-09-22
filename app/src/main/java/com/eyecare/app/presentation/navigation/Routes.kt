@@ -58,6 +58,7 @@ internal fun arImageFallbackDestination(frameId: Int, variantId: Int): FrameDeta
 @Serializable object Accessories
 @Serializable data class AccessoryDetail(val accessoryId: Int)
 @Serializable object AccessoryCart
+@Serializable object AccessoryCheckoutRoute
 @Serializable object AccessoryOrderRequests
 @Serializable data class AccessoryOrderRequestDetail(val requestId: Int)
 

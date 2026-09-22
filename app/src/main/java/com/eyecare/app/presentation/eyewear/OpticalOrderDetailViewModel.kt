@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderItem
+import com.eyecare.app.domain.model.OpticalOrderStatus
+import com.eyecare.app.domain.model.PaymentProofStatus
 import com.eyecare.app.domain.model.PaymentProofUpload
 import com.eyecare.app.domain.model.RatingResult
 import com.eyecare.app.domain.repository.OpticalOrderRepository
@@ -14,7 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 import javax.inject.Inject
 
 sealed interface OpticalOrderDetailUiState {
@@ -28,7 +29,6 @@ sealed interface OpticalOrderDetailUiState {
 
 sealed interface ProofUploadState {
     data object Idle : ProofUploadState
-    data class Validating(val file: File) : ProofUploadState
     data class Uploading(val progress: Boolean = true) : ProofUploadState
     data class Success(val message: String) : ProofUploadState
     data class Error(val message: String) : ProofUploadState
@@ -76,19 +76,31 @@ class OpticalOrderDetailViewModel @Inject constructor(
         _uiState.value = OpticalOrderDetailUiState.Success(current.order.copy(items = updatedItems))
     }
 
-    fun uploadProof(senderName: String, referenceNumber: String, imageFile: File) {
+    fun uploadProof(proof: PaymentProofUpload) {
         if (isUploading) return
         val current = _uiState.value as? OpticalOrderDetailUiState.Success ?: return
 
-        // Validate inputs locally
-        val senderError = PaymentProofInspector.validateSenderName(senderName)
-        if (senderError != null) {
-            _uiState.value = current.copy(uploadState = ProofUploadState.Error(senderError))
+        if (current.order.status != OpticalOrderStatus.PENDING_PAYMENT ||
+            current.order.paymentProofStatus != PaymentProofStatus.NOT_SUBMITTED
+        ) {
+            rejectProof(
+                current = current,
+                proof = proof,
+                message = "This order is no longer awaiting payment.",
+                deleteTemporaryFile = true,
+            )
             return
         }
-        val refError = PaymentProofInspector.validateReferenceNumber(referenceNumber)
-        if (refError != null) {
-            _uiState.value = current.copy(uploadState = ProofUploadState.Error(refError))
+
+        val validationError = sequenceOf(
+            PaymentProofInspector.validateSenderName(proof.senderName),
+            PaymentProofInspector.validateReferenceNumber(proof.referenceNumber),
+            PaymentProofInspector.validateMimeType(proof.mimeType),
+            PaymentProofInspector.validateFileSize(proof.imageFile.length()),
+            PaymentProofInspector.validateDimensions(proof.width, proof.height),
+        ).filterNotNull().firstOrNull()
+        if (validationError != null) {
+            rejectProof(current, proof, validationError, deleteTemporaryFile = false)
             return
         }
 
@@ -99,10 +111,9 @@ class OpticalOrderDetailViewModel @Inject constructor(
             try {
                 repository.uploadPaymentProof(
                     orderId = orderId,
-                    proof = PaymentProofUpload(
-                        imageFile = imageFile,
-                        senderName = senderName.trim(),
-                        referenceNumber = referenceNumber.trim(),
+                    proof = proof.copy(
+                        senderName = proof.senderName.trim(),
+                        referenceNumber = proof.referenceNumber.trim(),
                     ),
                 ).fold(
                     onSuccess = {
@@ -144,6 +155,18 @@ class OpticalOrderDetailViewModel @Inject constructor(
     fun clearUploadState() {
         val current = _uiState.value as? OpticalOrderDetailUiState.Success ?: return
         _uiState.value = current.copy(uploadState = ProofUploadState.Idle)
+    }
+
+    private fun rejectProof(
+        current: OpticalOrderDetailUiState.Success,
+        proof: PaymentProofUpload,
+        message: String,
+        deleteTemporaryFile: Boolean,
+    ) {
+        if (deleteTemporaryFile && proof.deleteAfterUpload) {
+            proof.imageFile.delete()
+        }
+        _uiState.value = current.copy(uploadState = ProofUploadState.Error(message))
     }
 
     private fun load() {

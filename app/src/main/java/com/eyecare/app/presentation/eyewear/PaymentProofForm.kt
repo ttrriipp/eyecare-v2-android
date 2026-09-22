@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.Button
@@ -17,9 +18,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -99,6 +102,137 @@ fun PaymentInstructionsCard(
 
             // Order reference
             InfoRow(label = "Order reference", value = instructions.orderReference)
+
+            instructions.paymentExpiresAt?.let {
+                InfoRow(label = "Payment deadline", value = formatPaymentDeadline(it) ?: it)
+            }
+        }
+    }
+}
+
+@Composable
+fun PaymentInstructionsUnavailableCard(
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "Payment instructions are currently unavailable",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "Refresh the order to try again. Do not upload payment proof until the clinic provides its GCash details.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = onRefresh) {
+                Text("Refresh")
+            }
+        }
+    }
+}
+
+@Composable
+fun PaymentDeadlineCard(
+    expiresAt: String?,
+    onExpired: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var now by remember(expiresAt) { mutableStateOf(java.time.Instant.now()) }
+    var expired by remember(expiresAt) {
+        mutableStateOf(paymentSecondsRemaining(expiresAt, java.time.Instant.now()) == 0L)
+    }
+    var notified by remember(expiresAt) { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(expiresAt) {
+        while (true) {
+            now = java.time.Instant.now()
+            val remaining = paymentSecondsRemaining(expiresAt, now)
+            if (remaining == null || remaining <= 0L) {
+                expired = remaining == 0L
+                if (expired && !notified) {
+                    notified = true
+                    onExpired()
+                }
+                break
+            }
+            kotlinx.coroutines.delay(1_000)
+        }
+    }
+
+    val remaining = paymentSecondsRemaining(expiresAt, now)
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = if (expired) {
+            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
+        } else {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        },
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                if (expired) "Payment window expired" else "Payment window",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (expired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            )
+            if (remaining == null) {
+                Text(
+                    "The clinic has not provided a payment deadline.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (expired) {
+                Text(
+                    "Refresh the order to see the clinic's latest payment status.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            } else {
+                Text(
+                    "${formatPaymentCountdown(remaining)} remaining · Due ${formatPaymentDeadline(expiresAt) ?: expiresAt}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PaymentProofStatusCard(
+    status: PaymentProofStatus,
+    rejectionReason: String?,
+    modifier: Modifier = Modifier,
+) {
+    val (title, message, color) = when (status) {
+        PaymentProofStatus.NOT_SUBMITTED -> Triple("Payment proof", "No payment proof has been submitted.", MaterialTheme.colorScheme.onSurfaceVariant)
+        PaymentProofStatus.PENDING -> Triple("Payment proof under review", "The clinic is reviewing your GCash payment.", MaterialTheme.colorScheme.primary)
+        PaymentProofStatus.ACCEPTED -> Triple("Payment proof accepted", "Your payment has been verified by the clinic.", MaterialTheme.colorScheme.tertiary)
+        PaymentProofStatus.REJECTED -> Triple("Payment proof rejected", rejectionReason ?: "The clinic could not verify this payment proof.", MaterialTheme.colorScheme.error)
+        PaymentProofStatus.UNKNOWN -> Triple("Payment proof status unavailable", "Refresh the order to see the latest payment status.", MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = color.copy(alpha = 0.10f),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = color)
+            Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -109,12 +243,14 @@ fun ExistingProofCard(
     modifier: Modifier = Modifier,
 ) {
     val statusLabel = when (proof.status) {
+        PaymentProofStatus.NOT_SUBMITTED -> "Not submitted"
         PaymentProofStatus.PENDING -> "Under review"
         PaymentProofStatus.ACCEPTED -> "Accepted"
         PaymentProofStatus.REJECTED -> "Rejected"
         PaymentProofStatus.UNKNOWN -> "Status unavailable"
     }
     val statusColor = when (proof.status) {
+        PaymentProofStatus.NOT_SUBMITTED -> MaterialTheme.colorScheme.onSurfaceVariant
         PaymentProofStatus.PENDING -> MaterialTheme.colorScheme.primary
         PaymentProofStatus.ACCEPTED -> MaterialTheme.colorScheme.tertiary
         PaymentProofStatus.REJECTED -> MaterialTheme.colorScheme.error
@@ -184,9 +320,13 @@ fun ExistingProofCard(
 
 @Composable
 fun PaymentProofForm(
-    onSubmit: (senderName: String, referenceNumber: String) -> Unit,
+    selectedProof: SelectedPaymentProof?,
+    onPickProof: () -> Unit,
+    onSubmit: (senderName: String, referenceNumber: String, proof: SelectedPaymentProof) -> Unit,
     uploadState: ProofUploadState,
     onClearError: () -> Unit,
+    canSubmit: Boolean = true,
+    pickerErrorMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
     var senderName by remember { mutableStateOf("") }
@@ -214,6 +354,25 @@ fun PaymentProofForm(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            OutlinedButton(
+                onClick = onPickProof,
+                enabled = canSubmit && uploadState !is ProofUploadState.Uploading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Outlined.AttachFile, contentDescription = null)
+                Text(selectedProof?.displayName ?: "Choose proof image")
+            }
+            Text(
+                selectedProof?.let {
+                    "${it.mimeType} · ${"%.1f".format(it.file.length() / (1024f * 1024f))} MB"
+                } ?: "JPG, JPEG, or PNG up to 10 MB",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            pickerErrorMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
 
             OutlinedTextField(
                 value = senderName,
@@ -275,11 +434,13 @@ fun PaymentProofForm(
                     senderError = PaymentProofInspector.validateSenderName(senderName)
                     refError = PaymentProofInspector.validateReferenceNumber(referenceNumber)
                     if (senderError == null && refError == null) {
-                        onSubmit(senderName.trim(), referenceNumber.trim())
+                        selectedProof?.let { proof ->
+                            onSubmit(senderName.trim(), referenceNumber.trim(), proof)
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = uploadState !is ProofUploadState.Uploading,
+                enabled = canSubmit && selectedProof != null && uploadState !is ProofUploadState.Uploading,
             ) {
                 Icon(Icons.Outlined.Upload, contentDescription = null)
                 Text("Submit proof")

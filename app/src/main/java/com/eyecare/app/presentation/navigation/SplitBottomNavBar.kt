@@ -10,17 +10,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.RemoveRedEye
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -42,14 +45,13 @@ private val tabs = listOf(
     TabItem(Home, Icons.Outlined.Home, "Home"),
     TabItem(Frames, Icons.Outlined.RemoveRedEye, "Frames"),
     TabItem(Appointments, Icons.Outlined.CalendarMonth, "Appointments"),
+    TabItem(Accessories, Icons.Outlined.ShoppingBag, "Accessories"),
     TabItem(Profile, Icons.Outlined.Person, "Profile"),
 )
 
-private val TAB_WIDTH = 76.dp
-
 // Nav pill background uses theme surface so it adapts when the theme changes.
-// Messaging lives inside Profile now (not a bottom-bar destination), so this bar is just the
-// 4-tab group — sized to its content and centered horizontally, rather than stretched full-width.
+// Messaging lives inside Profile now (not a bottom-bar destination); Accessories is a protected
+// main destination and joins the five-tab group with the same active-link gating as other tabs.
 @Composable
 fun SplitBottomNavBar(
     currentRoute: Any,
@@ -59,17 +61,22 @@ fun SplitBottomNavBar(
     Box(
         modifier = modifier
             .navigationBarsPadding()
-            .padding(vertical = 12.dp),
+            .padding(horizontal = 8.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 420.dp),
             shape = RoundedCornerShape(16.dp),
             shadowElevation = 2.dp,
             color = MaterialTheme.colorScheme.surface,
         ) {
             Row(
-                modifier = Modifier.padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 tabs.forEach { tab ->
                     val selected = currentRoute::class == tab.route::class
@@ -78,7 +85,9 @@ fun SplitBottomNavBar(
                         label = tab.label,
                         selected = selected,
                         onClick = { onTabSelected(tab.route) },
-                        modifier = Modifier.width(TAB_WIDTH),
+                        modifier = Modifier
+                            .weight(1f)
+                            .widthIn(min = 48.dp),
                     )
                 }
             }
@@ -114,6 +123,7 @@ private fun NavTabItem(
     )
     Box(
         modifier = modifier
+            .heightIn(min = 48.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(12.dp))
             .background(bgColor)

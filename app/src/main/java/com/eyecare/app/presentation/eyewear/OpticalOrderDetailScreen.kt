@@ -1,5 +1,7 @@
 package com.eyecare.app.presentation.eyewear
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -49,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -61,7 +65,10 @@ import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderStatus
+import com.eyecare.app.domain.model.PaymentProofStatus
+import com.eyecare.app.domain.model.PaymentProofUpload
 import com.eyecare.app.presentation.common.FeatureFlags
+import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.ui.theme.EyecareColors
@@ -76,6 +83,25 @@ fun OpticalOrderDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var ratingItemId by remember { mutableStateOf<Int?>(null) }
+    val context = LocalContext.current
+    var selectedProof by remember { mutableStateOf<SelectedPaymentProof?>(null) }
+    var pickerErrorMessage by remember { mutableStateOf<String?>(null) }
+    val proofPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        selectedProof?.file?.delete()
+        selectedProof = null
+        pickerErrorMessage = null
+        if (uri != null) {
+            val result = preparePaymentProof(context, uri)
+            pickerErrorMessage = result.errorMessage
+            selectedProof = result.proof
+        }
+    }
+
+    DisposableEffect(selectedProof) {
+        onDispose { selectedProof?.file?.delete() }
+    }
+
+    RefreshOnResumeEffect(onRefresh = viewModel::onResume)
 
     val successState = uiState as? OpticalOrderDetailUiState.Success
     val ratingTargetItem = ratingItemId?.let { id -> successState?.order?.items?.firstOrNull { it.id == id } }
@@ -98,6 +124,14 @@ fun OpticalOrderDetailScreen(
                 onSubmit = ratingViewModel::submitRating,
                 onDismiss = { ratingItemId = null },
             )
+        }
+    }
+
+    LaunchedEffect(uiState) {
+        val order = (uiState as? OpticalOrderDetailUiState.Success)?.order ?: return@LaunchedEffect
+        if (order.paymentProofStatus != PaymentProofStatus.NOT_SUBMITTED) {
+            selectedProof?.file?.delete()
+            selectedProof = null
         }
     }
 
@@ -128,6 +162,29 @@ fun OpticalOrderDetailScreen(
                 order = state.order,
                 onRateItem = { itemId -> ratingItemId = itemId },
                 ratingsEnabled = ratingsEnabled,
+                uploadState = state.uploadState,
+                selectedProof = selectedProof,
+                pickerErrorMessage = pickerErrorMessage,
+                onPickProof = {
+                    pickerErrorMessage = null
+                    proofPicker.launch(arrayOf("image/jpeg", "image/png"))
+                },
+                onPaymentProofSubmit = { senderName, referenceNumber, proof ->
+                    viewModel.uploadProof(
+                        PaymentProofUpload(
+                            imageFile = proof.file,
+                            senderName = senderName,
+                            referenceNumber = referenceNumber,
+                            mimeType = proof.mimeType,
+                            width = proof.width,
+                            height = proof.height,
+                            deleteAfterUpload = true,
+                        ),
+                    )
+                },
+                onPaymentWindowExpired = viewModel::refresh,
+                onRefresh = viewModel::refresh,
+                onClearPaymentProofError = viewModel::clearUploadState,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -139,6 +196,14 @@ internal fun OrderDetailContent(
     order: OpticalOrder,
     onRateItem: (Int) -> Unit,
     ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
+    uploadState: ProofUploadState = ProofUploadState.Idle,
+    selectedProof: SelectedPaymentProof? = null,
+    pickerErrorMessage: String? = null,
+    onPickProof: (() -> Unit)? = null,
+    onPaymentProofSubmit: ((String, String, SelectedPaymentProof) -> Unit)? = null,
+    onPaymentWindowExpired: () -> Unit = {},
+    onRefresh: () -> Unit = {},
+    onClearPaymentProofError: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val balanceDue = order.paymentSummary?.balanceDue?.takeIf { it > BigDecimal.ZERO }
@@ -318,6 +383,54 @@ internal fun OrderDetailContent(
                             "Payment info unavailable",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            if (order.paymentProof != null) {
+                ExistingProofCard(
+                    proof = order.paymentProof.copy(
+                        rejectionReason = order.paymentProofRejectionReason ?: order.paymentProof.rejectionReason,
+                    ),
+                )
+            } else if (order.paymentProofStatus != PaymentProofStatus.NOT_SUBMITTED) {
+                PaymentProofStatusCard(
+                    status = order.paymentProofStatus,
+                    rejectionReason = order.paymentProofRejectionReason,
+                )
+            }
+
+            if (order.status == OpticalOrderStatus.PENDING_PAYMENT &&
+                order.paymentProofStatus == PaymentProofStatus.NOT_SUBMITTED
+            ) {
+                val instructions = order.paymentInstructions
+                if (instructions == null) {
+                    PaymentInstructionsUnavailableCard(onRefresh = onRefresh)
+                } else {
+                    PaymentInstructionsCard(instructions = instructions)
+
+                    val paymentDeadline = order.paymentExpiresAt ?: instructions.paymentExpiresAt
+                    var paymentWindowExpired by remember(paymentDeadline) { mutableStateOf(false) }
+                    if (paymentDeadline != null) {
+                        PaymentDeadlineCard(
+                            expiresAt = paymentDeadline,
+                            onExpired = {
+                                paymentWindowExpired = true
+                                onPaymentWindowExpired()
+                            },
+                        )
+                    }
+
+                    if (onPickProof != null && onPaymentProofSubmit != null) {
+                        PaymentProofForm(
+                            selectedProof = selectedProof,
+                            onPickProof = onPickProof,
+                            onSubmit = onPaymentProofSubmit,
+                            uploadState = uploadState,
+                            onClearError = onClearPaymentProofError,
+                            canSubmit = !paymentWindowExpired,
+                            pickerErrorMessage = pickerErrorMessage,
                         )
                     }
                 }

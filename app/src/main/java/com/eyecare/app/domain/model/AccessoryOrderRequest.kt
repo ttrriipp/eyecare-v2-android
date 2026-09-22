@@ -25,13 +25,14 @@ data class AccessoryOrderRequestItem(
     val unitPrice: BigDecimal,
     val amount: BigDecimal,
     val itemKind: String,
-    val itemSnapshot: ItemSnapshot?,
+    val itemSnapshot: ItemSnapshot,
 )
 
 data class ItemSnapshot(
     val productName: String,
     val variantName: String,
     val attributes: Map<String, String>,
+    val images: List<String> = emptyList(),
 )
 
 data class AcceptedOrderSummary(

@@ -142,7 +142,7 @@ review, queue, preparation, ready, and pickup.
 
 Use `ActivityResultContracts.OpenDocument` with JPG/JPEG/PNG MIME types. A
 focused inspector reads `ContentResolver` metadata and image bounds without
-fully decoding the bitmap, validating readable content, <= 5 MB, and <= 8,000
+fully decoding the bitmap, validating readable content, <= 10 MB, and <= 8,000
 x 8,000 dimensions.
 
 The repository follows the existing temporary-cache multipart pattern, uses

@@ -438,7 +438,7 @@ server result. `PAYMENT_WINDOW_EXPIRED` follows the same reconciliation path.
 ### Proof selection and upload
 
 Use the Android system document/photo picker and accept only JPG/JPEG/PNG. The
-client validates MIME type, readable size <= 5 MB, and image bounds <= 8,000 by
+client validates MIME type, readable size <= 10 MB, and image bounds <= 8,000 by
 8,000 before upload, while treating backend validation as authoritative.
 
 The multipart request contains exactly:
@@ -760,7 +760,7 @@ enum class AccessoryAvailability {
    existing fulfillment statuses.
 8. GCash instructions appear only from non-null `payment_instructions`; a
    30-minute countdown never overrides server state locally.
-9. Proof selection validates JPG/JPEG/PNG, 5 MB, and 8,000-pixel bounds; upload
+9. Proof selection validates JPG/JPEG/PNG, 10 MB, and 8,000-pixel bounds; upload
    sends exactly the documented multipart fields.
 10. First proof upload and idempotent retry both reconcile successfully, while
     no UI path replaces an existing or rejected proof.

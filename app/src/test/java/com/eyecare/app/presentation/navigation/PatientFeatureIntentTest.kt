@@ -16,6 +16,7 @@ class PatientFeatureIntentTest {
             PatientFeatureIntent.FrameDetail(7) to FrameDetail(7),
             PatientFeatureIntent.ArTryOn(7, 3) to ArTryOn(7, 3),
             PatientFeatureIntent.PrescriptionDetail(9) to PrescriptionDetail(9),
+            PatientFeatureIntent.AccessoryCheckout to AccessoryCheckoutRoute,
         )
 
         intents.forEach { (intent, route) ->
@@ -34,5 +35,6 @@ class PatientFeatureIntentTest {
         assertEquals("appointments", PatientFeatureIntent.AppointmentDetail(42).label)
         assertEquals("frames", PatientFeatureIntent.FramesTab.label)
         assertEquals("appointments", PatientFeatureIntent.RequestAppointment.label)
+        assertEquals("accessories", PatientFeatureIntent.AccessoryCheckout.label)
     }
 }

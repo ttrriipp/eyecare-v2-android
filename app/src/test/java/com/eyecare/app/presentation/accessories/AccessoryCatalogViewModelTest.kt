@@ -131,6 +131,23 @@ class AccessoryCatalogViewModelTest {
     }
 
     @Test
+    fun `search is trimmed and limited to the server contract length`() = runTest {
+        val queries = mutableListOf<AccessoryQuery>()
+        coEvery { repository.getAccessories(any()) } coAnswers {
+            queries += firstArg<AccessoryQuery>()
+            Result.success(paginatedResult(listOf(accessory(1))))
+        }
+        viewModel = AccessoryCatalogViewModel(repository)
+        advanceUntilIdle()
+
+        viewModel.updateSearch("  ${"x".repeat(120)}  ")
+        advanceUntilIdle()
+
+        assertEquals(100, queries.last().search?.length)
+        assertEquals("x".repeat(100), queries.last().search)
+    }
+
+    @Test
     fun `sort change resets to page 1`() = runTest {
         coEvery { repository.getAccessories(any()) } returns Result.success(
             paginatedResult(listOf(accessory(1))),

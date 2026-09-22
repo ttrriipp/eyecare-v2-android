@@ -20,7 +20,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,6 +69,7 @@ private val CLINIC_ZONE = ZoneId.of("Asia/Manila")
 private val dateFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.US)
 private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
 private val FLOATING_NAV_CLEARANCE = 84.dp
+private val BOTTOM_NAV_CONTENT_CLEARANCE = 112.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,6 +178,9 @@ fun MyAppointmentScreen(
                             modifier = Modifier.semantics {
                                 contentDescription = "Appointment history"
                             },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = EyecareColors.current.accentText,
+                            ),
                         ) {
                             Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
@@ -196,20 +202,31 @@ fun MyAppointmentScreen(
     ) { padding ->
         when (uiState) {
             is MyAppointmentUiState.Loading -> {
-                MyAppointmentLoadingContent(modifier = Modifier.fillMaxSize().padding(padding))
+                MyAppointmentLoadingContent(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(bottom = BOTTOM_NAV_CONTENT_CLEARANCE),
+                )
             }
             is MyAppointmentUiState.Error -> {
                 ErrorContent(
                     message = uiState.message,
                     onRetry = onRetry,
-                    modifier = Modifier.fillMaxSize().padding(padding),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(bottom = BOTTOM_NAV_CONTENT_CLEARANCE),
                 )
             }
             is MyAppointmentUiState.Content -> {
                 PullToRefreshBox(
                     isRefreshing = uiState.isRefreshing,
                     onRefresh = onRefresh,
-                    modifier = Modifier.fillMaxSize().padding(padding),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(bottom = BOTTOM_NAV_CONTENT_CLEARANCE),
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         uiState.refreshError?.let { error ->
@@ -510,6 +527,8 @@ private fun PendingRequestContent(
     val sameDayCancellationBlocked = isSameDayInClinic(request.scheduledAt)
 
     Column(modifier = modifier.fillMaxWidth()) {
+        PendingRequestNotice()
+        Spacer(Modifier.height(12.dp))
         SectionCard {
             StatusHeader(
                 statusLabel = "Awaiting clinic review",
@@ -548,12 +567,6 @@ private fun PendingRequestContent(
                     isPrimary = false,
                 )
             }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = "Not confirmed yet. The clinic will review your preferred times and update this request here.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             if (request.reasonForVisit.isNullOrBlank().not()) {
                 Spacer(Modifier.height(12.dp))
                 DetailRow(label = "Reason", value = request.reasonForVisit.orEmpty())
@@ -600,6 +613,45 @@ private fun PendingRequestContent(
 }
 
 @Composable
+private fun PendingRequestNotice(
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = EyecareColors.current.statusPending.copy(alpha = 0.16f),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.EventAvailable,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = EyecareColors.current.accentText,
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = "Not confirmed yet",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "The clinic will review your preferred times and update this request here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ConfirmedAppointmentContent(
     appointment: AppointmentV1,
     originalRequest: AppointmentRequest?,
@@ -620,13 +672,16 @@ private fun ConfirmedAppointmentContent(
     )
     val statusPresentation = appointmentStatusPresentation(appointment.status)
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        StatusHeader(
-            statusLabel = statusPresentation.label,
-            statusColor = statusPresentation.textColor,
-        )
-        Spacer(Modifier.height(16.dp))
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         SectionCard {
+            StatusHeader(
+                statusLabel = statusPresentation.label,
+                statusColor = statusPresentation.textColor,
+            )
+            Spacer(Modifier.height(14.dp))
             Text(
                 text = appointment.appointmentType,
                 style = MaterialTheme.typography.titleMedium,
@@ -687,14 +742,11 @@ private fun ConfirmedAppointmentContent(
         }
 
         if (pendingReschedule != null) {
-            Spacer(Modifier.height(16.dp))
             PendingRescheduleSection(
                 request = pendingReschedule,
                 onViewDetail = { onViewRequestDetail(pendingReschedule.id) },
             )
         }
-
-        Spacer(Modifier.height(12.dp))
 
         if (hasActivePatientLink && actionPolicy.canRequestDifferentTime) {
             AppointmentPrimaryButton(
@@ -703,19 +755,16 @@ private fun ConfirmedAppointmentContent(
                 enabled = !isMutating,
                 loading = isRescheduling,
             )
-            Spacer(Modifier.height(8.dp))
         }
 
         if (!hasActivePatientLink) {
             LinkRequiredNotice(
                 onLinkAccount = onNavigateToLinkAccount,
             )
-            Spacer(Modifier.height(8.dp))
         }
 
         if (actionPolicy.sameDayCancellationBlocked) {
             SameDayCancellationNotice()
-            Spacer(Modifier.height(8.dp))
         }
 
         if (hasActivePatientLink && actionPolicy.canCancel) {
@@ -726,13 +775,15 @@ private fun ConfirmedAppointmentContent(
                 loading = isMutating && !isRescheduling,
                 isDestructive = true,
             )
-            Spacer(Modifier.height(8.dp))
         }
 
         originalRequest?.let { request ->
             TextButton(
                 onClick = { onViewRequestDetail(request.id) },
                 modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = EyecareColors.current.accentText,
+                ),
             ) {
                 Text("View original request")
             }

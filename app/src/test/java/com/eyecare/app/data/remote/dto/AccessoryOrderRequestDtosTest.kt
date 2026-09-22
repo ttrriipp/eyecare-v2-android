@@ -1,9 +1,11 @@
 package com.eyecare.app.data.remote.dto
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.SerializationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
@@ -65,8 +67,8 @@ class AccessoryOrderRequestDtosTest {
         assertEquals(BigDecimal("350.00"), item.unitPrice)
         assertEquals(BigDecimal("700.00"), item.amount)
         assertEquals("accessory", item.itemKind)
-        assertEquals("Daily Care Kit", item.itemSnapshot?.productName)
-        assertEquals("90 mL", item.itemSnapshot?.variantName)
+        assertEquals("Daily Care Kit", item.itemSnapshot.productName)
+        assertEquals("90 mL", item.itemSnapshot.variantName)
         assertNull(request.rejectionReason)
         assertNull(request.cancelledAt)
         assertEquals("2026-09-20T10:00:00+08:00", request.createdAt)
@@ -105,11 +107,11 @@ class AccessoryOrderRequestDtosTest {
         val request = response.data
         assertEquals("accepted", request.status)
         assertEquals(5, request.resolvedBy)
-        assertNotNull(request.order)
-        assertEquals(55, request.order!!.id)
-        assertEquals("ORD-2026-000055", request.order!!.orderNumber)
-        assertEquals("pending_payment", request.order!!.status)
-        assertEquals(BigDecimal("700.00"), request.order!!.totalAmount)
+        val acceptedOrder = requireNotNull(request.order)
+        assertEquals(55, acceptedOrder.id)
+        assertEquals("ORD-2026-000055", acceptedOrder.orderNumber)
+        assertEquals("pending_payment", acceptedOrder.status)
+        assertEquals(BigDecimal("700.00"), acceptedOrder.totalAmount)
     }
 
     @Test
@@ -196,6 +198,17 @@ class AccessoryOrderRequestDtosTest {
         val response = json.decodeFromString<AccessoryOrderRequestDtos.OrderRequestResponse>(fixture)
         assertEquals(BigDecimal("9999.99"), response.data.subtotalAmount)
         assertEquals(BigDecimal("9999.99"), response.data.items[0].unitPrice)
+    }
+
+    @Test
+    fun `rejects an order item without the required snapshot`() {
+        val fixture = """
+        {"data":{"id":1,"request_number":"ORQ-001","status":"pending","subtotal_amount":"10.00","requested_discount_type":"none","items":[{"id":1,"product_variant_id":1,"description":"X","quantity":1,"unit_price":"10.00","amount":"10.00","item_kind":"accessory"}],"created_at":"2026-09-20T10:00:00+08:00"}}
+        """.trimIndent()
+
+        assertThrows(SerializationException::class.java) {
+            json.decodeFromString<AccessoryOrderRequestDtos.OrderRequestResponse>(fixture)
+        }
     }
 
     @Test

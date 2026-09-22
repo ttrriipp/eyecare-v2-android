@@ -13,6 +13,7 @@ object AccessoryOrderRequestDtos {
         @SerialName("product_name") val productName: String,
         @SerialName("variant_name") val variantName: String,
         val attributes: JsonObject = JsonObject(emptyMap()),
+        val images: List<String> = emptyList(),
     )
 
     @Serializable
@@ -27,7 +28,8 @@ object AccessoryOrderRequestDtos {
         @Serializable(with = MoneyValueSerializer::class)
         val amount: BigDecimal,
         @SerialName("item_kind") val itemKind: String,
-        @SerialName("item_snapshot") val itemSnapshot: ItemSnapshotDto? = null,
+        @SerialName("item_snapshot") val itemSnapshot: ItemSnapshotDto,
+        @SerialName("image_url") val imageUrl: String? = null,
     )
 
     @Serializable

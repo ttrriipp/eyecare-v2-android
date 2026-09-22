@@ -5,6 +5,9 @@ import com.eyecare.app.data.remote.dto.OpticalOrderDtos
 import com.eyecare.app.domain.model.FulfillmentMode
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentStatus
+import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.PaymentProofStatus
+import com.eyecare.app.domain.model.PaymentProofUpload
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -21,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import retrofit2.Retrofit
 import java.math.BigDecimal
+import kotlin.io.path.createTempFile
 
 class OpticalOrderRepositoryImplTest {
 
@@ -193,6 +197,86 @@ class OpticalOrderRepositoryImplTest {
         assertEquals(3, result.data[0].id)
         assertEquals(1, result.data[1].id)
         assertEquals(2, result.lastPage)
+    }
+
+    @Test
+    fun `maps top-level payment proof state`() = runTest {
+        enqueueSingle(
+            orderJson(status = "payment_review")
+                .dropLast(1) + ",\"payment_proof_status\":\"rejected\",\"payment_proof_rejection_reason\":\"Unreadable proof\"}",
+        )
+
+        val order = repository.getOpticalOrder(1).getOrThrow()
+
+        assertEquals(PaymentProofStatus.REJECTED, order.paymentProofStatus)
+        assertEquals("Unreadable proof", order.paymentProofRejectionReason)
+    }
+
+    @Test
+    fun `maps stable API errors for optical order operations`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(422).setBody(
+                """{"error":{"code":"PAYMENT_WINDOW_EXPIRED","message":"The payment window has expired."}}""",
+            ),
+        )
+
+        val result = repository.getOpticalOrder(1)
+        val error = result.exceptionOrNull() as ApiDomainError
+
+        assertEquals(422, error.httpStatus)
+        assertEquals("PAYMENT_WINDOW_EXPIRED", error.code)
+    }
+
+    @Test
+    fun `uploads declared image MIME type and cleans temporary proof`() = runTest {
+        val proofFile = createTempFile(prefix = "payment-proof-", suffix = ".png").toFile()
+        proofFile.writeBytes(byteArrayOf(1, 2, 3))
+        server.enqueue(
+            MockResponse().setResponseCode(201).setBody(
+                """{"data":{"id":9,"status":"pending","sender_name":"Ana","reference_number":"GC-1","created_at":"2026-09-20T10:00:00Z"}}""",
+            ),
+        )
+
+        repository.uploadPaymentProof(
+            orderId = 42,
+            proof = PaymentProofUpload(
+                imageFile = proofFile,
+                senderName = "Ana",
+                referenceNumber = "GC-1",
+                mimeType = "image/png",
+                deleteAfterUpload = true,
+            ),
+        ).getOrThrow()
+
+        val request = server.takeRequest()
+        assertTrue(request.body.readUtf8().contains("Content-Type: image/png"))
+        assertFalse(proofFile.exists())
+    }
+
+    @Test
+    fun `preserves temporary proof when upload fails`() = runTest {
+        val proofFile = createTempFile(prefix = "payment-proof-", suffix = ".jpg").toFile()
+        proofFile.writeBytes(byteArrayOf(1, 2, 3))
+        server.enqueue(
+            MockResponse().setResponseCode(422).setBody(
+                """{"error":{"code":"PAYMENT_WINDOW_EXPIRED","message":"The payment window has expired."}}""",
+            ),
+        )
+
+        val result = repository.uploadPaymentProof(
+            orderId = 42,
+            proof = PaymentProofUpload(
+                imageFile = proofFile,
+                senderName = "Ana",
+                referenceNumber = "GC-1",
+                mimeType = "image/jpeg",
+                deleteAfterUpload = true,
+            ),
+        )
+
+        assertTrue(result.isFailure)
+        assertTrue(proofFile.exists())
+        proofFile.delete()
     }
 
     @Test

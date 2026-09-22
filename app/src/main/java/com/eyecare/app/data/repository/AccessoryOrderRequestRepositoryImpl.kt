@@ -78,7 +78,7 @@ class AccessoryOrderRequestRepositoryImpl @Inject constructor(
         unitPrice = unitPrice,
         amount = amount,
         itemKind = itemKind,
-        itemSnapshot = itemSnapshot?.let {
+        itemSnapshot = itemSnapshot.let {
             ItemSnapshot(
                 productName = it.productName,
                 variantName = it.variantName,
@@ -88,6 +88,7 @@ class AccessoryOrderRequestRepositoryImpl @Inject constructor(
                         else -> value.toString()
                     }
                 },
+                images = (it.images + listOfNotNull(imageUrl)).distinct(),
             )
         },
     )

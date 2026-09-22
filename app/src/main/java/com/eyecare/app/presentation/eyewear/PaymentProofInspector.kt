@@ -3,7 +3,7 @@ package com.eyecare.app.presentation.eyewear
 object PaymentProofInspector {
 
     private val allowedMimeTypes = setOf("image/jpeg", "image/jpg", "image/png")
-    private const val maxFileSizeBytes = 5 * 1024 * 1024L // 5 MB
+    private const val maxFileSizeBytes = 10 * 1024 * 1024L // 10 MB
     private const val maxDimension = 8000
 
     fun validateMimeType(mimeType: String): String? {
@@ -17,7 +17,7 @@ object PaymentProofInspector {
     fun validateFileSize(sizeBytes: Long): String? {
         if (sizeBytes <= 0) return "Unable to read the selected file."
         if (sizeBytes > maxFileSizeBytes) {
-            return "Image must be 5 MB or smaller."
+            return "Image must be 10 MB or smaller."
         }
         return null
     }

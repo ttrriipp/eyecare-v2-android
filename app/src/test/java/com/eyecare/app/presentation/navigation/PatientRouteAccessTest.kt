@@ -77,6 +77,19 @@ class PatientRouteAccessTest {
     }
 
     @Test
+    fun `unlinked account can browse accessories but not order`() {
+        val linkStatus = PatientLinkStatus.UNLINKED
+
+        assertTrue(canAccessRoute(Accessories, linkStatus))
+        assertTrue(canAccessRoute(AccessoryDetail(accessoryId = 7), linkStatus))
+        assertFalse(canAccessRoute(AccessoryCart, linkStatus))
+        assertFalse(canAccessRoute(AccessoryCheckoutRoute, linkStatus))
+        assertFalse(canAccessRoute(AccessoryOrderRequests, linkStatus))
+        assertFalse(canAccessRoute(AccessoryOrderRequestDetail(requestId = 1), linkStatus))
+        assertFalse(shouldRedirectToLimitedAccount("Accessories", SessionState.Limited(testAccount())))
+    }
+
+    @Test
     fun `unlinked account can access chat and notifications but not clinical records`() {
         val linkStatus = PatientLinkStatus.UNLINKED
 

@@ -46,6 +46,7 @@ fun AccessoryCheckoutScreen(
     checkoutState: CheckoutUiState,
     onDiscountSelect: (String) -> Unit,
     onSubmit: () -> Unit,
+    onViewRequest: (Int) -> Unit,
     onViewRequests: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -102,7 +103,7 @@ fun AccessoryCheckoutScreen(
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     Spacer(Modifier.height(24.dp))
-                    Button(onClick = onViewRequests) {
+                    Button(onClick = { onViewRequest(state.requestId) }) {
                         Text("View my requests")
                     }
                 }

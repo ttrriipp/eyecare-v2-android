@@ -2511,7 +2511,7 @@ Only an owned, accepted accessory request whose resulting Optical Order is in
 
 | Field | Requirements |
 |---|---|
-| `proof` | JPG/JPEG/PNG, <= 5 MB, <= 8,000 x 8,000 pixels |
+| `proof` | JPG/JPEG/PNG, <= 10 MB, <= 8,000 x 8,000 pixels |
 | `sender_name` | Required trimmed string, <= 100 characters |
 | `reference_number` | Required trimmed string, <= 100 characters |
 

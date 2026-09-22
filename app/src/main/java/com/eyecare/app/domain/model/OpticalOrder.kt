@@ -18,6 +18,8 @@ data class OpticalOrder(
     val paymentExpiresAt: String? = null,
     val paymentInstructions: PaymentInstructions? = null,
     val paymentProof: PaymentProofSummary? = null,
+    val paymentProofStatus: PaymentProofStatus = PaymentProofStatus.NOT_SUBMITTED,
+    val paymentProofRejectionReason: String? = null,
 )
 
 data class OpticalOrderItem(
@@ -118,6 +120,7 @@ enum class PaymentStatus {
 }
 
 enum class PaymentProofStatus {
+    NOT_SUBMITTED,
     PENDING,
     ACCEPTED,
     REJECTED,
@@ -125,6 +128,7 @@ enum class PaymentProofStatus {
 
     companion object {
         fun from(value: String): PaymentProofStatus = when (value.lowercase()) {
+            "not_submitted" -> NOT_SUBMITTED
             "pending" -> PENDING
             "accepted" -> ACCEPTED
             "rejected" -> REJECTED

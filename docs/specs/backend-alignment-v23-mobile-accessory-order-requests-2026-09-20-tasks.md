@@ -1054,7 +1054,7 @@ Related documents:
 
 **Acceptance criteria:**
 
-- JPG/JPEG/PNG, 5 MB, and 8,000-pixel boundaries are tested exactly.
+- JPG/JPEG/PNG, 10 MB, and 8,000-pixel boundaries are tested exactly.
 - Unreadable/malformed images fail with patient-safe errors.
 - Validation logs no URI or file metadata.
 

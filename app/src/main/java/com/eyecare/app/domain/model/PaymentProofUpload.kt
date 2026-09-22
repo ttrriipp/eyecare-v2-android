@@ -6,6 +6,10 @@ data class PaymentProofUpload(
     val imageFile: File,
     val senderName: String,
     val referenceNumber: String,
+    val mimeType: String = "image/jpeg",
+    val width: Int = 1,
+    val height: Int = 1,
+    val deleteAfterUpload: Boolean = false,
 )
 
 data class PaymentProofResult(

@@ -91,7 +91,11 @@ internal fun shouldShowBottomNav(route: String): Boolean =
         !route.contains("PatientIntake") && !route.contains("Quotation") &&
         !route.contains("OpticalOrderDetail") &&
         !route.contains("JobOrder") && !route.contains("MyOrders") &&
-        !route.contains("Accessory") && !route.contains("Accessories")
+        !route.contains("AccessoryDetail") &&
+        !route.contains("AccessoryCart") &&
+        !route.contains("AccessoryCheckout") &&
+        !route.contains("AccessoryOrderRequests") &&
+        !route.contains("AccessoryOrderRequestDetail")
 
 private fun SessionState.accountIdOrNull(): Int? = when (this) {
     is SessionState.Linked -> account.id
@@ -150,6 +154,7 @@ fun EyecareNavGraph(
         currentDest.route?.contains("Home") == true -> Home
         currentDest.route?.contains("Frames") == true -> Frames
         currentDest.route?.contains("Appointments") == true -> Appointments
+        currentDest.route?.contains("Accessories") == true -> Accessories
         currentDest.route?.contains("Profile") == true -> Profile
         else -> Home
     } else null
@@ -613,11 +618,15 @@ fun EyecareNavGraph(
                         val catalogState by catalogViewModel.uiState.collectAsStateWithLifecycle()
                         var searchQuery by remember { mutableStateOf("") }
                         var currentSort by remember { mutableStateOf<String?>(null) }
+                        var minimumRating by remember { mutableStateOf<Int?>(null) }
+                        var rated by remember { mutableStateOf<String?>(null) }
 
                         com.eyecare.app.presentation.accessories.AccessoryCatalogScreen(
                             uiState = catalogState,
                             searchQuery = searchQuery,
                             currentSort = currentSort,
+                            minimumRating = minimumRating,
+                            rated = rated,
                             onSearchChange = { query ->
                                 searchQuery = query
                                 catalogViewModel.updateSearch(query)
@@ -626,12 +635,22 @@ fun EyecareNavGraph(
                                 currentSort = sort
                                 catalogViewModel.updateSort(sort)
                             },
+                            onMinimumRatingChange = { rating ->
+                                minimumRating = rating
+                                catalogViewModel.updateMinimumRating(rating)
+                            },
+                            onRatedChange = { value ->
+                                rated = value
+                                catalogViewModel.updateRated(value)
+                            },
                             onRefresh = catalogViewModel::refresh,
                             onRetry = catalogViewModel::retry,
                             onLoadMore = catalogViewModel::loadMore,
                             onNavigateToAccessory = { id -> navigatePatientFeature(AccessoryDetail(id)) },
                             onNavigateToCart = { navigatePatientFeature(AccessoryCart) },
                             onNavigateToRequests = { navigatePatientFeature(AccessoryOrderRequests) },
+                            canOrder = canAccessPatientFeatures(sessionState),
+                            onNavigateToLinkAccount = ::openAccountLink,
                         )
                     }
                     composable<AccessoryDetail> { backStackEntry ->
@@ -655,11 +674,17 @@ fun EyecareNavGraph(
                                             variantName = variant.name,
                                             imagePath = state.accessory.images.firstOrNull() ?: variant.images.firstOrNull(),
                                         )
-                                    }
+                                    } ?: false
+                                } else {
+                                    false
                                 }
                             },
                             onRetry = detailViewModel::retry,
                             onBack = { navController.popBackStack() },
+                            onNavigateToCart = { navigatePatientFeature(AccessoryCart) },
+                            onNavigateToSupport = { navigatePatientFeature(Chat) },
+                            canOrder = canAccessPatientFeatures(sessionState),
+                            onNavigateToLinkAccount = ::openAccountLink,
                         )
                     }
                     composable<AccessoryCart> {
@@ -673,7 +698,45 @@ fun EyecareNavGraph(
                             onDecrement = cartViewModel::decrement,
                             onRemove = cartViewModel::remove,
                             onClear = cartViewModel::clear,
-                            onCheckout = { navController.navigate(AccessoryOrderRequests) }, // TODO: Navigate to checkout
+                            onCheckout = { navigatePatientFeature(AccessoryCheckoutRoute) },
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable<AccessoryCheckoutRoute> {
+                        val cartViewModel: com.eyecare.app.presentation.accessories.AccessoryCartViewModel =
+                            hiltViewModel(navController.getBackStackEntry<MainGraph>())
+                        val cart by cartViewModel.cart.collectAsStateWithLifecycle()
+                        val checkoutViewModel: com.eyecare.app.presentation.accessories.AccessoryCheckoutViewModel = hiltViewModel()
+                        val checkoutState by checkoutViewModel.uiState.collectAsStateWithLifecycle()
+                        val selectedDiscount by checkoutViewModel.selectedDiscount.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(checkoutState) {
+                            if (checkoutState is com.eyecare.app.presentation.accessories.CheckoutUiState.Success) {
+                                cartViewModel.clear()
+                            }
+                        }
+
+                        com.eyecare.app.presentation.accessories.AccessoryCheckoutScreen(
+                            cart = cart,
+                            selectedDiscount = selectedDiscount,
+                            checkoutState = checkoutState,
+                            onDiscountSelect = checkoutViewModel::selectDiscount,
+                            onSubmit = {
+                                checkoutViewModel.submit(
+                                    discountType = selectedDiscount,
+                                    items = cart.items.map { it.productVariantId to it.quantity },
+                                )
+                            },
+                            onViewRequest = { requestId ->
+                                navigatePatientFeature(AccessoryOrderRequestDetail(requestId)) {
+                                    popUpTo<AccessoryCheckoutRoute> { inclusive = true }
+                                }
+                            },
+                            onViewRequests = {
+                                navigatePatientFeature(AccessoryOrderRequests) {
+                                    popUpTo<AccessoryCheckoutRoute> { inclusive = true }
+                                }
+                            },
                             onBack = { navController.popBackStack() },
                         )
                     }
@@ -687,7 +750,7 @@ fun EyecareNavGraph(
                             onRefresh = listViewModel::refresh,
                             onRetry = listViewModel::retry,
                             onLoadMore = listViewModel::loadMore,
-                            onNavigateToRequest = { id -> navController.navigate(AccessoryOrderRequestDetail(id)) },
+                            onNavigateToRequest = { id -> navigatePatientFeature(AccessoryOrderRequestDetail(id)) },
                             onBack = { navController.popBackStack() },
                         )
                     }
@@ -703,7 +766,7 @@ fun EyecareNavGraph(
                             onShowCancelDialog = { showCancelDialog = true },
                             onDismissCancelDialog = { showCancelDialog = false },
                             onCancel = detailViewModel::cancel,
-                            onNavigateToOrder = { orderId -> navController.navigate(OpticalOrderDetail(orderId)) },
+                            onNavigateToOrder = { orderId -> navigatePatientFeature(OpticalOrderDetail(orderId)) },
                             onRetry = detailViewModel::retry,
                             onBack = { navController.popBackStack() },
                         )

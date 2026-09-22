@@ -7,11 +7,14 @@ import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderItem
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentStatus
+import com.eyecare.app.domain.model.PaymentProofStatus
+import com.eyecare.app.domain.model.PaymentProofUpload
 import com.eyecare.app.domain.model.PaymentSummary
 import com.eyecare.app.domain.model.RatingResult
 import com.eyecare.app.domain.model.RatingSummary
 import com.eyecare.app.domain.repository.OpticalOrderRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,6 +28,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import kotlin.io.path.createTempFile
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OpticalOrderDetailViewModelTest {
@@ -39,6 +43,7 @@ class OpticalOrderDetailViewModelTest {
             OpticalOrderItem(10, "Lens", 1, BigDecimal("4500.00"), BigDecimal("4500.00"), null, false, null),
         ),
         paymentSummary: PaymentSummary? = null,
+        paymentProofStatus: PaymentProofStatus = PaymentProofStatus.NOT_SUBMITTED,
     ) = OpticalOrder(
         id = id,
         orderNumber = "OO-2026-${id.toString().padStart(3, '0')}",
@@ -52,6 +57,7 @@ class OpticalOrderDetailViewModelTest {
         createdAt = "2026-08-01T10:00:00Z",
         items = items,
         paymentSummary = paymentSummary,
+        paymentProofStatus = paymentProofStatus,
     )
 
     private fun createVm(id: Int = 1) = OpticalOrderDetailViewModel(
@@ -114,5 +120,87 @@ class OpticalOrderDetailViewModelTest {
         val state = vm.uiState.value as OpticalOrderDetailUiState.Success
         assertEquals(5, state.order.items[0].rating?.rating)
         assertEquals("2026-08-05T10:00:00+08:00", state.order.items[0].rating?.createdAt)
+    }
+
+    @Test
+    fun `upload proof is blocked when order is no longer awaiting payment`() = runTest {
+        coEvery { repository.getOpticalOrder(1) } returns Result.success(
+            createOrder(status = OpticalOrderStatus.PAYMENT_REVIEW, paymentProofStatus = PaymentProofStatus.PENDING),
+        )
+        val viewModel = createVm()
+        dispatcher.scheduler.advanceUntilIdle()
+        val proofFile = createTempFile(prefix = "proof-", suffix = ".jpg").toFile()
+
+        viewModel.uploadProof(
+            PaymentProofUpload(
+                imageFile = proofFile,
+                senderName = "Ana",
+                referenceNumber = "GC-1",
+                mimeType = "image/jpeg",
+                width = 100,
+                height = 100,
+            ),
+        )
+
+        val state = viewModel.uiState.value as OpticalOrderDetailUiState.Success
+        assertTrue(state.uploadState is ProofUploadState.Error)
+        coVerify(exactly = 0) { repository.uploadPaymentProof(any(), any()) }
+        proofFile.delete()
+    }
+
+    @Test
+    fun `upload proof validates MIME metadata before sending`() = runTest {
+        coEvery { repository.getOpticalOrder(1) } returns Result.success(
+            createOrder(status = OpticalOrderStatus.PENDING_PAYMENT),
+        )
+        val viewModel = createVm()
+        dispatcher.scheduler.advanceUntilIdle()
+        val proofFile = createTempFile(prefix = "proof-", suffix = ".gif").toFile()
+        proofFile.writeBytes(byteArrayOf(1, 2, 3))
+
+        viewModel.uploadProof(
+            PaymentProofUpload(
+                imageFile = proofFile,
+                senderName = "Ana",
+                referenceNumber = "GC-1",
+                mimeType = "image/gif",
+                width = 100,
+                height = 100,
+            ),
+        )
+
+        val state = viewModel.uiState.value as OpticalOrderDetailUiState.Success
+        assertTrue(state.uploadState is ProofUploadState.Error)
+        coVerify(exactly = 0) { repository.uploadPaymentProof(any(), any()) }
+        proofFile.delete()
+    }
+
+    @Test
+    fun `local validation keeps selected proof so the patient can correct the form`() = runTest {
+        coEvery { repository.getOpticalOrder(1) } returns Result.success(
+            createOrder(status = OpticalOrderStatus.PENDING_PAYMENT),
+        )
+        val viewModel = createVm()
+        dispatcher.scheduler.advanceUntilIdle()
+        val proofFile = createTempFile(prefix = "proof-", suffix = ".jpg").toFile()
+        proofFile.writeBytes(byteArrayOf(1, 2, 3))
+
+        viewModel.uploadProof(
+            PaymentProofUpload(
+                imageFile = proofFile,
+                senderName = "",
+                referenceNumber = "GC-1",
+                mimeType = "image/jpeg",
+                width = 100,
+                height = 100,
+                deleteAfterUpload = true,
+            ),
+        )
+
+        val state = viewModel.uiState.value as OpticalOrderDetailUiState.Success
+        assertTrue(state.uploadState is ProofUploadState.Error)
+        assertTrue(proofFile.exists())
+        coVerify(exactly = 0) { repository.uploadPaymentProof(any(), any()) }
+        proofFile.delete()
     }
 }

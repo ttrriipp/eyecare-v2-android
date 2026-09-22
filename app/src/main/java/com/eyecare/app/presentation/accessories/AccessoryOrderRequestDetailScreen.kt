@@ -1,13 +1,13 @@
 package com.eyecare.app.presentation.accessories
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ImageNotSupported
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -30,16 +31,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.eyecare.app.domain.model.AccessoryOrderRequest
 import com.eyecare.app.domain.model.OrderRequestStatus
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
+import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -150,7 +161,10 @@ fun AccessoryOrderRequestDetailScreen(
                             fontWeight = FontWeight.SemiBold,
                         )
                         request.items.forEach { item ->
+                            val productName = item.itemSnapshot.productName.ifBlank { item.description }
+                            val variantName = item.itemSnapshot.variantName.trim()
                             Surface(
+                                modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant,
                             ) {
@@ -158,18 +172,33 @@ fun AccessoryOrderRequestDetailScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.Top,
                                 ) {
+                                    RequestItemImage(
+                                        imagePath = item.itemSnapshot.images.firstOrNull(),
+                                        productName = productName,
+                                    )
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            item.description,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
+                                            text = productName,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
                                         )
+                                        if (variantName.isNotBlank()) {
+                                            Text(
+                                                text = variantName,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
                                         Text(
                                             "× ${item.quantity}",
-                                            style = MaterialTheme.typography.bodySmall,
+                                            style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
@@ -219,6 +248,48 @@ fun AccessoryOrderRequestDetailScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RequestItemImage(
+    imagePath: String?,
+    productName: String,
+) {
+    val imageUrl = imagePath?.takeIf(String::isNotBlank)?.let(::buildImageUrl)
+    var imageState by remember(imageUrl) {
+        mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty)
+    }
+    val shape = RoundedCornerShape(10.dp)
+
+    Surface(
+        modifier = Modifier.size(68.dp),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            val imageLoaded = imageState is AsyncImagePainter.State.Success
+            if (!imageLoaded) {
+                Icon(
+                    imageVector = Icons.Outlined.ImageNotSupported,
+                    contentDescription = "$productName image unavailable",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            if (imageUrl != null) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = productName,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(shape)
+                        .alpha(if (imageLoaded) 1f else 0f),
+                    onState = { imageState = it },
+                )
             }
         }
     }

@@ -82,6 +82,8 @@ object OpticalOrderDtos {
         @SerialName("payment_expires_at") val paymentExpiresAt: String? = null,
         @SerialName("payment_instructions") val paymentInstructions: PaymentInstructionsDto? = null,
         @SerialName("payment_proof") val paymentProof: PaymentProofSummaryDto? = null,
+        @SerialName("payment_proof_status") val paymentProofStatus: String? = null,
+        @SerialName("payment_proof_rejection_reason") val paymentProofRejectionReason: String? = null,
     )
 
     @Serializable

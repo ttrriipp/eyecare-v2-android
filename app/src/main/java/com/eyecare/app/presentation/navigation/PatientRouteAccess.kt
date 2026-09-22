@@ -26,7 +26,7 @@ private val accountSafeDestinationNames = setOf(
 )
 
 fun classifyRouteAccess(route: String): PatientRouteAccess = when {
-    // Account-only: browse catalog, request creation/list/detail, and chat
+    // Account-only: browse catalog, request creation, and chat
     route.contains("Frames") ||
         route.contains("FrameDetail") ||
         route.contains("ArTryOn") -> PatientRouteAccess.AccountOnly
@@ -36,14 +36,18 @@ fun classifyRouteAccess(route: String): PatientRouteAccess = when {
     route.contains("Chat") -> PatientRouteAccess.AccountOnly
     route.contains("Notifications") -> PatientRouteAccess.AccountOnly
     route.contains("AppearanceSettings") -> PatientRouteAccess.AccountOnly
+    // Accessories are browseable before linking, but commerce actions remain link-protected.
+    route.contains("AccessoryCart") ||
+        route.contains("AccessoryCheckout") ||
+        route.contains("AccessoryOrderRequest") -> PatientRouteAccess.ActiveLinkRequired
+    route.contains("Accessory") ||
+        route.contains("Accessories") -> PatientRouteAccess.AccountOnly
     // Active-link required: confirmed appointments, clinical resources
     route.contains("AppointmentDetail") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("AppointmentHistory") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("PatientProfile") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Prescription") -> PatientRouteAccess.ActiveLinkRequired
     route.contains("Eyewear") -> PatientRouteAccess.ActiveLinkRequired
-    // Active-link required: accessory commerce
-    route.contains("Accessory") || route.contains("Accessories") -> PatientRouteAccess.ActiveLinkRequired
     // Default: fail closed
     else -> PatientRouteAccess.ActiveLinkRequired
 }

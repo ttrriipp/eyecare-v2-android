@@ -122,4 +122,15 @@ class AccessoryCartViewModelTest {
         viewModel.addToCart(variant(1, availability = AccessoryAvailability.UNAVAILABLE))
         assertTrue(viewModel.cart.value.isEmpty)
     }
+
+    @Test
+    fun `addToCart reports whether cart changed`() = runTest {
+        val viewModel = AccessoryCartViewModel()
+
+        assertTrue(viewModel.addToCart(variant(1)))
+
+        viewModel.addToCart(variant(1))
+        repeat(3) { viewModel.addToCart(variant(1)) }
+        assertTrue(!viewModel.addToCart(variant(1)))
+    }
 }

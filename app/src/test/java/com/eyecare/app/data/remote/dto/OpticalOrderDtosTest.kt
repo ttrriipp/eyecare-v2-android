@@ -267,7 +267,9 @@ class OpticalOrderDtosTest {
                 "order_reference": "ORD-2026-000055",
                 "payment_expires_at": "2026-09-20T10:30:00+08:00"
             },
-            "payment_proof": null
+            "payment_proof": null,
+            "payment_proof_status": "not_submitted",
+            "payment_proof_rejection_reason": null
         }
         """.trimIndent()
 
@@ -282,6 +284,30 @@ class OpticalOrderDtosTest {
         assertEquals("ORD-2026-000055", dto.paymentInstructions!!.orderReference)
         assertEquals("2026-09-20T10:30:00+08:00", dto.paymentInstructions!!.paymentExpiresAt)
         assertNull(dto.paymentProof)
+        assertEquals("not_submitted", dto.paymentProofStatus)
+        assertNull(dto.paymentProofRejectionReason)
+    }
+
+    @Test
+    fun `decodes top-level payment proof status and rejection reason`() {
+        val fixture = """
+        {
+            "id": 55,
+            "order_number": "ORD-2026-000055",
+            "status": "payment_review",
+            "fulfillment_mode": "prepared",
+            "total_amount": "700.00",
+            "created_at": "2026-09-20T10:00:00+08:00",
+            "items": [],
+            "payment_proof_status": "rejected",
+            "payment_proof_rejection_reason": "Screenshot unclear"
+        }
+        """.trimIndent()
+
+        val dto = json.decodeFromString<OpticalOrderDto>(fixture)
+
+        assertEquals("rejected", dto.paymentProofStatus)
+        assertEquals("Screenshot unclear", dto.paymentProofRejectionReason)
     }
 
     @Test

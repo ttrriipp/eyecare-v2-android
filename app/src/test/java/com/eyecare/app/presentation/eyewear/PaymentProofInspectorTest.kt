@@ -51,16 +51,22 @@ class PaymentProofInspectorTest {
     }
 
     @Test
-    fun `validates file size at limit`() {
-        val result = PaymentProofInspector.validateFileSize(5 * 1024 * 1024) // 5 MB
+    fun `accepts a proof above the old limit`() {
+        val result = PaymentProofInspector.validateFileSize(6 * 1024 * 1024) // 6 MB
+        assertNull(result)
+    }
+
+    @Test
+    fun `validates file size at new limit`() {
+        val result = PaymentProofInspector.validateFileSize(10 * 1024 * 1024) // 10 MB
         assertNull(result)
     }
 
     @Test
     fun `rejects file size over limit`() {
-        val result = PaymentProofInspector.validateFileSize(6 * 1024 * 1024) // 6 MB
+        val result = PaymentProofInspector.validateFileSize(10 * 1024 * 1024 + 1) // over 10 MB
         assertTrue(result != null)
-        assertTrue(result!!.contains("5 MB", ignoreCase = true))
+        assertTrue(result!!.contains("10 MB", ignoreCase = true))
     }
 
     @Test

@@ -27,7 +27,7 @@ class OpticalOrderRepositoryImpl @Inject constructor(
     private val api: OpticalOrderApiService,
 ) : OpticalOrderRepository {
 
-    override suspend fun getOpticalOrders(filter: String?, page: Int): Result<PaginatedResult<OpticalOrder>> = runCatching {
+    override suspend fun getOpticalOrders(filter: String?, page: Int): Result<PaginatedResult<OpticalOrder>> = safeApiCall {
         val response = api.getOpticalOrders(filter = filter, page = page)
         PaginatedResult(
             data = response.data.map { it.toDomain() },
@@ -37,11 +37,11 @@ class OpticalOrderRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun getOpticalOrder(id: Int): Result<OpticalOrder> = runCatching {
+    override suspend fun getOpticalOrder(id: Int): Result<OpticalOrder> = safeApiCall {
         api.getOpticalOrder(id).data.toDomain()
     }
 
-    override suspend fun rateItem(itemId: Int, rating: Int, comment: String?): Result<RatingResult> = runCatching {
+    override suspend fun rateItem(itemId: Int, rating: Int, comment: String?): Result<RatingResult> = safeApiCall {
         val response = api.rateItem(itemId, OpticalOrderDtos.RatingRequest(rating = rating, comment = comment))
         val result = response.data
         RatingResult(
@@ -54,24 +54,33 @@ class OpticalOrderRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun uploadPaymentProof(orderId: Int, proof: PaymentProofUpload): Result<PaymentProofResult> = runCatching {
-        val imagePart = MultipartBody.Part.createFormData(
-            name = "proof",
-            filename = proof.imageFile.name,
-            body = proof.imageFile.asRequestBody("image/jpeg".toMediaType()),
-        )
-        val senderNamePart = proof.senderName.trim().toRequestBody("text/plain".toMediaType())
-        val referencePart = proof.referenceNumber.trim().toRequestBody("text/plain".toMediaType())
+    override suspend fun uploadPaymentProof(orderId: Int, proof: PaymentProofUpload): Result<PaymentProofResult> = safeApiCall {
+        var uploadSucceeded = false
+        try {
+            val imagePart = MultipartBody.Part.createFormData(
+                name = "proof",
+                filename = proof.imageFile.name,
+                body = proof.imageFile.asRequestBody(proof.mimeType.toMediaType()),
+            )
+            val senderNamePart = proof.senderName.trim().toRequestBody("text/plain".toMediaType())
+            val referencePart = proof.referenceNumber.trim().toRequestBody("text/plain".toMediaType())
 
-        val response = api.uploadPaymentProof(orderId, imagePart, senderNamePart, referencePart)
-        val result = response.data
-        PaymentProofResult(
-            id = result.id,
-            status = PaymentProofStatus.from(result.status),
-            senderName = result.senderName,
-            referenceNumber = result.referenceNumber,
-            createdAt = result.createdAt,
-        )
+            val response = api.uploadPaymentProof(orderId, imagePart, senderNamePart, referencePart)
+            val result = response.data
+            val paymentProofResult = PaymentProofResult(
+                id = result.id,
+                status = PaymentProofStatus.from(result.status),
+                senderName = result.senderName,
+                referenceNumber = result.referenceNumber,
+                createdAt = result.createdAt,
+            )
+            uploadSucceeded = true
+            paymentProofResult
+        } finally {
+            if (proof.deleteAfterUpload && uploadSucceeded) {
+                proof.imageFile.delete()
+            }
+        }
     }
 
     private fun OpticalOrderDtos.OpticalOrderDto.toDomain() = OpticalOrder(
@@ -117,6 +126,8 @@ class OpticalOrderRepositoryImpl @Inject constructor(
                 createdAt = it.createdAt,
             )
         },
+        paymentProofStatus = PaymentProofStatus.from(paymentProofStatus ?: paymentProof?.status ?: "not_submitted"),
+        paymentProofRejectionReason = paymentProofRejectionReason ?: paymentProof?.rejectionReason,
     )
 
     private fun OpticalOrderDtos.OpticalOrderItemDto.toDomain() = OpticalOrderItem(

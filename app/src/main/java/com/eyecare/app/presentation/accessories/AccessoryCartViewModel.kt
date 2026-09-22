@@ -15,8 +15,16 @@ class AccessoryCartViewModel @Inject constructor() : ViewModel() {
     private val _cart = MutableStateFlow(AccessoryCart())
     val cart: StateFlow<AccessoryCart> = _cart.asStateFlow()
 
-    fun addToCart(variant: AccessoryVariant, productName: String = "Product", variantName: String = variant.name, imagePath: String? = null) {
-        _cart.value = _cart.value.add(variant, productName, variantName, imagePath)
+    fun addToCart(
+        variant: AccessoryVariant,
+        productName: String = "Product",
+        variantName: String = variant.name,
+        imagePath: String? = null,
+    ): Boolean {
+        val current = _cart.value
+        val updated = current.add(variant, productName, variantName, imagePath)
+        _cart.value = updated
+        return updated != current
     }
 
     fun increment(variantId: Int) {

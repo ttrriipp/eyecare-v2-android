@@ -46,7 +46,8 @@ class AccessoryCatalogViewModel @Inject constructor(
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(300)
-            currentQuery = currentQuery.copy(search = search.ifBlank { null }, page = 1)
+            val normalizedSearch = search.trim().take(100).ifBlank { null }
+            currentQuery = currentQuery.copy(search = normalizedSearch, page = 1)
             currentPage = 1
             load()
         }
