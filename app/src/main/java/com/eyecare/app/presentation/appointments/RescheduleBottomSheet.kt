@@ -39,6 +39,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.CircularProgressIndicator
@@ -330,6 +331,8 @@ fun RescheduleBottomSheet(
                     description = currentTimeDescription,
                 )
 
+                RescheduleLimitNotice()
+
                 Text(
                     text = if (addingAlternatives) {
                         "Choose up to two alternative times. Your preferred time stays at the top."
@@ -469,6 +472,46 @@ fun RescheduleBottomSheet(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RescheduleLimitNotice(
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = EyecareColors.current.statusPending.copy(alpha = 0.16f),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = EyecareColors.current.statusPendingText,
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "One-time reschedule",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EyecareColors.current.statusPendingText,
+                )
+                Text(
+                    text = "This appointment can only be rescheduled once. Choose your new time carefully.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EyecareColors.current.statusPendingText,
+                )
             }
         }
     }

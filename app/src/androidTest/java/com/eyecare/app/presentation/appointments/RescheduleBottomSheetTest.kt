@@ -38,6 +38,8 @@ class RescheduleBottomSheetTest {
             }
         }
 
+        composeRule.onNodeWithText("This appointment can only be rescheduled once.")
+            .assertIsDisplayed()
         composeRule.onNodeWithText("Choose an available time to continue.").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Keep current time").assertIsDisplayed()
     }
