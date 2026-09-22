@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eyecare.app.domain.model.Accessory
 import com.eyecare.app.domain.model.AccessoryQuery
+import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.repository.AccessoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -136,10 +138,10 @@ class AccessoryCatalogViewModel @Inject constructor(
                         )
                     }
                 },
-                onFailure = {
+                onFailure = { error ->
                     if (seq != loadSequence) return@launch
                     _uiState.value = AccessoryCatalogUiState.Error(
-                        message = "We couldn't load accessories. Check your connection and try again.",
+                        message = catalogLoadErrorMessage(error),
                     )
                 },
             )
@@ -171,5 +173,18 @@ class AccessoryCatalogViewModel @Inject constructor(
                 },
             )
         }
+    }
+
+    private fun catalogLoadErrorMessage(error: Throwable): String = when (error) {
+        is ApiDomainError -> when (error.code) {
+            AuthApiCodes.ACTIVE_PATIENT_LINK_REQUIRED ->
+                "Link your clinic account to browse accessories."
+            else -> error.message.takeIf(String::isNotBlank) ?: GENERIC_LOAD_ERROR
+        }
+        else -> GENERIC_LOAD_ERROR
+    }
+
+    private companion object {
+        const val GENERIC_LOAD_ERROR = "We couldn't load accessories. Check your connection and try again."
     }
 }

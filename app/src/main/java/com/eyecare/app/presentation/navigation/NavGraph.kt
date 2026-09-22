@@ -650,7 +650,6 @@ fun EyecareNavGraph(
                             onNavigateToCart = { navigatePatientFeature(AccessoryCart) },
                             onNavigateToRequests = { navigatePatientFeature(AccessoryOrderRequests) },
                             canOrder = canAccessPatientFeatures(sessionState),
-                            onNavigateToLinkAccount = ::openAccountLink,
                         )
                     }
                     composable<AccessoryDetail> { backStackEntry ->

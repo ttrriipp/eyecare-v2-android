@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,7 +26,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -40,9 +38,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.eyecare.app.presentation.accessories.components.AccessoryCard
 import com.eyecare.app.presentation.accessories.components.AccessoryCatalogControls
 import com.eyecare.app.presentation.common.components.EmptyContent
@@ -67,7 +63,6 @@ fun AccessoryCatalogScreen(
     onNavigateToCart: () -> Unit,
     onNavigateToRequests: () -> Unit,
     canOrder: Boolean = true,
-    onNavigateToLinkAccount: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isRefreshing = (uiState as? AccessoryCatalogUiState.Success)?.isRefreshing == true
@@ -99,50 +94,6 @@ fun AccessoryCatalogScreen(
                     }
                     IconButton(onClick = onNavigateToCart) {
                         Icon(Icons.Outlined.ShoppingCart, contentDescription = "Cart")
-                    }
-                }
-            }
-
-            if (!canOrder) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Lock,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            Text(
-                                text = "Browsing only",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = "Link your clinic account to order accessories.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        TextButton(
-                            onClick = onNavigateToLinkAccount,
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                        ) {
-                            Text("Link")
-                        }
                     }
                 }
             }

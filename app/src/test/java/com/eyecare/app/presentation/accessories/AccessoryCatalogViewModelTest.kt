@@ -4,6 +4,8 @@ import com.eyecare.app.domain.model.Accessory
 import com.eyecare.app.domain.model.AccessoryAvailability
 import com.eyecare.app.domain.model.AccessoryQuery
 import com.eyecare.app.domain.model.AccessoryVariant
+import com.eyecare.app.domain.model.ApiDomainError
+import com.eyecare.app.domain.model.AuthApiCodes
 import com.eyecare.app.domain.repository.AccessoryRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import io.mockk.coEvery
@@ -109,6 +111,23 @@ class AccessoryCatalogViewModelTest {
         advanceUntilIdle()
         val state = viewModel.uiState.value as AccessoryCatalogUiState.Error
         assertTrue(state.message.contains("load"))
+    }
+
+    @Test
+    fun `active link failure explains why the catalog cannot load`() = runTest {
+        coEvery { repository.getAccessories(any()) } returns Result.failure(
+            ApiDomainError(
+                httpStatus = 403,
+                code = AuthApiCodes.ACTIVE_PATIENT_LINK_REQUIRED,
+                message = "An active patient link is required.",
+            ),
+        )
+        viewModel = AccessoryCatalogViewModel(repository)
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AccessoryCatalogUiState.Error
+        assertEquals("Link your clinic account to browse accessories.", state.message)
     }
 
     @Test
