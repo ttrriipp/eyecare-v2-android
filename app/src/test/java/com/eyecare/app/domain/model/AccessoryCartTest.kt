@@ -46,6 +46,12 @@ class AccessoryCartTest {
     }
 
     @Test
+    fun `add accepts a requested quantity for a new item`() {
+        val cart = AccessoryCart().add(variant(1), quantity = 3)
+        assertEquals(3, cart.items[0].quantity)
+    }
+
+    @Test
     fun `add existing variant increments quantity`() {
         val cart = AccessoryCart()
             .add(variant(1))

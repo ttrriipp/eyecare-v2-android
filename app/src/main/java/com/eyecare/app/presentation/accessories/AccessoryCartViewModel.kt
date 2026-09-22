@@ -20,9 +20,10 @@ class AccessoryCartViewModel @Inject constructor() : ViewModel() {
         productName: String = "Product",
         variantName: String = variant.name,
         imagePath: String? = null,
+        quantity: Int = 1,
     ): Boolean {
         val current = _cart.value
-        val updated = current.add(variant, productName, variantName, imagePath)
+        val updated = current.add(variant, productName, variantName, imagePath, quantity)
         _cart.value = updated
         return updated != current
     }

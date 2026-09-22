@@ -28,10 +28,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AddShoppingCart
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Button
@@ -103,7 +105,7 @@ private enum class AddToCartStatus {
 fun AccessoryDetailScreen(
     uiState: AccessoryDetailUiState,
     onVariantSelect: (Int) -> Unit,
-    onAddToCart: (Int) -> Boolean,
+    onAddToCart: (Int, Int) -> Boolean,
     onRetry: () -> Unit,
     onBack: () -> Unit,
     onNavigateToCart: () -> Unit = {},
@@ -116,22 +118,25 @@ fun AccessoryDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var addStatus by remember { mutableStateOf(AddToCartStatus.IDLE) }
+    var quantity by remember { mutableStateOf(1) }
 
     LaunchedEffect(successState?.selectedVariantId) {
         addStatus = AddToCartStatus.IDLE
+        quantity = 1
     }
 
     fun submitAddToCart() {
         val state = successState ?: return
         if (!state.canAddToCart || addStatus == AddToCartStatus.ADDING || addStatus == AddToCartStatus.ADDED) return
 
+        val requestedQuantity = quantity
         addStatus = AddToCartStatus.ADDING
-        val added = runCatching { onAddToCart(state.selectedVariantId) }.getOrDefault(false)
+        val added = runCatching { onAddToCart(state.selectedVariantId, requestedQuantity) }.getOrDefault(false)
         addStatus = if (added) AddToCartStatus.ADDED else AddToCartStatus.FAILED
         coroutineScope.launch {
             val result = snackbarHostState.showSnackbar(
                 message = if (added) {
-                    "${state.accessory.name} added to cart."
+                    "${state.accessory.name} × $requestedQuantity added to cart."
                 } else {
                     "Cart limit reached or this item is already at its maximum quantity."
                 },
@@ -173,6 +178,8 @@ fun AccessoryDetailScreen(
                     canAddToCart = state.canAddToCart,
                     canOrder = canOrder,
                     status = addStatus,
+                    quantity = quantity,
+                    onQuantityChange = { quantity = it.coerceIn(1, 5) },
                     onAddToCart = ::submitAddToCart,
                     onNavigateToLinkAccount = onNavigateToLinkAccount,
                 )
@@ -498,6 +505,8 @@ private fun AccessoryDetailBottomBar(
     canAddToCart: Boolean,
     canOrder: Boolean,
     status: AddToCartStatus,
+    quantity: Int,
+    onQuantityChange: (Int) -> Unit,
     onAddToCart: () -> Unit,
     onNavigateToLinkAccount: () -> Unit,
 ) {
@@ -513,6 +522,69 @@ private fun AccessoryDetailBottomBar(
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
+            if (canOrder && canAddToCart) {
+                val quantityControlsEnabled =
+                    status != AddToCartStatus.ADDING && status != AddToCartStatus.ADDED
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Quantity",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "Up to 5 per variant",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            IconButton(
+                                onClick = { onQuantityChange(quantity - 1) },
+                                enabled = quantity > 1 && quantityControlsEnabled,
+                                modifier = Modifier.size(44.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Remove,
+                                    contentDescription = "Decrease quantity",
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            Text(
+                                text = quantity.toString(),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.width(28.dp),
+                            )
+                            IconButton(
+                                onClick = { onQuantityChange(quantity + 1) },
+                                enabled = quantity < 5 && quantityControlsEnabled,
+                                modifier = Modifier.size(44.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Add,
+                                    contentDescription = "Increase quantity",
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
             Button(
                 onClick = if (canOrder) onAddToCart else onNavigateToLinkAccount,
                 enabled = if (canOrder) {

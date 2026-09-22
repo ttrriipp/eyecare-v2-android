@@ -23,12 +23,23 @@ data class AccessoryCart(
             total + item.unitPrice * BigDecimal(item.quantity)
         }
 
-    fun add(variant: AccessoryVariant, productName: String = "Product", variantName: String = variant.name, imagePath: String? = null): AccessoryCart {
+    fun add(
+        variant: AccessoryVariant,
+        productName: String = "Product",
+        variantName: String = variant.name,
+        imagePath: String? = null,
+        quantity: Int = 1,
+    ): AccessoryCart {
         if (!variant.availability.isOrderable) return this
+        if (quantity !in 1..5) return this
 
         val existing = items.find { it.productVariantId == variant.id }
         return if (existing != null) {
-            increment(variant.id)
+            var updated = this
+            repeat(quantity) {
+                updated = updated.increment(variant.id)
+            }
+            updated
         } else {
             if (items.size >= 20) return this
             copy(
@@ -39,7 +50,7 @@ data class AccessoryCart(
                     imagePath = imagePath,
                     unitPrice = variant.price,
                     availability = variant.availability,
-                    quantity = 1,
+                    quantity = quantity,
                 ),
             )
         }

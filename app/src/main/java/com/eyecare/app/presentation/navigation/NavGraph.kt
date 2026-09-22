@@ -663,7 +663,7 @@ fun EyecareNavGraph(
                         com.eyecare.app.presentation.accessories.AccessoryDetailScreen(
                             uiState = detailState,
                             onVariantSelect = detailViewModel::selectVariant,
-                            onAddToCart = { variantId ->
+                            onAddToCart = { variantId, quantity ->
                                 val state = detailState
                                 if (state is com.eyecare.app.presentation.accessories.AccessoryDetailUiState.Success) {
                                     state.accessory.variants.find { it.id == variantId }?.let { variant ->
@@ -672,6 +672,7 @@ fun EyecareNavGraph(
                                             productName = state.accessory.name,
                                             variantName = variant.name,
                                             imagePath = state.accessory.images.firstOrNull() ?: variant.images.firstOrNull(),
+                                            quantity = quantity,
                                         )
                                     } ?: false
                                 } else {

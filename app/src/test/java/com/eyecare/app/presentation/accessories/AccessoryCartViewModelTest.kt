@@ -59,6 +59,13 @@ class AccessoryCartViewModelTest {
     }
 
     @Test
+    fun `addToCart accepts a requested quantity`() = runTest {
+        val viewModel = AccessoryCartViewModel()
+        viewModel.addToCart(variant(1), quantity = 3)
+        assertEquals(3, viewModel.cart.value.items[0].quantity)
+    }
+
+    @Test
     fun `addToCart same variant increments`() = runTest {
         val viewModel = AccessoryCartViewModel()
         viewModel.addToCart(variant(1))
