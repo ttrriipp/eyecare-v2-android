@@ -35,11 +35,15 @@ class FrameRepositoryImpl @Inject constructor(
         brandId: Int?,
         categoryId: Int?,
         sort: String?,
+        perPage: Int,
     ): Result<List<Frame>> {
         val hasFilters = search != null || brandId != null || categoryId != null || sort != null
+        val canUseCatalogCache = page == 1 && !hasFilters
+        val canCacheFullCatalogPage = canUseCatalogCache && perPage == DEFAULT_PAGE_SIZE
         return try {
             val response = api.getFrames(
                 page = page,
+                perPage = perPage,
                 search = search?.takeIf { it.isNotBlank() },
                 brandId = brandId,
                 categoryId = categoryId,
@@ -47,13 +51,13 @@ class FrameRepositoryImpl @Inject constructor(
             )
             lastMeta = response.meta
             val frames = response.data.map { it.toDomain() }
-            if (page == 1 && !hasFilters) {
+            if (canCacheFullCatalogPage) {
                 dao.clearAll()
                 dao.insertAll(response.data.map { it.toEntity() })
             }
             Result.success(frames)
         } catch (e: Exception) {
-            if (page == 1 && !hasFilters) {
+            if (canUseCatalogCache) {
                 val cached = dao.getAll()
                 if (cached.isNotEmpty()) {
                     Result.success(cached.map { it.toDomain() })
@@ -186,4 +190,8 @@ class FrameRepositoryImpl @Inject constructor(
         runCatching {
             (this as? JsonObject)?.mapValues { (_, v) -> (v as? JsonPrimitive)?.content ?: v.toString() }
         }.getOrNull()
+
+    private companion object {
+        const val DEFAULT_PAGE_SIZE = 15
+    }
 }

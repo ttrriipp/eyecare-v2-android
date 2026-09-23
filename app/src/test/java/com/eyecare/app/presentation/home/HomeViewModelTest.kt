@@ -23,6 +23,7 @@ import com.eyecare.app.domain.repository.PrescriptionRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -31,8 +32,10 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
@@ -93,7 +96,7 @@ class HomeViewModelTest {
         clinicRepo = mockk()
         coEvery { appointmentRequestRepo.getCurrentAppointmentJourney() } returns Result.success(CurrentAppointmentJourney.None)
         coEvery { accessoryRepo.getAccessories(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
-        coEvery { frameRepo.getFrames(any()) } returns Result.success(emptyList())
+        coEvery { frameRepo.getFrames(any(), any(), any(), any(), any(), any()) } returns Result.success(emptyList())
         coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { clinicRepo.getClinicHours() } returns Result.success(sampleClinicHours)
     }
@@ -133,11 +136,12 @@ class HomeViewModelTest {
     @Test
     fun `featuredFrames takes first 4 frames`() = runTest {
         val frames = (1..6).map { frame(it) }
-        coEvery { frameRepo.getFrames(any()) } returns Result.success(frames)
+        coEvery { frameRepo.getFrames(any(), any(), any(), any(), any(), any()) } returns Result.success(frames)
         val state = vm().uiState.value as HomeUiState.Success
         assertEquals(4, state.featuredFrames.size)
         assertEquals(1, state.featuredFrames[0].id)
         assertEquals(4, state.featuredFrames[3].id)
+        coVerify(exactly = 1) { frameRepo.getFrames(page = 1, perPage = 4) }
     }
 
     @Test
@@ -157,7 +161,7 @@ class HomeViewModelTest {
     @Test
     fun `partial failures do not hide available content`() = runTest {
         coEvery { appointmentRequestRepo.getCurrentAppointmentJourney() } returns Result.failure(RuntimeException("offline"))
-        coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
+        coEvery { frameRepo.getFrames(any(), any(), any(), any(), any(), any()) } returns Result.success(listOf(frame(1)))
         val current = createPrescription(1, true, "2026-07-27")
         coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(listOf(current), 1, 1, 1))
         val state = vm().uiState.value as HomeUiState.Success
@@ -169,7 +173,7 @@ class HomeViewModelTest {
     @Test
     fun `limited load keeps account-safe home data and loads featured frames`() = runTest {
         val limitedVm = HomeViewModel(appointmentRequestRepo, frameRepo, prescriptionRepo, clinicRepo, accessoryRepo)
-        coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
+        coEvery { frameRepo.getFrames(any(), any(), any(), any(), any(), any()) } returns Result.success(listOf(frame(1)))
 
         limitedVm.load(hasActivePatientLink = false)
 
@@ -179,7 +183,7 @@ class HomeViewModelTest {
         assertEquals(listOf(frame(1)), state.featuredFrames)
         assertEquals(sampleClinicHours, state.clinicHours)
         coVerify(exactly = 0) { appointmentRequestRepo.getCurrentAppointmentJourney() }
-        coVerify(exactly = 1) { frameRepo.getFrames(any()) }
+        coVerify(exactly = 1) { frameRepo.getFrames(page = 1, perPage = 4) }
         coVerify(exactly = 1) { accessoryRepo.getAccessories(any()) }
         coVerify(exactly = 0) { prescriptionRepo.getPrescriptions(any()) }
         coVerify(exactly = 1) { clinicRepo.getClinicHours() }
@@ -194,11 +198,58 @@ class HomeViewModelTest {
     @Test
     fun `clinicHours failure does not hide other home content`() = runTest {
         coEvery { clinicRepo.getClinicHours() } returns Result.failure(RuntimeException("offline"))
-        coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
+        coEvery { frameRepo.getFrames(any(), any(), any(), any(), any(), any()) } returns Result.success(listOf(frame(1)))
 
         val state = vm().uiState.value as HomeUiState.Success
         assertEquals(emptyList<ClinicHoursDay>(), state.clinicHours)
         assertEquals(1, state.featuredFrames.size)
+    }
+
+    @Test
+    fun `loaded home sections are available while another request is still pending`() = runTest {
+        val pendingFrames = CompletableDeferred<Result<List<Frame>>>()
+        coEvery { frameRepo.getFrames(any(), any(), any(), any(), any(), any()) } coAnswers { pendingFrames.await() }
+        val viewModel = HomeViewModel(appointmentRequestRepo, frameRepo, prescriptionRepo, clinicRepo, accessoryRepo)
+
+        viewModel.load()
+
+        try {
+            val state = viewModel.uiState.value
+            assertTrue(state is HomeUiState.Success)
+            assertEquals(sampleClinicHours, (state as HomeUiState.Success).clinicHours)
+            assertTrue(HomeSection.FRAMES in state.loadingSections)
+            assertFalse(HomeSection.CLINIC_HOURS in state.loadingSections)
+        } finally {
+            pendingFrames.complete(Result.success(emptyList()))
+        }
+    }
+
+    @Test
+    fun `refresh keeps existing sections when requests fail`() = runTest {
+        val journey = CurrentAppointmentJourney.Appointment(
+            appointment = futureAppt,
+            originalRequest = null,
+            pendingReschedule = null,
+        )
+        val accessories = listOf(accessory(1))
+        coEvery { appointmentRequestRepo.getCurrentAppointmentJourney() } returns Result.success(journey)
+        coEvery { frameRepo.getFrames(any(), any(), any(), any(), any(), any()) } returns Result.success(listOf(frame(1)))
+        coEvery { accessoryRepo.getAccessories(any()) } returns Result.success(PaginatedResult(accessories, 1, 1, 1))
+        val viewModel = HomeViewModel(appointmentRequestRepo, frameRepo, prescriptionRepo, clinicRepo, accessoryRepo)
+        viewModel.load()
+        val loaded = viewModel.uiState.value as HomeUiState.Success
+
+        coEvery { appointmentRequestRepo.getCurrentAppointmentJourney() } returns Result.failure(RuntimeException("offline"))
+        coEvery { frameRepo.getFrames(any(), any(), any(), any(), any(), any()) } returns Result.failure(RuntimeException("offline"))
+        coEvery { accessoryRepo.getAccessories(any()) } returns Result.failure(RuntimeException("offline"))
+        coEvery { clinicRepo.getClinicHours() } returns Result.failure(RuntimeException("offline"))
+        viewModel.refresh()
+
+        val refreshed = viewModel.uiState.value as HomeUiState.Success
+        assertEquals(loaded.nextAppointment, refreshed.nextAppointment)
+        assertEquals(loaded.featuredFrames, refreshed.featuredFrames)
+        assertEquals(loaded.featuredAccessories, refreshed.featuredAccessories)
+        assertEquals(loaded.clinicHours, refreshed.clinicHours)
     }
 
     private fun frame(id: Int) = Frame(

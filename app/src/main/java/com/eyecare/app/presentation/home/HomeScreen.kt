@@ -105,7 +105,10 @@ fun HomeScreen(
     }
 
     PullToRefreshBox(
-        isRefreshing = uiState is HomeUiState.Loading,
+        isRefreshing = when (val state = uiState) {
+            is HomeUiState.Success -> state.isRefreshing
+            else -> state is HomeUiState.Loading
+        },
         onRefresh = { viewModel.refresh(hasActivePatientLink) },
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -239,6 +242,14 @@ fun HomeContent(
                         onClick = onNavigateToAppointments,
                     )
                 }
+                state.currentAppointmentJourney == null &&
+                    HomeSection.APPOINTMENT_JOURNEY in state.loadingSections -> {
+                    LoadingBlock(
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 168.dp,
+                        cornerRadius = 16.dp,
+                    )
+                }
                 else -> BookingInvitation(onClick = onNavigateToBooking)
             }
         } else {
@@ -247,52 +258,24 @@ fun HomeContent(
 
         if (state.clinicHours.isNotEmpty()) {
             ClinicHoursCard(clinicHours = state.clinicHours)
+        } else if (HomeSection.CLINIC_HOURS in state.loadingSections) {
+            LoadingBlock(
+                modifier = Modifier.fillMaxWidth(),
+                height = 104.dp,
+                cornerRadius = 16.dp,
+            )
         }
 
-        if (state.featuredFrames.isNotEmpty()) {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = "Featured Frames",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = "Browse our AR-ready collection",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        TextButton(
-                            onClick = onNavigateToFrames,
-                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                        ) {
-                            Text("See all")
-                        }
-                    }
-                    HomeFrameShelf(
-                        frames = state.featuredFrames,
-                        onFrameClick = onNavigateToFrameDetail,
-                    )
-                }
-            }
-        }
+        FeaturedFramesSection(
+            frames = state.featuredFrames,
+            isLoading = HomeSection.FRAMES in state.loadingSections,
+            onNavigateToFrames = onNavigateToFrames,
+            onNavigateToFrameDetail = onNavigateToFrameDetail,
+        )
 
         AccessoriesHomeSection(
             accessories = state.featuredAccessories,
+            isLoading = HomeSection.ACCESSORIES in state.loadingSections,
             onNavigateToAccessories = onNavigateToAccessories,
             onNavigateToAccessory = onNavigateToAccessory,
         )
@@ -779,6 +762,68 @@ private fun AccountLinkInvitation(
 }
 
 @Composable
+private fun FeaturedFramesSection(
+    frames: List<Frame>,
+    isLoading: Boolean,
+    onNavigateToFrames: () -> Unit,
+    onNavigateToFrameDetail: (Int) -> Unit,
+) {
+    if (frames.isEmpty() && !isLoading) return
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Featured Frames",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Browse our AR-ready collection",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(
+                    onClick = onNavigateToFrames,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                ) {
+                    Text("See all")
+                }
+            }
+            if (frames.isNotEmpty()) {
+                HomeFrameShelf(
+                    frames = frames,
+                    onFrameClick = onNavigateToFrameDetail,
+                )
+            } else {
+                LazyRow(
+                    contentPadding = PaddingValues(end = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    items(count = 2) {
+                        LoadingBlock(width = 148.dp, height = 196.dp, cornerRadius = 12.dp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun HomeFrameShelf(
     frames: List<Frame>,
     onFrameClick: (Int) -> Unit,
@@ -801,10 +846,48 @@ private fun HomeFrameShelf(
 @Composable
 private fun AccessoriesHomeSection(
     accessories: List<Accessory>,
+    isLoading: Boolean,
     onNavigateToAccessories: () -> Unit,
     onNavigateToAccessory: (Int) -> Unit,
 ) {
     if (accessories.isEmpty()) {
+        if (isLoading) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Lens care essentials",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "Solutions, drops, and daily care",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    LazyRow(
+                        contentPadding = PaddingValues(end = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        items(count = 2) {
+                            LoadingBlock(width = 164.dp, height = 252.dp, cornerRadius = 12.dp)
+                        }
+                    }
+                }
+            }
+            return
+        }
+
         Card(
             onClick = onNavigateToAccessories,
             modifier = Modifier

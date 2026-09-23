@@ -10,6 +10,7 @@ interface FrameRepository {
         brandId: Int? = null,
         categoryId: Int? = null,
         sort: String? = null,
+        perPage: Int = 15,
     ): Result<List<Frame>>
     suspend fun getFrame(id: Int): Result<Frame>
     suspend fun getFrameReviews(
