@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,9 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.FaceRetouchingNatural
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,6 +41,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -68,6 +73,7 @@ import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.PaymentProofStatus
 import com.eyecare.app.domain.model.PaymentProofUpload
+import com.eyecare.app.domain.model.RatingSummary
 import com.eyecare.app.presentation.common.FeatureFlags
 import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.buildImageUrl
@@ -180,37 +186,43 @@ fun OpticalOrderDetailScreen(
                 Modifier.fillMaxSize().padding(padding),
             ) { ErrorContent(message = state.message, onRetry = viewModel::retry) }
 
-            is OpticalOrderDetailUiState.Success -> OrderDetailContent(
-                order = state.order,
-                onRateItem = { itemId -> ratingItemId = itemId },
-                ratingsEnabled = ratingsEnabled,
-                uploadState = state.uploadState,
-                selectedProof = selectedProof,
-                pickerErrorMessage = pickerErrorMessage,
-                onPickProof = {
-                    pickerErrorMessage = null
-                    proofPicker.launch(arrayOf("image/jpeg", "image/png"))
-                },
-                onPaymentProofSubmit = { paymentMethod, senderName, referenceNumber, proof ->
-                    viewModel.uploadProof(
-                        PaymentProofUpload(
-                            imageFile = proof.file,
-                            senderName = senderName,
-                            referenceNumber = referenceNumber,
-                            paymentMethod = paymentMethod,
-                            mimeType = proof.mimeType,
-                            width = proof.width,
-                            height = proof.height,
-                            deleteAfterUpload = true,
-                        ),
-                    )
-                },
-                onPaymentWindowExpired = viewModel::refresh,
+            is OpticalOrderDetailUiState.Success -> PullToRefreshBox(
+                isRefreshing = state.isRefreshing,
                 onRefresh = viewModel::refresh,
-                onClearPaymentProofError = viewModel::clearUploadState,
-                onMessageClinic = onMessageClinic,
-                modifier = Modifier.padding(padding),
-            )
+                modifier = Modifier.fillMaxSize().padding(padding),
+            ) {
+                OrderDetailContent(
+                    order = state.order,
+                    onRateItem = { itemId -> ratingItemId = itemId },
+                    ratingsEnabled = ratingsEnabled,
+                    uploadState = state.uploadState,
+                    selectedProof = selectedProof,
+                    pickerErrorMessage = pickerErrorMessage,
+                    onPickProof = {
+                        pickerErrorMessage = null
+                        proofPicker.launch(arrayOf("image/jpeg", "image/png"))
+                    },
+                    onPaymentProofSubmit = { paymentMethod, senderName, referenceNumber, proof ->
+                        viewModel.uploadProof(
+                            PaymentProofUpload(
+                                imageFile = proof.file,
+                                senderName = senderName,
+                                referenceNumber = referenceNumber,
+                                paymentMethod = paymentMethod,
+                                mimeType = proof.mimeType,
+                                width = proof.width,
+                                height = proof.height,
+                                deleteAfterUpload = true,
+                            ),
+                        )
+                    },
+                    onPaymentWindowExpired = viewModel::refresh,
+                    onRefresh = viewModel::refresh,
+                    onClearPaymentProofError = viewModel::clearUploadState,
+                    onMessageClinic = onMessageClinic,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }
@@ -368,28 +380,12 @@ internal fun OrderDetailContent(
                                 fontWeight = FontWeight.SemiBold,
                             )
                         }
-                        if (ratingsEnabled && item.isRateable) {
-                            TextButton(onClick = { onRateItem(item.id) }) {
-                                Text(if (item.rating != null) "Update rating" else "Rate this item")
-                            }
-                        }
-                        if (ratingsEnabled && item.rating != null) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    "Rating: ${item.rating.rating}/5${item.rating.comment?.let { " - $it" } ?: ""}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                item.rating.ownerAttachmentUrl?.takeIf(String::isNotBlank)?.let { imageUrl ->
-                                    OwnerRatingPhoto(
-                                        url = imageUrl,
-                                        contentDescription = "Your rating photo",
-                                        modifier = Modifier
-                                            .size(112.dp)
-                                            .clip(RoundedCornerShape(12.dp)),
-                                    )
-                                }
-                            }
+                        if (ratingsEnabled && (item.isRateable || item.rating != null)) {
+                            OrderItemRating(
+                                rating = item.rating,
+                                canRate = item.isRateable,
+                                onRate = { onRateItem(item.id) },
+                            )
                         }
                         HorizontalDivider()
                     }
@@ -402,6 +398,84 @@ internal fun OrderDetailContent(
             }
 
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun OrderItemRating(
+    rating: RatingSummary?,
+    canRate: Boolean,
+    onRate: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (rating != null) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    (1..5).forEach { star ->
+                        Icon(
+                            imageVector = if (star <= rating.rating) Icons.Filled.Star else Icons.Outlined.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = if (star <= rating.rating) {
+                                EyecareColors.current.accentText
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant
+                            },
+                        )
+                    }
+                    Text(
+                        text = "${rating.rating}/5",
+                        modifier = Modifier.semantics {
+                            contentDescription = "${rating.rating} out of 5 stars"
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            } else {
+                Text(
+                    "Not rated yet",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Spacer(Modifier.weight(1f))
+            if (canRate) {
+                TextButton(
+                    onClick = onRate,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = EyecareColors.current.accentText,
+                    ),
+                ) {
+                    Text(if (rating != null) "Edit rating" else "Rate item")
+                }
+            }
+        }
+
+        rating?.comment?.takeIf(String::isNotBlank)?.let { comment ->
+            Text(
+                comment,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        rating?.ownerAttachmentUrl?.takeIf(String::isNotBlank)?.let { imageUrl ->
+            OwnerRatingPhoto(
+                url = imageUrl,
+                contentDescription = "Your rating photo",
+                modifier = Modifier
+                    .size(112.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+            )
         }
     }
 }

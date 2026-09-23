@@ -2,11 +2,10 @@ package com.eyecare.app.presentation.eyewear
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
@@ -83,14 +82,13 @@ fun FrameRatingDialog(
                 modifier = Modifier
                     .heightIn(max = 460.dp)
                     .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 StarRatingRow(
                     rating = selectedRating,
                     onRatingChange = { selectedRating = it },
                     enabled = !isSubmitting,
                 )
-
-                Spacer(Modifier.height(8.dp))
 
                 OutlinedTextField(
                     value = comment,
@@ -106,34 +104,35 @@ fun FrameRatingDialog(
                     enabled = !isSubmitting,
                 )
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .toggleable(
-                            value = publicDisplayConsent,
-                            enabled = comment.isNotBlank() && !isSubmitting,
-                            role = Role.Checkbox,
-                            onValueChange = { publicDisplayConsent = it },
+                if (comment.isNotBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = publicDisplayConsent,
+                                enabled = !isSubmitting,
+                                role = Role.Checkbox,
+                                onValueChange = { publicDisplayConsent = it },
+                            )
+                            .testTag("public-review-consent"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = publicDisplayConsent,
+                            onCheckedChange = null,
+                            enabled = !isSubmitting,
                         )
-                        .testTag("public-review-consent"),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = publicDisplayConsent,
-                        onCheckedChange = null,
-                        enabled = comment.isNotBlank() && !isSubmitting,
-                    )
-                    Column {
-                        Text("Share this comment publicly", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            "Your name won't be shown.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Column {
+                            Text("Share this comment publicly", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "Your name won't be shown.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = {
                         attachmentErrorMessage = null
@@ -210,7 +209,7 @@ fun FrameRatingDialog(
                     }
                 }
 
-                if (selectedAttachment != null || currentRating != null) {
+                if (selectedAttachment != null || !currentAttachmentUrl.isNullOrBlank()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -229,9 +228,9 @@ fun FrameRatingDialog(
                             enabled = !isSubmitting,
                         )
                         Column {
-                            Text("Show the photo publicly", style = MaterialTheme.typography.bodyMedium)
+                            Text("Share photo publicly", style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                "Photos appear only with public comments and may reveal identifying details. This can also share a photo already attached to this rating.",
+                                "Visible with public comments. Photos may reveal identifying details.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -244,7 +243,6 @@ fun FrameRatingDialog(
                 }
 
                 errorMessage?.let {
-                    Spacer(Modifier.height(8.dp))
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
             }

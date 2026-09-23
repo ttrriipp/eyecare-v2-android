@@ -24,6 +24,7 @@ sealed interface OpticalOrderDetailUiState {
     data class Success(
         val order: OpticalOrder,
         val uploadState: ProofUploadState = ProofUploadState.Idle,
+        val isRefreshing: Boolean = false,
     ) : OpticalOrderDetailUiState
     data class Error(val message: String) : OpticalOrderDetailUiState
 }
@@ -58,14 +59,24 @@ class OpticalOrderDetailViewModel @Inject constructor(
             load()
             return
         }
+        if (previous.isRefreshing) return
+
+        _uiState.value = previous.copy(isRefreshing = true)
         viewModelScope.launch {
-            repository.getOpticalOrder(orderId).onSuccess { latestOrder ->
-                val current = _uiState.value as? OpticalOrderDetailUiState.Success
-                _uiState.value = OpticalOrderDetailUiState.Success(
-                    order = latestOrder,
-                    uploadState = current?.uploadState ?: previous.uploadState,
-                )
-            }
+            repository.getOpticalOrder(orderId).fold(
+                onSuccess = { latestOrder ->
+                    val current = _uiState.value as? OpticalOrderDetailUiState.Success
+                    if (current != null) {
+                        _uiState.value = current.copy(order = latestOrder, isRefreshing = false)
+                    }
+                },
+                onFailure = {
+                    val current = _uiState.value as? OpticalOrderDetailUiState.Success
+                    if (current != null) {
+                        _uiState.value = current.copy(isRefreshing = false)
+                    }
+                },
+            )
         }
     }
 
@@ -89,7 +100,7 @@ class OpticalOrderDetailViewModel @Inject constructor(
                 )
             ) else item
         }
-        _uiState.value = OpticalOrderDetailUiState.Success(current.order.copy(items = updatedItems))
+        _uiState.value = current.copy(order = current.order.copy(items = updatedItems))
     }
 
     fun uploadProof(proof: PaymentProofUpload) {
