@@ -63,6 +63,7 @@ object AccessoryOrderRequestDtos {
         val items: List<OrderRequestItemDto> = emptyList(),
         @SerialName("rejection_reason") val rejectionReason: String? = null,
         @SerialName("cancelled_at") val cancelledAt: String? = null,
+        @SerialName("cancellation_reason") val cancellationReason: String? = null,
         @SerialName("created_at") val createdAt: String,
         val order: AcceptedOrderSummaryDto? = null,
     )
@@ -97,5 +98,10 @@ object AccessoryOrderRequestDtos {
     data class SubmitOrderItem(
         @SerialName("product_variant_id") val productVariantId: Int,
         val quantity: Int,
+    )
+
+    @Serializable
+    data class CancelOrderRequest(
+        @SerialName("reason_details") val reasonDetails: String,
     )
 }

@@ -79,10 +79,11 @@ class AccessoryOrderRequestApiServiceTest {
     @Test
     fun `cancelRequest sends POST to cancel endpoint`() = runTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("""{"data":${requestJson(status = "cancelled")}}"""))
-        api.cancelRequest(10)
+        api.cancelRequest(10, AccessoryOrderRequestDtos.CancelOrderRequest("Changed my mind"))
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertTrue(request.path!!.contains("accessory-order-requests/10/cancel"))
+        assertTrue(request.body.readUtf8().contains("\"reason_details\":\"Changed my mind\""))
     }
 
     @Test

@@ -48,8 +48,11 @@ class AccessoryOrderRequestRepositoryImpl @Inject constructor(
         api.submitRequest(body).data.toDomain()
     }
 
-    override suspend fun cancelRequest(id: Int): Result<AccessoryOrderRequest> = safeApiCall {
-        api.cancelRequest(id).data.toDomain()
+    override suspend fun cancelRequest(id: Int, reasonDetails: String): Result<AccessoryOrderRequest> = safeApiCall {
+        api.cancelRequest(
+            id,
+            AccessoryOrderRequestDtos.CancelOrderRequest(reasonDetails = reasonDetails),
+        ).data.toDomain()
     }
 
     override suspend fun uploadDiscountProof(id: Int, proof: DiscountProofUpload): Result<DiscountProofResult> = safeApiCall {
@@ -85,6 +88,7 @@ class AccessoryOrderRequestRepositoryImpl @Inject constructor(
         items = items.map { it.toDomain() },
         rejectionReason = rejectionReason,
         cancelledAt = cancelledAt,
+        cancellationReason = cancellationReason,
         createdAt = createdAt,
         discountProofStatus = DiscountProofStatus.from(
             discountProofStatus ?: if (requestedDiscountType.equals("none", ignoreCase = true)) "not_required" else "not_submitted",

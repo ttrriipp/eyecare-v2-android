@@ -90,6 +90,29 @@ class AccessoryRepositoryImplTest {
     }
 
     @Test
+    fun `getAccessoryReviews maps public review fields and requests the requested page`() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"data":[{"rating":5,"comment":"Comfortable and sturdy.","created_at":"2026-09-20T10:00:00+08:00"}],"links":{"first":"/accessories/42/reviews?page=1","last":"/accessories/42/reviews?page=2","prev":"/accessories/42/reviews?page=1","next":null},"meta":{"current_page":2,"last_page":2,"per_page":10,"total":11}}""",
+            ),
+        )
+
+        val result = repository.getAccessoryReviews(42, page = 2, perPage = 10).getOrThrow()
+
+        assertEquals(1, result.data.size)
+        assertEquals(5, result.data.single().rating)
+        assertEquals("Comfortable and sturdy.", result.data.single().comment)
+        assertEquals("2026-09-20T10:00:00+08:00", result.data.single().createdAt)
+        assertEquals(2, result.currentPage)
+        assertEquals(2, result.lastPage)
+        assertEquals(11, result.total)
+        val request = server.takeRequest()
+        assertEquals("/accessories/42/reviews", request.requestUrl?.encodedPath)
+        assertEquals("2", request.requestUrl?.queryParameter("page"))
+        assertEquals("10", request.requestUrl?.queryParameter("per_page"))
+    }
+
+    @Test
     fun `unknown availability maps to UNKNOWN`() = runTest {
         enqueueSingle(accessoryJson(variants = """[{"id":1,"name":"V","price":"100.00","attributes":{},"images":[],"availability":"future_value"}]"""))
         val a = repository.getAccessory(1).getOrThrow()

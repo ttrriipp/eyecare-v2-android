@@ -34,7 +34,6 @@ enum class TrackerStep { CONFIRMED, PROCESSING, READY, COMPLETED }
 data class TrackerState(
     val steps: List<Pair<TrackerStep, Boolean>>,
     val activeStep: TrackerStep?,
-    val terminalMessage: String?,
 )
 
 // ── Order presentation ──────────────────────────────────────────────────
@@ -106,7 +105,7 @@ fun paymentStatusTextColor(status: PaymentStatus): Color = when (status) {
 
 fun orderCardTitle(order: OpticalOrder): String {
     val items = order.items
-    if (items.isEmpty()) return "Eyewear order"
+    if (items.isEmpty()) return "Order"
     val first = items[0].description
     return if (items.size == 1) first else "$first and ${items.size - 1} more"
 }
@@ -136,7 +135,6 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
                 TrackerStep.COMPLETED to false,
             ),
             activeStep = null,
-            terminalMessage = "Awaiting payment",
         )
         OpticalOrderStatus.PAYMENT_REVIEW -> TrackerState(
             steps = listOf(
@@ -146,7 +144,6 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
                 TrackerStep.COMPLETED to false,
             ),
             activeStep = null,
-            terminalMessage = "Payment under review",
         )
         OpticalOrderStatus.QUEUED -> TrackerState(
             steps = listOf(
@@ -156,7 +153,6 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
                 TrackerStep.COMPLETED to false,
             ),
             activeStep = TrackerStep.CONFIRMED,
-            terminalMessage = null,
         )
         OpticalOrderStatus.IN_PROGRESS -> TrackerState(
             steps = listOf(
@@ -166,7 +162,6 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
                 TrackerStep.COMPLETED to false,
             ),
             activeStep = TrackerStep.PROCESSING,
-            terminalMessage = null,
         )
         OpticalOrderStatus.READY_FOR_DISPENSING -> TrackerState(
             steps = listOf(
@@ -176,7 +171,6 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
                 TrackerStep.COMPLETED to false,
             ),
             activeStep = TrackerStep.READY,
-            terminalMessage = null,
         )
         OpticalOrderStatus.DISPENSED -> TrackerState(
             steps = listOf(
@@ -186,7 +180,6 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
                 TrackerStep.COMPLETED to true,
             ),
             activeStep = TrackerStep.COMPLETED,
-            terminalMessage = "Order completed",
         )
         OpticalOrderStatus.CANCELLED -> TrackerState(
             steps = listOf(
@@ -196,7 +189,6 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
                 TrackerStep.COMPLETED to false,
             ),
             activeStep = null,
-            terminalMessage = "Cancelled",
         )
         OpticalOrderStatus.UNKNOWN -> TrackerState(
             steps = listOf(
@@ -206,26 +198,8 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
                 TrackerStep.COMPLETED to false,
             ),
             activeStep = null,
-            terminalMessage = "Status unavailable",
         )
     }
-}
-
-fun trackerStepStateLabel(
-    status: OpticalOrderStatus,
-    step: TrackerStep,
-    completed: Boolean,
-    activeStep: TrackerStep?,
-): String = when {
-    status == OpticalOrderStatus.CANCELLED -> if (step == TrackerStep.CONFIRMED) "Stopped" else ""
-    status == OpticalOrderStatus.UNKNOWN -> if (step == TrackerStep.CONFIRMED) "Unavailable" else ""
-    status == OpticalOrderStatus.PENDING_PAYMENT || status == OpticalOrderStatus.PAYMENT_REVIEW ->
-        if (step == TrackerStep.CONFIRMED) "After verification" else ""
-    status == OpticalOrderStatus.DISPENSED -> if (step == TrackerStep.COMPLETED) "Done" else ""
-    step == activeStep -> "Now"
-    completed -> "Done"
-    activeStep != null && step.ordinal == activeStep.ordinal + 1 -> "Next"
-    else -> ""
 }
 
 fun trackerStepAccessibilityStateLabel(

@@ -1,6 +1,7 @@
 package com.eyecare.app.data.remote.api
 
 import com.eyecare.app.data.remote.dto.AccessoryDtos
+import com.eyecare.app.data.remote.dto.ProductReviewDtos
 import com.eyecare.app.domain.model.AccessoryQuery
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -22,6 +23,13 @@ interface AccessoryApiService {
 
     @GET("accessories/{id}")
     suspend fun getAccessory(@Path("id") id: Int): AccessoryDtos.AccessoryResponse
+
+    @GET("accessories/{id}/reviews")
+    suspend fun getAccessoryReviews(
+        @Path("id") id: Int,
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 15,
+    ): ProductReviewDtos.ProductReviewListResponse
 }
 
 suspend fun AccessoryApiService.getAccessories(

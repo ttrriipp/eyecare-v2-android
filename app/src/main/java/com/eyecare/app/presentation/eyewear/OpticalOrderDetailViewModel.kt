@@ -53,7 +53,21 @@ class OpticalOrderDetailViewModel @Inject constructor(
 
     fun retry() { load() }
 
-    fun refresh() { load() }
+    fun refresh() {
+        val previous = _uiState.value as? OpticalOrderDetailUiState.Success ?: run {
+            load()
+            return
+        }
+        viewModelScope.launch {
+            repository.getOpticalOrder(orderId).onSuccess { latestOrder ->
+                val current = _uiState.value as? OpticalOrderDetailUiState.Success
+                _uiState.value = OpticalOrderDetailUiState.Success(
+                    order = latestOrder,
+                    uploadState = current?.uploadState ?: previous.uploadState,
+                )
+            }
+        }
+    }
 
     fun onResume() {
         // Refresh on resume to pick up staff decisions
@@ -71,6 +85,7 @@ class OpticalOrderDetailViewModel @Inject constructor(
                     rating = ratingResult.rating,
                     comment = ratingResult.comment,
                     createdAt = ratingResult.createdAt,
+                    ownerAttachmentUrl = item.rating?.ownerAttachmentUrl.takeIf { ratingResult.hasAttachment },
                 )
             ) else item
         }

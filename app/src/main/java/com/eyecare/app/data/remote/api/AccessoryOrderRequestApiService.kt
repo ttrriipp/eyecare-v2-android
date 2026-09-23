@@ -28,7 +28,10 @@ interface AccessoryOrderRequestApiService {
     suspend fun getRequest(@Path("id") id: Int): AccessoryOrderRequestDtos.OrderRequestResponse
 
     @POST("accessory-order-requests/{id}/cancel")
-    suspend fun cancelRequest(@Path("id") id: Int): AccessoryOrderRequestDtos.OrderRequestResponse
+    suspend fun cancelRequest(
+        @Path("id") id: Int,
+        @Body body: AccessoryOrderRequestDtos.CancelOrderRequest,
+    ): AccessoryOrderRequestDtos.OrderRequestResponse
 
     @Multipart
     @POST("accessory-order-requests/{id}/discount-proof")

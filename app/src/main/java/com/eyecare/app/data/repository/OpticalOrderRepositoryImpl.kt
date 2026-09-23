@@ -14,6 +14,7 @@ import com.eyecare.app.domain.model.PaymentProofSummary
 import com.eyecare.app.domain.model.PaymentProofUpload
 import com.eyecare.app.domain.model.PaymentStatus
 import com.eyecare.app.domain.model.PaymentSummary
+import com.eyecare.app.domain.model.ProductRatingAttachment
 import com.eyecare.app.domain.model.RatingResult
 import com.eyecare.app.domain.model.RatingSummary
 import com.eyecare.app.domain.repository.OpticalOrderRepository
@@ -42,8 +43,42 @@ class OpticalOrderRepositoryImpl @Inject constructor(
         api.getOpticalOrder(id).data.toDomain()
     }
 
-    override suspend fun rateItem(itemId: Int, rating: Int, comment: String?): Result<RatingResult> = safeApiCall {
-        val response = api.rateItem(itemId, OpticalOrderDtos.RatingRequest(rating = rating, comment = comment))
+    override suspend fun rateItem(
+        itemId: Int,
+        rating: Int,
+        comment: String?,
+        publicDisplayConsent: Boolean,
+        attachment: ProductRatingAttachment?,
+        publicAttachmentConsent: Boolean,
+    ): Result<RatingResult> = safeApiCall {
+        val response = if (attachment == null) {
+            api.rateItem(
+                itemId,
+                OpticalOrderDtos.RatingRequest(
+                    rating = rating,
+                    comment = comment,
+                    publicDisplayConsent = publicDisplayConsent && !comment.isNullOrBlank(),
+                    publicAttachmentConsent = publicAttachmentConsent,
+                ),
+            )
+        } else {
+            val imagePart = MultipartBody.Part.createFormData(
+                name = "attachment",
+                filename = attachment.imageFile.name,
+                body = attachment.imageFile.asRequestBody(attachment.mimeType.toMediaType()),
+            )
+            val textType = "text/plain".toMediaType()
+            api.rateItemWithAttachment(
+                itemId = itemId,
+                attachment = imagePart,
+                rating = rating.toString().toRequestBody(textType),
+                comment = comment?.toRequestBody(textType),
+                publicDisplayConsent = (if (publicDisplayConsent && !comment.isNullOrBlank()) "1" else "0")
+                    .toRequestBody(textType),
+                publicAttachmentConsent = (if (publicAttachmentConsent) "1" else "0")
+                    .toRequestBody(textType),
+            )
+        }
         val result = response.data
         RatingResult(
             id = result.id,
@@ -52,6 +87,7 @@ class OpticalOrderRepositoryImpl @Inject constructor(
             comment = result.comment,
             productVariantId = result.productVariantId,
             createdAt = result.createdAt,
+            hasAttachment = result.hasAttachment,
         )
     }
 
@@ -180,7 +216,12 @@ class OpticalOrderRepositoryImpl @Inject constructor(
         productVariantId = productVariantId,
         isRateable = isRateable,
         rating = rating?.let {
-            RatingSummary(rating = it.rating, comment = it.comment, createdAt = it.createdAt)
+            RatingSummary(
+                rating = it.rating,
+                comment = it.comment,
+                createdAt = it.createdAt,
+                ownerAttachmentUrl = it.ownerAttachmentUrl,
+            )
         },
         imagePath = imageUrl,
     )

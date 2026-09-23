@@ -12,16 +12,23 @@
 > eligible candidates, and `patient-links:audit-identity` reconciles existing
 > links in dry-run or explicit `--mark-review` mode.
 
-> **Backend version:** Current repository state (2026-09-22) — patient
+> **Backend version:** Current repository state (2026-09-23) — patient
 > same-day cancellation, appointment-request cancellation, pending-request
 > schedule updates, and active-limit behavior are documented below.
 > Patient-originated Filament bell notifications are documented separately
-> from the mobile notification feed. The normal patient-mobile contract has 69
-> routes (8 public + 44 account-only + 17 active-link). One additive,
-> pilot-only public route is also registered, making 70 routes in the registry;
+> from the mobile notification feed. The normal patient-mobile contract has 71
+> routes (8 public + 46 account-only + 17 active-link). One additive,
+> pilot-only public route is also registered, making 72 routes in the registry;
 > it is disabled by default and excluded from the normal contract count. The
 > accessory catalog is account-only; the request lifecycle and payment-proof
 > and discount-proof routes remain active-link commerce routes documented below.
+
+> **Shipped 2026-09-23: consent-gated product reviews.** Authenticated frame
+> and accessory catalog routes expose only non-blank comments explicitly opted
+> into public display. Hidden, deleted, and legacy comments without consent
+> remain private. The response contains rating, masked comment, and submission
+> time without reviewer identity or moderation data. See the frame and
+> accessory catalog sections below.
 
 > **Shipped 2026-09-13: patient same-day cancellation cutoff.** Patient API
 > cancellation of a confirmed appointment or pending appointment request is
@@ -66,16 +73,16 @@
 > reject an expired prescription.
 
 > **Shipped 2026-09-16: rating comment filtering.** Visit and frame rating
-> comments are profanity-masked before persistence and are therefore returned
-> in their masked form. Frame-rating submissions remain an upsert, but later
+> comments are profanity-masked in patient API responses; the original comment
+> remains stored internally. Frame-rating submissions remain an upsert, but later
 > submissions update the same row in place; there is no revision history and
 > the endpoint returns `201` for both create and update.
 
 > **Pilot-only authentication.** `POST /auth/participant-login` is an additive
 > public route for provisioned capstone participants. It returns `404` unless
 > deployment is in pilot mode, pilot mode is enabled, and the configured pilot
-> expiry is in the future. It is excluded from the normal 68-route contract
-> count; including it, the route registry contains 69 routes.
+> expiry is in the future. It is excluded from the normal 71-route contract
+> count; including it, the route registry contains 72 routes.
 
 > **Shipped 2026-09-07: actionable admin notifications for patient actions.**
 > Eight approved patient events now create queued, after-commit Filament
@@ -2218,6 +2225,41 @@ including the nullable `ar` field and the same image-preview fallback rules.
 
 Each variant now includes an account-specific `is_saved` boolean field.
 
+### GET `/frames/{id}/reviews`
+
+Returns the paginated public reviews for a frame that is currently visible
+through the same frame-catalog eligibility rules as `GET /frames/{id}`.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Query parameters:** `page` (integer >= 1) and `per_page` (integer 1–50,
+default 15).
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "rating": 5,
+      "comment": "Comfortable and sturdy.",
+      "created_at": "2026-09-20T10:00:00+08:00"
+    }
+  ],
+  "links": { "first": "...", "last": "...", "prev": null, "next": null },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 1 }
+}
+```
+
+Only comments with explicit public-display consent, non-blank text, and no
+moderation hide are included. Soft-deleted ratings are excluded. Existing
+comments have no recorded public-display consent and remain private unless a
+patient submits the current comment again with consent. The response contains
+no review ID, patient/account identity, contact detail, order or dispensing
+identifier, or moderation field. Android displays the fixed reviewer label
+`Verified buyer`; the API does not return a reviewer label or identity.
+Comments are profanity-masked in the response. Reviews are ordered by
+submission time, newest first, with a stable ID tie-breaker.
+
 ---
 
 ## 12. Saved Frames
@@ -2461,6 +2503,37 @@ sent. The catalog does not read prescription measurements, infer compatibility,
 or bind an accessory order request to a Prescription. Catalog reads are
 query-only and never reserve stock; unauthenticated requests return `401`.
 
+### GET `/accessories/{id}/reviews`
+
+Returns the paginated public reviews for an accessory that is currently
+visible through the same active, in-stock accessory-catalog rules as
+`GET /accessories/{id}`.
+
+**Auth:** Required (Sanctum token) and patient role. No active patient link
+required.
+
+**Query parameters:** `page` (integer >= 1) and `per_page` (integer 1–50,
+default 15).
+
+The response uses the same paginated shape and allowlisted review fields as
+`GET /frames/{id}/reviews`: `rating`, profanity-masked `comment`, ISO
+`created_at`, and nullable `attachment_url`. It excludes review IDs and all
+patient/account identity, contact, order, dispensing, and moderation fields. A
+review is included only when its comment is non-blank, its rating has explicit
+public-display consent, and it is neither hidden nor soft-deleted. An
+`attachment_url` is returned only for a current image with separate explicit
+attachment-display consent; otherwise it is `null`. The customer app displays
+the fixed label `Verified buyer`. Existing comments and attachments remain
+private unless opted in. Hidden rating stars continue to count in the existing
+product rating aggregates.
+
+`GET /frames/{id}/reviews/attachments/{opaque_attachment_id}` and
+`GET /accessories/{id}/reviews/attachments/{opaque_attachment_id}` stream an
+opted-in review image. These routes apply the matching product catalog's
+authentication, role, and product-visibility rules and re-check comment and
+attachment eligibility on every request. Images remain in private storage;
+their unguessable attachment IDs do not expose rating row IDs.
+
 ### Order request lifecycle
 
 ```text
@@ -2503,13 +2576,68 @@ or cancelled; `history` includes rejected/cancelled requests and terminal
 accepted orders. Ordering is `created_at DESC, id DESC`.
 
 Each `items[]` entry includes `id`, `description`, `quantity`, two-decimal
-`unit_price` and `amount`, `product_variant_id`, `item_kind`, and the nullable
-`item_snapshot` object. For accessory requests, `item_snapshot` contains the
-immutable `product_variant_id`, `sku`, `variant_name`, `product_name`,
-two-decimal `price`, and nullable `attributes` captured at submission time.
+`unit_price` and `amount`, `product_variant_id`, nullable `image_url`,
+`item_kind`, and the nullable `item_snapshot` object. For accessory requests,
+`item_snapshot` contains the immutable `product_variant_id`, `sku`,
+`variant_name`, `product_name`, two-decimal `price`, nullable `attributes`, and
+`images` captured at submission time. `images` is a sanitized array of public
+relative catalog image paths. Variant images are preferred; when a variant has
+no public images, the parent Product images are captured instead. It is an
+empty array when neither has a public image.
+
+`items[].image_url` is the first public image from the snapshot, or `null` when
+no image is available. For legacy requests whose snapshots predate the
+`images` field, the API resolves this field at read time from the current
+variant images and then the current parent Product images; the stored snapshot
+is not rewritten. Internal filesystem paths, absolute URLs, unsafe paths, and
+non-image references are never returned as `image_url` values.
+
+Example accessory item:
+
+```json
+{
+  "product_variant_id": 42,
+  "image_url": "variants/lacryl-hydrate/front.jpg",
+  "item_snapshot": {
+    "product_variant_id": 42,
+    "sku": "ACC-LACRYL-HYDRATE-10ML",
+    "variant_name": "10 ml",
+    "product_name": "Lacryl Hydrate",
+    "price": "250.00",
+    "attributes": {},
+    "images": ["variants/lacryl-hydrate/front.jpg"]
+  }
+}
+```
 
 Patients may cancel only a pending request. Cancellation is idempotent and
 creates no commerce or inventory records. Ownership failures return `404`.
+The cancellation request must include a nonblank `reason_details` string of at
+most 1,000 characters. Missing, blank, or overlong values return `422` and
+leave the request pending.
+
+| Field | Type | Requirement | Meaning |
+|---|---|---|---|
+| `reason_details` | string | required, 1–1,000 characters | Patient's reason for cancelling |
+
+Example:
+
+```json
+{
+  "reason_details": "I selected the wrong accessories."
+}
+```
+
+The API returns the reason as `cancellation_reason` in the cancel, list, and
+detail responses:
+
+| Field | Type | Nullable | Meaning |
+|---|---|---:|---|
+| `cancellation_reason` | string | yes | `null` until cancellation; then the patient's reason |
+
+It is encrypted at rest and never copied into audit metadata. A repeated
+cancellation remains idempotent and preserves the reason from the first
+successful cancellation.
 
 #### Discount-proof fields in request responses
 
@@ -2755,6 +2883,11 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `items[].image_url` | string | yes | Primary public catalog image for frame items; uses the same relative image path format as `GET /frames`, or `null` when the item is not a frame or has no image |
 | `items[].is_rateable` | boolean | no | Whether the patient may submit or revise a rating for this item now |
 | `items[].rating` | object | yes | Current rating summary; null when not yet rated |
+| `items[].rating.rating` | integer | no | Patient's current 1–5 product rating |
+| `items[].rating.comment` | string | yes | Patient's current profanity-masked comment, or `null` when hidden |
+| `items[].rating.created_at` | string | yes | ISO 8601 rating submission timestamp |
+| `items[].rating.revision_number` | integer | no | Always `1`; ratings update in place without revision history |
+| `items[].rating.owner_attachment_url` | string | yes | Authenticated URL to this patient's private rating image, or `null` when no image is attached |
 | `payment_summary` | object | yes | Active billing summary; omitted entirely if no billing record |
 | `payment_summary.status` | string | no | Machine-readable: `unpaid`, `partially_paid`, `paid`, `voided` |
 | `payment_summary.total_amount` | string | no | Billing total |
@@ -2820,9 +2953,11 @@ Example with both configured methods:
 ```
 
 When `items[].rating` is not null, it contains `rating`, optional `comment`,
-and `created_at`. Comment text is profanity-masked before persistence. Hidden
-comments return `comment: null` to non-authors; the author always sees their
-own masked comment.
+`created_at`, and nullable `owner_attachment_url`. Comment text is
+profanity-masked before persistence. Hidden comments return `comment: null` to
+non-authors; the author always sees their own masked comment. The owner
+attachment URL is available only in the authenticated patient's order response
+and does not depend on public attachment consent.
 
 **Rateable items:** `is_rateable` is `true` only for a dispensed order's item
 with a non-null `product_variant_id`. Service items, custom products, and items
@@ -2896,6 +3031,30 @@ paths, and admin-only URLs are never used as `image_url` values.
 
 ---
 
+### GET `/optical-order-items/{id}/rating/attachment`
+
+Streams the current rating image for an optical-order item owned by the signed-in
+patient. The endpoint resolves the rating using the authenticated patient's
+identity and the order item's product variant, then verifies the parent order
+belongs to that patient before streaming the image from private storage.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+The URL is returned as `items[].rating.owner_attachment_url` in optical-order
+responses when an image is attached. The response is the image itself (JPEG or
+PNG), with private no-store caching. It never returns a storage path. Public
+attachment consent is not required for the owner to view their own image;
+public review photo visibility remains controlled by the separate
+`public_attachment_consent` opt-in and the public review routes recheck that
+consent independently. Hidden ratings remain inaccessible to other patients
+through public review lists while the author can still view their own photo.
+
+**Errors:**
+- `404`: Item is not owned by the authenticated patient, no current rating image
+  exists, or the stored image is unavailable.
+
+---
+
 ### POST `/optical-order-items/{id}/rating`
 
 Creates or revises the patient's rating for a rateable item from a dispensed
@@ -2911,12 +3070,36 @@ or revision history.
   "product_variant_id": "integer (nullable, derived from route item when omitted)",
   "rating": "integer (required, 1-5)",
   "comment": "string (nullable, max:1000)",
+  "public_display_consent": "boolean (optional; true opts the current non-empty comment into public display)",
+  "attachment": "optional JPEG or PNG image (max 10 MB; max dimensions 8000x8000)",
+  "public_attachment_consent": "boolean (optional; true opts the current attachment into public display)",
   "dispensing_event_id": "integer (nullable, must belong to the same job order)"
 }
 ```
 
 `product_variant_id` is optional. When omitted, the server derives it from the
 route's job-order item. When supplied, it must match the item's variant.
+`public_display_consent` is optional and defaults to false, preserving rating
+submission for clients that do not send it. Consent applies only to the
+current non-empty comment: omitted or false consent keeps that comment
+private, and replacing a comment requires opting in again. The server records
+when explicit consent is given. Clients must present a separate,
+unchecked-by-default opt-in and send `true` only after the patient selects it.
+Existing rows have no consent timestamp and are never made public by default.
+This field does not change rating-write eligibility.
+
+`attachment` is an optional single image stored on a private disk. The separate
+`public_attachment_consent` opt-in is unchecked by default and applies only to
+that image. It does not publish the comment; both comment and image consent are
+required before an image appears on a public review. Omitted or false consent
+keeps the image private. A later rating submission can opt in an existing
+attachment again. Uploading a replacement image replaces the current image and
+requires fresh attachment consent. Existing ratings have no attachment and are
+not changed by this addition.
+When including `attachment`, submit the rating as `multipart/form-data`; rating
+submissions without an image can continue using the existing JSON request.
+The client must explain that an opted-in image appears alongside the review
+for catalog readers and may itself contain identifying details.
 
 **Response:** `201 Created` on both the first rating and later updates.
 
@@ -2931,20 +3114,30 @@ patient-safe fields:
     "product_variant_id": 42,
     "rating": 5,
     "comment": "Excellent frame quality",
+    "has_attachment": true,
     "created_at": "2026-08-05T10:00:00+08:00"
   }
 }
 ```
 
-**Comment filtering and visibility:** Comment text is profanity-masked before
-it is persisted and returned. When staff hide a comment, the author still sees
+**Comment filtering and visibility:** Comment text is profanity-masked in
+patient API responses; the original comment remains stored internally. When
+staff hide a comment, the author still sees
 their own masked `comment` text. Other patients and aggregate surfaces see
 `comment: null`. The star value always counts toward averages regardless of
-hiding.
+hiding or public-display consent. Public product review lists include only
+non-hidden, non-deleted comments with an explicit consent timestamp.
 
 **Fields excluded from response:** `patient_id`, `is_hidden`, `moderation_reason`,
 `moderated_by`, `moderated_at`, `current_revision_id`, `deleted_at`, `updated_at`,
 `dispensing_event_id`.
+
+The rating-write response includes only the boolean `has_attachment`, never an
+internal file path or filename. Public review entries include
+`attachment_url: null` unless the image has its own explicit consent timestamp.
+The URL is an opaque relative API path; its response is streamed from private
+storage and rechecks both consents, moderation state, deletion state, and
+catalog access rules.
 
 **Errors:**
 - `403`: Item belongs to another patient.
@@ -3479,13 +3672,18 @@ authentication path. Current behavior is authoritative in the sections above.
 | `POST /appointment-requests/{id}/cancel` | Cancel request |
 | `GET /optical-orders` | List patient optical orders (product fulfillment) |
 | `GET /optical-orders/{id}` | Get optical order detail |
+| `GET /optical-order-items/{id}/rating/attachment` | Stream the signed-in patient's private rating image for an owned order item |
 | `POST /optical-order-items/{id}/rating` | Rate a dispensed product item |
+| `GET /frames/{id}/reviews` | List consented public frame reviews |
+| `GET /frames/{id}/reviews/attachments/{opaque_attachment_id}` | Stream an opted-in frame review image |
 | `GET /accessories` | List active, in-stock accessory Products with rating/filter support |
 | `GET /accessories/{id}` | Get one patient-safe accessory Product |
+| `GET /accessories/{id}/reviews` | List consented public accessory reviews |
+| `GET /accessories/{id}/reviews/attachments/{opaque_attachment_id}` | Stream an opted-in accessory review image |
 | `GET /accessory-order-requests` | List linked-account current/history Order Requests |
 | `POST /accessory-order-requests` | Submit a multi-item accessory Order Request |
 | `GET /accessory-order-requests/{id}` | Get an owned Order Request |
-| `POST /accessory-order-requests/{id}/cancel` | Idempotently cancel a pending owned request |
+| `POST /accessory-order-requests/{id}/cancel` | Cancel a pending owned request with `reason_details` |
 | `POST /accessory-order-requests/{id}/discount-proof` | Upload or replace one private discount proof while the request is pending |
 | `POST /optical-orders/{id}/payment-proof` | Upload one private GCash or bank-transfer proof for an accepted order |
 | `GET /optical-orders/{id}/payment-instructions/{method}/qr` | Stream the selected order's private clinic QR image (`method` is `gcash` or `bank_transfer`) |
@@ -3514,6 +3712,8 @@ authentication path. Current behavior is authoritative in the sections above.
 | `POST /appointments/{id}/rating` | Visit-rating comments are profanity-masked before persistence and response; revisions update in place with `revision_number: 1` |
 | `GET /prescriptions` | Prescription resources include additive `expires_at` validity metadata |
 | `GET /prescriptions/{id}` | Same `expires_at` field is returned for current and historical prescription versions |
+| `GET /optical-orders/{id}` | Each current item rating includes nullable owner-only `owner_attachment_url` for the patient's private image |
+| `GET /optical-order-items/{id}/rating/attachment` | Streams the authenticated patient's image after verifying ownership of the parent order item |
 | `POST /optical-order-items/{id}/rating` | Frame-rating comments are profanity-masked; repeated submissions update in place and return `201` |
 | `GET /frames` | Frame variants now include additive nullable `ar` metadata for the current validated and published remote GLB asset; legacy AR fields remain unchanged |
 | `GET /frames/{id}` | Same additive `ar` variant metadata and safe `null` fallback as the frame list |
@@ -3704,6 +3904,7 @@ PATCH  /api/v1/appointment-requests/{id}       Update pending request schedule
 POST   /api/v1/appointment-requests/{id}/cancel  Cancel request
 GET    /api/v1/frames                         List frames
 GET    /api/v1/frames/{id}                    Get frame detail
+GET    /api/v1/frames/{id}/reviews            List consented public frame reviews
 GET    /api/v1/saved-frames                   List saved frames
 PUT    /api/v1/saved-frames/{productVariant}  Save a frame variant
 DELETE /api/v1/saved-frames/{productVariant}  Remove a saved frame
@@ -3735,6 +3936,7 @@ limits also include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and
 ```
 GET    /api/v1/accessories                    List accessory catalog
 GET    /api/v1/accessories/{id}               Get accessory detail
+GET    /api/v1/accessories/{id}/reviews       List consented public accessory reviews
 ```
 
 These catalog reads allow linked, pending-link, and unlinked patient-role
@@ -3755,16 +3957,17 @@ GET    /api/v1/prescriptions/{id}             Get prescription
 GET    /api/v1/accessory-order-requests       List Order Requests
 POST   /api/v1/accessory-order-requests       Submit Order Request
 GET    /api/v1/accessory-order-requests/{id}  Get Order Request
-POST   /api/v1/accessory-order-requests/{id}/cancel  Cancel pending request
+POST   /api/v1/accessory-order-requests/{id}/cancel  Cancel pending request with reason_details
 POST   /api/v1/accessory-order-requests/{id}/discount-proof  Upload discount proof
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
+GET    /api/v1/optical-order-items/{id}/rating/attachment  Stream own private rating image
 POST   /api/v1/optical-orders/{id}/payment-proof  Upload online payment proof
 GET    /api/v1/optical-orders/{id}/payment-instructions/{method}/qr  Stream private clinic QR image
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 17
-active-link = **70 registered routes total**. The normal patient-mobile
-contract is **69 routes** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 46 account-only + 18
+active-link = **73 registered routes total**. The normal patient-mobile
+contract is **72 routes** when the disabled-by-default pilot route is excluded.

@@ -3,8 +3,10 @@ package com.eyecare.app.presentation.frames
 import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
+import com.eyecare.app.domain.model.ProductReview
 import com.eyecare.app.domain.model.SavedFrame
 import com.eyecare.app.domain.repository.FrameRepository
+import com.eyecare.app.domain.repository.PaginatedResult
 import com.eyecare.app.domain.repository.SavedFrameRepository
 import com.eyecare.app.presentation.common.components.SAVED_FRAME_DISCLAIMER
 import io.mockk.coEvery
@@ -39,6 +41,9 @@ class FrameDetailViewModelTest {
         Dispatchers.setMain(dispatcher)
         repository = mockk()
         savedFrameRepository = mockk()
+        coEvery { repository.getFrameReviews(any(), any(), any()) } returns Result.success(
+            PaginatedResult(emptyList(), currentPage = 1, lastPage = 1, total = 0),
+        )
     }
 
     @AfterEach
@@ -115,6 +120,27 @@ class FrameDetailViewModelTest {
         assertEquals(72, state.selectedVariant.id)
         assertTrue(state.frame.variants.first { it.id == 71 }.isSaved)
         assertFalse(state.selectedVariant.isSaved)
+    }
+
+    @Test
+    fun frame_detail_loads_reviews_without_requiring_a_linked_patient() = runTest(dispatcher) {
+        val initial = frame()
+        coEvery { repository.getFrame(7) } returns Result.success(initial)
+        coEvery { repository.getFrameReviews(7, 1, 15) } returns Result.success(
+            PaginatedResult(
+                data = listOf(ProductReview(5, "Comfortable fit.", "2026-09-20T10:00:00+08:00")),
+                currentPage = 1,
+                lastPage = 1,
+                total = 1,
+            ),
+        )
+
+        val viewModel = FrameDetailViewModel(repository, savedFrameRepository, frameId = 7, requestedVariantId = null)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as FrameDetailUiState.Success
+        assertEquals("Comfortable fit.", state.reviews.reviews.single().comment)
+        assertEquals(1, state.reviews.total)
     }
 
     @Test

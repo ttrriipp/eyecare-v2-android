@@ -8,6 +8,7 @@ import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.SavedFrameRepository
 import com.eyecare.app.presentation.common.components.SAVED_FRAME_DISCLAIMER
+import com.eyecare.app.presentation.common.ProductReviewsUiState
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -28,6 +29,7 @@ sealed interface FrameDetailUiState {
         val isSavingVariant: Boolean = false,
         val saveError: String? = null,
         val message: String? = null,
+        val reviews: ProductReviewsUiState = ProductReviewsUiState(isLoading = true),
     ) : FrameDetailUiState
     data class Error(val message: String) : FrameDetailUiState
 }
@@ -49,6 +51,7 @@ class FrameDetailViewModel @AssistedInject constructor(
     val uiState: StateFlow<FrameDetailUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
     private var saveJob: Job? = null
+    private var reviewsJob: Job? = null
 
     init { load() }
 
@@ -58,13 +61,30 @@ class FrameDetailViewModel @AssistedInject constructor(
     }
 
     fun refresh() {
+        reviewsJob?.cancel()
         val current = _uiState.value
         if (current is FrameDetailUiState.Success) {
-            _uiState.value = current.copy(isRefreshing = true, message = null)
+            _uiState.value = current.copy(
+                isRefreshing = true,
+                message = null,
+                reviews = current.reviews.copy(isLoading = false, isLoadingMore = false, errorMessage = null),
+            )
         } else {
             _uiState.value = FrameDetailUiState.Loading
         }
         load()
+    }
+
+    fun retryReviews() {
+        val current = _uiState.value as? FrameDetailUiState.Success ?: return
+        val page = (current.reviews.currentPage + 1).coerceAtLeast(1)
+        loadReviews(page = page, append = page > 1)
+    }
+
+    fun loadMoreReviews() {
+        val current = _uiState.value as? FrameDetailUiState.Success ?: return
+        if (!current.reviews.hasMorePages) return
+        loadReviews(page = current.reviews.currentPage + 1, append = true)
     }
 
     fun clearMessage() {
@@ -132,11 +152,12 @@ class FrameDetailViewModel @AssistedInject constructor(
 
     private fun load() {
         val previous = _uiState.value
+        reviewsJob?.cancel()
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             val result = repository.getFrame(frameId)
             if (!isActive) return@launch
-            _uiState.value = result.fold(
+            val nextState = result.fold(
                 onSuccess = { frame ->
                     val firstVariant = frame.variants.firstOrNull()
                         ?: return@fold if (previous is FrameDetailUiState.Success) {
@@ -156,6 +177,11 @@ class FrameDetailViewModel @AssistedInject constructor(
                         frame = frame,
                         selectedVariant = selectedVariant,
                         isSavingVariant = saveJob?.isActive == true,
+                        reviews = (previous as? FrameDetailUiState.Success)?.reviews?.copy(
+                            isLoading = false,
+                            isLoadingMore = false,
+                            errorMessage = null,
+                        ) ?: ProductReviewsUiState(isLoading = true),
                     )
                 },
                 onFailure = {
@@ -169,6 +195,58 @@ class FrameDetailViewModel @AssistedInject constructor(
                             it.message ?: "We couldn't load this frame. Please try again.",
                         )
                     }
+                },
+            )
+            _uiState.value = nextState
+            if (result.isSuccess && nextState is FrameDetailUiState.Success) {
+                loadReviews(page = 1, append = false)
+            }
+        }
+    }
+
+    private fun loadReviews(page: Int, append: Boolean) {
+        val current = _uiState.value as? FrameDetailUiState.Success ?: return
+        if (reviewsJob?.isActive == true || (append && !current.reviews.hasMorePages)) return
+
+        _uiState.value = current.copy(
+            reviews = current.reviews.copy(
+                isLoading = !append,
+                isLoadingMore = append,
+                errorMessage = null,
+            ),
+        )
+        reviewsJob = viewModelScope.launch {
+            val result = repository.getFrameReviews(frameId, page = page, perPage = 15)
+            if (!isActive) return@launch
+            result.fold(
+                onSuccess = { result ->
+                    val latest = _uiState.value as? FrameDetailUiState.Success ?: return@launch
+                    val previousReviews = latest.reviews
+                    _uiState.value = latest.copy(
+                        reviews = previousReviews.copy(
+                            reviews = if (append) {
+                                previousReviews.reviews + result.data
+                            } else {
+                                result.data
+                            },
+                            total = result.total,
+                            currentPage = result.currentPage,
+                            lastPage = result.lastPage,
+                            isLoading = false,
+                            isLoadingMore = false,
+                            errorMessage = null,
+                        ),
+                    )
+                },
+                onFailure = {
+                    val latest = _uiState.value as? FrameDetailUiState.Success ?: return@launch
+                    _uiState.value = latest.copy(
+                        reviews = latest.reviews.copy(
+                            isLoading = false,
+                            isLoadingMore = false,
+                            errorMessage = "Couldn't load reviews. Please try again.",
+                        ),
+                    )
                 },
             )
         }

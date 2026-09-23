@@ -91,7 +91,7 @@ class AccessoryOrderRequestRepositoryImplTest {
     @Test
     fun `cancelRequest sends POST and maps response`() = runTest {
         enqueueSingle(requestJson(status = "cancelled"))
-        val result = repository.cancelRequest(10).getOrThrow()
+        val result = repository.cancelRequest(10, "Changed my mind").getOrThrow()
         assertEquals(OrderRequestStatus.CANCELLED, result.status)
         val req = server.takeRequest()
         assertEquals("POST", req.method)

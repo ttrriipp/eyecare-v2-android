@@ -100,10 +100,17 @@ fun OpticalOrderDetailScreen(
     }
 
     DisposableEffect(selectedProof) {
-        onDispose { selectedProof?.file?.delete() }
+        val proofFile = selectedProof?.file
+        onDispose { proofFile?.delete() }
     }
 
-    RefreshOnResumeEffect(onRefresh = viewModel::onResume)
+    RefreshOnResumeEffect(
+        onRefresh = {
+            // Returning from the system photo picker must not reload the order and recreate
+            // the rating dialog, which would discard its selected attachment and form state.
+            if (ratingItemId == null) viewModel.onResume()
+        },
+    )
 
     val successState = uiState as? OpticalOrderDetailUiState.Success
     val ratingTargetItem = ratingItemId?.let { id -> successState?.order?.items?.firstOrNull { it.id == id } }
@@ -113,18 +120,31 @@ fun OpticalOrderDetailScreen(
                 it.create(ratingTargetItem.id)
             }
             val ratingState by ratingViewModel.uiState.collectAsStateWithLifecycle()
-            LaunchedEffect(ratingState) {
+            var ratingFlowReady by remember { mutableStateOf(false) }
+            LaunchedEffect(ratingTargetItem.id) {
+                ratingViewModel.reset()
+                ratingFlowReady = true
+            }
+            LaunchedEffect(ratingState, ratingFlowReady) {
+                if (!ratingFlowReady) return@LaunchedEffect
                 val success = ratingState as? FrameRatingUiState.Success ?: return@LaunchedEffect
                 viewModel.updateItemRating(ratingTargetItem.id, success.result)
+                ratingViewModel.reset()
                 ratingItemId = null
+                viewModel.refresh()
             }
             FrameRatingDialog(
                 currentRating = ratingTargetItem.rating?.rating,
                 currentComment = ratingTargetItem.rating?.comment,
+                currentAttachmentUrl = ratingTargetItem.rating?.ownerAttachmentUrl,
                 isSubmitting = ratingState is FrameRatingUiState.Submitting,
                 errorMessage = (ratingState as? FrameRatingUiState.Error)?.message,
                 onSubmit = ratingViewModel::submitRating,
-                onDismiss = { ratingItemId = null },
+                onDismiss = {
+                    ratingViewModel.reset()
+                    ratingItemId = null
+                },
+                onSubmitWithAttachment = ratingViewModel::submitRatingWithAttachment,
             )
         }
     }
@@ -141,7 +161,7 @@ fun OpticalOrderDetailScreen(
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0),
-                title = { Text("Eyewear Order", fontWeight = FontWeight.Bold) },
+                title = { Text("Order details", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -302,7 +322,7 @@ internal fun OrderDetailContent(
             // Tracker
             OrderTracker(order.status)
 
-            // Eyewear details
+            // Order items
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -310,7 +330,7 @@ internal fun OrderDetailContent(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Eyewear details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text("Items", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     HorizontalDivider()
                     if (order.items.isEmpty()) {
                         Text(
@@ -354,15 +374,21 @@ internal fun OrderDetailContent(
                             }
                         }
                         if (ratingsEnabled && item.rating != null) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
                                     "Rating: ${item.rating.rating}/5${item.rating.comment?.let { " - $it" } ?: ""}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                item.rating.ownerAttachmentUrl?.takeIf(String::isNotBlank)?.let { imageUrl ->
+                                    OwnerRatingPhoto(
+                                        url = imageUrl,
+                                        contentDescription = "Your rating photo",
+                                        modifier = Modifier
+                                            .size(112.dp)
+                                            .clip(RoundedCornerShape(12.dp)),
+                                    )
+                                }
                             }
                         }
                         HorizontalDivider()
@@ -461,7 +487,7 @@ private fun OrderPaymentProofContent(
 private fun paymentProofContactDraft(orderNumber: String, rejectionReason: String?): String {
     val reason = rejectionReason?.takeIf(String::isNotBlank)
         ?: "the clinic could not verify the proof"
-    return "Hi, I need help with eyewear order $orderNumber. My payment proof was rejected: $reason. What should I do next?"
+    return "Hi, I need help with order $orderNumber. My payment proof was rejected: $reason. What should I do next?"
 }
 
 @Composable
@@ -614,17 +640,17 @@ private fun OrderStatusGuidance(status: OpticalOrderStatus, onRefresh: () -> Uni
         )
         OpticalOrderStatus.QUEUED -> OrderStatusGuidanceCopy(
             title = "Order confirmed",
-            message = "Your eyewear order is confirmed and waiting to be prepared.",
+            message = "Your order is waiting to be prepared.",
             icon = Icons.Outlined.Info,
         )
         OpticalOrderStatus.IN_PROGRESS -> OrderStatusGuidanceCopy(
             title = "Order processing",
-            message = "Your eyewear is currently being prepared by our lab.",
+            message = "Your order is being prepared.",
             icon = Icons.Outlined.Info,
         )
         OpticalOrderStatus.READY_FOR_DISPENSING -> OrderStatusGuidanceCopy(
             title = "Ready for pickup",
-            message = "Your eyewear is ready. Visit the clinic to pick it up.",
+            message = "Your order is ready. Visit the clinic to pick it up.",
             icon = Icons.Outlined.CheckCircle,
         )
         OpticalOrderStatus.DISPENSED -> OrderStatusGuidanceCopy(
@@ -714,7 +740,6 @@ private fun OrderTracker(status: OpticalOrderStatus) {
                 tracker.steps.forEachIndexed { index, (step, completed) ->
                     val isActive = step == tracker.activeStep
                     val stepLabel = trackerStepLabel(step)
-                    val stepState = trackerStepStateLabel(status, step, completed, tracker.activeStep)
                     val accessibleStepState = trackerStepAccessibilityStateLabel(status, step, completed, tracker.activeStep)
                     val (fillColor, textColor, weight) = when {
                         isActive -> Triple(
@@ -770,8 +795,7 @@ private fun OrderTracker(status: OpticalOrderStatus) {
                 }
             }
             Row(modifier = Modifier.fillMaxWidth()) {
-                tracker.steps.forEachIndexed { index, (step, completed) ->
-                    val stepState = trackerStepStateLabel(status, step, completed, tracker.activeStep)
+                tracker.steps.forEachIndexed { index, (step, _) ->
                     Column(
                         modifier = Modifier.weight(1f).clearAndSetSemantics {},
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -784,15 +808,6 @@ private fun OrderTracker(status: OpticalOrderStatus) {
                             textAlign = TextAlign.Center,
                             maxLines = 2,
                         )
-                        Text(
-                            text = stepState,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (stepState == "Now" || stepState == "Done") {
-                                EyecareColors.current.accentText
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
                     }
                     if (index < tracker.steps.lastIndex) {
                         Spacer(Modifier.width(24.dp))
@@ -800,14 +815,6 @@ private fun OrderTracker(status: OpticalOrderStatus) {
                 }
             }
         }
-    }
-    if (tracker.terminalMessage != null) {
-        Text(
-            tracker.terminalMessage,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
-        )
     }
 }
 

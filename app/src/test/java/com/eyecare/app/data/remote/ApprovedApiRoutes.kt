@@ -1,14 +1,14 @@
 package com.eyecare.app.data.remote
 
 /**
- * V24 route governance — 70-route registry / 69-route patient contract.
+ * Route governance — 73-route registry / 72-route patient contract.
  *
  * Categories:
  * 1. Public auth routes (8) — no authentication required
- * 2. Account-only routes (44) — authenticated, no patient link required
- * 3. Active-link routes (17) — require active patient link
+ * 2. Account-only routes (46) — authenticated, no patient link required
+ * 3. Active-link routes (18) — require active patient link
  *
- * Total canonical callable routes: 8 + 44 + 17 = 69.
+ * Total canonical callable routes: 8 + 46 + 18 = 72.
  *
  * Conversation read/list/send/search/read-mark are account-only; attachment download is account-only.
  * Saved Frames (GET/PUT/DELETE) are account-only.
@@ -30,7 +30,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/auth/policies",
     )
 
-    /** Account-only routes — authenticated, no patient link required. (44) */
+    /** Account-only routes — authenticated, no patient link required. (46) */
     val accountOnlyRoutes: Set<String> = setOf(
         "POST $BASE/logout",
         "POST $BASE/logout-all",
@@ -61,9 +61,11 @@ internal object ApprovedApiRoutes {
         "POST $BASE/appointment-requests/{appointmentRequest}/cancel",
         "GET $BASE/frames",
         "GET $BASE/frames/{frame}",
+        "GET $BASE/frames/{frame}/reviews",
         // Accessories catalog — account-owned browsing, no active link required
         "GET $BASE/accessories",
         "GET $BASE/accessories/{accessory}",
+        "GET $BASE/accessories/{accessory}/reviews",
         // Saved Frames — account-owned preferences
         "GET $BASE/saved-frames",
         "PUT $BASE/saved-frames/{productVariant}",
@@ -82,7 +84,7 @@ internal object ApprovedApiRoutes {
         "PATCH $BASE/notifications/read-all",
     )
 
-    /** Active-link routes — require active patient link. (17) */
+    /** Active-link routes — require active patient link. (18) */
     val activeLinkRoutes: Set<String> = setOf(
         "GET $BASE/appointment-availability",
         "GET $BASE/appointments",
@@ -94,6 +96,7 @@ internal object ApprovedApiRoutes {
         "GET $BASE/optical-orders",
         "GET $BASE/optical-orders/{opticalOrder}",
         "POST $BASE/optical-order-items/{item}/rating",
+        "GET $BASE/optical-order-items/{item}/rating/attachment",
         "GET $BASE/accessory-order-requests",
         "POST $BASE/accessory-order-requests",
         "GET $BASE/accessory-order-requests/{accessoryOrderRequest}",

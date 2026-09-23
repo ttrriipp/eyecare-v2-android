@@ -1,6 +1,7 @@
 ﻿package com.eyecare.app.data.remote.api
 
 import com.eyecare.app.data.remote.dto.FrameDtos
+import com.eyecare.app.data.remote.dto.ProductReviewDtos
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -19,4 +20,11 @@ interface FrameApiService {
 
     @GET("frames/{id}")
     suspend fun getFrame(@Path("id") id: Int): FrameDtos.FrameResponse
+
+    @GET("frames/{id}/reviews")
+    suspend fun getFrameReviews(
+        @Path("id") id: Int,
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 15,
+    ): ProductReviewDtos.ProductReviewListResponse
 }

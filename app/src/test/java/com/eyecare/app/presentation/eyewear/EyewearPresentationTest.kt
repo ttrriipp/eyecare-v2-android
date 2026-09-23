@@ -38,7 +38,6 @@ class EyewearPresentationTest {
         val tracker = computeOrderTracker(OpticalOrderStatus.PENDING_PAYMENT)
         assertNull(tracker.activeStep)
         assertTrue(tracker.steps.none { it.second })
-        assertEquals("Awaiting payment", tracker.terminalMessage)
     }
 
     @Test
@@ -46,51 +45,10 @@ class EyewearPresentationTest {
         val tracker = computeOrderTracker(OpticalOrderStatus.PAYMENT_REVIEW)
         assertNull(tracker.activeStep)
         assertTrue(tracker.steps.none { it.second })
-        assertEquals("Payment under review", tracker.terminalMessage)
     }
 
     @Test
-    fun `tracker labels only the active and immediate next fulfillment steps`() {
-        assertEquals(
-            "Now",
-            trackerStepStateLabel(
-                status = OpticalOrderStatus.QUEUED,
-                step = TrackerStep.CONFIRMED,
-                completed = true,
-                activeStep = TrackerStep.CONFIRMED,
-            ),
-        )
-        assertEquals(
-            "Next",
-            trackerStepStateLabel(
-                status = OpticalOrderStatus.QUEUED,
-                step = TrackerStep.PROCESSING,
-                completed = false,
-                activeStep = TrackerStep.CONFIRMED,
-            ),
-        )
-        assertEquals(
-            "",
-            trackerStepStateLabel(
-                status = OpticalOrderStatus.QUEUED,
-                step = TrackerStep.READY,
-                completed = false,
-                activeStep = TrackerStep.CONFIRMED,
-            ),
-        )
-    }
-
-    @Test
-    fun `payment stages explain when fulfillment tracking starts`() {
-        assertEquals(
-            "After verification",
-            trackerStepStateLabel(
-                status = OpticalOrderStatus.PENDING_PAYMENT,
-                step = TrackerStep.CONFIRMED,
-                completed = false,
-                activeStep = null,
-            ),
-        )
+    fun `tracker retains useful state descriptions for screen readers`() {
         assertEquals(
             "Next after payment verification",
             trackerStepAccessibilityStateLabel(
@@ -101,12 +59,30 @@ class EyewearPresentationTest {
             ),
         )
         assertEquals(
-            "After verification",
-            trackerStepStateLabel(
+            "Later",
+            trackerStepAccessibilityStateLabel(
                 status = OpticalOrderStatus.PAYMENT_REVIEW,
-                step = TrackerStep.CONFIRMED,
+                step = TrackerStep.PROCESSING,
                 completed = false,
                 activeStep = null,
+            ),
+        )
+        assertEquals(
+            "In progress",
+            trackerStepAccessibilityStateLabel(
+                status = OpticalOrderStatus.QUEUED,
+                step = TrackerStep.CONFIRMED,
+                completed = true,
+                activeStep = TrackerStep.CONFIRMED,
+            ),
+        )
+        assertEquals(
+            "Next",
+            trackerStepAccessibilityStateLabel(
+                status = OpticalOrderStatus.QUEUED,
+                step = TrackerStep.PROCESSING,
+                completed = false,
+                activeStep = TrackerStep.CONFIRMED,
             ),
         )
     }
@@ -115,7 +91,6 @@ class EyewearPresentationTest {
     fun `legacy order tracker is unchanged`() {
         val tracker = computeOrderTracker(OpticalOrderStatus.QUEUED)
         assertEquals(TrackerStep.CONFIRMED, tracker.activeStep)
-        assertNull(tracker.terminalMessage)
     }
 
     @Test
@@ -128,14 +103,12 @@ class EyewearPresentationTest {
     fun `dispensed tracker shows completed`() {
         val tracker = computeOrderTracker(OpticalOrderStatus.DISPENSED)
         assertEquals(TrackerStep.COMPLETED, tracker.activeStep)
-        assertEquals("Order completed", tracker.terminalMessage)
     }
 
     @Test
     fun `cancelled tracker shows cancelled`() {
         val tracker = computeOrderTracker(OpticalOrderStatus.CANCELLED)
         assertNull(tracker.activeStep)
-        assertEquals("Cancelled", tracker.terminalMessage)
     }
 
     @Test

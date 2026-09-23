@@ -178,6 +178,20 @@ class OpticalOrderRepositoryImplTest {
     }
 
     @Test
+    fun `maps owner-only rating attachment URL`() = runTest {
+        val attachmentUrl = "/api/v1/optical-order-items/20/rating/attachment"
+        enqueueSingle(
+            orderJson(
+                items = """[{"id":20,"description":"Frame","quantity":1,"unit_price":"3000.00","amount":"3000.00","product_variant_id":5,"is_rateable":true,"rating":{"rating":5,"comment":"Good","created_at":"2026-08-05T00:00:00Z","owner_attachment_url":"$attachmentUrl"}}]""",
+            ),
+        )
+
+        val order = repository.getOpticalOrder(1).getOrThrow()
+
+        assertEquals(attachmentUrl, order.items.single().rating?.ownerAttachmentUrl)
+    }
+
+    @Test
     fun `item with absent rateable fields defaults safely`() = runTest {
         enqueueSingle(orderJson(items = """[{"id":21,"description":"Lens","quantity":1,"unit_price":"1000.00","amount":"1000.00"}]"""))
         val o = repository.getOpticalOrder(1).getOrThrow()
@@ -307,7 +321,12 @@ class OpticalOrderRepositoryImplTest {
             ),
         )
 
-        val result = repository.rateItem(10, 5, "Excellent frame quality").getOrThrow()
+        val result = repository.rateItem(
+            itemId = 10,
+            rating = 5,
+            comment = "Excellent frame quality",
+            publicDisplayConsent = true,
+        ).getOrThrow()
 
         assertEquals(7, result.id)
         assertEquals(10, result.itemId)
@@ -318,5 +337,6 @@ class OpticalOrderRepositoryImplTest {
         val request = server.takeRequest()
         assertEquals("POST", request.method)
         assertEquals("/optical-order-items/10/rating", request.path)
+        assertTrue(request.body.readUtf8().contains("\"public_display_consent\":true"))
     }
 }

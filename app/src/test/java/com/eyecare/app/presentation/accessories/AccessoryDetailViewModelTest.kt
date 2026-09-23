@@ -3,7 +3,9 @@ package com.eyecare.app.presentation.accessories
 import com.eyecare.app.domain.model.Accessory
 import com.eyecare.app.domain.model.AccessoryAvailability
 import com.eyecare.app.domain.model.AccessoryVariant
+import com.eyecare.app.domain.model.ProductReview
 import com.eyecare.app.domain.repository.AccessoryRepository
+import com.eyecare.app.domain.repository.PaginatedResult
 import androidx.lifecycle.SavedStateHandle
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -62,6 +64,9 @@ class AccessoryDetailViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         repository = mockk()
+        coEvery { repository.getAccessoryReviews(any(), any(), any()) } returns Result.success(
+            PaginatedResult(emptyList(), currentPage = 1, lastPage = 1, total = 0),
+        )
     }
 
     @AfterEach
@@ -84,6 +89,56 @@ class AccessoryDetailViewModelTest {
         val state = viewModel.uiState.value as AccessoryDetailUiState.Success
         assertEquals(1, state.accessory.id)
         assertEquals(10, state.selectedVariantId)
+    }
+
+    @Test
+    fun `initial load includes consented public reviews`() = runTest {
+        coEvery { repository.getAccessory(1) } returns Result.success(accessory())
+        coEvery { repository.getAccessoryReviews(1, 1, 15) } returns Result.success(
+            PaginatedResult(
+                data = listOf(ProductReview(5, "Works well.", "2026-09-20T10:00:00+08:00")),
+                currentPage = 1,
+                lastPage = 1,
+                total = 1,
+            ),
+        )
+
+        val viewModel = createViewModel(1)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AccessoryDetailUiState.Success
+        assertEquals("Works well.", state.reviews.reviews.single().comment)
+        assertEquals(1, state.reviews.total)
+    }
+
+    @Test
+    fun `loading more appends the next review page`() = runTest {
+        coEvery { repository.getAccessory(1) } returns Result.success(accessory())
+        coEvery { repository.getAccessoryReviews(1, 1, 15) } returns Result.success(
+            PaginatedResult(
+                data = listOf(ProductReview(5, "First review.", "2026-09-20T10:00:00+08:00")),
+                currentPage = 1,
+                lastPage = 2,
+                total = 2,
+            ),
+        )
+        coEvery { repository.getAccessoryReviews(1, 2, 15) } returns Result.success(
+            PaginatedResult(
+                data = listOf(ProductReview(4, "Second review.", "2026-09-19T10:00:00+08:00")),
+                currentPage = 2,
+                lastPage = 2,
+                total = 2,
+            ),
+        )
+
+        val viewModel = createViewModel(1)
+        advanceUntilIdle()
+        viewModel.loadMoreReviews()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as AccessoryDetailUiState.Success
+        assertEquals(listOf("First review.", "Second review."), state.reviews.reviews.map { it.comment })
+        assertEquals(2, state.reviews.currentPage)
     }
 
     @Test

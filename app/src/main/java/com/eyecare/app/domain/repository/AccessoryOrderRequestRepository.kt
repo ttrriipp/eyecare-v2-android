@@ -9,6 +9,6 @@ interface AccessoryOrderRequestRepository {
     suspend fun getRequests(filter: OrderRequestFilter, page: Int = 1): Result<PaginatedResult<AccessoryOrderRequest>>
     suspend fun getRequest(id: Int): Result<AccessoryOrderRequest>
     suspend fun submitRequest(discountType: String, items: List<Pair<Int, Int>>): Result<AccessoryOrderRequest>
-    suspend fun cancelRequest(id: Int): Result<AccessoryOrderRequest>
+    suspend fun cancelRequest(id: Int, reasonDetails: String): Result<AccessoryOrderRequest>
     suspend fun uploadDiscountProof(id: Int, proof: DiscountProofUpload): Result<DiscountProofResult>
 }

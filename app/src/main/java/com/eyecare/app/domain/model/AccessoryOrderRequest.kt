@@ -17,6 +17,7 @@ data class AccessoryOrderRequest(
     val order: AcceptedOrderSummary?,
     val discountProofStatus: DiscountProofStatus = DiscountProofStatus.NOT_REQUIRED,
     val discountProofRejectionReason: String? = null,
+    val cancellationReason: String? = null,
 )
 
 data class AccessoryOrderRequestItem(

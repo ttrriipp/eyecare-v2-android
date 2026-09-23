@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.eyewear
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eyecare.app.domain.model.ProductRatingAttachment
 import com.eyecare.app.domain.model.RatingResult
 import com.eyecare.app.domain.repository.OpticalOrderRepository
 import dagger.assisted.Assisted
@@ -36,7 +37,43 @@ class FrameRatingViewModel @AssistedInject constructor(
     private val _uiState = MutableStateFlow<FrameRatingUiState>(FrameRatingUiState.Idle)
     val uiState: StateFlow<FrameRatingUiState> = _uiState.asStateFlow()
 
-    fun submitRating(rating: Int, comment: String?) {
+    fun submitRating(
+        rating: Int,
+        comment: String?,
+        publicDisplayConsent: Boolean = false,
+    ) {
+        submitRating(
+            rating = rating,
+            comment = comment,
+            publicDisplayConsent = publicDisplayConsent,
+            attachment = null,
+            publicAttachmentConsent = false,
+        )
+    }
+
+    fun submitRatingWithAttachment(
+        rating: Int,
+        comment: String?,
+        publicDisplayConsent: Boolean,
+        attachment: ProductRatingAttachment?,
+        publicAttachmentConsent: Boolean,
+    ) {
+        submitRating(
+            rating = rating,
+            comment = comment,
+            publicDisplayConsent = publicDisplayConsent,
+            attachment = attachment,
+            publicAttachmentConsent = publicAttachmentConsent,
+        )
+    }
+
+    private fun submitRating(
+        rating: Int,
+        comment: String?,
+        publicDisplayConsent: Boolean,
+        attachment: ProductRatingAttachment?,
+        publicAttachmentConsent: Boolean,
+    ) {
         if (rating < 1 || rating > 5) {
             _uiState.value = FrameRatingUiState.Error("Rating must be between 1 and 5")
             return
@@ -45,12 +82,27 @@ class FrameRatingViewModel @AssistedInject constructor(
             _uiState.value = FrameRatingUiState.Error("Comment must be 1000 characters or less")
             return
         }
+        val attachmentError = attachment?.let {
+            sequenceOf(
+                PaymentProofInspector.validateMimeType(it.mimeType),
+                PaymentProofInspector.validateFileSize(it.imageFile.length()),
+                PaymentProofInspector.validateDimensions(it.width, it.height),
+            ).filterNotNull().firstOrNull()
+        }
+        if (attachmentError != null) {
+            _uiState.value = FrameRatingUiState.Error(attachmentError)
+            return
+        }
+
         _uiState.value = FrameRatingUiState.Submitting
         viewModelScope.launch {
             repository.rateItem(
                 itemId = orderItemId,
                 rating = rating,
                 comment = comment?.takeIf { it.isNotBlank() },
+                publicDisplayConsent = publicDisplayConsent && !comment.isNullOrBlank(),
+                attachment = attachment,
+                publicAttachmentConsent = publicAttachmentConsent,
             ).fold(
                 onSuccess = { result ->
                     _uiState.value = FrameRatingUiState.Success(result)

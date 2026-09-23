@@ -86,6 +86,7 @@ import com.eyecare.app.domain.model.AccessoryVariant
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
+import com.eyecare.app.presentation.common.components.ProductReviewsSection
 import com.eyecare.app.ui.theme.EyecareColors
 import java.text.NumberFormat
 import java.util.Locale
@@ -112,6 +113,8 @@ fun AccessoryDetailScreen(
     onNavigateToSupport: () -> Unit = {},
     canOrder: Boolean = true,
     onNavigateToLinkAccount: () -> Unit = {},
+    onRetryReviews: () -> Unit = {},
+    onLoadMoreReviews: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val successState = uiState as? AccessoryDetailUiState.Success
@@ -216,6 +219,8 @@ fun AccessoryDetailScreen(
                             state = state,
                             onVariantSelect = onVariantSelect,
                             onNavigateToSupport = onNavigateToSupport,
+                            onRetryReviews = onRetryReviews,
+                            onLoadMoreReviews = onLoadMoreReviews,
                         )
                     }
                 }
@@ -229,6 +234,8 @@ private fun AccessoryDetailContent(
     state: AccessoryDetailUiState.Success,
     onVariantSelect: (Int) -> Unit,
     onNavigateToSupport: () -> Unit,
+    onRetryReviews: () -> Unit,
+    onLoadMoreReviews: () -> Unit,
 ) {
     val accessory = state.accessory
     val selectedVariant = state.selectedVariant
@@ -288,12 +295,12 @@ private fun AccessoryDetailContent(
                     ) {
                         Icon(
                             Icons.Outlined.Star,
-                            contentDescription = "Rated ${accessory.averageRating} out of 5 from ${accessory.ratingCount} reviews",
+                            contentDescription = "Rated ${accessory.averageRating} out of 5 from ${accessory.ratingCount} ratings",
                             tint = EyecareColors.current.accentText,
                             modifier = Modifier.size(18.dp),
                         )
                         Text(
-                            "${accessory.averageRating} (${accessory.ratingCount} reviews)",
+                            "${accessory.averageRating} (${accessory.ratingCount} ratings)",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -378,6 +385,12 @@ private fun AccessoryDetailContent(
                 }
             }
         }
+
+        ProductReviewsSection(
+            state = state.reviews,
+            onRetry = onRetryReviews,
+            onLoadMore = onLoadMoreReviews,
+        )
 
         AccessoryCareGuidance(onNavigateToSupport = onNavigateToSupport)
         Spacer(Modifier.height(8.dp))

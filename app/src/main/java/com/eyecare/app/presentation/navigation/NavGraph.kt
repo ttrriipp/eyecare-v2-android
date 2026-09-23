@@ -700,6 +700,8 @@ fun EyecareNavGraph(
                                 }
                             },
                             onRetry = detailViewModel::retry,
+                            onRetryReviews = detailViewModel::retryReviews,
+                            onLoadMoreReviews = detailViewModel::loadMoreReviews,
                             onBack = { navController.popBackStack() },
                             onNavigateToCart = { navigatePatientFeature(AccessoryCart) },
                             onNavigateToSupport = { navigatePatientFeature(Chat) },
@@ -710,16 +712,30 @@ fun EyecareNavGraph(
                     composable<AccessoryCart> {
                         val cartViewModel: com.eyecare.app.presentation.accessories.AccessoryCartViewModel =
                             hiltViewModel(navController.getBackStackEntry<MainGraph>())
+                        val checkoutGateViewModel: com.eyecare.app.presentation.accessories.AccessoryCheckoutGateViewModel =
+                            hiltViewModel()
                         val cart by cartViewModel.cart.collectAsStateWithLifecycle()
+                        val checkoutEligibility by checkoutGateViewModel.eligibility.collectAsStateWithLifecycle()
+                        LaunchedEffect(checkoutGateViewModel) {
+                            checkoutGateViewModel.refresh()
+                        }
+                        RefreshOnResumeEffect(onRefresh = checkoutGateViewModel::refresh)
 
                         com.eyecare.app.presentation.accessories.AccessoryCartScreen(
                             cart = cart,
+                            checkoutEligibility = checkoutEligibility,
                             onIncrement = cartViewModel::increment,
                             onDecrement = cartViewModel::decrement,
                             onRemove = cartViewModel::remove,
                             onRestore = cartViewModel::restore,
                             onClear = cartViewModel::clear,
-                            onCheckout = { navigatePatientFeature(AccessoryCheckoutRoute) },
+                            onCheckout = {
+                                if (checkoutEligibility == com.eyecare.app.presentation.accessories.AccessoryCheckoutEligibility.ALLOWED) {
+                                    navigatePatientFeature(AccessoryCheckoutRoute)
+                                }
+                            },
+                            onViewRequests = { navigatePatientFeature(AccessoryOrderRequests) },
+                            onRetryCheckoutEligibility = checkoutGateViewModel::refresh,
                             onBrowseAccessories = {
                                 navigatePatientFeature(Accessories) {
                                     popUpTo<AccessoryCart> { inclusive = true }

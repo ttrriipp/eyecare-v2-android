@@ -19,11 +19,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,12 +77,15 @@ private val pesoFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH"))
 @Composable
 fun AccessoryCartScreen(
     cart: AccessoryCart,
+    checkoutEligibility: AccessoryCheckoutEligibility,
     onIncrement: (Int) -> Unit,
     onDecrement: (Int) -> Unit,
     onRemove: (Int) -> Unit,
     onRestore: (AccessoryCartItem) -> Unit,
     onClear: () -> Unit,
     onCheckout: () -> Unit,
+    onViewRequests: () -> Unit,
+    onRetryCheckoutEligibility: () -> Unit,
     onBrowseAccessories: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -207,29 +212,31 @@ fun AccessoryCartScreen(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    "Estimated total",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    pesoFormat.format(cart.estimatedTotal),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EyecareColors.current.accentText,
+                                )
+                            }
                             Text(
-                                "Estimated total",
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            Text(
-                                pesoFormat.format(cart.estimatedTotal),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = EyecareColors.current.accentText,
+                                "Clinic confirms the final total. No payment or stock hold yet.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        Text(
-                            "The clinic confirms the final total after review. No payment or stock hold yet.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                         if (hasUnavailableItems) {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
@@ -244,9 +251,43 @@ fun AccessoryCartScreen(
                                 )
                             }
                         }
+                        when (checkoutEligibility) {
+                            AccessoryCheckoutEligibility.CHECKING -> {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Text(
+                                        "Checking for pending order requests…",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            AccessoryCheckoutEligibility.PENDING_REQUEST -> {
+                                CheckoutEligibilityNotice(
+                                    title = "Pending request",
+                                    message = "You can start another request after the clinic responds.",
+                                    actionLabel = "View requests",
+                                    onAction = onViewRequests,
+                                )
+                            }
+                            AccessoryCheckoutEligibility.UNAVAILABLE -> {
+                                CheckoutEligibilityNotice(
+                                    title = "Can't check order requests",
+                                    message = "Retry before continuing.",
+                                    actionLabel = "Try again",
+                                    isError = true,
+                                    onAction = onRetryCheckoutEligibility,
+                                )
+                            }
+                            AccessoryCheckoutEligibility.ALLOWED -> Unit
+                        }
                         Button(
                             onClick = onCheckout,
-                            enabled = !hasUnavailableItems,
+                            enabled = !hasUnavailableItems &&
+                                checkoutEligibility == AccessoryCheckoutEligibility.ALLOWED,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp),
@@ -257,6 +298,75 @@ fun AccessoryCartScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CheckoutEligibilityNotice(
+    title: String,
+    message: String,
+    actionLabel: String,
+    isError: Boolean = false,
+    onAction: () -> Unit,
+) {
+    val containerColor = if (isError) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    }
+    val contentColor = if (isError) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
+    val actionColor = if (isError) {
+        MaterialTheme.colorScheme.error
+    } else {
+        EyecareColors.current.accentText
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = contentColor,
+                )
+                Text(
+                    text = title,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = contentColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                TextButton(
+                    onClick = onAction,
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = actionColor),
+                ) {
+                    Text(actionLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor,
+            )
         }
     }
 }

@@ -60,17 +60,19 @@ class AccessoryOrderRequestDetailViewModel @Inject constructor(
 
     init { load() }
 
-    fun cancel() {
+    fun cancel(reasonDetails: String) {
         val current = _uiState.value
         if (current !is RequestDetailUiState.Success) return
         if (!current.canCancel || isCancelling) return
+        val reason = reasonDetails.trim()
+        if (reason.isBlank() || reason.length > MAX_CANCELLATION_REASON_LENGTH) return
 
         isCancelling = true
         _uiState.value = current.copy(isCancelling = true)
 
         viewModelScope.launch {
             try {
-                repository.cancelRequest(requestId).fold(
+                repository.cancelRequest(requestId, reason).fold(
                     onSuccess = { cancelled ->
                         _uiState.value = RequestDetailUiState.Success(request = cancelled)
                     },
@@ -232,5 +234,9 @@ class AccessoryOrderRequestDetailViewModel @Inject constructor(
                 },
             )
         }
+    }
+
+    private companion object {
+        const val MAX_CANCELLATION_REASON_LENGTH = 1_000
     }
 }

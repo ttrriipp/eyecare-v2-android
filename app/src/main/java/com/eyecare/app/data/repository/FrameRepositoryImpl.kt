@@ -12,7 +12,9 @@ import com.eyecare.app.domain.model.ArCalibration
 import com.eyecare.app.domain.model.Frame
 import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.model.ArVector
+import com.eyecare.app.domain.model.ProductReview
 import com.eyecare.app.domain.repository.FrameRepository
+import com.eyecare.app.domain.repository.PaginatedResult
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -75,6 +77,20 @@ class FrameRepositoryImpl @Inject constructor(
         val cached = dao.getById(id)?.toDomain()
         if (cached != null) Result.success(cached)
         else Result.failure(e)
+    }
+
+    override suspend fun getFrameReviews(
+        id: Int,
+        page: Int,
+        perPage: Int,
+    ): Result<PaginatedResult<ProductReview>> = safeApiCall {
+        val response = api.getFrameReviews(id, page, perPage)
+        PaginatedResult(
+            data = response.data.map { ProductReview(it.rating, it.comment, it.createdAt, it.attachmentUrl) },
+            currentPage = response.meta?.currentPage ?: page,
+            lastPage = response.meta?.lastPage ?: page,
+            total = response.meta?.total ?: response.data.size,
+        )
     }
 
     private fun FrameDtos.FrameDto.toEntity() = FrameEntity(

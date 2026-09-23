@@ -5,6 +5,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
@@ -28,10 +30,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -52,8 +57,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.selectableGroup
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
@@ -78,6 +86,12 @@ import java.text.NumberFormat
 import java.util.Locale
 
 private val pesoFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH"))
+private const val OTHER_CANCELLATION_REASON = "Other"
+private val ORDER_REQUEST_CANCELLATION_REASON_PRESETS = listOf(
+    "Don't need" to "I no longer need these items.",
+    "By mistake" to "I submitted this request by mistake.",
+    "Change items" to "I need to change the requested items.",
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,7 +100,7 @@ fun AccessoryOrderRequestDetailScreen(
     showCancelDialog: Boolean,
     onShowCancelDialog: () -> Unit,
     onDismissCancelDialog: () -> Unit,
-    onCancel: () -> Unit,
+    onCancel: (String) -> Unit,
     onNavigateToOrder: (Int) -> Unit,
     onUploadDiscountProof: (DiscountProofUpload) -> Unit = {},
     onClearDiscountProofUploadState: () -> Unit = {},
@@ -97,6 +111,8 @@ fun AccessoryOrderRequestDetailScreen(
     val context = LocalContext.current
     var selectedProof by remember { mutableStateOf<SelectedDiscountProof?>(null) }
     var pickerErrorMessage by remember { mutableStateOf<String?>(null) }
+    var cancelReason by remember { mutableStateOf("") }
+    var selectedCancelReason by remember { mutableStateOf<String?>(null) }
     val proofPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         selectedProof?.file?.delete()
         selectedProof = null
@@ -110,6 +126,19 @@ fun AccessoryOrderRequestDetailScreen(
 
     DisposableEffect(selectedProof) {
         onDispose { selectedProof?.file?.delete() }
+    }
+
+    LaunchedEffect(showCancelDialog) {
+        if (showCancelDialog) {
+            cancelReason = ""
+            selectedCancelReason = null
+        }
+    }
+
+    val cancelReasonToSubmit = if (selectedCancelReason == OTHER_CANCELLATION_REASON) {
+        cancelReason.trim()
+    } else {
+        selectedCancelReason.orEmpty().trim()
     }
 
     LaunchedEffect(uiState) {
@@ -129,15 +158,45 @@ fun AccessoryOrderRequestDetailScreen(
         AppConfirmationDialog(
             icon = Icons.Outlined.Cancel,
             title = "Cancel request?",
-            message = "Are you sure you want to cancel this order request? This cannot be undone.",
+            message = "Choose a cancellation reason. This cannot be undone.",
             confirmLabel = "Cancel request",
             dismissLabel = "Keep request",
             isDestructive = true,
+            confirmEnabled = cancelReasonToSubmit.isNotBlank() &&
+                cancelReasonToSubmit.length <= MAX_CANCELLATION_REASON_LENGTH,
             onConfirm = {
-                onCancel()
+                onCancel(cancelReasonToSubmit)
                 onDismissCancelDialog()
             },
             onDismissRequest = onDismissCancelDialog,
+            supportingContent = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Cancellation reason · required", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        "Choose a preset or select Other to write your own.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OrderRequestCancellationReasonPicker(
+                        selectedReason = selectedCancelReason,
+                        customReason = cancelReason,
+                        onPresetSelected = { preset ->
+                            selectedCancelReason = preset
+                            cancelReason = ""
+                        },
+                        onOtherSelected = {
+                            selectedCancelReason = OTHER_CANCELLATION_REASON
+                            cancelReason = ""
+                        },
+                        onCustomReasonChanged = { value ->
+                            if (value.length <= MAX_CANCELLATION_REASON_LENGTH) cancelReason = value
+                        },
+                    )
+                }
+            },
         )
     }
 
@@ -158,11 +217,13 @@ fun AccessoryOrderRequestDetailScreen(
         modifier = modifier,
     ) { padding ->
         when (val state = uiState) {
-            is RequestDetailUiState.Loading -> LoadingContent(modifier = Modifier.padding(padding))
+            is RequestDetailUiState.Loading -> LoadingContent(
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
             is RequestDetailUiState.Error -> ErrorContent(
                 message = state.message,
                 onRetry = if (!state.isNotFound) onRetry else null,
-                modifier = Modifier.padding(padding),
+                modifier = Modifier.fillMaxSize().padding(padding),
             )
             is RequestDetailUiState.Success -> {
                 val request = state.request
@@ -347,6 +408,63 @@ fun AccessoryOrderRequestDetailScreen(
 }
 
 @Composable
+private fun OrderRequestCancellationReasonPicker(
+    selectedReason: String?,
+    customReason: String,
+    onPresetSelected: (String) -> Unit,
+    onOtherSelected: () -> Unit,
+    onCustomReasonChanged: (String) -> Unit,
+) {
+    val chipColors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+        selectedLabelColor = EyecareColors.current.accentText,
+    )
+
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { selectableGroup() },
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        ORDER_REQUEST_CANCELLATION_REASON_PRESETS.forEach { (label, reason) ->
+            FilterChip(
+                selected = selectedReason == reason,
+                onClick = { onPresetSelected(reason) },
+                label = { Text(label) },
+                modifier = Modifier.heightIn(min = 44.dp),
+                colors = chipColors,
+            )
+        }
+        FilterChip(
+            selected = selectedReason == OTHER_CANCELLATION_REASON,
+            onClick = onOtherSelected,
+            label = { Text(OTHER_CANCELLATION_REASON) },
+            modifier = Modifier.heightIn(min = 44.dp),
+            colors = chipColors,
+        )
+    }
+
+    if (selectedReason == OTHER_CANCELLATION_REASON) {
+        OutlinedTextField(
+            value = customReason,
+            onValueChange = onCustomReasonChanged,
+            label = { Text("Your reason") },
+            placeholder = { Text("Tell the clinic why you're cancelling") },
+            supportingText = {
+                Text("Required · ${customReason.length}/$MAX_CANCELLATION_REASON_LENGTH")
+            },
+            minLines = 2,
+            maxLines = 4,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Sentences,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
 private fun RequestSummaryCard(request: AccessoryOrderRequest) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -394,6 +512,9 @@ private fun RequestSummaryCard(request: AccessoryOrderRequest) {
             }
             request.cancelledAt?.let {
                 RequestSummaryRow("Cancelled", formatTimestamp(it))
+                request.cancellationReason?.takeIf(String::isNotBlank)?.let { reason ->
+                    RequestSummaryRow("Cancellation reason", reason)
+                }
             } ?: request.resolvedAt?.let {
                 RequestSummaryRow("Reviewed", formatTimestamp(it))
             }
@@ -423,6 +544,8 @@ private fun RequestSummaryRow(label: String, value: String) {
         )
     }
 }
+
+private const val MAX_CANCELLATION_REASON_LENGTH = 1_000
 
 @Composable
 private fun AcceptedOrderSummaryCard(order: AcceptedOrderSummary) {

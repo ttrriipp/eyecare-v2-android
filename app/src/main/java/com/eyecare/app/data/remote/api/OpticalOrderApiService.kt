@@ -29,6 +29,17 @@ interface OpticalOrderApiService {
     ): OpticalOrderDtos.RatingResultResponse
 
     @Multipart
+    @POST("optical-order-items/{id}/rating")
+    suspend fun rateItemWithAttachment(
+        @Path("id") itemId: Int,
+        @Part attachment: MultipartBody.Part,
+        @Part("rating") rating: RequestBody,
+        @Part("comment") comment: RequestBody?,
+        @Part("public_display_consent") publicDisplayConsent: RequestBody,
+        @Part("public_attachment_consent") publicAttachmentConsent: RequestBody,
+    ): OpticalOrderDtos.RatingResultResponse
+
+    @Multipart
     @POST("optical-orders/{id}/payment-proof")
     suspend fun uploadPaymentProof(
         @Path("id") orderId: Int,

@@ -1,15 +1,19 @@
 package com.eyecare.app.presentation.accessories
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import com.eyecare.app.domain.model.AcceptedOrderSummary
 import com.eyecare.app.domain.model.AccessoryOrderRequest
 import com.eyecare.app.domain.model.DiscountType
 import com.eyecare.app.domain.model.OrderRequestStatus
 import com.eyecare.app.ui.theme.EyecareTheme
 import java.math.BigDecimal
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -18,6 +22,36 @@ class AccessoryOrderRequestDetailScreenTest {
 
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun loadingIndicatorIsCenteredInTheContentArea() {
+        composeRule.setContent {
+            EyecareTheme {
+                AccessoryOrderRequestDetailScreen(
+                    uiState = RequestDetailUiState.Loading,
+                    showCancelDialog = false,
+                    onShowCancelDialog = {},
+                    onDismissCancelDialog = {},
+                    onCancel = {},
+                    onNavigateToOrder = {},
+                    onRetry = {},
+                    onBack = {},
+                )
+            }
+        }
+
+        val screenBounds = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
+        val titleBounds = composeRule.onNodeWithText("Request details").fetchSemanticsNode().boundsInRoot
+        val indicatorBounds = composeRule.onNode(
+            hasProgressBarRangeInfo(ProgressBarRangeInfo.Indeterminate),
+        ).fetchSemanticsNode().boundsInRoot
+
+        assertEquals(screenBounds.center.x, indicatorBounds.center.x, 1f)
+        assertTrue(
+            "Loading indicator should be below the header, centered in the content area",
+            indicatorBounds.center.y > titleBounds.bottom + screenBounds.height * 0.2f,
+        )
+    }
 
     @Test
     fun pendingRequestExplainsThatNoActionIsNeeded() {

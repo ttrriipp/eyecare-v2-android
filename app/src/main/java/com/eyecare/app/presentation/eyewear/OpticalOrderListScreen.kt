@@ -203,7 +203,7 @@ private fun OrderCard(
             ) {
                 OrderItemImage(
                     imagePath = featuredItem?.imagePath,
-                    description = featuredItem?.description ?: "Eyewear item",
+                    description = featuredItem?.description ?: "Order item",
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(

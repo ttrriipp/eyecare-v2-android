@@ -1,6 +1,7 @@
 ﻿package com.eyecare.app.domain.repository
 
 import com.eyecare.app.domain.model.Frame
+import com.eyecare.app.domain.model.ProductReview
 
 interface FrameRepository {
     suspend fun getFrames(
@@ -11,5 +12,10 @@ interface FrameRepository {
         sort: String? = null,
     ): Result<List<Frame>>
     suspend fun getFrame(id: Int): Result<Frame>
+    suspend fun getFrameReviews(
+        id: Int,
+        page: Int = 1,
+        perPage: Int = 15,
+    ): Result<PaginatedResult<ProductReview>>
     suspend fun hasMorePages(page: Int): Boolean
 }

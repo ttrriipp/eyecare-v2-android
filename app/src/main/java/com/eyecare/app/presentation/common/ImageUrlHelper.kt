@@ -37,3 +37,23 @@ fun buildImageUrl(
         "$storageBase/storage/$pathWithoutLeadingSlash"
     }
 }
+
+/** Builds a full API URL from a relative API path, including routes beginning with `/api/`. */
+fun buildApiUrl(path: String, apiBase: String = BuildConfig.API_BASE_URL): String {
+    val normalizedPath = path.trim()
+    if (normalizedPath.isEmpty()) return normalizedPath
+    if (normalizedPath.startsWith("http://", ignoreCase = true) ||
+        normalizedPath.startsWith("https://", ignoreCase = true)
+    ) {
+        return normalizedPath
+    }
+
+    val normalizedBase = apiBase.trimEnd('/')
+    val origin = normalizedBase.substringBefore("/api/").trimEnd('/')
+    val relativePath = normalizedPath.trimStart('/')
+    return if (relativePath.startsWith("api/", ignoreCase = true)) {
+        "$origin/$relativePath"
+    } else {
+        "$normalizedBase/$relativePath"
+    }
+}

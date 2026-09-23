@@ -7,6 +7,7 @@ import com.eyecare.app.domain.model.Accessory
 import com.eyecare.app.domain.model.AccessoryAvailability
 import com.eyecare.app.domain.model.AccessoryQuery
 import com.eyecare.app.domain.model.AccessoryVariant
+import com.eyecare.app.domain.model.ProductReview
 import com.eyecare.app.domain.repository.AccessoryRepository
 import com.eyecare.app.domain.repository.PaginatedResult
 import kotlinx.serialization.json.JsonPrimitive
@@ -28,6 +29,20 @@ class AccessoryRepositoryImpl @Inject constructor(
 
     override suspend fun getAccessory(id: Int): Result<Accessory> = safeApiCall {
         api.getAccessory(id).data.toDomain()
+    }
+
+    override suspend fun getAccessoryReviews(
+        id: Int,
+        page: Int,
+        perPage: Int,
+    ): Result<PaginatedResult<ProductReview>> = safeApiCall {
+        val response = api.getAccessoryReviews(id, page, perPage)
+        PaginatedResult(
+            data = response.data.map { ProductReview(it.rating, it.comment, it.createdAt, it.attachmentUrl) },
+            currentPage = response.meta?.currentPage ?: page,
+            lastPage = response.meta?.lastPage ?: page,
+            total = response.meta?.total ?: response.data.size,
+        )
     }
 
     private fun AccessoryDtos.AccessoryDto.toDomain() = Accessory(

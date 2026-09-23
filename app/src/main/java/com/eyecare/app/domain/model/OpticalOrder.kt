@@ -39,6 +39,7 @@ data class RatingSummary(
     val rating: Int,
     val comment: String?,
     val createdAt: String?,
+    val ownerAttachmentUrl: String? = null,
 )
 
 data class PaymentSummary(
@@ -57,6 +58,7 @@ data class RatingResult(
     val comment: String?,
     val productVariantId: Int? = null,
     val createdAt: String? = null,
+    val hasAttachment: Boolean = false,
 )
 
 data class PaymentInstructions(

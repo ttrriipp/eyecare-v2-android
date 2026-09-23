@@ -12,6 +12,7 @@ object OpticalOrderDtos {
         val rating: Int,
         val comment: String? = null,
         @SerialName("created_at") val createdAt: String? = null,
+        @SerialName("owner_attachment_url") val ownerAttachmentUrl: String? = null,
     )
 
     @Serializable
@@ -120,6 +121,8 @@ object OpticalOrderDtos {
     data class RatingRequest(
         val rating: Int,
         val comment: String? = null,
+        @SerialName("public_display_consent") val publicDisplayConsent: Boolean = false,
+        @SerialName("public_attachment_consent") val publicAttachmentConsent: Boolean = false,
     )
 
     @Serializable
@@ -129,6 +132,7 @@ object OpticalOrderDtos {
         @SerialName("product_variant_id") val productVariantId: Int? = null,
         val rating: Int,
         val comment: String? = null,
+        @SerialName("has_attachment") val hasAttachment: Boolean = false,
         @SerialName("created_at") val createdAt: String? = null,
     )
 

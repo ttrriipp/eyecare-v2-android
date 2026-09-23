@@ -107,11 +107,11 @@ class AccessoryOrderRequestDetailViewModelTest {
     @Test
     fun `cancel uses returned resource`() = runTest {
         coEvery { repository.getRequest(10) } returns Result.success(request(10, OrderRequestStatus.PENDING))
-        coEvery { repository.cancelRequest(10) } returns Result.success(request(10, OrderRequestStatus.CANCELLED))
+        coEvery { repository.cancelRequest(10, any()) } returns Result.success(request(10, OrderRequestStatus.CANCELLED))
         val viewModel = createViewModel(10)
         advanceUntilIdle()
 
-        viewModel.cancel()
+        viewModel.cancel("Changed my mind")
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as RequestDetailUiState.Success
@@ -121,14 +121,14 @@ class AccessoryOrderRequestDetailViewModelTest {
     @Test
     fun `cancel handles idempotent success`() = runTest {
         coEvery { repository.getRequest(10) } returns Result.success(request(10, OrderRequestStatus.PENDING))
-        coEvery { repository.cancelRequest(10) } returns Result.success(request(10, OrderRequestStatus.CANCELLED))
+        coEvery { repository.cancelRequest(10, any()) } returns Result.success(request(10, OrderRequestStatus.CANCELLED))
         val viewModel = createViewModel(10)
         advanceUntilIdle()
 
-        viewModel.cancel()
+        viewModel.cancel("Changed my mind")
         advanceUntilIdle()
         // Second cancel on already cancelled
-        viewModel.cancel()
+        viewModel.cancel("Changed my mind")
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as RequestDetailUiState.Success
@@ -138,14 +138,14 @@ class AccessoryOrderRequestDetailViewModelTest {
     @Test
     fun `not actionable refreshes detail`() = runTest {
         coEvery { repository.getRequest(10) } returns Result.success(request(10, OrderRequestStatus.PENDING))
-        coEvery { repository.cancelRequest(10) } returns Result.failure(
+        coEvery { repository.cancelRequest(10, any()) } returns Result.failure(
             ApiDomainError(422, "ORDER_REQUEST_NOT_ACTIONABLE", "Not actionable")
         )
         coEvery { repository.getRequest(10) } returns Result.success(request(10, OrderRequestStatus.CANCELLED))
         val viewModel = createViewModel(10)
         advanceUntilIdle()
 
-        viewModel.cancel()
+        viewModel.cancel("Changed my mind")
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as RequestDetailUiState.Success

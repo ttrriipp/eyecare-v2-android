@@ -93,6 +93,7 @@ import com.eyecare.app.presentation.common.RefreshOnResumeEffect
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.common.components.ProductReviewsSection
 import com.eyecare.app.presentation.frames.components.RatingSummary
 import com.eyecare.app.ui.theme.EyecareColors
 import java.util.Locale
@@ -411,6 +412,13 @@ fun FrameDetailScreen(
                                 }
                             }
                         }
+
+                        ProductReviewsSection(
+                            state = state.reviews,
+                            onRetry = viewModel::retryReviews,
+                            onLoadMore = viewModel::loadMoreReviews,
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                        )
 
                         Spacer(Modifier.height(8.dp))
                     }

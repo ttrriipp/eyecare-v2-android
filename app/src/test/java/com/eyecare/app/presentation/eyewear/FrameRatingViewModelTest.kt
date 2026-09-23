@@ -30,12 +30,12 @@ class FrameRatingViewModelTest {
     fun tearDown() { Dispatchers.resetMain() }
 
     @Test
-    fun `submitRating sends item ID only`() = runTest {
-        coEvery { repository.rateItem(10, 5, "Great!") } returns Result.success(
+    fun `submitRating forwards explicit public display consent`() = runTest {
+        coEvery { repository.rateItem(10, 5, "Great!", true) } returns Result.success(
             RatingResult(id = 1, itemId = 10, rating = 5, comment = "Great!")
         )
         val vm = FrameRatingViewModel(repository, orderItemId = 10)
-        vm.submitRating(5, "Great!")
+        vm.submitRating(5, "Great!", publicDisplayConsent = true)
         dispatcher.scheduler.advanceUntilIdle()
 
         val state = vm.uiState.value as FrameRatingUiState.Success
@@ -58,7 +58,7 @@ class FrameRatingViewModelTest {
 
     @Test
     fun `submitRating handles failure`() = runTest {
-        coEvery { repository.rateItem(10, 3, null) } returns Result.failure(RuntimeException("ORDER_NOT_DISPENSED"))
+        coEvery { repository.rateItem(10, 3, null, false) } returns Result.failure(RuntimeException("ORDER_NOT_DISPENSED"))
         val vm = FrameRatingViewModel(repository, orderItemId = 10)
         vm.submitRating(3, null)
         dispatcher.scheduler.advanceUntilIdle()
@@ -68,7 +68,7 @@ class FrameRatingViewModelTest {
 
     @Test
     fun `reset returns to idle`() = runTest {
-        coEvery { repository.rateItem(10, 5, null) } returns Result.success(
+        coEvery { repository.rateItem(10, 5, null, false) } returns Result.success(
             RatingResult(id = 2, itemId = 10, rating = 5, comment = null)
         )
         val vm = FrameRatingViewModel(repository, orderItemId = 10)
