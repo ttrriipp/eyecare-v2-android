@@ -1,11 +1,10 @@
 package com.eyecare.app.presentation.common
 
 /**
- * Frame-product ratings are hidden from patients pending clinic sign-off.
- * Flip to `true` to restore: the submit/revise rating action on order items,
- * the RatingBadge on frame catalog cards, and RatingBadgeDetail on frame detail.
- * Visit feedback (appointment ratings) is NOT flagged and stays live.
+ * Frame-product ratings are enabled on catalog cards, frame details, and
+ * eligible dispensed-order items. Visit feedback (appointment ratings) is
+ * independent of this flag.
  */
 object FeatureFlags {
-    const val FRAME_RATINGS_ENABLED = false
+    const val FRAME_RATINGS_ENABLED = true
 }
