@@ -70,17 +70,21 @@ data class AccessoryCart(
         val index = items.indexOfFirst { it.productVariantId == variantId }
         if (index < 0) return this
         val item = items[index]
-        return if (item.quantity <= 1) {
-            remove(variantId)
-        } else {
-            copy(items = items.toMutableList().apply {
-                set(index, item.copy(quantity = item.quantity - 1))
-            })
-        }
+        if (item.quantity <= 1) return this
+        return copy(items = items.toMutableList().apply {
+            set(index, item.copy(quantity = item.quantity - 1))
+        })
     }
 
     fun remove(variantId: Int): AccessoryCart {
         return copy(items = items.filter { it.productVariantId != variantId })
+    }
+
+    /** Restores a removed snapshot without silently changing its quantity or price. */
+    fun restore(item: AccessoryCartItem): AccessoryCart {
+        if (items.any { it.productVariantId == item.productVariantId }) return this
+        if (items.size >= 20) return this
+        return copy(items = items + item)
     }
 
     fun clear(): AccessoryCart = AccessoryCart()

@@ -102,11 +102,29 @@ class AccessoryCartTest {
     }
 
     @Test
-    fun `decrement from 1 removes item`() {
+    fun `decrement from 1 keeps item for explicit removal`() {
         val cart = AccessoryCart()
             .add(variant(1))
             .decrement(1)
-        assertTrue(cart.items.isEmpty())
+        assertEquals(1, cart.items.size)
+        assertEquals(1, cart.items[0].quantity)
+    }
+
+    @Test
+    fun `restore adds a removed item back with its original quantity`() {
+        val item = cartItem(variantId = 1, quantity = 3, price = BigDecimal("125.00"))
+        val cart = AccessoryCart().restore(item)
+
+        assertEquals(listOf(item), cart.items)
+        assertEquals(BigDecimal("375.00"), cart.estimatedTotal)
+    }
+
+    @Test
+    fun `restore does not duplicate an item already in cart`() {
+        val item = cartItem(variantId = 1)
+        val cart = AccessoryCart(item.let { listOf(it) }).restore(item)
+
+        assertEquals(1, cart.items.size)
     }
 
     @Test

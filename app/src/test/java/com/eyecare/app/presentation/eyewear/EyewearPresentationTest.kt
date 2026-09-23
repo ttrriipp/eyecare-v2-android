@@ -34,15 +34,81 @@ class EyewearPresentationTest {
     }
 
     @Test
-    fun `pending_payment tracker has awaiting payment message`() {
+    fun `pending_payment waits before fulfillment starts`() {
         val tracker = computeOrderTracker(OpticalOrderStatus.PENDING_PAYMENT)
+        assertNull(tracker.activeStep)
+        assertTrue(tracker.steps.none { it.second })
         assertEquals("Awaiting payment", tracker.terminalMessage)
     }
 
     @Test
-    fun `payment_review tracker has under review message`() {
+    fun `payment_review waits before fulfillment starts`() {
         val tracker = computeOrderTracker(OpticalOrderStatus.PAYMENT_REVIEW)
+        assertNull(tracker.activeStep)
+        assertTrue(tracker.steps.none { it.second })
         assertEquals("Payment under review", tracker.terminalMessage)
+    }
+
+    @Test
+    fun `tracker labels only the active and immediate next fulfillment steps`() {
+        assertEquals(
+            "Now",
+            trackerStepStateLabel(
+                status = OpticalOrderStatus.QUEUED,
+                step = TrackerStep.CONFIRMED,
+                completed = true,
+                activeStep = TrackerStep.CONFIRMED,
+            ),
+        )
+        assertEquals(
+            "Next",
+            trackerStepStateLabel(
+                status = OpticalOrderStatus.QUEUED,
+                step = TrackerStep.PROCESSING,
+                completed = false,
+                activeStep = TrackerStep.CONFIRMED,
+            ),
+        )
+        assertEquals(
+            "",
+            trackerStepStateLabel(
+                status = OpticalOrderStatus.QUEUED,
+                step = TrackerStep.READY,
+                completed = false,
+                activeStep = TrackerStep.CONFIRMED,
+            ),
+        )
+    }
+
+    @Test
+    fun `payment stages explain when fulfillment tracking starts`() {
+        assertEquals(
+            "After verification",
+            trackerStepStateLabel(
+                status = OpticalOrderStatus.PENDING_PAYMENT,
+                step = TrackerStep.CONFIRMED,
+                completed = false,
+                activeStep = null,
+            ),
+        )
+        assertEquals(
+            "Next after payment verification",
+            trackerStepAccessibilityStateLabel(
+                status = OpticalOrderStatus.PENDING_PAYMENT,
+                step = TrackerStep.CONFIRMED,
+                completed = false,
+                activeStep = null,
+            ),
+        )
+        assertEquals(
+            "After verification",
+            trackerStepStateLabel(
+                status = OpticalOrderStatus.PAYMENT_REVIEW,
+                step = TrackerStep.CONFIRMED,
+                completed = false,
+                activeStep = null,
+            ),
+        )
     }
 
     @Test

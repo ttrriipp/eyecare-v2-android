@@ -91,11 +91,23 @@ class AccessoryCartViewModelTest {
     }
 
     @Test
-    fun `decrement from 1 removes item`() = runTest {
+    fun `decrement from 1 keeps item for explicit removal`() = runTest {
         val viewModel = AccessoryCartViewModel()
         viewModel.addToCart(variant(1))
         viewModel.decrement(1)
-        assertTrue(viewModel.cart.value.isEmpty)
+        assertEquals(1, viewModel.cart.value.items.single().quantity)
+    }
+
+    @Test
+    fun `restore puts a removed item back`() = runTest {
+        val viewModel = AccessoryCartViewModel()
+        viewModel.addToCart(variant(1), quantity = 2)
+        val removed = viewModel.cart.value.items.single()
+        viewModel.remove(1)
+
+        viewModel.restore(removed)
+
+        assertEquals(listOf(removed), viewModel.cart.value.items)
     }
 
     @Test

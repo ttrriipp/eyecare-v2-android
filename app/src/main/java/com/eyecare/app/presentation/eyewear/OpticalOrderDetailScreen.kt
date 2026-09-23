@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -80,6 +81,7 @@ fun OpticalOrderDetailScreen(
     onBack: () -> Unit,
     ratingsEnabled: Boolean = FeatureFlags.FRAME_RATINGS_ENABLED,
     viewModel: OpticalOrderDetailViewModel = hiltViewModel(),
+    onMessageClinic: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var ratingItemId by remember { mutableStateOf<Int?>(null) }
@@ -186,6 +188,7 @@ fun OpticalOrderDetailScreen(
                 onPaymentWindowExpired = viewModel::refresh,
                 onRefresh = viewModel::refresh,
                 onClearPaymentProofError = viewModel::clearUploadState,
+                onMessageClinic = onMessageClinic,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -206,8 +209,9 @@ internal fun OrderDetailContent(
     onRefresh: () -> Unit = {},
     onClearPaymentProofError: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onMessageClinic: (String) -> Unit = {},
 ) {
-    val balanceDue = order.paymentSummary?.balanceDue?.takeIf { it > BigDecimal.ZERO }
+    val isPendingPayment = order.status == OpticalOrderStatus.PENDING_PAYMENT
     var selectedPaymentMethod by remember(order.id, order.paymentInstructions?.method) {
         mutableStateOf(order.paymentInstructions?.method ?: "gcash")
     }
@@ -220,7 +224,7 @@ internal fun OrderDetailContent(
                 .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            OrderStatusGuidance(order.status)
+            OrderStatusGuidance(order.status, onRefresh)
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -275,6 +279,24 @@ internal fun OrderDetailContent(
                         }
                     }
                 }
+            }
+
+            if (isPendingPayment) {
+                PaymentSummaryCard(order)
+                OrderPaymentProofContent(order, onMessageClinic)
+                PendingPaymentContent(
+                    order = order,
+                    selectedPaymentMethod = selectedPaymentMethod,
+                    onPaymentMethodSelected = { selectedPaymentMethod = it },
+                    selectedProof = selectedProof,
+                    pickerErrorMessage = pickerErrorMessage,
+                    uploadState = uploadState,
+                    onPickProof = onPickProof,
+                    onPaymentProofSubmit = onPaymentProofSubmit,
+                    onPaymentWindowExpired = onPaymentWindowExpired,
+                    onRefresh = onRefresh,
+                    onClearPaymentProofError = onClearPaymentProofError,
+                )
             }
 
             // Tracker
@@ -348,125 +370,171 @@ internal fun OrderDetailContent(
                 }
             }
 
-            // Payment summary
-            val paymentSummary = order.paymentSummary
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Payment summary", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    if (paymentSummary != null) {
-                        DetailInfoRow(
-                            "Status",
-                            paymentStatusLabel(paymentSummary.status),
-                            valueColor = paymentStatusTextColor(paymentSummary.status),
-                        )
-                        DetailInfoRow("Total", formatPeso(paymentSummary.totalAmount))
-                        DetailInfoRow("Paid", formatPeso(paymentSummary.amountPaid))
-                        DetailInfoRow(
-                            "Balance due",
-                            formatPeso(paymentSummary.balanceDue),
-                            valueColor = if (balanceDue != null) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                paymentStatusTextColor(paymentSummary.status)
-                            },
-                            valueWeight = if (balanceDue != null) FontWeight.Bold else FontWeight.SemiBold,
-                        )
-                        paymentSummary.paymentDueDate?.let { DetailInfoRow("Due date", it) }
-                        if (paymentSummary.isOverdue) {
-                            Text("Overdue", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
-                        }
-                    } else {
-                        // Explicit "unavailable" rather than omitting the whole section, so a patient
-                        // checking whether they owe money can't mistake missing data for nothing owed.
-                        Text(
-                            "Payment info unavailable",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            if (order.paymentProof != null) {
-                ExistingProofCard(
-                    proof = order.paymentProof.copy(
-                        rejectionReason = order.paymentProofRejectionReason ?: order.paymentProof.rejectionReason,
-                    ),
-                )
-            } else if (order.paymentProofStatus != PaymentProofStatus.NOT_SUBMITTED) {
-                PaymentProofStatusCard(
-                    status = order.paymentProofStatus,
-                    rejectionReason = order.paymentProofRejectionReason,
-                    paymentMethod = order.paymentProofMethod,
-                )
-            }
-
-            if (order.status == OpticalOrderStatus.PENDING_PAYMENT &&
-                order.paymentProofStatus == PaymentProofStatus.NOT_SUBMITTED
-            ) {
-                val instructions = order.paymentInstructions
-                if (instructions == null) {
-                    PaymentInstructionsUnavailableCard(onRefresh = onRefresh)
-                } else {
-                    val paymentDeadline = order.paymentExpiresAt ?: instructions.paymentExpiresAt
-                    var paymentWindowExpired by remember(paymentDeadline) {
-                        mutableStateOf(
-                            paymentSecondsRemaining(paymentDeadline)?.let { it <= 0L } ?: true,
-                        )
-                    }
-                    if (paymentDeadline != null) {
-                        PaymentDeadlineCard(
-                            expiresAt = paymentDeadline,
-                            onExpired = {
-                                paymentWindowExpired = true
-                                onPaymentWindowExpired()
-                            },
-                        )
-                    }
-
-                    if (paymentWindowExpired) {
-                        if (paymentDeadline == null) {
-                            PaymentInstructionsUnavailableCard(onRefresh = onRefresh)
-                        }
-                    } else {
-                        val effectivePaymentMethod = instructions.availableMethods
-                            .firstOrNull { it.method == selectedPaymentMethod }
-                            ?.method
-                            ?: instructions.method
-                        PaymentInstructionsCard(
-                            instructions = instructions,
-                            selectedMethod = effectivePaymentMethod,
-                            onMethodSelected = { selectedPaymentMethod = it },
-                        )
-
-                        if (onPickProof != null && onPaymentProofSubmit != null) {
-                            val selectedMethodLabel = instructions.availableMethods
-                                .firstOrNull { it.method == effectivePaymentMethod }
-                                ?.label
-                                ?: instructions.label
-                            PaymentProofForm(
-                                selectedProof = selectedProof,
-                                onPickProof = onPickProof,
-                                paymentMethod = effectivePaymentMethod,
-                                paymentMethodLabel = selectedMethodLabel,
-                                onSubmit = onPaymentProofSubmit,
-                                uploadState = uploadState,
-                                onClearError = onClearPaymentProofError,
-                                canSubmit = true,
-                                pickerErrorMessage = pickerErrorMessage,
-                            )
-                        }
-                    }
-                }
+            if (!isPendingPayment) {
+                PaymentSummaryCard(order)
+                OrderPaymentProofContent(order, onMessageClinic)
             }
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+private fun PaymentSummaryCard(order: OpticalOrder) {
+    val summary = order.paymentSummary
+    val balanceDue = summary?.balanceDue?.takeIf { it > BigDecimal.ZERO }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Payment summary", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            if (summary != null) {
+                DetailInfoRow(
+                    "Status",
+                    paymentStatusLabel(summary.status),
+                    valueColor = paymentStatusTextColor(summary.status),
+                )
+                DetailInfoRow("Total", formatPeso(summary.totalAmount))
+                DetailInfoRow("Paid", formatPeso(summary.amountPaid))
+                DetailInfoRow(
+                    "Balance due",
+                    formatPeso(summary.balanceDue),
+                    valueColor = if (balanceDue != null) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        paymentStatusTextColor(summary.status)
+                    },
+                    valueWeight = if (balanceDue != null) FontWeight.Bold else FontWeight.SemiBold,
+                )
+                summary.paymentDueDate?.let { DetailInfoRow("Due date", it) }
+                if (summary.isOverdue) {
+                    Text("Overdue", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                }
+            } else {
+                Text(
+                    "Payment info unavailable",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrderPaymentProofContent(
+    order: OpticalOrder,
+    onMessageClinic: (String) -> Unit,
+) {
+    val proof = order.paymentProof
+    val proofRejected = order.paymentProofStatus == PaymentProofStatus.REJECTED ||
+        proof?.status == PaymentProofStatus.REJECTED
+    val rejectionReason = order.paymentProofRejectionReason ?: proof?.rejectionReason
+    val contactClinic: (() -> Unit)? = if (proofRejected) {
+        { onMessageClinic(paymentProofContactDraft(order.orderNumber, rejectionReason)) }
+    } else {
+        null
+    }
+
+    if (proof != null) {
+        ExistingProofCard(
+            proof = proof.copy(
+                status = if (proofRejected) PaymentProofStatus.REJECTED else proof.status,
+                rejectionReason = rejectionReason,
+            ),
+            onContactClinic = contactClinic,
+        )
+    } else if (order.paymentProofStatus != PaymentProofStatus.NOT_SUBMITTED) {
+        PaymentProofStatusCard(
+            status = order.paymentProofStatus,
+            rejectionReason = rejectionReason?.takeIf(String::isNotBlank),
+            paymentMethod = order.paymentProofMethod,
+            onContactClinic = contactClinic,
+        )
+    }
+}
+
+private fun paymentProofContactDraft(orderNumber: String, rejectionReason: String?): String {
+    val reason = rejectionReason?.takeIf(String::isNotBlank)
+        ?: "the clinic could not verify the proof"
+    return "Hi, I need help with eyewear order $orderNumber. My payment proof was rejected: $reason. What should I do next?"
+}
+
+@Composable
+private fun PendingPaymentContent(
+    order: OpticalOrder,
+    selectedPaymentMethod: String,
+    onPaymentMethodSelected: (String) -> Unit,
+    selectedProof: SelectedPaymentProof?,
+    pickerErrorMessage: String?,
+    uploadState: ProofUploadState,
+    onPickProof: (() -> Unit)?,
+    onPaymentProofSubmit: ((String, String, String, SelectedPaymentProof) -> Unit)?,
+    onPaymentWindowExpired: () -> Unit,
+    onRefresh: () -> Unit,
+    onClearPaymentProofError: () -> Unit,
+) {
+    if (order.paymentProofStatus != PaymentProofStatus.NOT_SUBMITTED ||
+        order.paymentProof?.status == PaymentProofStatus.REJECTED
+    ) return
+
+    val instructions = order.paymentInstructions
+    if (instructions == null) {
+        PaymentInstructionsUnavailableCard(onRefresh = onRefresh)
+        return
+    }
+
+    val paymentDeadline = order.paymentExpiresAt ?: instructions.paymentExpiresAt
+    var paymentWindowExpired by remember(paymentDeadline) {
+        mutableStateOf(paymentSecondsRemaining(paymentDeadline)?.let { it <= 0L } ?: true)
+    }
+    if (paymentDeadline != null) {
+        PaymentDeadlineCard(
+            expiresAt = paymentDeadline,
+            onExpired = {
+                paymentWindowExpired = true
+                onPaymentWindowExpired()
+            },
+        )
+    }
+
+    if (paymentWindowExpired) {
+        if (paymentDeadline == null) {
+            PaymentInstructionsUnavailableCard(onRefresh = onRefresh)
+        }
+        return
+    }
+
+    val effectivePaymentMethod = instructions.availableMethods
+        .firstOrNull { it.method == selectedPaymentMethod }
+        ?.method
+        ?: instructions.method
+    PaymentInstructionsCard(
+        instructions = instructions,
+        selectedMethod = effectivePaymentMethod,
+        onMethodSelected = onPaymentMethodSelected,
+    )
+
+    if (onPickProof != null && onPaymentProofSubmit != null) {
+        val selectedMethodLabel = instructions.availableMethods
+            .firstOrNull { it.method == effectivePaymentMethod }
+            ?.label
+            ?: instructions.label
+        PaymentProofForm(
+            selectedProof = selectedProof,
+            onPickProof = onPickProof,
+            paymentMethod = effectivePaymentMethod,
+            paymentMethodLabel = selectedMethodLabel,
+            onSubmit = onPaymentProofSubmit,
+            uploadState = uploadState,
+            onClearError = onClearPaymentProofError,
+            canSubmit = true,
+            pickerErrorMessage = pickerErrorMessage,
+        )
     }
 }
 
@@ -532,7 +600,7 @@ internal fun OrderItemImage(
 private data class OrderStatusGuidanceCopy(val title: String, val message: String, val icon: ImageVector)
 
 @Composable
-private fun OrderStatusGuidance(status: OpticalOrderStatus) {
+private fun OrderStatusGuidance(status: OpticalOrderStatus, onRefresh: () -> Unit) {
     val copy = when (status) {
         OpticalOrderStatus.PENDING_PAYMENT -> OrderStatusGuidanceCopy(
             title = "Awaiting payment",
@@ -571,7 +639,7 @@ private fun OrderStatusGuidance(status: OpticalOrderStatus) {
         )
         OpticalOrderStatus.UNKNOWN -> OrderStatusGuidanceCopy(
             title = "Status unavailable",
-            message = "We couldn't confirm the latest status. Pull down to refresh.",
+            message = "We couldn't load the latest order status.",
             icon = Icons.Outlined.Info,
         )
     }
@@ -611,6 +679,11 @@ private fun OrderStatusGuidance(status: OpticalOrderStatus) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (status == OpticalOrderStatus.UNKNOWN) {
+                    TextButton(onClick = onRefresh) {
+                        Text("Refresh order")
+                    }
+                }
             }
         }
     }
@@ -640,6 +713,9 @@ private fun OrderTracker(status: OpticalOrderStatus) {
             ) {
                 tracker.steps.forEachIndexed { index, (step, completed) ->
                     val isActive = step == tracker.activeStep
+                    val stepLabel = trackerStepLabel(step)
+                    val stepState = trackerStepStateLabel(status, step, completed, tracker.activeStep)
+                    val accessibleStepState = trackerStepAccessibilityStateLabel(status, step, completed, tracker.activeStep)
                     val (fillColor, textColor, weight) = when {
                         isActive -> Triple(
                             MaterialTheme.colorScheme.primary,
@@ -658,7 +734,11 @@ private fun OrderTracker(status: OpticalOrderStatus) {
                         )
                     }
                     Box(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clearAndSetSemantics {
+                                contentDescription = "$stepLabel, $accessibleStepState"
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
                         Surface(
@@ -690,20 +770,28 @@ private fun OrderTracker(status: OpticalOrderStatus) {
                 }
             }
             Row(modifier = Modifier.fillMaxWidth()) {
-                tracker.steps.forEachIndexed { index, (step, _) ->
-                    Box(modifier = Modifier.weight(1f)) {
+                tracker.steps.forEachIndexed { index, (step, completed) ->
+                    val stepState = trackerStepStateLabel(status, step, completed, tracker.activeStep)
+                    Column(
+                        modifier = Modifier.weight(1f).clearAndSetSemantics {},
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         Text(
-                            text = when (step) {
-                                TrackerStep.CONFIRMED -> "Confirmed"
-                                TrackerStep.PROCESSING -> "Processing"
-                                TrackerStep.READY -> "Ready for pickup"
-                                TrackerStep.COMPLETED -> "Completed"
-                            },
+                            text = trackerStepLabel(step),
                             modifier = Modifier.fillMaxWidth(),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             maxLines = 2,
+                        )
+                        Text(
+                            text = stepState,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (stepState == "Now" || stepState == "Done") {
+                                EyecareColors.current.accentText
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                         )
                     }
                     if (index < tracker.steps.lastIndex) {
@@ -721,6 +809,13 @@ private fun OrderTracker(status: OpticalOrderStatus) {
             modifier = Modifier.padding(top = 4.dp),
         )
     }
+}
+
+private fun trackerStepLabel(step: TrackerStep): String = when (step) {
+    TrackerStep.CONFIRMED -> "Confirmed"
+    TrackerStep.PROCESSING -> "Processing"
+    TrackerStep.READY -> "Ready for pickup"
+    TrackerStep.COMPLETED -> "Completed"
 }
 
 @Composable

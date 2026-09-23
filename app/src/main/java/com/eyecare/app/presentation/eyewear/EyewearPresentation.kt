@@ -127,24 +127,25 @@ fun orderDateLabelFull(order: OpticalOrder): Pair<String, String> {
 
 fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
     return when (status) {
+        // Fulfillment progress starts only after payment has been verified and the order is queued.
         OpticalOrderStatus.PENDING_PAYMENT -> TrackerState(
             steps = listOf(
-                TrackerStep.CONFIRMED to true,
+                TrackerStep.CONFIRMED to false,
                 TrackerStep.PROCESSING to false,
                 TrackerStep.READY to false,
                 TrackerStep.COMPLETED to false,
             ),
-            activeStep = TrackerStep.CONFIRMED,
+            activeStep = null,
             terminalMessage = "Awaiting payment",
         )
         OpticalOrderStatus.PAYMENT_REVIEW -> TrackerState(
             steps = listOf(
-                TrackerStep.CONFIRMED to true,
+                TrackerStep.CONFIRMED to false,
                 TrackerStep.PROCESSING to false,
                 TrackerStep.READY to false,
                 TrackerStep.COMPLETED to false,
             ),
-            activeStep = TrackerStep.CONFIRMED,
+            activeStep = null,
             terminalMessage = "Payment under review",
         )
         OpticalOrderStatus.QUEUED -> TrackerState(
@@ -208,4 +209,38 @@ fun computeOrderTracker(status: OpticalOrderStatus): TrackerState {
             terminalMessage = "Status unavailable",
         )
     }
+}
+
+fun trackerStepStateLabel(
+    status: OpticalOrderStatus,
+    step: TrackerStep,
+    completed: Boolean,
+    activeStep: TrackerStep?,
+): String = when {
+    status == OpticalOrderStatus.CANCELLED -> if (step == TrackerStep.CONFIRMED) "Stopped" else ""
+    status == OpticalOrderStatus.UNKNOWN -> if (step == TrackerStep.CONFIRMED) "Unavailable" else ""
+    status == OpticalOrderStatus.PENDING_PAYMENT || status == OpticalOrderStatus.PAYMENT_REVIEW ->
+        if (step == TrackerStep.CONFIRMED) "After verification" else ""
+    status == OpticalOrderStatus.DISPENSED -> if (step == TrackerStep.COMPLETED) "Done" else ""
+    step == activeStep -> "Now"
+    completed -> "Done"
+    activeStep != null && step.ordinal == activeStep.ordinal + 1 -> "Next"
+    else -> ""
+}
+
+fun trackerStepAccessibilityStateLabel(
+    status: OpticalOrderStatus,
+    step: TrackerStep,
+    completed: Boolean,
+    activeStep: TrackerStep?,
+): String = when {
+    status == OpticalOrderStatus.CANCELLED -> "Stopped"
+    status == OpticalOrderStatus.UNKNOWN -> "Unavailable"
+    status == OpticalOrderStatus.PENDING_PAYMENT || status == OpticalOrderStatus.PAYMENT_REVIEW ->
+        if (step == TrackerStep.CONFIRMED) "Next after payment verification" else "Later"
+    status == OpticalOrderStatus.DISPENSED -> "Done"
+    step == activeStep -> "In progress"
+    completed -> "Done"
+    activeStep != null && step.ordinal == activeStep.ordinal + 1 -> "Next"
+    else -> "Later"
 }

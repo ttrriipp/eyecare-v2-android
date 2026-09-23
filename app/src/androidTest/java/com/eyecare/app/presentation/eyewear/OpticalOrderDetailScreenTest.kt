@@ -17,6 +17,8 @@ import com.eyecare.app.ui.theme.EyecareTheme
 import java.math.BigDecimal
 import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -26,7 +28,7 @@ class OpticalOrderDetailScreenTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun orderDetail_showsFrameImageAndDoesNotShowClinicMessageAction() {
+    fun orderDetail_showsFrameImageAndHidesClinicMessageWithoutRejection() {
         composeRule.setContent {
             EyecareTheme {
                 OrderDetailContent(
@@ -38,7 +40,7 @@ class OpticalOrderDetailScreenTest {
         }
 
         composeRule.onNodeWithContentDescription("Everyday Frame – Tortoise image").assertIsDisplayed()
-        composeRule.onNodeWithText("Message the clinic about your balance").assertDoesNotExist()
+        composeRule.onNodeWithText("Message the clinic").assertDoesNotExist()
     }
 
     @Test
@@ -65,6 +67,88 @@ class OpticalOrderDetailScreenTest {
         composeRule.onNodeWithText("Payment instructions").assertIsDisplayed()
         composeRule.onNodeWithText("Upload payment proof").assertIsDisplayed()
         composeRule.onNodeWithText("Submit proof").assertIsDisplayed()
+    }
+
+    @Test
+    fun pendingPayment_prioritizesPaymentAndProofBeforeProgressAndItems() {
+        composeRule.setContent {
+            EyecareTheme {
+                OrderDetailContent(
+                    order = createPendingPaymentOrder(),
+                    onRateItem = {},
+                    ratingsEnabled = false,
+                    onPickProof = {},
+                    onPaymentProofSubmit = { _, _, _, _ -> },
+                )
+            }
+        }
+
+        val paymentSummaryTop = composeRule.onNodeWithText("Payment summary").fetchSemanticsNode().boundsInRoot.top
+        val submitProofTop = composeRule.onNodeWithText("Submit proof").fetchSemanticsNode().boundsInRoot.top
+        val orderProgressTop = composeRule.onNodeWithText("Order progress").fetchSemanticsNode().boundsInRoot.top
+        assertTrue(paymentSummaryTop < orderProgressTop)
+        assertTrue(submitProofTop < orderProgressTop)
+    }
+
+    @Test
+    fun rejectedProof_offersClinicMessageWithOrderAndReasonInEditableDraft() {
+        var draft: String? = null
+        composeRule.setContent {
+            EyecareTheme {
+                OrderDetailContent(
+                    order = createOrder().copy(
+                        status = OpticalOrderStatus.CANCELLED,
+                        paymentProofStatus = PaymentProofStatus.REJECTED,
+                        paymentProofRejectionReason = "Reference number could not be verified.",
+                    ),
+                    onRateItem = {},
+                    ratingsEnabled = false,
+                    onMessageClinic = { draft = it },
+                )
+            }
+        }
+
+        assertNull(draft)
+        composeRule.onNodeWithText("Message the clinic").assertIsDisplayed().performClick()
+
+        assertTrue(draft.orEmpty().contains("ORD-2026-000002"))
+        assertTrue(draft.orEmpty().contains("Reference number could not be verified."))
+    }
+
+    @Test
+    fun orderProgressLabelsCurrentCompletedAndUpcomingStages() {
+        composeRule.setContent {
+            EyecareTheme {
+                OrderDetailContent(
+                    order = createOrder().copy(status = OpticalOrderStatus.IN_PROGRESS),
+                    onRateItem = {},
+                    ratingsEnabled = false,
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Confirmed, Complete").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Processing, Current").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Ready for pickup, Upcoming").assertIsDisplayed()
+    }
+
+    @Test
+    fun unknownOrderStatus_offersAnExplicitRefreshAction() {
+        var refreshCount = 0
+        composeRule.setContent {
+            EyecareTheme {
+                OrderDetailContent(
+                    order = createOrder().copy(status = OpticalOrderStatus.UNKNOWN),
+                    onRateItem = {},
+                    ratingsEnabled = false,
+                    onRefresh = { refreshCount++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Pull down to refresh").assertDoesNotExist()
+        composeRule.onNodeWithText("Refresh order").assertIsDisplayed().performClick()
+        assertEquals(1, refreshCount)
     }
 
     @Test

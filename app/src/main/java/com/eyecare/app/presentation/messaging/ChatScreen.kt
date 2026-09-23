@@ -78,6 +78,7 @@ fun ChatScreen(
     onBack: () -> Unit,
     onMessagesMarkedRead: () -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
+    initialDraft: String? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -129,6 +130,22 @@ fun ChatScreen(
     }
 
     val successState = uiState as? ChatUiState.Success
+
+    var initialDraftHandled by remember(initialDraft) {
+        mutableStateOf(initialDraft.isNullOrBlank())
+    }
+    LaunchedEffect(initialDraft, successState?.conversation?.id, successState?.inputText) {
+        val chatState = successState ?: return@LaunchedEffect
+        val draft = initialDraft?.takeIf(String::isNotBlank) ?: return@LaunchedEffect
+        if (initialDraftHandled) return@LaunchedEffect
+
+        // Keep the patient's existing text if this conversation already has an in-progress draft.
+        // Prefilling never sends the message; the patient can edit or discard it first.
+        initialDraftHandled = true
+        if (chatState.inputText.isBlank()) {
+            viewModel.onDraftChanged(draft)
+        }
+    }
 
     // Auto-scroll to newest message on initial load
     val messages = successState?.messages

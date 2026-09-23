@@ -27,9 +27,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -58,6 +58,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentRequest
+import com.eyecare.app.domain.model.Accessory
 import com.eyecare.app.domain.model.ClinicHoursDay
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.model.Frame
@@ -66,6 +67,7 @@ import com.eyecare.app.presentation.appointments.formatAppointmentDate
 import com.eyecare.app.presentation.appointments.formatAppointmentTime
 import com.eyecare.app.presentation.appointments.formatAppointmentTitle
 import com.eyecare.app.presentation.common.components.ErrorContent
+import com.eyecare.app.presentation.accessories.components.AccessoryCard
 import com.eyecare.app.presentation.frames.components.FrameCard
 import com.eyecare.app.ui.theme.EyecareColors
 import java.time.LocalDate
@@ -88,6 +90,7 @@ fun HomeScreen(
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
     onNavigateToAccessories: () -> Unit = {},
+    onNavigateToAccessory: (Int) -> Unit = {},
     onNavigateToLinkAccount: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     hasActivePatientLink: Boolean = true,
@@ -121,6 +124,7 @@ fun HomeScreen(
                 onNavigateToFrames = onNavigateToFrames,
                 onNavigateToFrameDetail = onNavigateToFrameDetail,
                 onNavigateToAccessories = onNavigateToAccessories,
+                onNavigateToAccessory = onNavigateToAccessory,
                 onNavigateToLinkAccount = onNavigateToLinkAccount,
                 onNavigateToNotifications = onNavigateToNotifications,
                 hasActivePatientLink = hasActivePatientLink,
@@ -152,6 +156,11 @@ fun HomeLoadingContent(modifier: Modifier = Modifier) {
             LoadingBlock(width = 148.dp, height = 196.dp, cornerRadius = 12.dp)
             LoadingBlock(width = 148.dp, height = 196.dp, cornerRadius = 12.dp)
         }
+        LoadingBlock(width = 148.dp, height = 20.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LoadingBlock(width = 148.dp, height = 252.dp, cornerRadius = 12.dp)
+            LoadingBlock(width = 148.dp, height = 252.dp, cornerRadius = 12.dp)
+        }
     }
 }
 
@@ -179,6 +188,7 @@ fun HomeContent(
     onNavigateToFrames: () -> Unit = {},
     onNavigateToFrameDetail: (Int) -> Unit = {},
     onNavigateToAccessories: () -> Unit = {},
+    onNavigateToAccessory: (Int) -> Unit = {},
     onNavigateToLinkAccount: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     hasActivePatientLink: Boolean = true,
@@ -281,40 +291,11 @@ fun HomeContent(
             }
         }
 
-        // Accessories entry
-        if (hasActivePatientLink) {
-            Surface(
-                onClick = onNavigateToAccessories,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column {
-                        Text(
-                            text = "Accessories",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "Browse lens care and eyewear accessories",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Outlined.ChevronRight,
-                        contentDescription = "Browse accessories",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
+        AccessoriesHomeSection(
+            accessories = state.featuredAccessories,
+            onNavigateToAccessories = onNavigateToAccessories,
+            onNavigateToAccessory = onNavigateToAccessory,
+        )
     }
 }
 
@@ -813,6 +794,117 @@ private fun HomeFrameShelf(
                 onClick = { onFrameClick(frame.id) },
                 modifier = Modifier.width(148.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun AccessoriesHomeSection(
+    accessories: List<Accessory>,
+    onNavigateToAccessories: () -> Unit,
+    onNavigateToAccessory: (Int) -> Unit,
+) {
+    if (accessories.isEmpty()) {
+        Card(
+            onClick = onNavigateToAccessories,
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 48.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.ShoppingBag,
+                            contentDescription = null,
+                            tint = EyecareColors.current.accentText,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Browse accessories",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Lens care and everyday eyewear essentials",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = "See all",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        return
+    }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = "Lens care essentials",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Solutions, drops, and daily care",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(
+                    onClick = onNavigateToAccessories,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                ) {
+                    Text("See all")
+                }
+            }
+            LazyRow(
+                contentPadding = PaddingValues(end = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                items(accessories, key = { it.id }) { accessory ->
+                    AccessoryCard(
+                        accessory = accessory,
+                        onClick = { onNavigateToAccessory(accessory.id) },
+                        modifier = Modifier.width(164.dp),
+                    )
+                }
+            }
         }
     }
 }

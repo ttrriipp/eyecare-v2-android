@@ -10,6 +10,9 @@ import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AssignedOptometrist
+import com.eyecare.app.domain.model.Accessory
+import com.eyecare.app.domain.model.AccessoryAvailability
+import com.eyecare.app.domain.model.AccessoryVariant
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.model.EyeMeasurement
 import com.eyecare.app.domain.model.Frame
@@ -19,6 +22,7 @@ import com.eyecare.app.domain.model.PrescriptionMeasurements
 import com.eyecare.app.ui.theme.EyecareTheme
 import org.junit.Rule
 import org.junit.Test
+import java.math.BigDecimal
 
 class HomeScreenTest {
 
@@ -136,6 +140,46 @@ class HomeScreenTest {
         // product/appointment surface and must not leak a prescription summary into this card.
         composeRule.onNodeWithText("Current prescription").assertDoesNotExist()
         composeRule.onNodeWithText("View details").assertDoesNotExist()
+    }
+
+    @Test
+    fun accessoryShelf_showsCatalogEssentials_withoutPatientLink() {
+        val state = successState().copy(
+            featuredAccessories = listOf(
+                Accessory(
+                    id = 1,
+                    name = "Lacryl Hydrate Eye Drops",
+                    slug = "lacryl-hydrate-eye-drops",
+                    description = "Daily lens care",
+                    brand = "Test Brand",
+                    category = "Lens care",
+                    images = emptyList(),
+                    averageRating = 4.5,
+                    ratingCount = 12,
+                    variants = listOf(
+                        AccessoryVariant(
+                            id = 11,
+                            name = "10 mL",
+                            price = BigDecimal("450.00"),
+                            compareAtPrice = null,
+                            attributes = emptyMap(),
+                            images = emptyList(),
+                            availability = AccessoryAvailability.AVAILABLE,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        composeRule.setContent {
+            EyecareTheme {
+                HomeContent(state = state, hasActivePatientLink = false)
+            }
+        }
+
+        composeRule.onNodeWithText("Lens care essentials").assertIsDisplayed()
+        composeRule.onNodeWithText("Lacryl Hydrate Eye Drops").assertIsDisplayed()
+        composeRule.onNodeWithText("₱450.00").assertIsDisplayed()
     }
 
     @Test

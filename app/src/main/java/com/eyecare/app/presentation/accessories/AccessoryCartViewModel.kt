@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.accessories
 
 import androidx.lifecycle.ViewModel
 import com.eyecare.app.domain.model.AccessoryCart
+import com.eyecare.app.domain.model.AccessoryCartItem
 import com.eyecare.app.domain.model.AccessoryVariant
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +39,10 @@ class AccessoryCartViewModel @Inject constructor() : ViewModel() {
 
     fun remove(variantId: Int) {
         _cart.value = _cart.value.remove(variantId)
+    }
+
+    fun restore(item: AccessoryCartItem) {
+        _cart.value = _cart.value.restore(item)
     }
 
     fun clear() {

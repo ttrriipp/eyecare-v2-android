@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -277,6 +278,10 @@ fun RescheduleBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        // The activity is edge-to-edge with a transparent navigation bar. Let the sheet
+        // surface extend behind the gesture area, then keep the pinned action content above
+        // it with navigationBarsPadding() below.
+        contentWindowInsets = { WindowInsets(0) },
     ) {
         Box(
             modifier = Modifier

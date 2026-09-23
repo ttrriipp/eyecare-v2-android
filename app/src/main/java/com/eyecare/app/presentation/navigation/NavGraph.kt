@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -72,6 +71,8 @@ import com.eyecare.app.presentation.notifications.NotificationListUiState
 import com.eyecare.app.presentation.notifications.NotificationEffect
 import com.eyecare.app.presentation.profile.ProfileScreen
 import kotlinx.coroutines.flow.collect
+
+private const val CHAT_INITIAL_DRAFT_KEY = "chat_initial_draft"
 
 internal fun shouldShowBottomNav(route: String): Boolean =
     !route.contains("Login") && !route.contains("Register") &&
@@ -181,8 +182,13 @@ fun EyecareNavGraph(
 
     fun navigateMainTab(route: Any) {
         if (route == Home || route == Profile || canNavigateTo(route)) {
+            // Use the actual graph entry id instead of relying on the serialized route string.
+            // The accessory catalog can be opened directly from Home, which leaves that
+            // destination above MainGraph. Resolving the graph entry from the controller keeps
+            // every tab switch on the same stack-clearing path, regardless of which tab opened it.
+            val mainGraphId = navController.getBackStackEntry<MainGraph>().destination.id
             navController.navigate(route) {
-                popUpTo<MainGraph> {
+                popUpTo(mainGraphId) {
                     saveState = true
                     inclusive = false
                 }
@@ -340,7 +346,8 @@ fun EyecareNavGraph(
                                 navigateMainTab(Frames)
                             },
                             onNavigateToFrameDetail = { navigatePatientFeature(FrameDetail(it)) },
-                            onNavigateToAccessories = { navigatePatientFeature(Accessories) },
+                            onNavigateToAccessories = { navigateMainTab(Accessories) },
+                            onNavigateToAccessory = { navigatePatientFeature(AccessoryDetail(it)) },
                             onNavigateToLinkAccount = ::openAccountLink,
                             onNavigateToNotifications = { navController.navigate(Notifications) },
                             hasActivePatientLink = canAccessPatientFeatures(sessionState),
@@ -425,6 +432,13 @@ fun EyecareNavGraph(
                     composable<OpticalOrderDetail> {
                         OpticalOrderDetailScreen(
                             onBack = { navController.popBackStack() },
+                            onMessageClinic = { draft ->
+                                navController.currentBackStackEntry?.savedStateHandle?.set(
+                                    CHAT_INITIAL_DRAFT_KEY,
+                                    draft,
+                                )
+                                navigatePatientFeature(Chat)
+                            },
                         )
                     }
                     composable<Appointments> { appointmentsEntry ->
@@ -559,10 +573,16 @@ fun EyecareNavGraph(
                             onBack = { navController.popBackStack() },
                         )
                     }
-                    composable<Chat> {
+                    composable<Chat> { chatEntry ->
+                        val initialDraft = remember(chatEntry) {
+                            navController.previousBackStackEntry?.savedStateHandle?.remove<String>(
+                                CHAT_INITIAL_DRAFT_KEY,
+                            )
+                        }
                         ChatScreen(
                             onBack = { navController.popBackStack() },
                             onMessagesMarkedRead = { mainUnreadViewModel.onMessagesMarkedRead() },
+                            initialDraft = initialDraft,
                         )
                     }
                     composable<Notifications> {
@@ -697,8 +717,14 @@ fun EyecareNavGraph(
                             onIncrement = cartViewModel::increment,
                             onDecrement = cartViewModel::decrement,
                             onRemove = cartViewModel::remove,
+                            onRestore = cartViewModel::restore,
                             onClear = cartViewModel::clear,
                             onCheckout = { navigatePatientFeature(AccessoryCheckoutRoute) },
+                            onBrowseAccessories = {
+                                navigatePatientFeature(Accessories) {
+                                    popUpTo<AccessoryCart> { inclusive = true }
+                                }
+                            },
                             onBack = { navController.popBackStack() },
                         )
                     }
@@ -711,7 +737,10 @@ fun EyecareNavGraph(
                         val selectedDiscount by checkoutViewModel.selectedDiscount.collectAsStateWithLifecycle()
 
                         LaunchedEffect(checkoutState) {
-                            if (checkoutState is com.eyecare.app.presentation.accessories.CheckoutUiState.Success) {
+                            if (checkoutState is com.eyecare.app.presentation.accessories.CheckoutUiState.UploadingDiscountProof ||
+                                checkoutState is com.eyecare.app.presentation.accessories.CheckoutUiState.ProofUploadError ||
+                                checkoutState is com.eyecare.app.presentation.accessories.CheckoutUiState.Success
+                            ) {
                                 cartViewModel.clear()
                             }
                         }
@@ -721,12 +750,14 @@ fun EyecareNavGraph(
                             selectedDiscount = selectedDiscount,
                             checkoutState = checkoutState,
                             onDiscountSelect = checkoutViewModel::selectDiscount,
-                            onSubmit = {
+                            onSubmit = { proof ->
                                 checkoutViewModel.submit(
                                     discountType = selectedDiscount,
                                     items = cart.items.map { it.productVariantId to it.quantity },
+                                    proof = proof,
                                 )
                             },
+                            onRetryDiscountProofUpload = checkoutViewModel::retryDiscountProof,
                             onViewRequest = { requestId ->
                                 navigatePatientFeature(AccessoryOrderRequestDetail(requestId)) {
                                     popUpTo<AccessoryCheckoutRoute> { inclusive = true }

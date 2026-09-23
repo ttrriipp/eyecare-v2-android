@@ -45,6 +45,7 @@ import com.eyecare.app.domain.model.PaymentMethodInstructions
 import com.eyecare.app.domain.model.PaymentProofSummary
 import com.eyecare.app.domain.model.PaymentProofStatus
 import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
@@ -250,7 +251,7 @@ fun PaymentDeadlineCard(
                 if (expired) "Payment window expired" else "Payment window",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = if (expired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                color = if (expired) MaterialTheme.colorScheme.error else EyecareColors.current.accentText,
             )
             if (remaining == null) {
                 Text(
@@ -281,6 +282,7 @@ fun PaymentProofStatusCard(
     rejectionReason: String?,
     paymentMethod: String? = null,
     modifier: Modifier = Modifier,
+    onContactClinic: (() -> Unit)? = null,
 ) {
     val (title, message, color) = when (status) {
         PaymentProofStatus.NOT_SUBMITTED -> Triple("Payment proof", "No payment proof has been submitted.", MaterialTheme.colorScheme.onSurfaceVariant)
@@ -288,7 +290,7 @@ fun PaymentProofStatusCard(
             "Payment proof under review",
             paymentMethod?.let { "The clinic is reviewing your ${displayPaymentMethodLabel(it)} payment." }
                 ?: "The clinic is reviewing your payment.",
-            MaterialTheme.colorScheme.primary,
+            EyecareColors.current.accentText,
         )
         PaymentProofStatus.ACCEPTED -> Triple("Payment proof accepted", "Your payment has been verified by the clinic.", MaterialTheme.colorScheme.tertiary)
         PaymentProofStatus.REJECTED -> Triple("Payment proof rejected", rejectionReason ?: "The clinic could not verify this payment proof.", MaterialTheme.colorScheme.error)
@@ -302,6 +304,11 @@ fun PaymentProofStatusCard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = color)
             Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (status == PaymentProofStatus.REJECTED && onContactClinic != null) {
+                Button(onClick = onContactClinic, modifier = Modifier.fillMaxWidth()) {
+                    Text("Message the clinic")
+                }
+            }
         }
     }
 }
@@ -310,6 +317,7 @@ fun PaymentProofStatusCard(
 fun ExistingProofCard(
     proof: PaymentProofSummary,
     modifier: Modifier = Modifier,
+    onContactClinic: (() -> Unit)? = null,
 ) {
     val statusLabel = when (proof.status) {
         PaymentProofStatus.NOT_SUBMITTED -> "Not submitted"
@@ -320,7 +328,7 @@ fun ExistingProofCard(
     }
     val statusColor = when (proof.status) {
         PaymentProofStatus.NOT_SUBMITTED -> MaterialTheme.colorScheme.onSurfaceVariant
-        PaymentProofStatus.PENDING -> MaterialTheme.colorScheme.primary
+        PaymentProofStatus.PENDING -> EyecareColors.current.accentText
         PaymentProofStatus.ACCEPTED -> MaterialTheme.colorScheme.tertiary
         PaymentProofStatus.REJECTED -> MaterialTheme.colorScheme.error
         PaymentProofStatus.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -365,17 +373,22 @@ fun ExistingProofCard(
             }
             InfoRow(label = "Reference", value = proof.referenceNumber)
 
-            if (proof.status == PaymentProofStatus.REJECTED && !proof.rejectionReason.isNullOrBlank()) {
+            if (proof.status == PaymentProofStatus.REJECTED) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
                 ) {
                     Text(
-                        "Reason: ${proof.rejectionReason}",
+                        "Reason: ${proof.rejectionReason?.takeIf(String::isNotBlank) ?: "The clinic could not verify this payment proof."}",
                         modifier = Modifier.padding(8.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                     )
+                }
+                if (onContactClinic != null) {
+                    Button(onClick = onContactClinic, modifier = Modifier.fillMaxWidth()) {
+                        Text("Message the clinic")
+                    }
                 }
             }
 

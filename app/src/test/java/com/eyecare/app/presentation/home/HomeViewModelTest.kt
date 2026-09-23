@@ -4,6 +4,9 @@ import com.eyecare.app.domain.model.AppointmentRequestStatus
 import com.eyecare.app.domain.model.AppointmentRequestType
 import com.eyecare.app.domain.model.AppointmentV1
 import com.eyecare.app.domain.model.AppointmentStatus
+import com.eyecare.app.domain.model.Accessory
+import com.eyecare.app.domain.model.AccessoryAvailability
+import com.eyecare.app.domain.model.AccessoryVariant
 import com.eyecare.app.domain.model.ClinicHoursDay
 import com.eyecare.app.domain.model.CurrentAppointmentJourney
 import com.eyecare.app.domain.model.EyeMeasurement
@@ -12,6 +15,7 @@ import com.eyecare.app.domain.model.Prescription
 import com.eyecare.app.domain.model.PrescriptionMeasurementGroup
 import com.eyecare.app.domain.model.PrescriptionMeasurements
 import com.eyecare.app.domain.repository.AppointmentRequestRepository
+import com.eyecare.app.domain.repository.AccessoryRepository
 import com.eyecare.app.domain.repository.ClinicRepository
 import com.eyecare.app.domain.repository.FrameRepository
 import com.eyecare.app.domain.repository.PaginatedResult
@@ -32,12 +36,14 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
+import java.math.BigDecimal
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
     private lateinit var appointmentRequestRepo: AppointmentRequestRepository
+    private lateinit var accessoryRepo: AccessoryRepository
     private lateinit var frameRepo: FrameRepository
     private lateinit var prescriptionRepo: PrescriptionRepository
     private lateinit var clinicRepo: ClinicRepository
@@ -81,10 +87,12 @@ class HomeViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         appointmentRequestRepo = mockk()
+        accessoryRepo = mockk()
         frameRepo = mockk()
         prescriptionRepo = mockk()
         clinicRepo = mockk()
         coEvery { appointmentRequestRepo.getCurrentAppointmentJourney() } returns Result.success(CurrentAppointmentJourney.None)
+        coEvery { accessoryRepo.getAccessories(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { frameRepo.getFrames(any()) } returns Result.success(emptyList())
         coEvery { prescriptionRepo.getPrescriptions(any()) } returns Result.success(PaginatedResult(emptyList(), 1, 1, 0))
         coEvery { clinicRepo.getClinicHours() } returns Result.success(sampleClinicHours)
@@ -93,7 +101,7 @@ class HomeViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm() = HomeViewModel(appointmentRequestRepo, frameRepo, prescriptionRepo, clinicRepo).also { it.load() }
+    private fun vm() = HomeViewModel(appointmentRequestRepo, frameRepo, prescriptionRepo, clinicRepo, accessoryRepo).also { it.load() }
 
     @Test
     fun `nextAppointment is the soonest future scheduled appointment`() = runTest {
@@ -133,6 +141,20 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `featuredAccessories takes first 4 orderable accessories`() = runTest {
+        val accessories = (1..6).map { accessory(it) }
+        coEvery { accessoryRepo.getAccessories(any()) } returns Result.success(
+            PaginatedResult(accessories, 1, 1, accessories.size),
+        )
+
+        val state = vm().uiState.value as HomeUiState.Success
+
+        assertEquals(4, state.featuredAccessories.size)
+        assertEquals(1, state.featuredAccessories.first().id)
+        assertEquals(4, state.featuredAccessories.last().id)
+    }
+
+    @Test
     fun `partial failures do not hide available content`() = runTest {
         coEvery { appointmentRequestRepo.getCurrentAppointmentJourney() } returns Result.failure(RuntimeException("offline"))
         coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
@@ -146,7 +168,7 @@ class HomeViewModelTest {
 
     @Test
     fun `limited load keeps account-safe home data and loads featured frames`() = runTest {
-        val limitedVm = HomeViewModel(appointmentRequestRepo, frameRepo, prescriptionRepo, clinicRepo)
+        val limitedVm = HomeViewModel(appointmentRequestRepo, frameRepo, prescriptionRepo, clinicRepo, accessoryRepo)
         coEvery { frameRepo.getFrames(any()) } returns Result.success(listOf(frame(1)))
 
         limitedVm.load(hasActivePatientLink = false)
@@ -158,6 +180,7 @@ class HomeViewModelTest {
         assertEquals(sampleClinicHours, state.clinicHours)
         coVerify(exactly = 0) { appointmentRequestRepo.getCurrentAppointmentJourney() }
         coVerify(exactly = 1) { frameRepo.getFrames(any()) }
+        coVerify(exactly = 1) { accessoryRepo.getAccessories(any()) }
         coVerify(exactly = 0) { prescriptionRepo.getPrescriptions(any()) }
         coVerify(exactly = 1) { clinicRepo.getClinicHours() }
     }
@@ -187,5 +210,28 @@ class HomeViewModelTest {
         category = "Eyeglasses",
         variants = emptyList(),
         images = emptyList(),
+    )
+
+    private fun accessory(id: Int) = Accessory(
+        id = id,
+        name = "Accessory $id",
+        slug = "accessory-$id",
+        description = null,
+        brand = "Test Brand",
+        category = "Lens care",
+        images = emptyList(),
+        averageRating = 4.5,
+        ratingCount = 10,
+        variants = listOf(
+            AccessoryVariant(
+                id = id,
+                name = "Standard",
+                price = BigDecimal("149.50"),
+                compareAtPrice = null,
+                attributes = emptyMap(),
+                images = emptyList(),
+                availability = AccessoryAvailability.AVAILABLE,
+            ),
+        ),
     )
 }

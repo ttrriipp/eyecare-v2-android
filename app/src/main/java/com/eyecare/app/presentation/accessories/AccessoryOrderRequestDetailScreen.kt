@@ -8,16 +8,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ImageNotSupported
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -52,14 +58,20 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.eyecare.app.domain.model.AccessoryOrderRequest
+import com.eyecare.app.domain.model.AcceptedOrderSummary
 import com.eyecare.app.domain.model.DiscountProofStatus
 import com.eyecare.app.domain.model.DiscountProofUpload
 import com.eyecare.app.domain.model.DiscountType
+import com.eyecare.app.domain.model.OpticalOrderStatus
 import com.eyecare.app.domain.model.OrderRequestStatus
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
 import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.presentation.eyewear.formatTimestamp
+import com.eyecare.app.presentation.eyewear.orderStatusColor
+import com.eyecare.app.presentation.eyewear.orderStatusLabel
+import com.eyecare.app.presentation.eyewear.orderStatusTextColor
 import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -154,169 +166,300 @@ fun AccessoryOrderRequestDetailScreen(
             )
             is RequestDetailUiState.Success -> {
                 val request = state.request
-                Column(
+                PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = onRetry,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                        .navigationBarsPadding(),
                 ) {
-                    // Header
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    request.requestNumber,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                RequestStatusBadge(status = request.status)
-                            }
-                            Text(
-                                pesoFormat.format(request.subtotalAmount),
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-
-                    // Status guidance
-                    RequestStatusGuidance(request = request)
-
-                    if (request.requestedDiscountType != DiscountType.NONE) {
-                        DiscountProofSection(
-                            request = request,
-                            uploadState = state.uploadState,
-                            selectedProof = selectedProof,
-                            pickerErrorMessage = pickerErrorMessage,
-                            onPickProof = {
-                                pickerErrorMessage = null
-                                proofPicker.launch(arrayOf("image/jpeg", "image/png"))
-                            },
-                            onSubmitProof = {
-                                selectedProof?.let { proof ->
-                                    onUploadDiscountProof(
-                                        DiscountProofUpload(
-                                            imageFile = proof.file,
-                                            mimeType = proof.mimeType,
-                                            width = proof.width,
-                                            height = proof.height,
-                                            deleteAfterUpload = true,
-                                        ),
-                                    )
-                                }
-                            },
-                            onClearUploadState = onClearDiscountProofUploadState,
-                        )
-                    }
-
-                    // Items
-                    if (request.items.isNotEmpty()) {
-                        Text(
-                            "Items",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        request.items.forEach { item ->
-                            val productName = item.itemSnapshot.productName.ifBlank { item.description }
-                            val variantName = item.itemSnapshot.variantName.trim()
+                        state.refreshErrorMessage?.let { message ->
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                color = MaterialTheme.colorScheme.errorContainer,
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.Top,
-                                ) {
-                                    RequestItemImage(
-                                        imagePath = item.itemSnapshot.images.firstOrNull(),
-                                        productName = productName,
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = productName,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        if (variantName.isNotBlank()) {
-                                            Text(
-                                                text = variantName,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                        }
-                                        Text(
-                                            "× ${item.quantity}",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                Text(
+                                    text = message,
+                                    modifier = Modifier.padding(12.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                            }
+                        }
+
+                        RequestSummaryCard(request = request)
+
+                        // Status guidance
+                        RequestStatusGuidance(request = request)
+
+                        request.order?.let { order ->
+                            AcceptedOrderSummaryCard(order = order)
+                        }
+
+                        if (request.requestedDiscountType != DiscountType.NONE) {
+                            DiscountProofSection(
+                                request = request,
+                                uploadState = state.uploadState,
+                                selectedProof = selectedProof,
+                                pickerErrorMessage = pickerErrorMessage,
+                                onPickProof = {
+                                    pickerErrorMessage = null
+                                    proofPicker.launch(arrayOf("image/jpeg", "image/png"))
+                                },
+                                onSubmitProof = {
+                                    selectedProof?.let { proof ->
+                                        onUploadDiscountProof(
+                                            DiscountProofUpload(
+                                                imageFile = proof.file,
+                                                mimeType = proof.mimeType,
+                                                width = proof.width,
+                                                height = proof.height,
+                                                deleteAfterUpload = true,
+                                            ),
                                         )
                                     }
-                                    Text(
-                                        pesoFormat.format(item.amount),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
+                                },
+                                onClearUploadState = onClearDiscountProofUploadState,
+                            )
+                        }
+
+                        // Items
+                        if (request.items.isNotEmpty()) {
+                            Text(
+                                "Items (${request.items.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            request.items.forEach { item ->
+                                val productName = item.itemSnapshot.productName.ifBlank { item.description }
+                                val variantName = item.itemSnapshot.variantName.trim()
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(1.dp, EyecareColors.current.cardBorder),
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top,
+                                    ) {
+                                        RequestItemImage(
+                                            imagePath = item.itemSnapshot.images.firstOrNull(),
+                                            productName = productName,
+                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = productName,
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 3,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                            if (variantName.isNotBlank()) {
+                                                Text(
+                                                    text = variantName,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                            }
+                                            Text(
+                                                "× ${item.quantity}",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                "Line total",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Text(
+                                                pesoFormat.format(item.amount),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = EyecareColors.current.accentText,
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Actions
-                    if (state.canCancel) {
-                        OutlinedButton(
-                            onClick = onShowCancelDialog,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error,
-                            ),
-                        ) {
-                            Icon(Icons.Outlined.Cancel, contentDescription = null)
-                            Text("Cancel request")
+                        // Actions
+                        if (state.canCancel) {
+                            OutlinedButton(
+                                onClick = onShowCancelDialog,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = EyecareColors.current.statusCancelledText,
+                                ),
+                            ) {
+                                Icon(Icons.Outlined.Cancel, contentDescription = null)
+                                Text("Cancel request")
+                            }
                         }
-                    }
 
-                    if (state.isCancelling) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.padding(8.dp))
-                            Text("Cancelling...")
+                        if (state.isCancelling) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.padding(8.dp))
+                                Text("Cancelling...")
+                            }
                         }
-                    }
 
-                    // Accepted order navigation
-                    request.order?.let { order ->
-                        Button(
-                            onClick = { onNavigateToOrder(order.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(Icons.Outlined.ShoppingBag, contentDescription = null)
-                            Text("View order ${order.orderNumber}")
+                        // Accepted order navigation
+                        request.order?.let { order ->
+                            Button(
+                                onClick = { onNavigateToOrder(order.id) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 52.dp),
+                            ) {
+                                Icon(Icons.Outlined.ShoppingBag, contentDescription = null)
+                                Text("View order and payment")
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RequestSummaryCard(request: AccessoryOrderRequest) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, EyecareColors.current.cardBorder),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    request.requestNumber,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                RequestStatusBadge(status = request.status)
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    "Estimated subtotal",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    pesoFormat.format(request.subtotalAmount),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EyecareColors.current.accentText,
+                )
+            }
+
+            RequestSummaryRow("Submitted", formatTimestamp(request.createdAt))
+            if (request.requestedDiscountType != DiscountType.NONE) {
+                RequestSummaryRow(
+                    "Discount requested",
+                    discountTypeLabel(request.requestedDiscountType),
+                )
+            }
+            request.cancelledAt?.let {
+                RequestSummaryRow("Cancelled", formatTimestamp(it))
+            } ?: request.resolvedAt?.let {
+                RequestSummaryRow("Reviewed", formatTimestamp(it))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RequestSummaryRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value,
+            modifier = Modifier.padding(start = 16.dp),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+        )
+    }
+}
+
+@Composable
+private fun AcceptedOrderSummaryCard(order: AcceptedOrderSummary) {
+    val status = OpticalOrderStatus.from(order.status)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, EyecareColors.current.accentText.copy(alpha = 0.18f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Order created",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                StatusPill(
+                    label = orderStatusLabel(status),
+                    fillColor = orderStatusColor(status),
+                    textColor = orderStatusTextColor(status),
+                )
+            }
+            RequestSummaryRow("Order", order.orderNumber)
+            RequestSummaryRow("Order total", pesoFormat.format(order.totalAmount))
+            if (order.discountAmount > BigDecimal.ZERO) {
+                RequestSummaryRow("Discount applied", "−${pesoFormat.format(order.discountAmount)}")
+            }
+            order.paymentExpiresAt?.let {
+                RequestSummaryRow("Payment deadline", formatTimestamp(it))
             }
         }
     }
@@ -332,17 +475,14 @@ private fun DiscountProofSection(
     onSubmitProof: () -> Unit,
     onClearUploadState: () -> Unit,
 ) {
-    val discountLabel = when (request.requestedDiscountType) {
-        DiscountType.SENIOR_CITIZEN -> "Senior citizen"
-        DiscountType.PWD -> "PWD"
-        else -> "Discount"
-    }
+    val discountLabel = discountTypeLabel(request.requestedDiscountType)
     val canUpload = request.status == OrderRequestStatus.PENDING
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.38f),
+        border = BorderStroke(1.dp, EyecareColors.current.accentText.copy(alpha = 0.16f)),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -367,7 +507,7 @@ private fun DiscountProofSection(
                             request.discountProofRejectionReason?.takeIf(String::isNotBlank)
                                 ?: "The clinic could not verify the previous proof. Please upload a replacement.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                            color = EyecareColors.current.statusCancelledText,
                         )
                     }
 
@@ -400,10 +540,21 @@ private fun DiscountProofSection(
                         Button(
                             onClick = onSubmitProof,
                             enabled = uploadState !is DiscountProofUploadState.Uploading,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp),
                         ) {
                             if (uploadState is DiscountProofUploadState.Uploading) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                    Text("Uploading proof…")
+                                }
                             } else {
                                 Text(if (request.discountProofStatus == DiscountProofStatus.REJECTED) "Replace proof" else "Submit proof")
                             }
@@ -418,14 +569,14 @@ private fun DiscountProofSection(
                     Text(
                         "Proof submitted and awaiting clinic review.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = EyecareColors.current.accentText,
                     )
                 }
                 DiscountProofStatus.ACCEPTED -> {
                     Text(
                         "Proof accepted. The clinic can now review your request.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        color = EyecareColors.current.statusConfirmedText,
                     )
                 }
                 DiscountProofStatus.NOT_REQUIRED,
@@ -457,6 +608,13 @@ private fun DiscountProofSection(
     }
 }
 
+private fun discountTypeLabel(type: DiscountType): String = when (type) {
+    DiscountType.SENIOR_CITIZEN -> "Senior citizen"
+    DiscountType.PWD -> "PWD"
+    DiscountType.NONE -> "No discount"
+    DiscountType.UNKNOWN -> "Discount unavailable"
+}
+
 @Composable
 private fun RequestItemImage(
     imagePath: String?,
@@ -475,7 +633,8 @@ private fun RequestItemImage(
     ) {
         Box(contentAlignment = Alignment.Center) {
             val imageLoaded = imageState is AsyncImagePainter.State.Success
-            if (!imageLoaded) {
+            val imageUnavailable = imageUrl == null || imageState is AsyncImagePainter.State.Error
+            if (imageUnavailable) {
                 Icon(
                     imageVector = Icons.Outlined.ImageNotSupported,
                     contentDescription = "$productName image unavailable",
@@ -486,7 +645,7 @@ private fun RequestItemImage(
             if (imageUrl != null) {
                 AsyncImage(
                     model = imageUrl,
-                    contentDescription = productName,
+                    contentDescription = null,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .fillMaxSize()
@@ -501,22 +660,47 @@ private fun RequestItemImage(
 
 @Composable
 private fun RequestStatusBadge(status: OrderRequestStatus) {
-    val (label, color) = when (status) {
-        OrderRequestStatus.PENDING -> "Awaiting review" to EyecareColors.current.statusPending
-        OrderRequestStatus.ACCEPTED -> "Accepted" to EyecareColors.current.statusConfirmed
-        OrderRequestStatus.REJECTED -> "Declined" to MaterialTheme.colorScheme.error
-        OrderRequestStatus.CANCELLED -> "Cancelled" to MaterialTheme.colorScheme.onSurfaceVariant
-        OrderRequestStatus.UNKNOWN -> "Status unavailable" to MaterialTheme.colorScheme.onSurfaceVariant
+    val (label, fillColor, textColor) = when (status) {
+        OrderRequestStatus.PENDING -> Triple(
+            "Awaiting review",
+            EyecareColors.current.statusPending,
+            EyecareColors.current.statusPendingText,
+        )
+        OrderRequestStatus.ACCEPTED -> Triple(
+            "Accepted",
+            EyecareColors.current.statusConfirmed,
+            EyecareColors.current.statusConfirmedText,
+        )
+        OrderRequestStatus.REJECTED -> Triple(
+            "Declined",
+            EyecareColors.current.statusCancelled,
+            EyecareColors.current.statusCancelledText,
+        )
+        OrderRequestStatus.CANCELLED -> Triple(
+            "Cancelled",
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OrderRequestStatus.UNKNOWN -> Triple(
+            "Status unavailable",
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
+    StatusPill(label = label, fillColor = fillColor, textColor = textColor)
+}
+
+@Composable
+private fun StatusPill(label: String, fillColor: androidx.compose.ui.graphics.Color, textColor: androidx.compose.ui.graphics.Color) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = color.copy(alpha = 0.12f),
+        color = fillColor.copy(alpha = 0.12f),
     ) {
         Text(
             label,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
-            color = color,
+            color = textColor,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -524,37 +708,80 @@ private fun RequestStatusBadge(status: OrderRequestStatus) {
 
 @Composable
 private fun RequestStatusGuidance(request: AccessoryOrderRequest) {
-    val (icon, message) = when (request.status) {
-        OrderRequestStatus.PENDING -> Icons.Outlined.CheckCircle to
-            "Your request is awaiting clinic review. The clinic will accept or decline it. Stock is not reserved."
-        OrderRequestStatus.ACCEPTED -> Icons.Outlined.CheckCircle to
-            "Your request has been accepted! You can now view the resulting order and proceed with payment."
-        OrderRequestStatus.REJECTED -> Icons.Outlined.Cancel to
-            (request.rejectionReason?.let { "Declined: $it" } ?: "Your request has been declined by the clinic.")
-        OrderRequestStatus.CANCELLED -> Icons.Outlined.Cancel to
-            "This request has been cancelled."
-        OrderRequestStatus.UNKNOWN -> Icons.Outlined.Cancel to
-            "The status of this request is currently unavailable."
+    val (icon, title, message, containerColor, iconColor) = when (request.status) {
+        OrderRequestStatus.PENDING -> GuidanceContent(
+            icon = Icons.Outlined.Schedule,
+            title = "Awaiting clinic review",
+            message = "No payment due yet. No action needed yet. The clinic will accept or decline this request. Stock is not reserved.",
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
+            iconColor = EyecareColors.current.accentText,
+        )
+        OrderRequestStatus.ACCEPTED -> GuidanceContent(
+            icon = Icons.Outlined.CheckCircle,
+            title = "Request accepted",
+            message = "The clinic created an order. Review the payment and pickup details below.",
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f),
+            iconColor = EyecareColors.current.statusConfirmedText,
+        )
+        OrderRequestStatus.REJECTED -> GuidanceContent(
+            icon = Icons.Outlined.Cancel,
+            title = "Request declined",
+            message = request.rejectionReason?.takeIf(String::isNotBlank)
+                ?: "The clinic declined this request.",
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            iconColor = EyecareColors.current.statusCancelledText,
+        )
+        OrderRequestStatus.CANCELLED -> GuidanceContent(
+            icon = Icons.Outlined.Cancel,
+            title = "Request cancelled",
+            message = "This request is no longer active.",
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OrderRequestStatus.UNKNOWN -> GuidanceContent(
+            icon = Icons.Outlined.Info,
+            title = "Status unavailable",
+            message = "We couldn't confirm the latest status. Pull down to check again.",
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
     Surface(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = containerColor,
+        border = BorderStroke(1.dp, EyecareColors.current.cardBorder),
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top,
         ) {
             Icon(
                 icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = iconColor,
             )
-            Text(
-                message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }
+
+private data class GuidanceContent(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val title: String,
+    val message: String,
+    val containerColor: androidx.compose.ui.graphics.Color,
+    val iconColor: androidx.compose.ui.graphics.Color,
+)

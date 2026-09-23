@@ -1,5 +1,7 @@
 package com.eyecare.app.presentation.accessories
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +30,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -37,16 +40,24 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.AccessoryCart
+import com.eyecare.app.domain.model.DiscountProofUpload
 import com.eyecare.app.presentation.common.components.EmptyContent
 import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.ui.theme.EyecareColors
@@ -63,13 +74,49 @@ fun AccessoryCheckoutScreen(
     selectedDiscount: String,
     checkoutState: CheckoutUiState,
     onDiscountSelect: (String) -> Unit,
-    onSubmit: () -> Unit,
+    onSubmit: (DiscountProofUpload?) -> Unit,
+    onRetryDiscountProofUpload: (DiscountProofUpload) -> Unit = {},
     onViewRequest: (Int) -> Unit,
     onViewRequests: () -> Unit,
     onBack: () -> Unit,
     onBrowseAccessories: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    var selectedProof by remember { mutableStateOf<SelectedDiscountProof?>(null) }
+    var proofPickerError by remember { mutableStateOf<String?>(null) }
+    val proofPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        selectedProof?.file?.delete()
+        selectedProof = null
+        proofPickerError = null
+        if (uri != null) {
+            val result = prepareDiscountProof(context, uri)
+            selectedProof = result.proof
+            proofPickerError = result.errorMessage
+        }
+    }
+
+    DisposableEffect(selectedProof) {
+        val proofFile = selectedProof?.file
+        onDispose { proofFile?.delete() }
+    }
+
+    LaunchedEffect(selectedDiscount) {
+        if (selectedDiscount.equals("none", ignoreCase = true)) {
+            selectedProof?.file?.delete()
+            selectedProof = null
+            proofPickerError = null
+        }
+    }
+
+    LaunchedEffect(checkoutState) {
+        if (checkoutState is CheckoutUiState.Success) {
+            selectedProof?.file?.delete()
+            selectedProof = null
+            proofPickerError = null
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -100,6 +147,25 @@ fun AccessoryCheckoutScreen(
                     Text("Submitting your request...")
                 }
             }
+            is CheckoutUiState.UploadingDiscountProof -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text("Request created. Sending discount proof...")
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Keep this screen open while your proof uploads.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             is CheckoutUiState.Success -> {
                 Column(
                     modifier = Modifier
@@ -116,7 +182,11 @@ fun AccessoryCheckoutScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "The clinic will review your request. No payment or stock hold occurs until the clinic confirms availability.",
+                        if (state.proofSubmitted) {
+                            "Your request and discount proof were submitted. The clinic will review both; no payment or stock hold occurs until the clinic confirms availability."
+                        } else {
+                            "The clinic will review your request. No payment or stock hold occurs until the clinic confirms availability."
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -127,27 +197,47 @@ fun AccessoryCheckoutScreen(
                     }
                 }
             }
-            is CheckoutUiState.Error -> {
+            is CheckoutUiState.ProofUploadError -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
-                        .padding(32.dp),
+                        .padding(24.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
+                        "Your request was created",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
                         state.message,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = if (state.isConflict) onViewRequests else onSubmit) {
-                        Text(if (state.isConflict) "View my requests" else "Retry")
+                    Spacer(Modifier.height(20.dp))
+                    if (selectedProof != null) {
+                        Button(
+                            onClick = {
+                                selectedProof?.let { proof ->
+                                    onRetryDiscountProofUpload(proof.toDiscountProofUpload())
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Retry proof upload")
+                        }
+                    }
+                    TextButton(onClick = { onViewRequest(state.requestId) }) {
+                        Text("Open request details")
                     }
                 }
             }
+            is CheckoutUiState.Error,
             is CheckoutUiState.Idle -> {
+                val errorState = state as? CheckoutUiState.Error
                 if (cart.isEmpty) {
                     EmptyContent(
                         message = "Your cart is empty. Browse accessories to add items before reviewing a request.",
@@ -323,7 +413,14 @@ fun AccessoryCheckoutScreen(
                                         .selectable(
                                             selected = selected,
                                             role = Role.RadioButton,
-                                            onClick = { onDiscountSelect(value) },
+                                            onClick = {
+                                                if (selectedDiscount != value) {
+                                                    selectedProof?.file?.delete()
+                                                    selectedProof = null
+                                                    proofPickerError = null
+                                                }
+                                                onDiscountSelect(value)
+                                            },
                                         ),
                                     shape = RoundedCornerShape(12.dp),
                                     color = if (selected) {
@@ -354,6 +451,90 @@ fun AccessoryCheckoutScreen(
                                         )
                                         Text(label, style = MaterialTheme.typography.bodyMedium)
                                     }
+                                }
+                            }
+
+                            if (!selectedDiscount.equals("none", ignoreCase = true)) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(
+                                        1.dp,
+                                        EyecareColors.current.accentText.copy(alpha = 0.24f),
+                                    ),
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(
+                                            "Discount proof",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                        Text(
+                                            "Choose a JPG or PNG image that shows your discount eligibility. Maximum size: 10 MB.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        selectedProof?.let { proof ->
+                                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(180.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                                    contentAlignment = Alignment.Center,
+                                                ) {
+                                                    AsyncImage(
+                                                        model = proof.file,
+                                                        contentDescription = "Preview of ${proof.displayName}",
+                                                        contentScale = ContentScale.Fit,
+                                                        modifier = Modifier.fillMaxSize(),
+                                                    )
+                                                }
+                                                Text(
+                                                    proof.displayName,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                            }
+                                        }
+                                        OutlinedButton(
+                                            onClick = {
+                                                proofPickerError = null
+                                                proofPicker.launch(arrayOf("image/jpeg", "image/png"))
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(min = 48.dp),
+                                        ) {
+                                            Text(
+                                                if (selectedProof == null) {
+                                                    "Choose proof image"
+                                                } else {
+                                                    "Choose a different image"
+                                                },
+                                            )
+                                        }
+                                        proofPickerError?.let { message ->
+                                            Text(
+                                                message,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.error,
+                                            )
+                                        }
+                                    }
+                                }
+                                if (selectedProof == null && proofPickerError == null) {
+                                    Text(
+                                        "A proof image is required to request this discount.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
 
@@ -406,6 +587,32 @@ fun AccessoryCheckoutScreen(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
+                                errorState?.let { error ->
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(12.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Text(
+                                                error.message,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.error,
+                                            )
+                                            if (error.isConflict) {
+                                                TextButton(
+                                                    onClick = onViewRequests,
+                                                    modifier = Modifier.align(Alignment.Start),
+                                                ) {
+                                                    Text("View my requests")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -423,13 +630,27 @@ fun AccessoryCheckoutScreen(
                                     )
                                 }
                                 Button(
-                                    onClick = onSubmit,
+                                    onClick = {
+                                        onSubmit(
+                                            selectedProof
+                                                ?.takeIf { !selectedDiscount.equals("none", ignoreCase = true) }
+                                                ?.toDiscountProofUpload(),
+                                        )
+                                    },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .heightIn(min = 52.dp),
-                                    enabled = cart.items.isNotEmpty(),
+                                    enabled = cart.items.isNotEmpty() &&
+                                        errorState?.isConflict != true &&
+                                        (selectedDiscount.equals("none", ignoreCase = true) || selectedProof != null),
                                 ) {
-                                    Text("Submit order request")
+                                    Text(
+                                        when {
+                                            errorState != null -> "Try again"
+                                            selectedDiscount.equals("none", ignoreCase = true) -> "Submit order request"
+                                            else -> "Submit request and proof"
+                                        },
+                                    )
                                 }
                             }
                         }
@@ -439,3 +660,11 @@ fun AccessoryCheckoutScreen(
         }
     }
 }
+
+private fun SelectedDiscountProof.toDiscountProofUpload() = DiscountProofUpload(
+    imageFile = file,
+    mimeType = mimeType,
+    width = width,
+    height = height,
+    deleteAfterUpload = true,
+)

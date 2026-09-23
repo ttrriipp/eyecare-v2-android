@@ -24,10 +24,12 @@ sealed interface RequestDetailUiState {
         val request: AccessoryOrderRequest,
         val isCancelling: Boolean = false,
         val uploadState: DiscountProofUploadState = DiscountProofUploadState.Idle,
+        val isRefreshing: Boolean = false,
+        val refreshErrorMessage: String? = null,
     ) : RequestDetailUiState {
         val canCancel: Boolean
             get() = request.status == OrderRequestStatus.PENDING &&
-                !isCancelling && uploadState !is DiscountProofUploadState.Uploading
+                !isCancelling && !isRefreshing && uploadState !is DiscountProofUploadState.Uploading
     }
     data class Error(
         val message: String,
@@ -54,6 +56,7 @@ class AccessoryOrderRequestDetailViewModel @Inject constructor(
 
     private var isCancelling = false
     private var isUploading = false
+    private var isRefreshing = false
 
     init { load() }
 
@@ -87,11 +90,46 @@ class AccessoryOrderRequestDetailViewModel @Inject constructor(
     }
 
     fun retry() {
-        load()
+        val current = _uiState.value
+        if (current !is RequestDetailUiState.Success) {
+            load()
+            return
+        }
+        if (isRefreshing || isCancelling || isUploading) return
+
+        isRefreshing = true
+        _uiState.value = current.copy(isRefreshing = true, refreshErrorMessage = null)
+        viewModelScope.launch {
+            try {
+                repository.getRequest(requestId).fold(
+                    onSuccess = { request ->
+                        val latest = _uiState.value as? RequestDetailUiState.Success
+                        if (latest != null) {
+                            _uiState.value = latest.copy(
+                                request = request,
+                                isRefreshing = false,
+                                refreshErrorMessage = null,
+                            )
+                        }
+                    },
+                    onFailure = {
+                        val latest = _uiState.value as? RequestDetailUiState.Success
+                        if (latest != null) {
+                            _uiState.value = latest.copy(
+                                isRefreshing = false,
+                                refreshErrorMessage = "Couldn't refresh. Pull down to try again.",
+                            )
+                        }
+                    },
+                )
+            } finally {
+                isRefreshing = false
+            }
+        }
     }
 
     fun uploadDiscountProof(proof: DiscountProofUpload) {
-        if (isUploading) return
+        if (isUploading || isRefreshing) return
         val current = _uiState.value as? RequestDetailUiState.Success ?: return
 
         val canUpload = current.request.status == OrderRequestStatus.PENDING &&
