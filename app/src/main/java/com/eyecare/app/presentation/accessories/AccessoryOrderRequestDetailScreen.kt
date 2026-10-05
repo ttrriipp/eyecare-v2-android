@@ -124,9 +124,7 @@ fun AccessoryOrderRequestDetailScreen(
         }
     }
 
-    DisposableEffect(selectedProof) {
-        onDispose { selectedProof?.file?.delete() }
-    }
+    DiscountProofCleanupEffect(selectedProof)
 
     LaunchedEffect(showCancelDialog) {
         if (showCancelDialog) {
@@ -585,6 +583,14 @@ private fun AcceptedOrderSummaryCard(order: AcceptedOrderSummary) {
                 RequestSummaryRow("Payment deadline", formatTimestamp(it))
             }
         }
+    }
+}
+
+@Composable
+internal fun DiscountProofCleanupEffect(selectedProof: SelectedDiscountProof?) {
+    DisposableEffect(selectedProof) {
+        val proofFile = selectedProof?.file
+        onDispose { proofFile?.delete() }
     }
 }
 

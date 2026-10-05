@@ -128,7 +128,7 @@ class OpticalOrderDetailScreenTest {
         }
 
         composeRule.onNodeWithContentDescription("Confirmed, Complete").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Processing, Current").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Preparing, Current").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Ready for pickup, Upcoming").assertIsDisplayed()
     }
 

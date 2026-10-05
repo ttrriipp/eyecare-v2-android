@@ -42,7 +42,7 @@ fun orderStatusLabel(status: OpticalOrderStatus): String = when (status) {
     OpticalOrderStatus.PENDING_PAYMENT -> "Awaiting payment"
     OpticalOrderStatus.PAYMENT_REVIEW -> "Payment under review"
     OpticalOrderStatus.QUEUED -> "Confirmed"
-    OpticalOrderStatus.IN_PROGRESS -> "Processing"
+    OpticalOrderStatus.IN_PROGRESS -> "Preparing"
     OpticalOrderStatus.READY_FOR_DISPENSING -> "Ready for pickup"
     OpticalOrderStatus.DISPENSED -> "Completed"
     OpticalOrderStatus.CANCELLED -> "Cancelled"

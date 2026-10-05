@@ -26,6 +26,11 @@ class EyewearPresentationTest {
     }
 
     @Test
+    fun `in_progress status is presented as preparing`() {
+        assertEquals("Preparing", orderStatusLabel(OpticalOrderStatus.IN_PROGRESS))
+    }
+
+    @Test
     fun `all statuses have labels`() {
         OpticalOrderStatus.entries.forEach { status ->
             val label = orderStatusLabel(status)

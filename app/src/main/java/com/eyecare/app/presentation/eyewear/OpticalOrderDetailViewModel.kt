@@ -169,7 +169,7 @@ class OpticalOrderDetailViewModel @Inject constructor(
                                     "Too many attempts. Please try again later."
                                 }
                             }
-                            else -> "We couldn't upload your proof. Please try again."
+                            else -> paymentProofUploadErrorMessage(error)
                         }
                         val fresh = _uiState.value as? OpticalOrderDetailUiState.Success
                         if (fresh != null) {

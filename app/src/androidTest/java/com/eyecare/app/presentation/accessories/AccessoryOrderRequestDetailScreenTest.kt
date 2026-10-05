@@ -1,5 +1,8 @@
 package com.eyecare.app.presentation.accessories
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -12,6 +15,7 @@ import com.eyecare.app.domain.model.AccessoryOrderRequest
 import com.eyecare.app.domain.model.DiscountType
 import com.eyecare.app.domain.model.OrderRequestStatus
 import com.eyecare.app.ui.theme.EyecareTheme
+import java.io.File
 import java.math.BigDecimal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -22,6 +26,41 @@ class AccessoryOrderRequestDetailScreenTest {
 
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun replacingSelectedProofKeepsTheNewTemporaryFileUntilItIsReplaced() {
+        val firstFile = File.createTempFile("discount-proof-first-", ".jpg").apply {
+            writeBytes(byteArrayOf(1))
+        }
+        val replacementFile = File.createTempFile("discount-proof-replacement-", ".jpg").apply {
+            writeBytes(byteArrayOf(1))
+        }
+        var selectedProof by mutableStateOf<SelectedDiscountProof?>(firstFile.toSelectedProof())
+
+        try {
+            composeRule.setContent {
+                EyecareTheme {
+                    DiscountProofCleanupEffect(selectedProof)
+                }
+            }
+
+            composeRule.runOnIdle {
+                selectedProof = replacementFile.toSelectedProof()
+            }
+            composeRule.waitForIdle()
+
+            assertTrue("The replaced temporary file should be cleaned up", !firstFile.exists())
+            assertTrue("The newly selected file must remain readable", replacementFile.length() > 0)
+
+            composeRule.runOnIdle { selectedProof = null }
+            composeRule.waitForIdle()
+
+            assertTrue("The current temporary file should be cleaned up when cleared", !replacementFile.exists())
+        } finally {
+            firstFile.delete()
+            replacementFile.delete()
+        }
+    }
 
     @Test
     fun loadingIndicatorIsCenteredInTheContentArea() {
@@ -130,5 +169,13 @@ class AccessoryOrderRequestDetailScreenTest {
         cancelledAt = null,
         createdAt = "2026-09-23T10:00:00+08:00",
         order = order,
+    )
+
+    private fun File.toSelectedProof() = SelectedDiscountProof(
+        file = this,
+        mimeType = "image/jpeg",
+        width = 100,
+        height = 100,
+        displayName = name,
     )
 }

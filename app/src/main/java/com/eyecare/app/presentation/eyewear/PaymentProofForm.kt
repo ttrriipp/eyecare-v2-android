@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -45,17 +46,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import com.eyecare.app.BuildConfig
 import com.eyecare.app.domain.model.PaymentInstructions
 import com.eyecare.app.domain.model.PaymentMethodInstructions
 import com.eyecare.app.domain.model.PaymentProofSummary
 import com.eyecare.app.domain.model.PaymentProofStatus
-import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.presentation.common.buildApiUrl
 import com.eyecare.app.ui.theme.EyecareColors
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
 private val pesoFormat = NumberFormat.getCurrencyInstance(Locale("en", "PH"))
+
+internal fun buildPaymentQrImageUrl(
+    path: String,
+    apiBase: String = BuildConfig.API_BASE_URL,
+): String = buildApiUrl(path, apiBase)
 
 @Composable
 fun PaymentInstructionsCard(
@@ -158,18 +166,45 @@ fun PaymentInstructionsCard(
             InfoRow(label = "Order reference", value = selected.orderReference)
 
             selected.qrImageUrl?.takeIf(String::isNotBlank)?.let { qrImageUrl ->
+                var qrImageState by remember(selected.method, qrImageUrl) {
+                    mutableStateOf<AsyncImagePainter.State?>(null)
+                }
                 Text(
                     "Scan to pay",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                AsyncImage(
-                    model = buildImageUrl(qrImageUrl),
-                    contentDescription = "${selected.label} QR code",
+                Surface(
                     modifier = Modifier
-                        .size(180.dp)
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
                         .align(Alignment.CenterHorizontally),
-                )
+                    shape = RoundedCornerShape(8.dp),
+                    color = androidx.compose.ui.graphics.Color.White,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AsyncImage(
+                            model = buildPaymentQrImageUrl(qrImageUrl),
+                            contentDescription = "${selected.label} QR code",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                            onState = { qrImageState = it },
+                        )
+                        when (qrImageState) {
+                            null, is AsyncImagePainter.State.Loading -> CircularProgressIndicator()
+                            is AsyncImagePainter.State.Error -> Text(
+                                "QR code couldn't be loaded. Use the account details above.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            else -> Unit
+                        }
+                    }
+                }
             }
 
             selected.paymentExpiresAt?.let {

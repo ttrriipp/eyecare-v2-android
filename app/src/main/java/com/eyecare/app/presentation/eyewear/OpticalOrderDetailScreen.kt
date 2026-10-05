@@ -718,7 +718,7 @@ private fun OrderStatusGuidance(status: OpticalOrderStatus, onRefresh: () -> Uni
             icon = Icons.Outlined.Info,
         )
         OpticalOrderStatus.IN_PROGRESS -> OrderStatusGuidanceCopy(
-            title = "Order processing",
+            title = "Preparing your order",
             message = "Your order is being prepared.",
             icon = Icons.Outlined.Info,
         )
@@ -894,7 +894,7 @@ private fun OrderTracker(status: OpticalOrderStatus) {
 
 private fun trackerStepLabel(step: TrackerStep): String = when (step) {
     TrackerStep.CONFIRMED -> "Confirmed"
-    TrackerStep.PROCESSING -> "Processing"
+    TrackerStep.PROCESSING -> "Preparing"
     TrackerStep.READY -> "Ready for pickup"
     TrackerStep.COMPLETED -> "Completed"
 }

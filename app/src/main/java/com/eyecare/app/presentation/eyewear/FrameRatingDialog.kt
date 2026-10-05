@@ -5,17 +5,22 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -33,8 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.eyecare.app.domain.model.ProductRatingAttachment
@@ -82,125 +87,77 @@ fun FrameRatingDialog(
                 modifier = Modifier
                     .heightIn(max = 460.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                StarRatingRow(
-                    rating = selectedRating,
-                    onRatingChange = { selectedRating = it },
-                    enabled = !isSubmitting,
-                )
-
-                OutlinedTextField(
-                    value = comment,
-                    onValueChange = {
-                        if (it.length <= 1000) {
-                            if (it != comment) publicDisplayConsent = false
-                            comment = it
-                        }
-                    },
-                    label = { Text("Comment (optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3,
-                    enabled = !isSubmitting,
-                )
-
-                if (comment.isNotBlank()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .toggleable(
-                                value = publicDisplayConsent,
-                                enabled = !isSubmitting,
-                                role = Role.Checkbox,
-                                onValueChange = { publicDisplayConsent = it },
-                            )
-                            .testTag("public-review-consent"),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = publicDisplayConsent,
-                            onCheckedChange = null,
-                            enabled = !isSubmitting,
-                        )
-                        Column {
-                            Text("Share this comment publicly", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                "Your name won't be shown.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        attachmentErrorMessage = null
-                        attachmentPicker.launch(arrayOf("image/jpeg", "image/png"))
-                    },
-                    enabled = !isSubmitting,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
+                errorMessage?.let {
                     Text(
-                        if (selectedAttachment == null && currentAttachmentUrl.isNullOrBlank()) {
-                            "Add a review photo"
-                        } else {
-                            "Replace review photo"
-                        },
+                        it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
 
-                selectedAttachment?.let { attachment ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        AsyncImage(
-                            model = attachment.imageFile,
-                            contentDescription = "Selected review photo preview",
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop,
+                        Text("Your rating", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = if (selectedRating == 0) "Tap a star" else "$selectedRating of 5",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Photo attached", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                "${attachment.width} × ${attachment.height} pixels",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        TextButton(
-                            onClick = {
-                                selectedAttachment = null
-                                publicAttachmentConsent = false
-                                attachmentErrorMessage = null
-                            },
-                            enabled = !isSubmitting,
-                        ) {
-                            Text("Remove")
-                        }
                     }
+                    StarRatingRow(
+                        rating = selectedRating,
+                        onRatingChange = { selectedRating = it },
+                        enabled = !isSubmitting,
+                    )
                 }
 
-                if (selectedAttachment == null) {
-                    currentAttachmentUrl?.takeIf(String::isNotBlank)?.let { attachmentUrl ->
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = comment,
+                        onValueChange = {
+                            if (it.length <= 1000) {
+                                if (it != comment) publicDisplayConsent = false
+                                comment = it
+                            }
+                        },
+                        label = { Text("Comment (optional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3,
+                        enabled = !isSubmitting,
+                    )
+
+                    if (comment.isNotBlank()) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .toggleable(
+                                    value = publicDisplayConsent,
+                                    enabled = !isSubmitting,
+                                    role = Role.Checkbox,
+                                    onValueChange = { publicDisplayConsent = it },
+                                )
+                                .testTag("public-review-consent"),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            OwnerRatingPhoto(
-                                url = attachmentUrl,
-                                contentDescription = "Current review photo",
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
+                            Checkbox(
+                                checked = publicDisplayConsent,
+                                onCheckedChange = null,
+                                enabled = !isSubmitting,
                             )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Photo attached", style = MaterialTheme.typography.bodyMedium)
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text("Share this comment publicly", style = MaterialTheme.typography.bodyMedium)
                                 Text(
-                                    "Only you can see this photo unless you choose to share it.",
+                                    "Your name won't be shown.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -209,41 +166,140 @@ fun FrameRatingDialog(
                     }
                 }
 
-                if (selectedAttachment != null || !currentAttachmentUrl.isNullOrBlank()) {
-                    Row(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Review photo", style = MaterialTheme.typography.titleSmall)
+                    OutlinedButton(
+                        onClick = {
+                            attachmentErrorMessage = null
+                            attachmentPicker.launch(arrayOf("image/jpeg", "image/png"))
+                        },
+                        enabled = !isSubmitting,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .toggleable(
-                                value = publicAttachmentConsent,
-                                enabled = !isSubmitting,
-                                role = Role.Checkbox,
-                                onValueChange = { publicAttachmentConsent = it },
-                            )
-                            .testTag("public-review-attachment-consent"),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .heightIn(min = 52.dp),
                     ) {
-                        Checkbox(
-                            checked = publicAttachmentConsent,
-                            onCheckedChange = null,
-                            enabled = !isSubmitting,
+                        Icon(Icons.Outlined.AddPhotoAlternate, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (selectedAttachment == null && currentAttachmentUrl.isNullOrBlank()) {
+                                "Add a photo"
+                            } else {
+                                "Replace photo"
+                            },
                         )
-                        Column {
-                            Text("Share photo publicly", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                "Visible with public comments. Photos may reveal identifying details.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    }
+
+                    selectedAttachment?.let { attachment ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 72.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AsyncImage(
+                                model = attachment.imageFile,
+                                contentDescription = "Selected review photo preview",
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop,
                             )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text("Photo attached", style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "${attachment.width} × ${attachment.height} pixels",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            TextButton(
+                                onClick = {
+                                    selectedAttachment = null
+                                    publicAttachmentConsent = false
+                                    attachmentErrorMessage = null
+                                },
+                                enabled = !isSubmitting,
+                            ) {
+                                Text("Remove")
+                            }
                         }
                     }
-                }
 
-                attachmentErrorMessage?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
+                    if (selectedAttachment == null) {
+                        currentAttachmentUrl?.takeIf(String::isNotBlank)?.let { attachmentUrl ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 72.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                OwnerRatingPhoto(
+                                    url = attachmentUrl,
+                                    contentDescription = "Current review photo",
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                )
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Text("Photo attached", style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        "Only you can see this photo unless you choose to share it.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
 
-                errorMessage?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    if (selectedAttachment != null || !currentAttachmentUrl.isNullOrBlank()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .toggleable(
+                                    value = publicAttachmentConsent,
+                                    enabled = !isSubmitting,
+                                    role = Role.Checkbox,
+                                    onValueChange = { publicAttachmentConsent = it },
+                                )
+                                .testTag("public-review-attachment-consent"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = publicAttachmentConsent,
+                                onCheckedChange = null,
+                                enabled = !isSubmitting,
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text("Share photo publicly", style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "Visible with public comments. Photos may reveal identifying details.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+
+                    attachmentErrorMessage?.let {
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
             }
         },

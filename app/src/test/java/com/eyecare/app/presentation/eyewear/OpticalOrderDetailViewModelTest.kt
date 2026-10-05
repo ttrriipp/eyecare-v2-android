@@ -2,6 +2,7 @@ package com.eyecare.app.presentation.eyewear
 
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
+import com.eyecare.app.domain.model.ApiDomainError
 import com.eyecare.app.domain.model.FulfillmentMode
 import com.eyecare.app.domain.model.OpticalOrder
 import com.eyecare.app.domain.model.OpticalOrderItem
@@ -201,6 +202,44 @@ class OpticalOrderDetailViewModelTest {
         assertTrue(state.uploadState is ProofUploadState.Error)
         assertTrue(proofFile.exists())
         coVerify(exactly = 0) { repository.uploadPaymentProof(any(), any()) }
+        proofFile.delete()
+    }
+
+    @Test
+    fun `upload proof shows the API validation reason`() = runTest {
+        coEvery { repository.getOpticalOrder(1) } returns Result.success(
+            createOrder(status = OpticalOrderStatus.PENDING_PAYMENT),
+        )
+        coEvery { repository.uploadPaymentProof(1, any()) } returns Result.failure(
+            ApiDomainError(
+                httpStatus = 422,
+                code = "VALIDATION",
+                message = "The given data was invalid.",
+                fieldErrors = mapOf("proof" to listOf("The uploaded proof is invalid.")),
+            ),
+        )
+        val viewModel = createVm()
+        dispatcher.scheduler.advanceUntilIdle()
+        val proofFile = createTempFile(prefix = "proof-", suffix = ".jpg").toFile()
+        proofFile.writeBytes(byteArrayOf(1, 2, 3))
+
+        viewModel.uploadProof(
+            PaymentProofUpload(
+                imageFile = proofFile,
+                senderName = "Ana",
+                referenceNumber = "GC-1",
+                mimeType = "image/jpeg",
+                width = 100,
+                height = 100,
+            ),
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value as OpticalOrderDetailUiState.Success
+        assertEquals(
+            "The uploaded proof is invalid.",
+            (state.uploadState as ProofUploadState.Error).message,
+        )
         proofFile.delete()
     }
 }
