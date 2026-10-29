@@ -3,11 +3,32 @@ package com.eyecare.app.presentation.common
 import com.eyecare.app.BuildConfig
 
 /**
+ * Returns catalog images in display priority order: variant images first,
+ * followed by product images when the variant has no usable image.
+ */
+fun preferredCatalogImages(
+    productImages: List<String>,
+    variantImages: List<String>,
+): List<String> = (variantImages + productImages)
+    .asSequence()
+    .map { it.trim() }
+    .filter { it.isNotEmpty() }
+    .distinct()
+    .toList()
+
+/** Returns the first usable catalog image using the catalog fallback order. */
+fun preferredCatalogImage(
+    productImages: List<String>,
+    variantImages: List<String>,
+): String? = preferredCatalogImages(productImages, variantImages).firstOrNull()
+
+/**
  * Builds the full URL for a catalog image.
  *
  * The API returns either an absolute URL, a legacy `/storage/...` path, or a
- * catalog-relative path such as `products/...`. Catalog-relative paths are
- * served by the public catalog bucket, which has its own base URL.
+ * catalog-relative path such as `products/...`. Catalog-relative paths use the
+ * configured public catalog base when one is supplied, otherwise the API
+ * origin's `/storage` endpoint.
  */
 fun buildImageUrl(
     path: String,

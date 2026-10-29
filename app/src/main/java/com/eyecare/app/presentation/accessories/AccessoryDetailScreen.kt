@@ -87,6 +87,7 @@ import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.LoadingContent
 import com.eyecare.app.presentation.common.components.ProductReviewsSection
+import com.eyecare.app.presentation.common.preferredCatalogImages
 import com.eyecare.app.ui.theme.EyecareColors
 import java.text.NumberFormat
 import java.util.Locale
@@ -240,7 +241,10 @@ private fun AccessoryDetailContent(
     val accessory = state.accessory
     val selectedVariant = state.selectedVariant
     val images = remember(accessory.images, selectedVariant?.images) {
-        (accessory.images + (selectedVariant?.images ?: emptyList())).distinct()
+        preferredCatalogImages(
+            productImages = accessory.images,
+            variantImages = selectedVariant?.images.orEmpty(),
+        )
     }
     val pagerState = rememberPagerState { images.size.coerceAtLeast(1) }
 

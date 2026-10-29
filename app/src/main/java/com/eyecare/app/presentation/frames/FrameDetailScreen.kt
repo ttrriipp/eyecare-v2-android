@@ -94,6 +94,7 @@ import com.eyecare.app.presentation.common.buildImageUrl
 import com.eyecare.app.presentation.common.components.AppConfirmationDialog
 import com.eyecare.app.presentation.common.components.ErrorContent
 import com.eyecare.app.presentation.common.components.ProductReviewsSection
+import com.eyecare.app.presentation.common.preferredCatalogImages
 import com.eyecare.app.presentation.frames.components.RatingSummary
 import com.eyecare.app.ui.theme.EyecareColors
 import java.util.Locale
@@ -171,7 +172,10 @@ fun FrameDetailScreen(
                             .padding(bottom = 140.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
-                        val images = selected.images.ifEmpty { frame.images }
+                        val images = preferredCatalogImages(
+                            productImages = frame.images,
+                            variantImages = selected.images,
+                        )
                         val pagerState = rememberPagerState { images.size.coerceAtLeast(1) }
                         LaunchedEffect(selected.id) {
                             pagerState.scrollToPage(0)

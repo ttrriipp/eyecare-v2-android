@@ -53,6 +53,7 @@ import com.eyecare.app.presentation.account.LimitedAccountScreen
 import com.eyecare.app.presentation.account.AccountSecurityScreen
 import com.eyecare.app.presentation.ar.ArTryOnScreen
 import com.eyecare.app.presentation.common.RefreshOnResumeEffect
+import com.eyecare.app.presentation.common.preferredCatalogImage
 import com.eyecare.app.presentation.prescriptions.PrescriptionDetailScreen
 import com.eyecare.app.presentation.prescriptions.PrescriptionListScreen
 import com.eyecare.app.presentation.eyewear.MyOrdersScreen
@@ -691,7 +692,10 @@ fun EyecareNavGraph(
                                             variant = variant,
                                             productName = state.accessory.name,
                                             variantName = variant.name,
-                                            imagePath = state.accessory.images.firstOrNull() ?: variant.images.firstOrNull(),
+                                            imagePath = preferredCatalogImage(
+                                                productImages = state.accessory.images,
+                                                variantImages = variant.images,
+                                            ),
                                             quantity = quantity,
                                         )
                                     } ?: false

@@ -38,6 +38,7 @@ import coil3.compose.AsyncImagePainter
 import com.eyecare.app.domain.model.Accessory
 import com.eyecare.app.domain.model.AccessoryAvailability
 import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.presentation.common.preferredCatalogImage
 import com.eyecare.app.presentation.frames.components.RatingBadge
 import com.eyecare.app.ui.theme.EyecareColors
 import java.text.NumberFormat
@@ -52,9 +53,10 @@ fun AccessoryCard(
     modifier: Modifier = Modifier,
 ) {
     val firstVariant = accessory.variants.firstOrNull()
-    val firstImage = accessory.images.firstOrNull()
-        ?: firstVariant?.images?.firstOrNull()
-    val imageUrl = firstImage?.let(::buildImageUrl)
+    val imageUrl = preferredCatalogImage(
+        productImages = accessory.images,
+        variantImages = firstVariant?.images.orEmpty(),
+    )?.let(::buildImageUrl)
 
     Card(
         onClick = onClick,

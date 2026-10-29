@@ -44,6 +44,7 @@ import com.eyecare.app.domain.model.FrameVariant
 import com.eyecare.app.domain.model.isTypedArReady
 import com.eyecare.app.presentation.common.FeatureFlags
 import com.eyecare.app.presentation.common.buildImageUrl
+import com.eyecare.app.presentation.common.preferredCatalogImage
 import com.eyecare.app.ui.theme.EyecareColors
 import java.util.Locale
 
@@ -57,8 +58,10 @@ fun FrameCard(
 ) {
     val hasTypedAr = frame.variants.any { it.isTypedArReady }
     val firstTypedArVariant = frame.variants.firstOrNull { it.isTypedArReady }
-    val imageUrl = (frame.images.firstOrNull() ?: frame.variants.firstOrNull()?.images?.firstOrNull())
-        ?.let { buildImageUrl(it) }
+    val imageUrl = preferredCatalogImage(
+        productImages = frame.images,
+        variantImages = frame.variants.firstOrNull()?.images.orEmpty(),
+    )?.let(::buildImageUrl)
     val displayVariant = frame.variants.firstOrNull()
 
     Card(
